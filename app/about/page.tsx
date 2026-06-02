@@ -1,4 +1,4 @@
-import Navbar from "@/components/Navbar";
+import { SiteHeader } from "@/app/components";
 import Link from "next/link";
 
 export const metadata = { title: "Về chúng tôi – STUDION" };
@@ -6,7 +6,7 @@ export const metadata = { title: "Về chúng tôi – STUDION" };
 export default function AboutPage() {
   return (
     <>
-      <Navbar />
+      <SiteHeader />
       <main className="pt-16">
 
         {/* Hero */}
