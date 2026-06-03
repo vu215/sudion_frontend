@@ -1,12 +1,10 @@
-import { SiteHeader } from "@/app/components";
+"use client";
 import Link from "next/link";
 
-export const metadata = { title: "Về chúng tôi – STUDION" };
 
 export default function AboutPage() {
   return (
     <>
-      <SiteHeader />
       <main className="pt-16">
 
         {/* Hero */}
@@ -155,43 +153,7 @@ export default function AboutPage() {
           </div>
         </section>
 
-        {/* Footer */}
-        <footer className="bg-gray-900 text-gray-400 py-12">
-          <div className="max-w-6xl mx-auto px-4 grid grid-cols-2 md:grid-cols-4 gap-8 mb-8">
-            <div>
-              <div className="text-orange-500 font-bold text-lg mb-2">STUDION</div>
-              <p className="text-xs leading-relaxed">© 2025 Studion AI. All rights reserved</p>
-            </div>
-            <div>
-              <div className="text-white text-sm font-semibold mb-3">Gia nhập</div>
-              <ul className="space-y-2 text-xs">
-                <li><Link href="#" className="hover:text-white transition-colors">Nhiếp ảnh</Link></li>
-                <li><Link href="#" className="hover:text-white transition-colors">Đăng ký</Link></li>
-              </ul>
-            </div>
-            <div>
-              <div className="text-white text-sm font-semibold mb-3">Công ty</div>
-              <ul className="space-y-2 text-xs">
-                <li><Link href="/about" className="hover:text-white transition-colors">Về chúng tôi</Link></li>
-                <li><Link href="#" className="hover:text-white transition-colors">Tuyển dụng</Link></li>
-              </ul>
-            </div>
-            <div>
-              <div className="text-white text-sm font-semibold mb-3">Hỗ trợ</div>
-              <ul className="space-y-2 text-xs">
-                <li><Link href="#" className="hover:text-white transition-colors">Trang tìm kiếm</Link></li>
-                <li><Link href="#" className="hover:text-white transition-colors">Điều khoản</Link></li>
-              </ul>
-            </div>
-            <div>
-              <div className="text-white text-sm font-semibold mb-3">Liên hệ</div>
-              <ul className="space-y-2 text-xs">
-                <li><Link href="#" className="hover:text-white transition-colors">Gửi khiếu nại cho tôi</Link></li>
-              </ul>
-            </div>
-          </div>
-        </footer>
-
+        
       </main>
     </>
   );

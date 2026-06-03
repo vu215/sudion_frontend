@@ -1,312 +1,667 @@
 "use client";
-import { useState } from "react";
-import Link from "next/link";
 
-const equipmentList = ["Sony A7R IV", "Canon 5D Mark IV", "24-70mm f/2.8 GM"];
-const languages = ["Tiếng Việt (bản địa)", "Tiếng Anh (lưu loát)"];
-const portfolioImages = [
-  { src: "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=600&q=80", main: true, label: "Ảnh chính" },
-  { src: "https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?w=400&q=80", main: false },
-  { src: "https://images.unsplash.com/photo-1549989476-69a92fa57c36?w=400&q=80", main: false },
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { Inter } from "next/font/google";
+
+const inter = Inter({
+  subsets: ["latin", "vietnamese"],
+  weight: ["400", "500", "600", "700"],
+});
+
+const styleOptions = [
+  "Chân dung",
+  "Thời trang & Biên tập",
+  "Cưới & Sự kiện",
+  "Sản phẩm & Thương mại",
+  "Đời thường & Lifestyle",
 ];
 
-const services = [
+const tabs = ["Tất cả", "AI đề xuất", "Được yêu thích", "Mới nhất", "Đang trống lịch"];
+const locations = ["Ho Chi Minh City, VN", "Đà Lạt, VN", "Hà Nội, VN", "Đà Nẵng, VN", "Huế, VN"];
+const tabTextClass = "pb-4 !text-[12px] !font-bold leading-none";
+
+function fadeUpStyle(isReady: boolean, delay = 0): CSSProperties {
+  return {
+    opacity: isReady ? 1 : 0,
+    transform: isReady ? "translate3d(0, 0, 0)" : "translate3d(0, 18px, 0)",
+    transition:
+      "opacity 850ms cubic-bezier(0.16, 1, 0.3, 1), transform 850ms cubic-bezier(0.16, 1, 0.3, 1)",
+    transitionDelay: `${delay}ms`,
+    willChange: isReady ? "auto" : "opacity, transform",
+  };
+}
+
+const photographers = [
   {
-    badge: "Cao cấp", badgeColor: "bg-blue-100 text-blue-600",
-    name: "Chụp ảnh Bất động sản Cao cấp",
-    price: "$450", unit: "buổi",
-    desc: "Gói tiêu chuẩn bao gồm 25 ảnh đã qua chỉnh sửa kỹ lưỡng, phù hợp cho các căn hộ cao cấp hoặc biệt thự.",
-    delivery: "Giao file trong 48h",
-    slots: "2 còn trống",
-    status: "Đang hoạt động",
-    statusColor: "text-green-600",
+    name: "Bình Nguyễn",
+    location: "Tp.HCM, Việt Nam",
+    rating: "4.9",
+    match: "98%",
+    price: "2.500.000 VNĐ",
+    image:
+      "https://images.unsplash.com/photo-1496440737103-cd596325d314?auto=format&fit=crop&w=900&q=85",
+    tags: ["Thời trang", "Chân dung", "Biên tập"],
+    thumbs: [
+      "https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&w=80&q=80",
+      "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=80&q=80",
+    ],
+    extra: "+12",
+    verified: true,
   },
   {
-    badge: "Thương mại", badgeColor: "bg-orange-100 text-orange-600",
-    name: "Chụp ảnh Sản phẩm Editorial",
-    price: "$800", unit: "ngày",
-    desc: "Dành cho các chiến dịch quảng cáo, lookbook. Bao gồm setup ánh sáng chuyên nghiệp và định hướng nghệ thuật.",
-    delivery: "Cần nhắp hỗ trợ",
-    slots: "Đang hoạt động",
-    status: "Đang hoạt động",
-    statusColor: "text-green-600",
+    name: "Hào Lê",
+    location: "Đà Lạt , Việt Nam",
+    rating: "4.8",
+    match: "92%",
+    price: "5.000.000 VNĐ",
+    image:
+      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=900&q=85",
+    tags: ["Cưới", "Cặp đôi"],
+    thumbs: [
+      "https://images.unsplash.com/photo-1523438885200-e635ba2c371e?auto=format&fit=crop&w=80&q=80",
+      "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=80&q=80",
+    ],
+    extra: "+24",
+    verified: true,
+  },
+  {
+    name: "Studio K",
+    location: "Hà nội, Việt Nam",
+    rating: "4.7",
+    match: "88%",
+    price: "1.800.000 VNĐ",
+    image:
+      "https://images.unsplash.com/photo-1595425964071-2c1ec7c88201?auto=format&fit=crop&w=900&q=85",
+    tags: ["Sản phẩm", "Thương mại"],
+    thumbs: [
+      "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=80&q=80",
+      "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=80&q=80",
+    ],
+    extra: "+8",
+    verified: false,
+  },
+  {
+    name: "Hưng Trịnh",
+    location: "Vĩnh Long, Việt Nam",
+    rating: "4.9",
+    match: "98%",
+    price: "2.500.000 VNĐ",
+    image:
+      "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=900&q=85",
+    tags: ["Thời trang", "Chân dung", "Biên tập"],
+    thumbs: [
+      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=80&q=80",
+      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=80&q=80",
+    ],
+    extra: "+20",
+    verified: true,
+  },
+  {
+    name: "Hoàng Anh",
+    location: "Đà Nẵng , Việt Nam",
+    rating: "4.8",
+    match: "92%",
+    price: "5.000.000 VNĐ",
+    image:
+      "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=900&q=85&sat=-100",
+    tags: ["Cưới", "Cặp đôi"],
+    thumbs: [
+      "https://images.unsplash.com/photo-1523438885200-e635ba2c371e?auto=format&fit=crop&w=80&q=80",
+      "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=80&q=80",
+    ],
+    extra: "+14",
+    verified: true,
+  },
+  {
+    name: "Công Tuấn",
+    location: "Huế, Việt Nam",
+    rating: "4.7",
+    match: "88%",
+    price: "1.800.000 VNĐ",
+    image:
+      "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=900&q=85",
+    tags: ["Sản phẩm", "Thương mại"],
+    thumbs: [
+      "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?auto=format&fit=crop&w=80&q=80",
+      "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=80&q=80",
+    ],
+    extra: "+7",
+    verified: false,
   },
 ];
 
 export default function PhotographerPage() {
-  const [bio, setBio] = useState(
-    "Với hơn 10 năm kinh nghiệm trong lĩnh vực nhiếp ảnh thương mại, tôi tập trung vào việc kiến tạo những khung hình có chiều sâu, tôn vinh ánh sáng tự nhiên và đường nét kiến trúc. Từng cộng tác với nhiều tạp chí thiết kế uy tín."
-  );
+  const [isReady, setIsReady] = useState(false);
+  const [activeTab, setActiveTab] = useState("AI đề xuất");
+  const [aiSuggested, setAiSuggested] = useState(true);
+  const [location, setLocation] = useState("Ho Chi Minh City, VN");
+  const [selectedStyles, setSelectedStyles] = useState<string[]>([
+    "Chân dung",
+    "Cưới & Sự kiện",
+    "Sản phẩm & Thương mại",
+  ]);
+  const [availability, setAvailability] = useState("Tuần này");
+  const [maxPrice, setMaxPrice] = useState(10);
+  const [favorites, setFavorites] = useState<string[]>([]);
+  const [page, setPage] = useState(1);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setIsReady(true), 80);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  const visiblePhotographers = useMemo(() => {
+    const styleFiltered = photographers.filter((person) => {
+      const personLocation = person.location.toLowerCase();
+      const cityMatched =
+        location === "Ho Chi Minh City, VN" ||
+        (location.includes("Đà Lạt") && personLocation.includes("đà lạt")) ||
+        (location.includes("Hà Nội") && personLocation.includes("hà nội")) ||
+        (location.includes("Đà Nẵng") && personLocation.includes("đà nẵng")) ||
+        (location.includes("Huế") && personLocation.includes("huế"));
+
+      if (!cityMatched) {
+        return false;
+      }
+
+      if (selectedStyles.length === 0) {
+        return true;
+      }
+
+      return person.tags.some((tag) =>
+        selectedStyles.some((style) => style.toLowerCase().includes(tag.toLowerCase())),
+      );
+    });
+
+    const tabFiltered = styleFiltered.filter((person) => {
+      const match = Number(person.match.replace("%", ""));
+      const price = Number(person.price.replace(/\D/g, "")) / 1000000;
+
+      if (price > maxPrice) {
+        return false;
+      }
+
+      if (activeTab === "Được yêu thích") {
+        return favorites.includes(person.name);
+      }
+
+      if (aiSuggested || activeTab === "AI đề xuất") {
+        return match >= 88;
+      }
+
+      return true;
+    });
+
+    if (activeTab === "Mới nhất") {
+      return [...tabFiltered].reverse();
+    }
+
+    return tabFiltered;
+  }, [activeTab, aiSuggested, favorites, location, maxPrice, selectedStyles]);
+
+  const toggleStyle = (style: string) => {
+    setSelectedStyles((current) =>
+      current.includes(style)
+        ? current.filter((item) => item !== style)
+        : [...current, style],
+    );
+  };
+
+  const clearFilters = () => {
+    setSelectedStyles([]);
+    setAvailability("");
+    setLocation("Ho Chi Minh City, VN");
+    setMaxPrice(10);
+    setActiveTab("Tất cả");
+    setAiSuggested(false);
+    setPage(1);
+  };
+
+  const toggleFavorite = (name: string) => {
+    setFavorites((current) =>
+      current.includes(name)
+        ? current.filter((item) => item !== name)
+        : [...current, name],
+    );
+  };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      {/* Sidebar */}
-      <aside className="hidden lg:flex flex-col w-56 bg-white border-r border-gray-100 py-6 px-4 fixed h-full">
-        <div className="text-orange-500 font-bold text-xl mb-8 px-2 flex items-center gap-2">
-          <svg className="w-7 h-7" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 9a3 3 0 100 6 3 3 0 000-6z"/>
-            <path fillRule="evenodd" d="M9.343 3.071A1 1 0 0110.28 3h3.44a1 1 0 01.937.651l.528 1.398H18a2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V7.05a2 2 0 012-2h2.815l.528-1.398zM12 8a4 4 0 100 8 4 4 0 000-8z" clipRule="evenodd"/>
-          </svg>
-          STUDION
-        </div>
-        {[
-          { icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6", label: "Dashboard" },
-          { icon: "M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z", label: "Portfolio" },
-          { icon: "M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2-2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z", label: "Services" },
-          { icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z", label: "Bookings" },
-          { icon: "M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z", label: "Earnings" },
-          { icon: "M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z", label: "Messages" },
-        ].map((item) => (
-          <button key={item.label} className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-500 hover:bg-orange-50 hover:text-orange-500 transition-colors text-sm mb-1">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={item.icon} />
-            </svg>
-            {item.label}
-          </button>
-        ))}
-        <button className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-orange-50 text-orange-500 text-sm font-medium mt-1">
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-          </svg>
-          Settings
-        </button>
-        <div className="mt-auto">
-          <button className="w-full border border-gray-200 text-gray-500 text-xs rounded-lg px-3 py-2 hover:bg-gray-50 transition-colors">
-            🚀 Get Pro Support
-          </button>
-        </div>
-      </aside>
+    <div className="min-h-screen bg-[#faf7ff] text-[#171821]">
+      <main className="mx-auto w-full max-w-[1296px] px-5 pb-24 pt-12 sm:px-6 lg:px-0">
+        <div className="grid gap-6 md:grid-cols-[288px_minmax(0,1fr)] xl:grid-cols-[312px_minmax(0,1fr)]">
+          <FilterSidebar
+            availability={availability}
+            location={location}
+            maxPrice={maxPrice}
+            onClear={clearFilters}
+            onLocationChange={setLocation}
+            onMaxPriceChange={setMaxPrice}
+            onStyleToggle={toggleStyle}
+            onAvailabilityChange={setAvailability}
+            selectedStyles={selectedStyles}
+          />
 
-      {/* Main content */}
-      <div className="flex-1 lg:ml-56">
-        {/* Top bar */}
-        <header className="bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between sticky top-0 z-10">
-          <div className="flex items-center gap-4">
-            <Link href="/about" className="text-orange-500 font-bold text-lg lg:hidden flex items-center gap-1.5">
-              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 9a3 3 0 100 6 3 3 0 000-6z"/>
-                <path fillRule="evenodd" d="M9.343 3.071A1 1 0 0110.28 3h3.44a1 1 0 01.937.651l.528 1.398H18a2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V7.05a2 2 0 012-2h2.815l.528-1.398zM12 8a4 4 0 100 8 4 4 0 000-8z" clipRule="evenodd"/>
-              </svg>
-              STUDION
-            </Link>
-            <h1 className="text-lg font-bold text-gray-900">Profile photographer</h1>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <input className="bg-gray-100 rounded-full px-4 py-2 text-sm text-gray-600 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-200 w-48" placeholder="Search..." />
-            </div>
-            <button className="text-gray-400 hover:text-gray-600">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-              </svg>
-            </button>
-            <button className="text-gray-400 hover:text-gray-600">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-            </svg>
-            </button>
-            <img src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=80&q=80" alt="avatar" className="w-9 h-9 rounded-full object-cover border-2 border-orange-200" />
-          </div>
-        </header>
-
-        <div className="p-6 max-w-4xl mx-auto space-y-6">
-          {/* Page title */}
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900">Hồ sơ Nhiếp ảnh gia</h2>
-              <p className="text-gray-400 text-sm mt-1">Quản lý cách bạn xuất hiện trước khách hàng trên Photor AI.</p>
-            </div>
-            <div className="flex gap-2">
-              <button className="border border-gray-200 text-gray-600 text-sm px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors">Hủy</button>
-              <button className="bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2 rounded-lg transition-colors flex items-center gap-2">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                Lưu thay đổi
-              </button>
-            </div>
-          </div>
-
-          {/* Basic Info Card */}
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-            <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
-              Thông tin cơ bản
-            </h3>
-            <div className="flex flex-col md:flex-row gap-6">
-              {/* Avatar */}
-              <div className="flex flex-col items-center gap-2 shrink-0">
-                <div className="relative">
-                  <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&q=80" alt="Markus" className="w-24 h-24 rounded-full object-cover border-4 border-white shadow" />
-                  <button className="absolute bottom-0 right-0 w-7 h-7 bg-blue-500 rounded-full flex items-center justify-center shadow">
-                    <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                    </svg>
-                  </button>
-                </div>
-                <div className="text-center">
-                  <div className="text-xs text-gray-400">Tỉnh trạng JPG, PNG</div>
-                  <div className="text-xs text-gray-400">Tối đa 5MB</div>
-                </div>
+          <section className="min-w-0">
+            <div className="flex flex-col gap-5 border-b border-[#e9e3f2] pb-4 xl:flex-row xl:items-end xl:justify-between">
+              <div className="min-w-0">
+                <h1
+                  data-reveal
+                  data-reveal-delay="80"
+                  className="max-w-[850px] text-[clamp(1.6rem,2.05vw,2.2rem)] font-black leading-[1.08] tracking-normal text-[#14151f] xl:whitespace-nowrap"
+                >
+                  Khám phá các photographer
+                </h1>
+                <p
+                  data-reveal
+                  data-reveal-delay="160"
+                  className="mt-2 text-[13px] font-medium leading-6 text-[#5d5b68]"
+                >
+                  Tìm kiếm góc nhìn hoàn hảo cho tầm nhìn của bạn.
+                </p>
               </div>
-
-              {/* Fields */}
-              <div className="flex-1 grid md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs text-gray-500 mb-1 block">Tên hiển thị</label>
-                  <input defaultValue="Markus Andersen" className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-200" />
-                </div>
-                <div>
-                  <label className="text-xs text-gray-500 mb-1 block">Chức danh chuyên môn</label>
-                  <input defaultValue="Nhiếp ảnh gia Thương mại & Kiến trúc" className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-200" />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="text-xs text-gray-500 mb-1 flex justify-between">
-                    <span>Tiểu sử</span>
-                    <span className="text-gray-400">{bio.length}/500</span>
-                  </label>
-                  <textarea
-                    value={bio}
-                    onChange={(e) => setBio(e.target.value)}
-                    rows={3}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-200 resize-none"
+              <button
+                type="button"
+                onClick={() => setAiSuggested((value) => !value)}
+                data-reveal
+                data-reveal-delay="240"
+                className="inline-flex w-fit shrink-0 items-center gap-2 rounded-full border border-[#f0d9c9] bg-white px-3 py-2 text-[11px] font-bold text-[#4a4350] shadow-[0_8px_20px_rgba(31,24,43,0.06)] xl:mb-6 xl:mr-8"
+                aria-pressed={aiSuggested}
+              >
+                <SparkIcon className="h-4 w-4 text-[#ff8d28]" />
+                Đề xuất của AI
+                <span
+                  className={`relative h-6 w-11 rounded-full transition-colors ${
+                    aiSuggested ? "bg-[#ff8d28]" : "bg-[#d8d3e4]"
+                  }`}
+                >
+                  <span
+                    className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow-sm transition-all ${
+                      aiSuggested ? "right-1" : "right-6"
+                    }`}
                   />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Professional Info Card */}
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-            <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              Thông tin chuyên môn
-            </h3>
-            <div className="grid md:grid-cols-3 gap-6">
-              <div>
-                <label className="text-xs text-gray-500 mb-2 block">Danh sách thiết bị</label>
-                <div className="flex flex-wrap gap-2">
-                  {equipmentList.map((e) => (
-                    <span key={e} className="bg-gray-100 text-gray-700 text-xs px-3 py-1.5 rounded-full flex items-center gap-1">
-                      {e}
-                      <button className="text-gray-400 hover:text-gray-600 ml-1">×</button>
-                    </span>
-                  ))}
-                  <button className="text-orange-500 text-xs hover:underline">Thêm thiết bị...</button>
-                </div>
-              </div>
-              <div>
-                <label className="text-xs text-gray-500 mb-2 block">Vị trí hoạt động chính</label>
-                <div className="flex items-center gap-2 border border-gray-200 rounded-lg px-3 py-2.5">
-                  <svg className="w-4 h-4 text-blue-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                  <span className="text-sm text-gray-700">TP. Hồ Chí Minh, Việt Nam</span>
-                </div>
-                <div className="flex items-center gap-2 mt-2">
-                  <input type="checkbox" defaultChecked className="accent-blue-500" />
-                  <span className="text-xs text-gray-500">Sẵn sàng đi công tác xa</span>
-                </div>
-              </div>
-              <div>
-                <label className="text-xs text-gray-500 mb-2 block">Ngôn ngữ</label>
-                <div className="flex flex-wrap gap-2">
-                  {languages.map((l) => (
-                    <span key={l} className="bg-blue-50 text-blue-600 text-xs px-3 py-1.5 rounded-full flex items-center gap-1">
-                      {l}
-                      <button className="hover:text-blue-800 ml-1">×</button>
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Portfolio Card */}
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                Ảnh nổi bật (Portfolio)
-              </h3>
-              <div className="flex gap-2">
-                <button className="text-gray-500 text-xs border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50 flex items-center gap-1">
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4M17 8v12m0 0l4-4m-4 4l-4-4" /></svg>
-                  Sắp xếp
-                </button>
-                <button className="text-gray-500 text-xs border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50 flex items-center gap-1">
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
-                  Tải lên
-                </button>
-              </div>
-            </div>
-            <p className="text-gray-400 text-xs mb-4">Chọn 4-8 bức ảnh ấn tượng nhất để hiển thị đầu tiên trong portfolio của bạn.</p>
-            <div className="grid grid-cols-3 gap-3">
-              {portfolioImages.map((img, i) => (
-                <div key={i} className={`relative rounded-xl overflow-hidden ${img.main ? "row-span-2" : ""}`} style={img.main ? { gridRow: "span 2" } : {}}>
-                  <img src={img.src} alt="" className="w-full h-full object-cover" style={{ minHeight: img.main ? "280px" : "130px" }} />
-                  {img.label && (
-                    <span className="absolute top-2 left-2 bg-black/60 text-white text-xs px-2 py-1 rounded-full">{img.label}</span>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Services Card */}
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                Các gói dịch vụ
-              </h3>
-              <button className="text-orange-500 text-xs font-medium hover:underline flex items-center gap-1">
-                + Thêm dịch vụ mới
+                </span>
               </button>
             </div>
-            <div className="grid md:grid-cols-2 gap-4">
-              {services.map((svc) => (
-                <div key={svc.name} className="border border-gray-100 rounded-xl p-4 relative">
-                  <button className="absolute top-3 right-3 text-gray-300 hover:text-gray-500">
-                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                      <circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/>
-                    </svg>
-                  </button>
-                  <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${svc.badgeColor}`}>{svc.badge}</span>
-                  <h4 className="font-semibold text-gray-900 text-sm mt-2 mb-1">{svc.name}</h4>
-                  <div className="text-orange-500 font-bold text-base">
-                    {svc.price} <span className="text-gray-400 font-normal text-sm">/{svc.unit}</span>
-                  </div>
-                  <p className="text-gray-400 text-xs mt-2 leading-relaxed line-clamp-2">{svc.desc}</p>
-                  <div className="flex items-center gap-3 mt-3 text-xs text-gray-400">
-                    <span className="flex items-center gap-1">
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      {svc.delivery}
-                    </span>
-                    <span className={`flex items-center gap-1 ${svc.statusColor}`}>
-                      <span className="w-1.5 h-1.5 rounded-full bg-current inline-block" />
-                      {svc.status}
-                    </span>
-                  </div>
-                </div>
+
+            <div className="flex flex-wrap gap-8 border-b border-[#e9e3f2] pt-5">
+              {tabs.map((tab, index) => (
+                <button
+                  type="button"
+                  key={tab}
+                  style={fadeUpStyle(isReady, 240 + index * 70)}
+                  onClick={() => {
+                    setActiveTab(tab);
+                    setPage(1);
+                  }}
+                  className={`${tabTextClass} ${
+                    tab === activeTab
+                      ? "border-b-2 border-[#ff8d28] text-[#ff8d28]"
+                      : "border-b-2 border-transparent text-[#414350]"
+                  }`}
+                >
+                  {tab}
+                </button>
               ))}
             </div>
-          </div>
 
+            <div className="mt-8 grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
+              {visiblePhotographers.map((person, index) => (
+                <PhotographerCard
+                  aiSuggested={aiSuggested}
+                  isFavorite={favorites.includes(person.name)}
+                  isReady={isReady}
+                  key={person.name}
+                  onFavoriteToggle={toggleFavorite}
+                  person={person}
+                  index={index}
+                />
+              ))}
+            </div>
+            {visiblePhotographers.length === 0 ? (
+              <div className="mt-8 rounded-2xl border border-[#ebe6f1] bg-white px-6 py-10 text-center text-[12px] font-semibold text-[#6b6878]">
+                Không có photographer phù hợp với bộ lọc hiện tại.
+              </div>
+            ) : null}
+
+            <Pagination activePage={page} onPageChange={setPage} />
+          </section>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+function FilterSidebar({
+  availability,
+  location,
+  maxPrice,
+  onAvailabilityChange,
+  onClear,
+  onLocationChange,
+  onMaxPriceChange,
+  onStyleToggle,
+  selectedStyles,
+}: {
+  availability: string;
+  location: string;
+  maxPrice: number;
+  onAvailabilityChange: (value: string) => void;
+  onClear: () => void;
+  onLocationChange: (value: string) => void;
+  onMaxPriceChange: (value: number) => void;
+  onStyleToggle: (style: string) => void;
+  selectedStyles: string[];
+}) {
+  return (
+    <aside
+      data-reveal
+      data-reveal-delay="0"
+      className={`${inter.className} rounded-[18px] border border-[#e5deed] bg-white px-5 py-7 shadow-[0_16px_42px_rgba(42,32,62,0.045)] md:sticky md:top-[112px] md:self-start xl:px-6`}
+    >
+      <div className="flex items-center justify-between">
+        <h2 className="!text-[24px] !font-bold leading-none text-[#24242d]">Bộ lọc</h2>
+        <button type="button" onClick={onClear} className="!text-[14px] !font-normal text-[#858091]">
+          Xóa tất cả
+        </button>
+      </div>
+
+      <div className="mt-9 space-y-8">
+        <div>
+          <p className="mb-3 !text-[16px] !font-bold leading-none text-[#252631]">Địa điểm</p>
+          <div className="relative flex h-[42px] w-full items-center rounded-[8px] border border-[#d8d3ea] bg-[#f7f4ff] px-3.5 text-[12px] font-medium text-[#4f4d5c]">
+            <span className="flex min-w-0 items-center gap-3">
+              <PinIcon className="h-[18px] w-[18px] shrink-0 text-[#b8b1ca]" />
+              <select
+                aria-label="Địa điểm"
+                className="!h-auto !min-h-0 w-full appearance-none !border-0 !bg-transparent !p-0 !text-[14px] !font-normal text-[#4f4d5c] !shadow-none outline-none"
+                onChange={(event) => onLocationChange(event.target.value)}
+                value={location}
+              >
+                {locations.map((item) => (
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
+                ))}
+              </select>
+            </span>
+            <ChevronDownIcon className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 shrink-0 -translate-y-1/2 text-[#b8b1ca]" />
+          </div>
+        </div>
+
+        <div>
+          <p className="mb-4 !text-[16px] !font-bold leading-none text-[#252631]">Phong cách chụp</p>
+          <div className="space-y-[13px]">
+            {styleOptions.map((option) => {
+              const checked = selectedStyles.includes(option);
+              return (
+              <button
+                key={option}
+                type="button"
+                onClick={() => onStyleToggle(option)}
+                className="flex w-full items-center gap-3 text-left !text-[12px] !font-normal leading-none text-[#5c5b68]"
+                aria-pressed={checked}
+              >
+                <span
+                  className={`grid h-[18px] w-[18px] shrink-0 place-items-center rounded-[4px] border ${
+                    checked
+                      ? "border-[#ff8d28] bg-[#ff8d28] text-white"
+                      : "border-[#d3cee0] bg-white text-transparent"
+                  }`}
+                >
+                  <CheckIcon className="h-3.5 w-3.5" />
+                </span>
+                <span>{option}</span>
+              </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div>
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <p className="!text-[16px] !font-bold leading-none text-[#252631]">Khoảng giá</p>
+            <p className="whitespace-nowrap !text-[10px] !font-medium text-[#ff7d1a]">
+              1 Triệu - {maxPrice} Triệu
+            </p>
+          </div>
+          <input
+            aria-label="Khoảng giá tối đa"
+            className="h-7 !min-h-0 w-full !border-0 !bg-transparent !p-0 !shadow-none accent-[#ff8d28]"
+            max={100}
+            min={1}
+            onChange={(event) => onMaxPriceChange(Number(event.target.value))}
+            type="range"
+            value={maxPrice}
+          />
+        </div>
+
+        <div>
+          <p className="mb-3 !text-[16px] !font-bold leading-none text-[#252631]">Thời gian sẵn sàng</p>
+          <div className="flex flex-wrap gap-3">
+            {["Tuần này", "Cuối tuần", "Tháng tới"].map((item) => (
+              <button
+                type="button"
+                key={item}
+                onClick={() => onAvailabilityChange(item)}
+                className={`h-[34px] rounded-full border px-4 !text-[12px] !font-semibold ${
+                  item === availability
+                    ? "border-[#ff8d28] bg-[#fff4eb] text-[#ff7d1a]"
+                    : "border-[#d9d4e4] bg-white text-[#5d5c68]"
+                }`}
+              >
+                {item}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
-    </div>
+    </aside>
+  );
+}
+
+function CheckIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <path d="M5 10.4L8.3 13.5L15 6.5" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function PhotographerCard({
+  aiSuggested,
+  isFavorite,
+  isReady,
+  onFavoriteToggle,
+  person,
+  index,
+}: {
+  aiSuggested: boolean;
+  isFavorite: boolean;
+  isReady: boolean;
+  onFavoriteToggle: (name: string) => void;
+  person: (typeof photographers)[number];
+  index: number;
+}) {
+  return (
+    <article
+      style={fadeUpStyle(isReady, 340 + index * 90)}
+      className="group overflow-hidden rounded-2xl border border-[#ebe6f1] bg-white shadow-[0_12px_32px_rgba(45,35,70,0.04)]"
+    >
+      <div className="relative h-[220px] overflow-hidden bg-[#eeeaf5]">
+        <img src={person.image} alt={person.name} className="h-full w-full object-cover" />
+        {aiSuggested ? (
+          <span className="absolute left-4 top-4 inline-flex items-center gap-1.5 rounded-full bg-[#ffb06a] px-3 py-1.5 text-xs font-extrabold text-white">
+            <SparkIcon className="h-3.5 w-3.5" />
+            AI Match {person.match}
+          </span>
+        ) : null}
+        <button
+          type="button"
+          onClick={() => onFavoriteToggle(person.name)}
+          className={`absolute right-4 top-4 grid h-9 w-9 place-items-center rounded-full bg-white/90 shadow-sm opacity-0 transition-all duration-200 translate-y-1 group-hover:translate-y-0 group-hover:opacity-100 focus-visible:translate-y-0 focus-visible:opacity-100 ${
+            isFavorite ? "text-[#ff8d28]" : "text-[#414350]"
+          }`}
+          aria-pressed={isFavorite}
+        >
+          <HeartIcon className="h-5 w-5" filled={isFavorite} />
+        </button>
+      </div>
+
+      <div className="p-4">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h3 className="flex items-center gap-2 text-[20px] font-black leading-[1.15] text-[#1f2029]">
+              {person.name}
+              {person.verified ? <VerifyIcon className="h-6 w-6 text-[#1687ff]" /> : null}
+            </h3>
+            <p className="mt-2 flex items-center gap-1 text-[14px] font-medium leading-none text-[#575966]">
+              <PinIcon className="h-4 w-4" />
+              {person.location}
+            </p>
+          </div>
+          <div className="mt-1 flex items-center gap-1 text-[13px] font-black leading-none text-[#1f2029]">
+            <StarIcon className="h-6 w-6 text-[#c55c11]" />
+            {person.rating}
+          </div>
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          {person.tags.map((tag) => (
+            <span key={tag} className="rounded-full bg-[#f0eefb] px-3 py-1 text-[10px] font-bold text-[#747084]">
+              {tag}
+            </span>
+          ))}
+        </div>
+
+        <div className="mt-4 flex items-end justify-between border-t border-[#eeeaf4] pt-4">
+          <div>
+            <p className="text-[11px] font-semibold leading-none text-[#74737e]">Chỉ từ</p>
+            <p className="mt-2 text-[20px] font-black leading-none text-[#ff7518]">{person.price}</p>
+          </div>
+          <div className="flex items-center">
+            {person.thumbs.map((thumb) => (
+              <img
+                key={thumb}
+                src={thumb}
+                alt=""
+                className="-ml-2 h-8 w-8 rounded-md border-2 border-white object-cover first:ml-0"
+              />
+            ))}
+            <span className="-ml-2 grid h-8 min-w-9 place-items-center rounded-md border-2 border-white bg-[#f0eefb] px-2 text-xs font-black text-[#6d687b]">
+              {person.extra}
+            </span>
+          </div>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function Pagination({
+  activePage,
+  onPageChange,
+}: {
+  activePage: number;
+  onPageChange: (page: number) => void;
+}) {
+  return (
+    <nav data-reveal data-reveal-delay="180" className="mt-24 flex items-center justify-center gap-3" aria-label="Pagination">
+      <button
+        type="button"
+        onClick={() => onPageChange(Math.max(1, activePage - 1))}
+        className="grid h-9 w-9 place-items-center rounded-full border border-[#ddd8e8] bg-white text-[#6c6878]"
+      >
+        <ChevronLeftIcon className="h-4 w-4" />
+      </button>
+      {["1", "2", "3", "...", "12"].map((item) => (
+        <button
+          key={item}
+          type="button"
+          onClick={() => item !== "..." && onPageChange(Number(item))}
+          className={`grid h-9 min-w-9 place-items-center rounded-full px-3 text-xs font-black ${
+            item === String(activePage)
+              ? "bg-[#ff8d28] text-white"
+              : item === "..."
+                ? "bg-transparent text-[#6c6878]"
+                : "border border-[#ddd8e8] bg-white text-[#20212b]"
+          }`}
+        >
+          {item}
+        </button>
+      ))}
+      <button
+        type="button"
+        onClick={() => onPageChange(Math.min(12, activePage + 1))}
+        className="grid h-9 w-9 place-items-center rounded-full border border-[#ddd8e8] bg-white text-[#6c6878]"
+      >
+        <ChevronRightIcon className="h-4 w-4" />
+      </button>
+    </nav>
+  );
+}
+
+function SparkIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <path d="M10 2.5L11.7 7.7L17 10L11.7 12.3L10 17.5L8.3 12.3L3 10L8.3 7.7L10 2.5Z" fill="currentColor" />
+    </svg>
+  );
+}
+
+function PinIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <path d="M15 8.4C15 11.9 10 16.2 10 16.2S5 11.9 5 8.4a5 5 0 1110 0z" stroke="currentColor" strokeWidth="1.7" />
+      <circle cx="10" cy="8.4" r="1.6" stroke="currentColor" strokeWidth="1.7" />
+    </svg>
+  );
+}
+
+function ChevronDownIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <path d="M5 7.5L10 12.5L15 7.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function ChevronLeftIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <path d="M12.5 5L7.5 10L12.5 15" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function ChevronRightIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <path d="M7.5 5L12.5 10L7.5 15" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function HeartIcon({ className, filled }: { className?: string; filled?: boolean }) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <path d="M10 16.5S3.5 12.7 3.5 7.8A3.3 3.3 0 019.2 5.5L10 6.4l.8-.9a3.3 3.3 0 015.7 2.3c0 4.9-6.5 8.7-6.5 8.7z" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function StarIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+      <path d="M10 2.8l1.9 4 4.4.6-3.2 3.1.8 4.4-3.9-2.1-3.9 2.1.8-4.4-3.2-3.1 4.4-.6 1.9-4z" />
+    </svg>
+  );
+}
+
+function VerifyIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+      <path d="M10 1.8l2 1.5 2.5-.1.7 2.4 2 1.5-.9 2.4.9 2.4-2 1.5-.7 2.4-2.5-.1-2 1.5-2-1.5-2.5.1-.7-2.4-2-1.5.9-2.4-.9-2.4 2-1.5.7-2.4 2.5.1 2-1.5z" />
+      <path d="M7.3 10.1l1.8 1.8 3.8-4" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+    </svg>
   );
 }
