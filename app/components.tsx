@@ -142,7 +142,7 @@ export function SectionIntro({
   text: string;
 }) {
   return (
-    <div data-reveal className="section-intro">
+    <div className="section-intro">
       <p className="mono">{eyebrow}</p>
       <h2>{title}</h2>
       <p>{text}</p>
@@ -156,12 +156,7 @@ export function ServicesGrid() {
   return (
     <div className="service-grid">
       {services.map((service, index) => (
-        <article
-          key={service.name}
-          data-reveal
-          data-reveal-delay={String(index * 90)}
-          className="card"
-        >
+        <article key={service.name} className="card">
           <span className="tool-icon">{icons[index]}</span>
           <h3>{service.name}</h3>
           <p>{service.description}</p>
@@ -179,13 +174,8 @@ export function ServicesGrid() {
 export function PhotographerCards() {
   return (
     <div className="photographer-grid">
-      {photographers.map((person, index) => (
-        <article
-          key={person.handle}
-          data-reveal
-          data-reveal-delay={String(index * 90)}
-          className="photographer-card"
-        >
+      {photographers.map((person) => (
+        <article key={person.handle} className="photographer-card">
           <Image
             src={person.image}
             alt={person.name}
@@ -205,7 +195,7 @@ export function PhotographerCards() {
               <span>{person.bookings}</span>
             </div>
             <Link href="/photographer-detail" className="inline-link">
-              Xem ho so
+              Xem hồ sơ
             </Link>
           </div>
         </article>
@@ -228,15 +218,15 @@ export function AuthPage({
   return (
     <PageShell>
       <section className="auth-section">
-        <div data-reveal className="auth-copy">
-          <p className="mono">Tai khoan Sudion</p>
+        <div className="auth-copy">
+          <p className="mono">Tài khoản Sudion</p>
           <h1>{title}</h1>
           <p>{subtitle}</p>
         </div>
-        <form data-reveal data-reveal-delay="140" className="auth-card">
+        <form className="auth-card">
           {isRegister && (
             <label>
-              Ho va ten
+              Họ và tên
               <input placeholder="Nguyen Minh Anh" />
             </label>
           )}
@@ -252,7 +242,7 @@ export function AuthPage({
           )}
           {isRegister && (
             <label>
-              Vai tro
+              Vai trò
               <select defaultValue="client">
                 <option value="client">Khach hang</option>
                 <option value="photographer">Photographer</option>
@@ -261,17 +251,17 @@ export function AuthPage({
           )}
           {isReset && (
             <label>
-              Xac nhan mat khau
+              Xác nhận mật khẩu
               <input type="password" placeholder="••••••••" />
             </label>
           )}
           <button className="btn btn-primary" type="button">
-            Tiep tuc
+            Tiếp tục
           </button>
           <div className="auth-links">
             <Link href="/login">Login</Link>
-            <Link href="/forgot-password">Quen mat khau</Link>
-            <Link href="/register">Dang ky</Link>
+            <Link href="/forgot-password">Quên mật khẩu</Link>
+            <Link href="/register">Đăng ký</Link>
           </div>
         </form>
       </section>
@@ -293,8 +283,8 @@ export function DashboardPage({
   return (
     <PageShell>
       <section className="dashboard-shell">
-        <aside data-reveal className="sidebar">
-          <p className="mono">Bang dieu khien</p>
+        <aside className="sidebar">
+          <p className="mono">Bảng điều khiển</p>
           {dashboardLinks.map((link) => (
             <Link key={link.href} href={link.href}>
               {link.label}

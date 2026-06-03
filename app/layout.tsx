@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
+import { AppChrome } from "./chrome";
 import { MotionEffects } from "./motion";
 
 const plusJakartaSans = Plus_Jakarta_Sans({
@@ -23,7 +24,7 @@ export default function RootLayout({
     <html lang="vi" className="h-full antialiased">
       <body className={`${plusJakartaSans.className} min-h-full flex flex-col`}>
         <MotionEffects />
-        {children}
+        <AppChrome>{children}</AppChrome>
       </body>
     </html>
   );

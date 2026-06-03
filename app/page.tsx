@@ -33,16 +33,6 @@ const assets = {
     "https://www.figma.com/api/mcp/asset/7ab40b42-ec98-40f7-8976-ad31e168ddbc",
 };
 
-const headerLinks = [
-  { href: "/", label: "Trang chủ", active: true },
-  { href: "#", label: "Về chúng tôi" },
-  { href: "#", label: "Photographer" },
-  { href: "#", label: "Dịch vụ" },
-  { href: "#", label: "Tin tức" },
-  { href: "#", label: "Bảng giá" },
-  { href: "#", label: "Portfolio" },
-];
-
 const serviceSections = [
   {
     id: "wedding",
@@ -58,7 +48,6 @@ const serviceSections = [
     detailImage: assets.weddingDetail,
     badgeTitle: "Top Pick",
     badgeText: "Tỷ lệ match cao",
-    clusterLabel: "StudiOn",
   },
   {
     id: "couple",
@@ -143,12 +132,6 @@ const serviceSections = [
   },
 ];
 
-const footerColumns = [
-  { title: "Dịch vụ", links: ["Chụp ảnh cưới", "Chụp ảnh đôi", "Chụp kỉ yếu", "Chụp sự kiện"] },
-  { title: "Công ty", links: ["Về chúng tôi", "Liên hệ", "Tuyển dụng", "Blog"] },
-  { title: "Hỗ trợ", links: ["Trung tâm trợ giúp", "Điều khoản dịch vụ", "Chính sách bảo mật"] },
-];
-
 const containerClass = "w-full max-w-[1440px] mx-auto px-6 md:px-12 lg:px-20";
 
 function heroRevealStyle(isReady: boolean, delay = 0): CSSProperties {
@@ -167,90 +150,13 @@ function heroRevealStyle(isReady: boolean, delay = 0): CSSProperties {
 export default function Home() {
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#fafbfc] text-[#0e111d] font-sans antialiased selection:bg-[#ff8d28]/20">
-      <Header />
-      <main className="w-full pt-[76px] lg:pt-[88px]">
+      <main className="w-full">
         <HeroSection />
         {serviceSections.map((section) => (
           <ServiceSection key={section.id} {...section} />
         ))}
       </main>
-      <Footer />
     </div>
-  );
-}
-
-function Header() {
-  return (
-    <header className="fixed top-0 left-0 right-0 z-50 w-full border-b border-[#e8eaf1]/80 bg-white/95 backdrop-blur-md shadow-sm">
-      <div
-        className={`${containerClass} flex min-h-[76px] lg:min-h-[88px] items-center justify-between gap-4`}
-      >
-        <Link href="/" className="flex shrink-0 items-center gap-2.5">
-          <LogoMark className="h-[24px] w-[24px]" />
-          <span className="text-[20px] font-black tracking-[0.05em] text-[#0e111d] uppercase">
-            STUDION
-          </span>
-        </Link>
-
-        <nav className="hidden items-center gap-6 lg:gap-8 text-[14px] lg:text-[15px] font-bold text-[#4b5563] md:flex">
-          {headerLinks.map((link) => (
-            <Link
-              key={link.label}
-              href={link.href}
-              className={`border-b-2 pb-1 transition-all ${
-                link.active
-                  ? "border-[#ff8d28] text-[#ff8d28]"
-                  : "border-transparent hover:text-[#0e111d]"
-              }`}
-            >
-              {link.label}
-            </Link>
-          ))}
-        </nav>
-
-        <div className="flex items-center gap-4">
-          <button
-            type="button"
-            aria-label="Search"
-            className="hidden h-10 w-10 items-center justify-center rounded-full text-[#4b5563] hover:bg-[#f3f4f6] hover:text-[#0e111d] transition-colors lg:inline-flex"
-          >
-            <SearchGlyph className="h-5 w-5" />
-          </button>
-          
-          <button
-            type="button"
-            aria-label="Profile"
-            className="hidden h-10 w-10 items-center justify-center rounded-full text-[#4b5563] hover:bg-[#f3f4f6] hover:text-[#0e111d] transition-colors lg:inline-flex"
-          >
-            <svg
-              viewBox="0 0 20 20"
-              className="h-5 w-5"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.2"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M16 17v-1a4 4 0 00-4-4H8a4 4 0 00-4 4v1M12 5a4 4 0 11-8 0 4 4 0 018 0z" />
-            </svg>
-          </button>
-
-          <Link
-            href="#"
-            className="rounded-lg bg-[#ff8d28] hover:bg-[#e0751b] px-5 py-2.5 text-[14px] font-bold text-white shadow-[0_6px_14px_rgba(255,141,40,0.15)] transition-all hover:translate-y-[-1px]"
-          >
-            Đặt lịch ngay
-          </Link>
-          
-          <button
-            type="button"
-            aria-label="Open menu"
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#e8eaf1] text-[#6a7082] md:hidden"
-          >
-            <MenuGlyph />
-          </button>
-        </div>
-      </div>
-    </header>
   );
 }
 
@@ -306,7 +212,7 @@ function HeroSection() {
           </div>
         </div>
 
-        <div style={heroRevealStyle(isReady, 300)}>
+        <div style={heroRevealStyle(isReady, 320)}>
           <PhotographerCard />
         </div>
       </div>
@@ -655,6 +561,9 @@ function PhotoCluster({
   }, []);
 
   const visibleOpacity = isVisible ? 1 : 0;
+  const clusterReveal = isVisible
+    ? "translate3d(0, 0, 0) scale(1)"
+    : "translate3d(0, 72px, 0) scale(0.96)";
   const labelReveal = isVisible
     ? "translateX(-50%) translateY(0) scale(1)"
     : "translateX(-50%) translateY(28px) scale(0.96)";
@@ -673,6 +582,13 @@ function PhotoCluster({
       ref={clusterRef}
       data-tilt
       className="relative w-full aspect-[1.18/1] max-w-[500px] lg:max-w-[520px] mx-auto select-none group"
+      style={{
+        opacity: visibleOpacity,
+        transform: clusterReveal,
+        transition:
+          "opacity 1050ms cubic-bezier(0.16, 1, 0.3, 1), transform 1050ms cubic-bezier(0.16, 1, 0.3, 1)",
+        willChange: isVisible ? "auto" : "opacity, transform",
+      }}
     >
       {clusterLabel ? (
         <p
@@ -697,7 +613,7 @@ function PhotoCluster({
           opacity: visibleOpacity,
           transform: `translate3d(calc(var(--mx, 0) * 28px), calc(var(--my, 0) * 22px), 0) ${badgeReveal}`,
           transition:
-            "opacity 850ms cubic-bezier(0.16, 1, 0.3, 1) 260ms, transform 850ms cubic-bezier(0.16, 1, 0.3, 1) 260ms",
+            "opacity 1050ms cubic-bezier(0.16, 1, 0.3, 1) 260ms, transform 1050ms cubic-bezier(0.16, 1, 0.3, 1) 260ms",
         }}
       >
         <div className="flex items-center gap-2.5">
@@ -730,7 +646,7 @@ function PhotoCluster({
             reverse ? "rotate(-1deg)" : "rotate(1deg)"
           }`,
           transition:
-            "opacity 1000ms cubic-bezier(0.16, 1, 0.3, 1), transform 1000ms cubic-bezier(0.16, 1, 0.3, 1)",
+            "opacity 1150ms cubic-bezier(0.16, 1, 0.3, 1), transform 1150ms cubic-bezier(0.16, 1, 0.3, 1)",
         }}
       >
         <img
@@ -754,7 +670,7 @@ function PhotoCluster({
             reverse ? "rotate(2deg)" : "rotate(-2deg)"
           }`,
           transition:
-            "opacity 1000ms cubic-bezier(0.16, 1, 0.3, 1) 160ms, transform 1000ms cubic-bezier(0.16, 1, 0.3, 1) 160ms",
+            "opacity 1150ms cubic-bezier(0.16, 1, 0.3, 1) 160ms, transform 1150ms cubic-bezier(0.16, 1, 0.3, 1) 160ms",
         }}
       >
         <img
@@ -767,50 +683,6 @@ function PhotoCluster({
   );
 }
 
-function Footer() {
-  return (
-    <footer data-reveal className="w-full bg-[#0a0a0c] text-white border-t border-white/5 py-16">
-      <div
-        className={`${containerClass} grid gap-12 sm:grid-cols-2 lg:grid-cols-[1.5fr_repeat(3,1fr)] lg:gap-16`}
-      >
-        <div>
-          <div className="flex items-center gap-2.5">
-            <LogoMark className="h-6 w-6" />
-            <span className="text-[20px] font-black tracking-[0.05em] text-white uppercase">
-              STUDION
-            </span>
-          </div>
-          <p className="mt-4 text-[14px] leading-6 text-gray-400 max-w-[280px] font-semibold">
-            Nền tảng tìm kiếm và đặt lịch chụp hình chuyên nghiệp hàng đầu tại Việt Nam.
-          </p>
-          <p className="mt-6 text-[12px] text-gray-500 font-bold">
-            © 2026 STUDION. All rights reserved.
-          </p>
-        </div>
-
-        {footerColumns.map((column) => (
-          <div key={column.title}>
-            <p className="text-[13px] font-bold uppercase tracking-wider text-gray-300">
-              {column.title}
-            </p>
-            <div className="mt-4 space-y-3.5">
-              {column.links.map((link) => (
-                <Link
-                  key={link}
-                  href="#"
-                  className="block text-[14px] text-gray-400 hover:text-white transition-colors font-semibold"
-                >
-                  {link}
-                </Link>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-    </footer>
-  );
-}
-
 function Stat({ value, label }: { value: string; label: string }) {
   return (
     <div>
@@ -819,32 +691,6 @@ function Stat({ value, label }: { value: string; label: string }) {
       </p>
       <p className="mt-2 text-[12px] font-extrabold text-[#8a8fa1] uppercase tracking-wider">{label}</p>
     </div>
-  );
-}
-
-function SearchGlyph({ className }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 20 20"
-      className={className || "h-3.5 w-3.5"}
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      aria-hidden="true"
-    >
-      <path
-        d="M14 14L17 17"
-        stroke="currentColor"
-        strokeWidth="2.2"
-        strokeLinecap="round"
-      />
-      <circle
-        cx="8.5"
-        cy="8.5"
-        r="5.75"
-        stroke="currentColor"
-        strokeWidth="2.2"
-      />
-    </svg>
   );
 }
 
@@ -910,25 +756,6 @@ function PinGlyph({ className }: { className?: string }) {
   );
 }
 
-function MenuGlyph() {
-  return (
-    <svg
-      viewBox="0 0 20 20"
-      className="h-4 w-4"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      aria-hidden="true"
-    >
-      <path
-        d="M4 6H16M4 10H16M4 14H16"
-        stroke="currentColor"
-        strokeWidth="2.2"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
 function SparkGlyph({ className }: { className?: string }) {
   return (
     <svg
@@ -942,22 +769,6 @@ function SparkGlyph({ className }: { className?: string }) {
         d="M10 2.5L11.9 8.1L17.5 10L11.9 11.9L10 17.5L8.1 11.9L2.5 10L8.1 8.1L10 2.5Z"
         fill="currentColor"
       />
-    </svg>
-  );
-}
-
-function LogoMark({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      aria-hidden="true"
-    >
-      <circle cx="12" cy="12" r="10" fill="#FF8D28" />
-      <circle cx="12" cy="12" r="5" fill="white" />
-      <circle cx="12" cy="12" r="2" fill="#0e111d" />
     </svg>
   );
 }
