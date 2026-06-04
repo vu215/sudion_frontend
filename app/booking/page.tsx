@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 const services = [
   {
@@ -108,10 +108,43 @@ const sceneOptions = [
   "Địa điểm sự kiện",
 ];
 
-const photographerProfile = {
-  name: "STUDION Match",
-  addOns: ["makeup", "video", "album", "retouch"],
-};
+const photographerProfiles = [
+  {
+    id: "binh-nguyen",
+    name: "Bình Nguyễn",
+    addOns: ["makeup", "video", "album", "retouch"],
+  },
+  {
+    id: "hao-le",
+    name: "Hào Lê",
+    addOns: ["makeup", "video", "flycam", "album"],
+  },
+  {
+    id: "studio-k",
+    name: "Studio K",
+    addOns: ["retouch", "stylist"],
+  },
+  {
+    id: "hung-trinh",
+    name: "Hưng Trịnh",
+    addOns: ["makeup", "retouch", "stylist"],
+  },
+  {
+    id: "hoang-anh",
+    name: "Hoàng Anh",
+    addOns: ["makeup", "video", "flycam"],
+  },
+  {
+    id: "cong-tuan",
+    name: "Công Tuấn",
+    addOns: ["retouch", "album"],
+  },
+  {
+    id: "studion-match",
+    name: "STUDION Match",
+    addOns: ["makeup", "video", "album", "retouch"],
+  },
+];
 
 const addOnServices = [
   {
@@ -167,7 +200,17 @@ function formatCurrency(value: number) {
 }
 
 export default function BookingPage() {
+  return (
+    <Suspense fallback={<main className="min-h-screen bg-[#fafbfc]" />}>
+      <BookingContent />
+    </Suspense>
+  );
+}
+
+function BookingContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const photographerId = searchParams.get("photographer") || "studion-match";
   const [selectedService, setSelectedService] = useState(services[0].id);
   const [peopleByService, setPeopleByService] = useState(() =>
     Object.fromEntries(services.map((item) => [item.id, item.peopleOptions[0].label])),
@@ -188,6 +231,13 @@ export default function BookingPage() {
   const service = useMemo(
     () => services.find((item) => item.id === selectedService) || services[0],
     [selectedService],
+  );
+
+  const photographerProfile = useMemo(
+    () =>
+      photographerProfiles.find((item) => item.id === photographerId) ||
+      photographerProfiles[photographerProfiles.length - 1],
+    [photographerId],
   );
 
   const budgetValue = useMemo(() => parseBudget(budget), [budget]);
@@ -213,7 +263,7 @@ export default function BookingPage() {
           };
         })
         .filter((item) => item.isVisible),
-    [budgetValue, selectedService],
+    [budgetValue, photographerProfile.addOns, selectedService],
   );
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {

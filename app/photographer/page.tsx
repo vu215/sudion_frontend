@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Inter } from "next/font/google";
+import Link from "next/link";
 
 const inter = Inter({
   subsets: ["latin", "vietnamese"],
@@ -16,9 +17,59 @@ const styleOptions = [
   "Đời thường & Lifestyle",
 ];
 
-const tabs = ["Tất cả", "AI đề xuất", "Được yêu thích", "Mới nhất", "Đang trống lịch"];
+const tabs = ["Tất cả", "AI đề xuất", "Photo ở gần bạn", "Được yêu thích", "Mới nhất", "Đang trống lịch"];
 const locations = ["Ho Chi Minh City, VN", "Đà Lạt, VN", "Hà Nội, VN", "Đà Nẵng, VN", "Huế, VN"];
 const tabTextClass = "pb-4 !text-[12px] !font-bold leading-none";
+
+const shootLocationOptions = [
+  {
+    id: "current",
+    label: "Vị trí hiện tại",
+    query: "photographer studio near me",
+  },
+  {
+    id: "doi-co-hong-da-lat",
+    label: "Đồi cỏ hồng Đà Lạt",
+    query: "photographer studio near Đồi cỏ hồng Đà Lạt",
+    coordinates: { lat: 12.0138, lng: 108.4242 },
+  },
+  {
+    id: "ho-xuan-huong",
+    label: "Hồ Xuân Hương, Đà Lạt",
+    query: "photographer studio near Hồ Xuân Hương Đà Lạt",
+    coordinates: { lat: 11.9417, lng: 108.4383 },
+  },
+  {
+    id: "cho-da-lat",
+    label: "Chợ Đà Lạt",
+    query: "photographer studio near Chợ Đà Lạt",
+    coordinates: { lat: 11.9404, lng: 108.4373 },
+  },
+  {
+    id: "da-nang-beach",
+    label: "Bãi biển Mỹ Khê, Đà Nẵng",
+    query: "photographer studio near Mỹ Khê Đà Nẵng",
+    coordinates: { lat: 16.0616, lng: 108.2478 },
+  },
+];
+
+type Coordinates = {
+  lat: number;
+  lng: number;
+};
+
+function getDistanceKm(from: Coordinates, to: Coordinates) {
+  const earthRadius = 6371;
+  const dLat = ((to.lat - from.lat) * Math.PI) / 180;
+  const dLng = ((to.lng - from.lng) * Math.PI) / 180;
+  const fromLat = (from.lat * Math.PI) / 180;
+  const toLat = (to.lat * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(fromLat) * Math.cos(toLat) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+
+  return earthRadius * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
 
 function fadeUpStyle(isReady: boolean, delay = 0): CSSProperties {
   return {
@@ -33,8 +84,11 @@ function fadeUpStyle(isReady: boolean, delay = 0): CSSProperties {
 
 const photographers = [
   {
+    id: "binh-nguyen",
     name: "Bình Nguyễn",
     location: "Tp.HCM, Việt Nam",
+    city: "Ho Chi Minh City, VN",
+    coordinates: { lat: 10.7758, lng: 106.7009 },
     rating: "4.9",
     match: "98%",
     price: "2.500.000 VNĐ",
@@ -47,10 +101,15 @@ const photographers = [
     ],
     extra: "+12",
     verified: true,
+    availability: ["Tuần này", "Cuối tuần"],
+    addOns: ["makeup", "video", "album", "retouch"],
   },
   {
+    id: "hao-le",
     name: "Hào Lê",
     location: "Đà Lạt , Việt Nam",
+    city: "Đà Lạt, VN",
+    coordinates: { lat: 11.9404, lng: 108.4583 },
     rating: "4.8",
     match: "92%",
     price: "5.000.000 VNĐ",
@@ -63,10 +122,15 @@ const photographers = [
     ],
     extra: "+24",
     verified: true,
+    availability: ["Cuối tuần", "Tháng tới"],
+    addOns: ["makeup", "video", "flycam", "album"],
   },
   {
+    id: "studio-k",
     name: "Studio K",
     location: "Hà nội, Việt Nam",
+    city: "Hà Nội, VN",
+    coordinates: { lat: 21.0278, lng: 105.8342 },
     rating: "4.7",
     match: "88%",
     price: "1.800.000 VNĐ",
@@ -79,10 +143,15 @@ const photographers = [
     ],
     extra: "+8",
     verified: false,
+    availability: ["Tuần này", "Tháng tới"],
+    addOns: ["retouch", "stylist"],
   },
   {
+    id: "hung-trinh",
     name: "Hưng Trịnh",
     location: "Vĩnh Long, Việt Nam",
+    city: "Ho Chi Minh City, VN",
+    coordinates: { lat: 10.2537, lng: 105.9722 },
     rating: "4.9",
     match: "98%",
     price: "2.500.000 VNĐ",
@@ -95,10 +164,15 @@ const photographers = [
     ],
     extra: "+20",
     verified: true,
+    availability: ["Tuần này"],
+    addOns: ["makeup", "retouch", "stylist"],
   },
   {
+    id: "hoang-anh",
     name: "Hoàng Anh",
     location: "Đà Nẵng , Việt Nam",
+    city: "Đà Nẵng, VN",
+    coordinates: { lat: 16.0544, lng: 108.2022 },
     rating: "4.8",
     match: "92%",
     price: "5.000.000 VNĐ",
@@ -111,10 +185,15 @@ const photographers = [
     ],
     extra: "+14",
     verified: true,
+    availability: ["Cuối tuần"],
+    addOns: ["makeup", "video", "flycam"],
   },
   {
+    id: "cong-tuan",
     name: "Công Tuấn",
     location: "Huế, Việt Nam",
+    city: "Huế, VN",
+    coordinates: { lat: 16.4637, lng: 107.5909 },
     rating: "4.7",
     match: "88%",
     price: "1.800.000 VNĐ",
@@ -127,6 +206,8 @@ const photographers = [
     ],
     extra: "+7",
     verified: false,
+    availability: ["Tháng tới"],
+    addOns: ["retouch", "album"],
   },
 ];
 
@@ -143,6 +224,11 @@ export default function PhotographerPage() {
   const [availability, setAvailability] = useState("Tuần này");
   const [maxPrice, setMaxPrice] = useState(10);
   const [favorites, setFavorites] = useState<string[]>([]);
+  const [userLocation, setUserLocation] = useState<Coordinates | null>(null);
+  const [nearbyEnabled, setNearbyEnabled] = useState(false);
+  const [shootLocationId, setShootLocationId] = useState("current");
+  const [customShootLocation, setCustomShootLocation] = useState("");
+  const [locationMessage, setLocationMessage] = useState("");
   const [page, setPage] = useState(1);
 
   useEffect(() => {
@@ -152,13 +238,7 @@ export default function PhotographerPage() {
 
   const visiblePhotographers = useMemo(() => {
     const styleFiltered = photographers.filter((person) => {
-      const personLocation = person.location.toLowerCase();
-      const cityMatched =
-        location === "Ho Chi Minh City, VN" ||
-        (location.includes("Đà Lạt") && personLocation.includes("đà lạt")) ||
-        (location.includes("Hà Nội") && personLocation.includes("hà nội")) ||
-        (location.includes("Đà Nẵng") && personLocation.includes("đà nẵng")) ||
-        (location.includes("Huế") && personLocation.includes("huế"));
+      const cityMatched = person.city === location;
 
       if (!cityMatched) {
         return false;
@@ -181,6 +261,14 @@ export default function PhotographerPage() {
         return false;
       }
 
+      if (availability && !person.availability.includes(availability)) {
+        return false;
+      }
+
+      if (activeTab === "Đang trống lịch" && !person.availability.includes("Tuần này")) {
+        return false;
+      }
+
       if (activeTab === "Được yêu thích") {
         return favorites.includes(person.name);
       }
@@ -197,7 +285,44 @@ export default function PhotographerPage() {
     }
 
     return tabFiltered;
-  }, [activeTab, aiSuggested, favorites, location, maxPrice, selectedStyles]);
+  }, [activeTab, aiSuggested, availability, favorites, location, maxPrice, selectedStyles]);
+
+  const nearbyPhotographers = useMemo(() => {
+    const selectedShootLocation = shootLocationOptions.find((item) => item.id === shootLocationId);
+    const targetLocation =
+      shootLocationId === "custom"
+        ? null
+        : shootLocationId === "current"
+        ? userLocation
+        : selectedShootLocation?.coordinates || null;
+
+    if (!targetLocation) {
+      return photographers.filter((person) => person.city === location);
+    }
+
+    return [...photographers]
+      .map((person) => ({
+        ...person,
+        distanceKm: getDistanceKm(targetLocation, person.coordinates),
+      }))
+      .sort((a, b) => a.distanceKm - b.distanceKm)
+      .slice(0, 6);
+  }, [location, shootLocationId, userLocation]);
+
+  const displayedPhotographers =
+    activeTab === "Photo ở gần bạn" ? nearbyPhotographers : visiblePhotographers;
+
+  const getDisplayDistance = (person: (typeof displayedPhotographers)[number]) => {
+    if (activeTab !== "Photo ở gần bạn") {
+      return nearbyEnabled && userLocation
+        ? getDistanceKm(userLocation, person.coordinates)
+        : undefined;
+    }
+
+    return "distanceKm" in person
+      ? (person as (typeof photographers)[number] & { distanceKm: number }).distanceKm
+      : undefined;
+  };
 
   const toggleStyle = (style: string) => {
     setSelectedStyles((current) =>
@@ -214,6 +339,10 @@ export default function PhotographerPage() {
     setMaxPrice(10);
     setActiveTab("Tất cả");
     setAiSuggested(false);
+    setNearbyEnabled(false);
+    setShootLocationId("current");
+    setCustomShootLocation("");
+    setLocationMessage("");
     setPage(1);
   };
 
@@ -222,6 +351,30 @@ export default function PhotographerPage() {
       current.includes(name)
         ? current.filter((item) => item !== name)
         : [...current, name],
+    );
+  };
+
+  const requestNearbyPhotographers = () => {
+    if (!navigator.geolocation) {
+      setLocationMessage("Trình duyệt chưa hỗ trợ lấy vị trí.");
+      return;
+    }
+
+    setLocationMessage("Đang lấy vị trí của bạn...");
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setUserLocation({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        });
+        setNearbyEnabled(true);
+        setLocationMessage("Đang ưu tiên photographer và studio gần bạn.");
+        setPage(1);
+      },
+      () => {
+        setLocationMessage("Không thể lấy vị trí. Bạn có thể chọn địa điểm thủ công.");
+      },
+      { enableHighAccuracy: true, timeout: 9000 },
     );
   };
 
@@ -291,6 +444,9 @@ export default function PhotographerPage() {
                   style={fadeUpStyle(isReady, 240 + index * 70)}
                   onClick={() => {
                     setActiveTab(tab);
+                    if (tab === "Photo ở gần bạn" && !userLocation) {
+                      requestNearbyPhotographers();
+                    }
                     setPage(1);
                   }}
                   className={`${tabTextClass} ${
@@ -304,8 +460,22 @@ export default function PhotographerPage() {
               ))}
             </div>
 
+            {activeTab === "Photo ở gần bạn" ? (
+              <NearbyMapPanel
+                isReady={isReady}
+                locationMessage={locationMessage}
+                nearbyPhotographers={nearbyPhotographers}
+                onScan={requestNearbyPhotographers}
+                customShootLocation={customShootLocation}
+                onCustomShootLocationChange={setCustomShootLocation}
+                onShootLocationChange={setShootLocationId}
+                shootLocationId={shootLocationId}
+                userLocation={userLocation}
+              />
+            ) : null}
+
             <div className="mt-8 grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
-              {visiblePhotographers.map((person, index) => (
+              {displayedPhotographers.map((person, index) => (
                 <PhotographerCard
                   aiSuggested={aiSuggested}
                   isFavorite={favorites.includes(person.name)}
@@ -313,11 +483,17 @@ export default function PhotographerPage() {
                   key={person.name}
                   onFavoriteToggle={toggleFavorite}
                   person={person}
+                  distanceKm={getDisplayDistance(person)}
+                  distanceLabel={
+                    activeTab === "Photo ở gần bạn" && shootLocationId !== "current" && shootLocationId !== "custom"
+                      ? "Cách điểm chụp khoảng"
+                      : "Cách bạn khoảng"
+                  }
                   index={index}
                 />
               ))}
             </div>
-            {visiblePhotographers.length === 0 ? (
+            {displayedPhotographers.length === 0 ? (
               <div className="mt-8 rounded-2xl border border-[#ebe6f1] bg-white px-6 py-10 text-center text-[12px] font-semibold text-[#6b6878]">
                 Không có photographer phù hợp với bộ lọc hiện tại.
               </div>
@@ -469,6 +645,8 @@ function CheckIcon({ className }: { className?: string }) {
 
 function PhotographerCard({
   aiSuggested,
+  distanceKm,
+  distanceLabel,
   isFavorite,
   isReady,
   onFavoriteToggle,
@@ -476,6 +654,8 @@ function PhotographerCard({
   index,
 }: {
   aiSuggested: boolean;
+  distanceKm?: number;
+  distanceLabel?: string;
   isFavorite: boolean;
   isReady: boolean;
   onFavoriteToggle: (name: string) => void;
@@ -518,6 +698,11 @@ function PhotographerCard({
               <PinIcon className="h-4 w-4" />
               {person.location}
             </p>
+            {typeof distanceKm === "number" ? (
+              <p className="mt-2 text-[12px] font-extrabold leading-none text-[#ff8d28]">
+                {distanceLabel || "Cách bạn khoảng"} {distanceKm.toFixed(1)} km
+              </p>
+            ) : null}
           </div>
           <div className="mt-1 flex items-center gap-1 text-[13px] font-black leading-none text-[#1f2029]">
             <StarIcon className="h-6 w-6 text-[#c55c11]" />
@@ -532,6 +717,18 @@ function PhotographerCard({
             </span>
           ))}
         </div>
+
+        <div className="mt-3 flex flex-wrap gap-2">
+          {person.availability.map((item) => (
+            <span key={item} className="rounded-full bg-[#fff4eb] px-3 py-1 text-[10px] font-extrabold text-[#ff7d1a]">
+              Trống {item.toLowerCase()}
+            </span>
+          ))}
+        </div>
+
+        <p className="mt-3 text-[11px] font-semibold leading-5 text-[#74737e]">
+          Dịch vụ kèm: {person.addOns.join(", ")}
+        </p>
 
         <div className="mt-4 flex items-end justify-between border-t border-[#eeeaf4] pt-4">
           <div>
@@ -552,8 +749,199 @@ function PhotographerCard({
             </span>
           </div>
         </div>
+
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <Link
+            href="/profilephotographer"
+            className="rounded-lg border border-[#e1dceb] bg-white px-3 py-2.5 text-center text-[12px] font-extrabold text-[#4a4350] transition-colors hover:border-[#ffcfaa] hover:text-[#ff7d1a]"
+          >
+            Xem hồ sơ
+          </Link>
+          <Link
+            href={`/booking?photographer=${person.id}`}
+            className="rounded-lg bg-[#ff8d28] px-3 py-2.5 text-center text-[12px] font-extrabold text-white shadow-[0_8px_18px_rgba(255,141,40,0.14)] transition-all hover:translate-y-[-1px] hover:bg-[#e0751b]"
+          >
+            Đặt lịch
+          </Link>
+        </div>
       </div>
     </article>
+  );
+}
+
+function NearbyMapPanel({
+  customShootLocation,
+  isReady,
+  locationMessage,
+  nearbyPhotographers,
+  onCustomShootLocationChange,
+  onScan,
+  onShootLocationChange,
+  shootLocationId,
+  userLocation,
+}: {
+  customShootLocation: string;
+  isReady: boolean;
+  locationMessage: string;
+  nearbyPhotographers: (typeof photographers)[number][];
+  onCustomShootLocationChange: (value: string) => void;
+  onScan: () => void;
+  onShootLocationChange: (value: string) => void;
+  shootLocationId: string;
+  userLocation: Coordinates | null;
+}) {
+  const selectedShootLocation =
+    shootLocationOptions.find((item) => item.id === shootLocationId) ||
+    shootLocationOptions[0];
+  const [showLocationSuggestions, setShowLocationSuggestions] = useState(false);
+  const locationSearchValue =
+    shootLocationId === "custom" ? customShootLocation : selectedShootLocation.label;
+  const locationSuggestions = shootLocationOptions.filter((item) =>
+    item.label.toLowerCase().includes(locationSearchValue.toLowerCase()),
+  );
+  const mapCenter =
+    selectedShootLocation.coordinates ||
+    userLocation ||
+    nearbyPhotographers[0]?.coordinates ||
+    photographers.find((person) => person.city === "Ho Chi Minh City, VN")?.coordinates ||
+    photographers[0].coordinates;
+  const mapQuery = encodeURIComponent(
+    selectedShootLocation.id === "custom"
+      ? `photographer studio near ${customShootLocation || "Da Lat Vietnam"}`
+      : selectedShootLocation.id === "current"
+      ? userLocation
+        ? `photographer studio near ${mapCenter.lat},${mapCenter.lng}`
+        : "photographer studio Ho Chi Minh City"
+      : selectedShootLocation.query,
+  );
+  const mapSrc = `https://www.google.com/maps?q=${mapQuery}&z=${selectedShootLocation.id === "current" ? 13 : 14}&output=embed`;
+
+  return (
+    <section
+      style={fadeUpStyle(isReady, 260)}
+      className="mt-6 overflow-hidden rounded-[22px] border border-[#e9e3f2] bg-white shadow-[0_16px_42px_rgba(42,32,62,0.05)]"
+    >
+      <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_280px]">
+        <div className="relative min-h-[340px] overflow-hidden bg-[#eef1f7]">
+          <iframe
+            title="Google Maps - photographer gần bạn"
+            src={mapSrc}
+            className="absolute inset-0 h-full w-full border-0"
+            loading="lazy"
+            referrerPolicy="no-referrer-when-downgrade"
+            allowFullScreen
+          />
+
+          <div className="pointer-events-none absolute left-5 top-5 rounded-2xl bg-white/95 px-4 py-3 shadow-[0_10px_24px_rgba(31,24,43,0.08)]">
+            <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#ff8d28]">
+              Google Maps
+            </p>
+            <p className="mt-1 text-[13px] font-bold text-[#4a4350]">
+              {selectedShootLocation.id === "current"
+                ? userLocation
+                  ? "Đang xem khu vực gần bạn"
+                  : "Bản đồ khu vực mặc định"
+                : selectedShootLocation.label}
+            </p>
+          </div>
+
+          <div className="absolute bottom-5 left-5 flex max-w-[calc(100%-40px)] flex-wrap items-center gap-2">
+            <label className="relative block">
+              <input
+                value={locationSearchValue}
+                onChange={(event) => {
+                  onShootLocationChange("custom");
+                  onCustomShootLocationChange(event.target.value);
+                  setShowLocationSuggestions(true);
+                }}
+                onFocus={() => setShowLocationSuggestions(true)}
+                placeholder="Nhập nơi sắp chụp"
+                className="h-10 min-h-0 w-[280px] rounded-full border border-white/70 bg-white/95 px-4 py-0 text-[12px] font-extrabold text-[#4a4350] shadow-[0_10px_22px_rgba(31,24,43,0.1)] outline-none"
+                aria-label="Nhập nơi sắp chụp"
+              />
+              {showLocationSuggestions ? (
+                <div className="absolute bottom-12 left-0 z-20 grid w-[280px] gap-1 rounded-2xl border border-[#eadff0] bg-white p-2 shadow-[0_16px_32px_rgba(31,24,43,0.14)]">
+                  {(locationSuggestions.length ? locationSuggestions : shootLocationOptions).map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => {
+                        onShootLocationChange(item.id);
+                        onCustomShootLocationChange("");
+                        setShowLocationSuggestions(false);
+                      }}
+                      className="rounded-xl px-3 py-2 text-left text-[12px] font-bold text-[#4a4350] transition-colors hover:bg-[#fff4eb] hover:text-[#ff7d1a]"
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                  {locationSearchValue && shootLocationId === "custom" ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowLocationSuggestions(false)}
+                      className="rounded-xl bg-[#fff4eb] px-3 py-2 text-left text-[12px] font-extrabold text-[#ff7d1a]"
+                    >
+                      Tìm quanh: {locationSearchValue}
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
+            </label>
+            {shootLocationId === "current" ? (
+              <button
+                type="button"
+                onClick={onScan}
+                className="grid h-10 w-10 place-items-center rounded-full bg-[#ff8d28] text-white shadow-[0_10px_22px_rgba(255,141,40,0.22)] transition-all hover:translate-y-[-1px] hover:bg-[#e0751b]"
+                aria-label="Quét vị trí gần tôi"
+                title="Quét vị trí gần tôi"
+              >
+                <LocateIcon className="h-4.5 w-4.5" />
+              </button>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="border-t border-[#e9e3f2] p-5 lg:border-l lg:border-t-0">
+          <p className="text-[12px] font-black uppercase tracking-[0.16em] text-[#ff8d28]">
+            Ở gần bạn
+          </p>
+          <h2 className="mt-2 text-[22px] font-black leading-tight text-[#1f2029]">
+            Photographer & studio gần nhất
+          </h2>
+          <p className="mt-2 text-[12px] font-semibold leading-5 text-[#6b6878]">
+            {selectedShootLocation.id === "current"
+              ? locationMessage || "Cho phép trình duyệt lấy vị trí để quét các lựa chọn gần bạn."
+              : selectedShootLocation.id === "custom"
+                ? `Google Maps đang tìm photographer/studio quanh ${customShootLocation || "địa chỉ bạn nhập"}.`
+                : `Đang ưu tiên photographer/studio quanh ${selectedShootLocation.label}.`}
+          </p>
+
+          <div className="mt-5 grid gap-3">
+            {nearbyPhotographers.slice(0, 4).map((person) => (
+              <Link
+                key={person.id}
+                href={`/booking?photographer=${person.id}`}
+                className="flex items-center justify-between gap-3 rounded-[14px] border border-[#ebe6f1] bg-[#faf8ff] px-3 py-3 transition-colors hover:border-[#ffcfaa] hover:bg-[#fff7ef]"
+              >
+                <span className="min-w-0">
+                  <span className="block truncate text-[13px] font-black text-[#1f2029]">
+                    {person.name}
+                  </span>
+                  <span className="mt-1 block truncate text-[11px] font-semibold text-[#6b6878]">
+                    {person.location}
+                  </span>
+                </span>
+                {userLocation ? (
+                  <span className="shrink-0 rounded-full bg-white px-2.5 py-1 text-[11px] font-extrabold text-[#ff8d28]">
+                    {getDistanceKm(userLocation, person.coordinates).toFixed(1)} km
+                  </span>
+                ) : null}
+              </Link>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -653,6 +1041,16 @@ function StarIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
       <path d="M10 2.8l1.9 4 4.4.6-3.2 3.1.8 4.4-3.9-2.1-3.9 2.1.8-4.4-3.2-3.1 4.4-.6 1.9-4z" />
+    </svg>
+  );
+}
+
+function LocateIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <path d="M10 3V5M10 15V17M17 10H15M5 10H3" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+      <circle cx="10" cy="10" r="4.5" stroke="currentColor" strokeWidth="1.9" />
+      <circle cx="10" cy="10" r="1.6" fill="currentColor" />
     </svg>
   );
 }
