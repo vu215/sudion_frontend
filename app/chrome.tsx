@@ -10,10 +10,10 @@ const headerLinks = [
   { href: "/", label: "Trang chủ" },
   { href: "/about", label: "Về chúng tôi" },
   { href: "/photographer", label: "Photographer" },
-  { href: "#", label: "Dịch vụ" },
-  { href: "#", label: "Tin tức" },
-  { href: "#", label: "Bảng giá" },
-  { href: "#", label: "Portfolio" },
+  { href: "/#services", label: "Dịch vụ" },
+  { href: "/news", label: "Tin tức" },
+  { href: "/pricing", label: "Bảng giá" },
+  { href: "/portfolio", label: "Portfolio" },
 ];
 
 const footerColumns = [
@@ -59,7 +59,7 @@ function Header({ pathname }: { pathname: string }) {
         <nav className="hidden items-center gap-6 text-[14px] font-bold text-[#4b5563] md:flex lg:gap-8 lg:text-[15px]">
           {headerLinks.map((link) => {
             const active =
-              link.href === "/" ? pathname === "/" : link.href !== "#" && pathname.startsWith(link.href);
+              link.href === "/" ? pathname === "/" : !link.href.includes("#") && pathname.startsWith(link.href);
 
             return (
               <Link
@@ -95,7 +95,7 @@ function Header({ pathname }: { pathname: string }) {
           </button>
 
           <Link
-            href="#"
+            href="/booking"
             className="rounded-lg bg-[#ff8d28] px-5 py-2.5 text-[14px] font-bold text-white shadow-[0_6px_14px_rgba(255,141,40,0.15)] transition-all hover:translate-y-[-1px] hover:bg-[#e0751b]"
           >
             Đặt lịch ngay
@@ -144,7 +144,7 @@ function Footer() {
               {column.links.map((link) => (
                 <Link
                   key={link}
-                  href="#"
+                  href={column.title === "Dịch vụ" ? "/#services" : column.title === "Công ty" ? "/about" : "/support"}
                   className="block text-[14px] font-semibold text-gray-400 transition-colors hover:text-white"
                 >
                   {link}

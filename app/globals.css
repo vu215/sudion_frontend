@@ -1344,3 +1344,39 @@ textarea:focus {
     width: 100%;
   }
 }
+
+.booking-field {
+  display: block;
+}
+
+.booking-field input,
+.booking-field select,
+.booking-field textarea {
+  min-height: 46px;
+  border: 1px solid #e1e4ec;
+  border-radius: 12px;
+  background: #fafbfc;
+  color: #0e111d;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 20px;
+  box-shadow: none;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.booking-field textarea {
+  min-height: 118px;
+  resize: vertical;
+}
+
+.booking-field input:focus,
+.booking-field select:focus,
+.booking-field textarea:focus {
+  border-color: #ff8d28;
+  background: #ffffff;
+  box-shadow: 0 0 0 4px rgba(255, 141, 40, 0.14);
+}
