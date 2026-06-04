@@ -152,9 +152,11 @@ export default function Home() {
     <div className="min-h-screen overflow-x-hidden bg-[#fafbfc] text-[#0e111d] font-sans antialiased selection:bg-[#ff8d28]/20">
       <main className="w-full">
         <HeroSection />
-        {serviceSections.map((section) => (
-          <ServiceSection key={section.id} {...section} />
-        ))}
+        <div id="services">
+          {serviceSections.map((section) => (
+            <ServiceSection key={section.id} {...section} />
+          ))}
+        </div>
       </main>
     </div>
   );
@@ -268,7 +270,7 @@ function SearchBar() {
         />
         
         <Link
-          href="#"
+          href="/photographer"
           className="inline-flex min-h-[42px] items-center justify-center rounded-[10px] bg-[#ff8d28] px-4 text-[14px] font-extrabold text-white shadow-[0_8px_18px_rgba(255,141,40,0.22)] transition-all hover:bg-[#e0751b] sm:col-span-2 lg:col-span-1 lg:min-h-full"
         >
           Tìm Kiếm
@@ -510,7 +512,7 @@ function ServiceCopy({
       <Link
         data-reveal
         data-reveal-delay="400"
-        href="#"
+        href="/photographer"
         className="mt-8 inline-flex rounded-lg bg-[#ff8d28] hover:bg-[#e0751b] px-7 py-3.5 text-[13px] sm:text-[14px] font-bold text-white shadow-[0_8px_16px_rgba(255,141,40,0.12)] transition-all hover:translate-y-[-1px] "
       >
         {cta}
