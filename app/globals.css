@@ -61,9 +61,7 @@ img {
   max-width: 100%;
 }
 
-::selection {
-  background: rgba(255, 141, 40, 0.22);
-}
+
 
 [data-reveal] {
   --reveal-y: 48px;

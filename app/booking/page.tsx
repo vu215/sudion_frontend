@@ -1,9 +1,10 @@
 "use client";
 
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
+import { generateBookingId, saveBooking } from "../booking-store";
 
 const services = [
   {
@@ -113,36 +114,71 @@ const photographerProfiles = [
     id: "binh-nguyen",
     name: "Bình Nguyễn",
     addOns: ["makeup", "video", "album", "retouch"],
+    availableSlots: [
+      { id: "binh-0612-am", date: "2026-06-12", time: "09:00", location: "Quận 1, TP.HCM", label: "12/06 · 09:00" },
+      { id: "binh-0614-pm", date: "2026-06-14", time: "14:30", location: "Thảo Điền, TP.HCM", label: "14/06 · 14:30" },
+      { id: "binh-0618-am", date: "2026-06-18", time: "08:30", location: "Studio trung tâm", label: "18/06 · 08:30" },
+    ],
   },
   {
     id: "hao-le",
     name: "Hào Lê",
     addOns: ["makeup", "video", "flycam", "album"],
+    availableSlots: [
+      { id: "hao-0611-am", date: "2026-06-11", time: "07:30", location: "Đồi cỏ hồng Đà Lạt", label: "11/06 · 07:30" },
+      { id: "hao-0615-pm", date: "2026-06-15", time: "15:00", location: "Hồ Xuân Hương", label: "15/06 · 15:00" },
+      { id: "hao-0620-am", date: "2026-06-20", time: "08:00", location: "Studio Đà Lạt", label: "20/06 · 08:00" },
+    ],
   },
   {
     id: "studio-k",
     name: "Studio K",
     addOns: ["retouch", "stylist"],
+    availableSlots: [
+      { id: "studiok-0610-am", date: "2026-06-10", time: "10:00", location: "Cầu Giấy, Hà Nội", label: "10/06 · 10:00" },
+      { id: "studiok-0613-pm", date: "2026-06-13", time: "13:30", location: "Studio K Hà Nội", label: "13/06 · 13:30" },
+      { id: "studiok-0619-am", date: "2026-06-19", time: "09:30", location: "Tây Hồ, Hà Nội", label: "19/06 · 09:30" },
+    ],
   },
   {
     id: "hung-trinh",
     name: "Hưng Trịnh",
     addOns: ["makeup", "retouch", "stylist"],
+    availableSlots: [
+      { id: "hung-0612-pm", date: "2026-06-12", time: "16:00", location: "Vĩnh Long", label: "12/06 · 16:00" },
+      { id: "hung-0616-am", date: "2026-06-16", time: "08:00", location: "TP.HCM", label: "16/06 · 08:00" },
+      { id: "hung-0621-pm", date: "2026-06-21", time: "14:00", location: "Cần Thơ", label: "21/06 · 14:00" },
+    ],
   },
   {
     id: "hoang-anh",
     name: "Hoàng Anh",
     addOns: ["makeup", "video", "flycam"],
+    availableSlots: [
+      { id: "hoang-0613-am", date: "2026-06-13", time: "07:00", location: "Mỹ Khê, Đà Nẵng", label: "13/06 · 07:00" },
+      { id: "hoang-0617-pm", date: "2026-06-17", time: "15:30", location: "Sơn Trà, Đà Nẵng", label: "17/06 · 15:30" },
+      { id: "hoang-0622-am", date: "2026-06-22", time: "09:00", location: "Studio Đà Nẵng", label: "22/06 · 09:00" },
+    ],
   },
   {
     id: "cong-tuan",
     name: "Công Tuấn",
     addOns: ["retouch", "album"],
+    availableSlots: [
+      { id: "tuan-0614-am", date: "2026-06-14", time: "08:30", location: "Huế", label: "14/06 · 08:30" },
+      { id: "tuan-0618-pm", date: "2026-06-18", time: "14:00", location: "Đại Nội Huế", label: "18/06 · 14:00" },
+      { id: "tuan-0623-am", date: "2026-06-23", time: "09:00", location: "Studio Huế", label: "23/06 · 09:00" },
+    ],
   },
   {
     id: "studion-match",
     name: "STUDION Match",
     addOns: ["makeup", "video", "album", "retouch"],
+    availableSlots: [
+      { id: "match-0610-am", date: "2026-06-10", time: "09:00", location: "Hồ Chí Minh", label: "10/06 · 09:00" },
+      { id: "match-0612-pm", date: "2026-06-12", time: "14:00", location: "Hồ Chí Minh", label: "12/06 · 14:00" },
+      { id: "match-0615-am", date: "2026-06-15", time: "08:30", location: "Hồ Chí Minh", label: "15/06 · 08:30" },
+    ],
   },
 ];
 
@@ -227,6 +263,7 @@ function BookingContent() {
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [contactChannel, setContactChannel] = useState(contactChannels[0]);
+  const [selectedSlotId, setSelectedSlotId] = useState("");
 
   const service = useMemo(
     () => services.find((item) => item.id === selectedService) || services[0],
@@ -239,6 +276,21 @@ function BookingContent() {
       photographerProfiles[photographerProfiles.length - 1],
     [photographerId],
   );
+  const selectedSlot =
+    photographerProfile.availableSlots.find((slot) => slot.id === selectedSlotId) ||
+    photographerProfile.availableSlots[0];
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const nextSlot = photographerProfile.availableSlots[0];
+      setSelectedSlotId(nextSlot.id);
+      setShootDate(nextSlot.date);
+      setShootTime(nextSlot.time);
+      setLocation(nextSlot.location);
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [photographerProfile]);
 
   const budgetValue = useMemo(() => parseBudget(budget), [budget]);
   const selectedPeopleScale = peopleByService[selectedService] || service.peopleOptions[0].label;
@@ -268,7 +320,38 @@ function BookingContent() {
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    router.push("/booking-success");
+
+    const bookingId = generateBookingId();
+    saveBooking({
+      id: bookingId,
+      status: "awaiting_payment",
+      createdAt: new Date().toISOString(),
+      serviceId: service.id,
+      serviceName: service.name,
+      photographerId,
+      photographerName: photographerProfile.name,
+      availabilitySlotId: selectedSlot.id,
+      availabilitySlotLabel: selectedSlot.label,
+      location,
+      shootDate,
+      shootTime,
+      peopleScale: selectedPeopleScale,
+      peopleExtra: selectedPeopleOption.extra,
+      scene,
+      concept,
+      budget,
+      estimatedTotal,
+      addOns: selectedAddOnNames,
+      referenceFileName,
+      customer: {
+        fullName,
+        phone,
+        email,
+        contactChannel,
+      },
+    });
+
+    router.push(`/booking-success?id=${encodeURIComponent(bookingId)}`);
   };
 
   const selectedAddOnNames = availableAddOns
@@ -293,9 +376,7 @@ function BookingContent() {
           <h1 data-reveal data-reveal-delay="80" className="max-w-[760px] text-[36px] font-black leading-[1.08] tracking-[-0.03em] text-[#0e111d] sm:text-[46px]">
             Đặt lịch chụp
           </h1>
-          <p data-reveal data-reveal-delay="160" className="max-w-[660px] text-[16px] font-medium leading-7 text-[#4b5563] sm:text-[18px]">
-            Chọn dịch vụ, thời gian và gửi yêu cầu để STUDION kết nối bạn với photographer phù hợp.
-          </p>
+         
         </div>
 
         <form onSubmit={handleSubmit} className="mt-10 grid gap-8 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start xl:grid-cols-[minmax(0,1fr)_400px]">
@@ -388,8 +469,46 @@ function BookingContent() {
                 Bước 2
               </p>
               <h2 className="mt-2 text-[22px] font-black leading-tight text-[#0e111d]">
-                Thông tin buổi chụp
+                Chọn lịch rảnh
               </h2>
+              <p className="mt-2 text-[13px] font-semibold leading-6 text-[#6b7280]">
+                Đây là các khung giờ {photographerProfile.name} còn trống. Chọn một lịch để giữ slot trước khi thanh toán.
+              </p>
+
+              <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                {photographerProfile.availableSlots.map((slot) => {
+                  const active = slot.id === selectedSlot.id;
+
+                  return (
+                    <button
+                      key={slot.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedSlotId(slot.id);
+                        setShootDate(slot.date);
+                        setShootTime(slot.time);
+                        setLocation(slot.location);
+                      }}
+                      className={`rounded-[14px] border px-4 py-4 text-left transition-all ${
+                        active
+                          ? "border-[#ff8d28] bg-[#fff7ef] shadow-[0_10px_24px_rgba(255,141,40,0.12)]"
+                          : "border-[#e8eaf1] bg-white hover:border-[#ffcfaa]"
+                      }`}
+                      aria-pressed={active}
+                    >
+                      <span className="block text-[15px] font-black text-[#0e111d]">
+                        {slot.label}
+                      </span>
+                      <span className="mt-2 block text-[12px] font-bold text-[#ff8d28]">
+                        Còn trống
+                      </span>
+                      <span className="mt-1 block text-[12px] font-semibold leading-5 text-[#6b7280]">
+                        {slot.location}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
 
               <div className="mt-5 grid gap-4 sm:grid-cols-2">
                 <Field label="Địa điểm chụp">

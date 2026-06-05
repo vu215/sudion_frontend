@@ -5,10 +5,10 @@ import Link from "next/link";
 export default function AboutPage() {
   return (
     <>
-      <main className="pt-16">
+      <main>
 
         {/* Hero */}
-        <section className="relative h-[70vh] min-h-[480px] flex flex-col items-center justify-center text-center overflow-hidden">
+        <section className="relative h-[89vh] min-h-[480px] flex flex-col items-center justify-center text-center overflow-hidden">
           <div
             className="absolute inset-0 bg-cover bg-center"
             style={{ backgroundImage: "url('/screen%201.png')" }}

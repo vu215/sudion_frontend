@@ -47,9 +47,9 @@ function Header({ pathname }: { pathname: string }) {
       >
         <Link href="/" className="flex shrink-0 items-center gap-2.5">
           <img
-            src="/logo_sudion.jpg"
+            src="/logo_sudion_remove.png"
             alt="Studion logo"
-            className="h-[70px] w-[70px] rounded-full object-cover"
+            className="h-[70px] w-[70px] rounded-full "
           />
           <span className="text-[20px] font-black tracking-[0.05em] text-[#0e111d] uppercase">
             STUDION
@@ -122,7 +122,11 @@ function Footer() {
       >
         <div>
           <div className="flex items-center gap-2.5">
-            <LogoMark className="h-6 w-6" />
+            <img
+            src="/logo_sudion_remove.png"
+            alt="Studion logo"
+            className="h-[70px] w-[70px] rounded-full "
+          />
             <span className="text-[20px] font-black tracking-[0.05em] text-white uppercase">
               STUDION
             </span>
