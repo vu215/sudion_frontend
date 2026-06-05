@@ -17,9 +17,10 @@ const headerLinks = [
 ];
 
 const footerColumns = [
-  { title: "Dịch vụ", links: ["Chụp ảnh cưới", "Chụp ảnh đôi", "Chụp kỉ yếu", "Chụp sự kiện"] },
-  { title: "Công ty", links: ["Về chúng tôi", "Liên hệ", "Tuyển dụng", "Blog"] },
-  { title: "Hỗ trợ", links: ["Trung tâm trợ giúp", "Điều khoản dịch vụ", "Chính sách bảo mật"] },
+  { title: "Sản Phẩm", links: ["Tính năng", "Bảng giá"] },
+  { title: "Công Ty", links: ["Về chúng tôi", "Tuyển dụng"] },
+  { title: "Hỗ Trợ", links: ["Trung tâm trợ giúp", "Điều Khoản"] },
+  { title: "Liên Hệ", links: ["Gửi Email cho chúng tôi"] },
 ];
 
 export function AppChrome({ children }: { children: ReactNode }) {
@@ -116,36 +117,29 @@ function Header({ pathname }: { pathname: string }) {
 
 function Footer() {
   return (
-    <footer data-reveal className="w-full border-t border-white/5 bg-[#0a0a0c] py-16 text-white">
-      <div
-        className={`${containerClass} grid gap-12 sm:grid-cols-2 lg:grid-cols-[1.5fr_repeat(3,1fr)] lg:gap-16`}
-      >
-        <div>
-          <div className="flex items-center gap-2.5">
-            <LogoMark className="h-6 w-6" />
-            <span className="text-[20px] font-black tracking-[0.05em] text-white uppercase">
-              STUDION
-            </span>
+    <footer data-reveal className="w-full bg-[#0a0a0c] py-10 text-white">
+      <div className={`${containerClass} grid grid-cols-2 md:grid-cols-5 gap-8 items-start`}>
+        <div className="col-span-2 md:col-span-1">
+          <div className="flex items-center gap-2">
+            <LogoMark className="h-5 w-5" />
+            <span className="text-[15px] font-black tracking-[0.05em] text-orange-500 uppercase">STUDION</span>
           </div>
-          <p className="mt-4 max-w-[280px] text-[14px] font-semibold leading-6 text-gray-400">
-            Nền tảng tìm kiếm và đặt lịch chụp hình chuyên nghiệp hàng đầu tại Việt Nam.
-          </p>
-          <p className="mt-6 text-[12px] font-bold text-gray-500">
-            © 2026 STUDION. All rights reserved.
+          <p className="mt-3 text-[11px] text-gray-500 leading-relaxed">
+            © 2024 Photor AI. All rights reserved.
           </p>
         </div>
 
         {footerColumns.map((column) => (
           <div key={column.title}>
-            <p className="text-[13px] font-bold uppercase tracking-wider text-gray-300">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-orange-500 mb-3">
               {column.title}
             </p>
-            <div className="mt-4 space-y-3.5">
+            <div className="space-y-2">
               {column.links.map((link) => (
                 <Link
                   key={link}
-                  href={column.title === "Dịch vụ" ? "/#services" : column.title === "Công ty" ? "/about" : "/support"}
-                  className="block text-[14px] font-semibold text-gray-400 transition-colors hover:text-white"
+                  href="#"
+                  className="block text-[12px] text-gray-400 transition-colors hover:text-white"
                 >
                   {link}
                 </Link>

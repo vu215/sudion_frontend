@@ -1,0 +1,529 @@
+"use client";
+
+import { useSearchParams } from "next/navigation";
+import { useState } from "react";
+import Link from "next/link";
+
+const photographers = [
+  {
+    id: "binh-nguyen",
+    name: "Bình Nguyễn",
+    title: "Thời trang & Chân dung",
+    location: "Tp. HCM, Việt Nam",
+    rating: "4.9",
+    reviewCount: 820,
+    badge: "Top Rated Photographer",
+    image: "https://images.unsplash.com/photo-1496440737103-cd596325d314?auto=format&fit=crop&w=900&q=85",
+    avatar: "https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&w=200&q=80",
+    cover: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?auto=format&fit=crop&w=1600&q=80",
+    bio: "Xin chào, tôi là Bình Nguyễn. Với hơn 5 năm kinh nghiệm trong lĩnh vực nhiếp ảnh thời trang và chân dung, tôi luôn nỗ lực nắm bắt những khoảnh khắc chân thực và tôn lên vẻ đẹp riêng biệt của mỗi cá nhân. Phong cách của tôi hướng đến sự thanh lịch, hiện đại và tràn đầy cảm xúc. Tôi tin rằng mỗi bức ảnh là một câu chuyện, và tôi ở đây để giúp bạn kể câu chuyện của mình một cách hoàn hảo nhất.",
+    portfolio: [
+      "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=600&q=80",
+      "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=600&q=80",
+      "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=600&q=80",
+      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80",
+      "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=600&q=80",
+    ],
+    equipment: ["Sony A7R IV", "Canon 5D Mark IV", "24-70mm f/2.8 GM"],
+    services: [
+      { name: "Chân dung cá nhân (Portrait)", desc: "Chụp tại studio hoặc ngoại cảnh. Giao 15 ảnh chỉnh sửa chi tiết, hỗ trợ 1 concept trang phục.", price: "2.500.000 VNĐ" },
+      { name: "Thời trang thương mại (Fashion)", desc: "Gói chụp lookbook tiêu chuẩn cho các brand thời trang. Bao gồm thiết bị chiếu sáng chuyên nghiệp.", price: "5.000.000 VNĐ" },
+      { name: "Phóng sự cưới (Wedding)", desc: "Lưu giữ những khoảnh khắc tự nhiên nhất trong ngày trọng đại. Trọn gói 1 ngày chụp.", price: "12.000.000 VNĐ" },
+    ],
+    reviews: [
+      { name: "Nguyễn Hoàng Yến", time: "2 tuần trước", rating: 5, text: "Anh Tuấn rất nhiệt tình, chụp ảnh đẹp và chỉnh sửa rất nhanh. Chúng mình rất hài lòng với bộ ảnh cưới này. Không gian chụp cũng được anh setup..." },
+      { name: "Trần Minh", time: "1 tháng trước", rating: 5, text: "Style màu ảnh cinematic cực kỳ hợp gu mình. Quá trình làm việc chuyên nghiệp, file giao đúng hạn. Chắc chắn sẽ quay lại ủng hộ studio trong..." },
+    ],
+    ratingScore: 4.9,
+    totalReviews: 128,
+    startPrice: "2.500.000 VNĐ",
+  },
+  {
+    id: "hao-le",
+    name: "Hào Lê",
+    title: "Cưới & Cặp đôi",
+    location: "Đà Lạt, Việt Nam",
+    rating: "4.8",
+    reviewCount: 176,
+    badge: "Top Rated Photographer",
+    image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=900&q=85",
+    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80",
+    cover: "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1600&q=80",
+    bio: "Chuyên gia nhiếp ảnh cưới và cặp đôi tại Đà Lạt. Với góc nhìn lãng mạn và phong cách tự nhiên, tôi giúp các cặp đôi lưu giữ những khoảnh khắc đẹp nhất trong ngày trọng đại.",
+    portfolio: [
+      "https://images.unsplash.com/photo-1523438885200-e635ba2c371e?auto=format&fit=crop&w=600&q=80",
+      "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=600&q=80",
+      "https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?auto=format&fit=crop&w=600&q=80",
+      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=600&q=80",
+    ],
+    equipment: ["Sony A7 III", "85mm f/1.4 GM", "Flycam DJI Mini 3"],
+    services: [
+      { name: "Pre-wedding Đà Lạt", desc: "Chụp ngoại cảnh tại các địa điểm đẹp ở Đà Lạt, phong cách lãng mạn và tự nhiên.", price: "5.000.000 VNĐ" },
+      { name: "Phóng sự cưới trọn ngày", desc: "Trọn gói từ sáng đến tối, bao gồm flycam và album cao cấp.", price: "15.000.000 VNĐ" },
+    ],
+    reviews: [
+      { name: "Minh Châu", time: "1 tuần trước", rating: 5, text: "Anh Hào chụp rất đẹp, phong cách lãng mạn đúng như mong đợi. Bộ ảnh pre-wedding của chúng mình ai xem cũng khen..." },
+      { name: "Bảo Trân", time: "3 tuần trước", rating: 5, text: "Rất hài lòng với dịch vụ. Anh Hào rất tận tình và chuyên nghiệp. File ảnh giao đúng hẹn và chất lượng xuất sắc..." },
+    ],
+    ratingScore: 4.8,
+    totalReviews: 176,
+    startPrice: "5.000.000 VNĐ",
+  },
+  {
+    id: "studio-k",
+    name: "Studio K",
+    title: "Sản phẩm & Thương mại",
+    location: "Hà Nội, Việt Nam",
+    rating: "4.7",
+    badge: "Professional Studio",
+    image: "https://images.unsplash.com/photo-1595425964071-2c1ec7c88201?auto=format&fit=crop&w=900&q=85",
+    avatar: "https://images.unsplash.com/photo-1595425964071-2c1ec7c88201?auto=format&fit=crop&w=200&q=80",
+    cover: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=1600&q=80",
+    bio: "Studio chuyên chụp ảnh sản phẩm và thương mại tại Hà Nội. Trang bị studio hiện đại, đội ngũ chuyên nghiệp với kinh nghiệm phục vụ nhiều thương hiệu lớn trong và ngoài nước.",
+    portfolio: [
+      "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=600&q=80",
+      "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=600&q=80",
+      "https://images.unsplash.com/photo-1585386959984-a4155224a1ad?auto=format&fit=crop&w=600&q=80",
+      "https://images.unsplash.com/photo-1491553895911-0055eca6402d?auto=format&fit=crop&w=600&q=80",
+    ],
+    equipment: ["Hasselblad X2D", "Phase One", "Studio Lighting Profoto"],
+    services: [
+      { name: "Chụp ảnh sản phẩm cơ bản", desc: "10-15 sản phẩm background trắng, phù hợp e-commerce. Giao file trong 24h.", price: "1.800.000 VNĐ" },
+      { name: "Lookbook thương hiệu", desc: "Lookbook đầy đủ cho thương hiệu thời trang, bao gồm stylist và model.", price: "8.000.000 VNĐ" },
+    ],
+    reviews: [
+      { name: "Thanh Hà", time: "5 ngày trước", rating: 5, text: "Studio K chụp sản phẩm rất đẹp, ánh sáng chuẩn, màu sắc trung thực. Giao file nhanh chóng và chuyên nghiệp..." },
+    ],
+    ratingScore: 4.7,
+    totalReviews: 89,
+    startPrice: "1.800.000 VNĐ",
+  },
+  {
+    id: "hung-trinh",
+    name: "Hưng Trịnh",
+    title: "Thời trang & Biên tập",
+    location: "Vĩnh Long, Việt Nam",
+    rating: "4.9",
+    badge: "Top Rated Photographer",
+    image: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=900&q=85",
+    avatar: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=200&q=80",
+    cover: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1600&q=80",
+    bio: "Nhiếp ảnh gia trẻ với phong cách độc đáo, kết hợp giữa thời trang đường phố và chân dung nghệ thuật. Mỗi bức ảnh là một tác phẩm kể câu chuyện riêng.",
+    portfolio: [
+      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80",
+      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=600&q=80",
+      "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=600&q=80",
+    ],
+    equipment: ["Canon R5", "50mm f/1.2L", "35mm f/1.4L"],
+    services: [
+      { name: "Street Portrait", desc: "Chụp ngoài trời phong cách đường phố, tự nhiên và cá tính.", price: "2.500.000 VNĐ" },
+    ],
+    reviews: [
+      { name: "Lan Anh", time: "1 tuần trước", rating: 5, text: "Hưng chụp rất có hồn, góc nhìn độc đáo và sáng tạo. Rất vui khi được làm việc cùng..." },
+    ],
+    ratingScore: 4.9,
+    totalReviews: 64,
+    startPrice: "2.500.000 VNĐ",
+  },
+  {
+    id: "hoang-anh",
+    name: "Hoàng Anh",
+    title: "Cưới & Cặp đôi",
+    location: "Đà Nẵng, Việt Nam",
+    rating: "4.8",
+    badge: "Top Rated Photographer",
+    image: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=900&q=85&sat=-100",
+    avatar: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=200&q=80&sat=-100",
+    cover: "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1600&q=80&sat=-30",
+    bio: "Chuyên nhiếp ảnh cưới tại Đà Nẵng với phong cách hiện đại và tươi sáng. Mỗi bộ ảnh là một câu chuyện tình yêu được kể bằng ngôn ngữ của ánh sáng.",
+    portfolio: [
+      "https://images.unsplash.com/photo-1523438885200-e635ba2c371e?auto=format&fit=crop&w=600&q=80",
+      "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=600&q=80",
+      "https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?auto=format&fit=crop&w=600&q=80",
+    ],
+    equipment: ["Sony A1", "24-70mm f/2.8 GM II", "DJI Air 3"],
+    services: [
+      { name: "Chụp ảnh Cưới Đà Nẵng", desc: "Gói cưới đầy đủ tại Đà Nẵng, bao gồm biển Mỹ Khê và bán đảo Sơn Trà.", price: "12.000.000 VNĐ" },
+    ],
+    reviews: [
+      { name: "Thu Thảo", time: "2 tuần trước", rating: 5, text: "Hoàng Anh chụp ảnh cưới rất đẹp, phong cách tươi sáng và lãng mạn. Chúng mình rất hài lòng..." },
+    ],
+    ratingScore: 4.8,
+    totalReviews: 112,
+    startPrice: "12.000.000 VNĐ",
+  },
+  {
+    id: "cong-tuan",
+    name: "Công Tuấn",
+    title: "Ẩm thực & Thương mại",
+    location: "Huế, Việt Nam",
+    rating: "4.7",
+    badge: "Professional Photographer",
+    image: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=900&q=85",
+    avatar: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=200&q=80",
+    cover: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=1600&q=80",
+    bio: "Nhiếp ảnh gia ẩm thực và thương mại tại Huế. Chuyên chụp sản phẩm ẩm thực, nhà hàng và các chiến dịch marketing địa phương.",
+    portfolio: [
+      "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?auto=format&fit=crop&w=600&q=80",
+      "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=600&q=80",
+      "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&w=600&q=80",
+    ],
+    equipment: ["Nikon Z7 II", "Macro 105mm", "85mm f/1.8S"],
+    services: [
+      { name: "Chụp ảnh Ẩm thực", desc: "Chụp ảnh món ăn, menu nhà hàng, phong cách tươi sáng và hấp dẫn.", price: "1.800.000 VNĐ" },
+    ],
+    reviews: [
+      { name: "Minh Khôi", time: "3 tuần trước", rating: 4, text: "Ảnh ẩm thực rất đẹp, màu sắc tươi sáng và hấp dẫn. Giao file đúng hẹn..." },
+    ],
+    ratingScore: 4.7,
+    totalReviews: 47,
+    startPrice: "1.800.000 VNĐ",
+  },
+];
+
+const sideNavItems = [
+  { icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6", label: "Tổng quan", active: true },
+  { icon: "M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z", label: "Bộ sưu tập" },
+  { icon: "M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4", label: "Dịch vụ" },
+  { icon: "M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z", label: "Đánh giá" },
+];
+
+const tabs = ["Tổng quan", "Portfolio", "Gói dịch vụ", "Đánh giá"];
+
+export default function PhotographerProfilePage() {
+  const searchParams = useSearchParams();
+  const id = searchParams.get("id");
+  const person = photographers.find((p) => p.id === id) || photographers[0];
+  const [activeTab, setActiveTab] = useState("Tổng quan");
+  const [currentMonth] = useState({ year: 2026, month: 9 }); // tháng 10
+
+  const days = Array.from({ length: 31 }, (_, i) => i + 1);
+  const today = 12;
+  const selected = 13;
+
+  return (
+    <div className="min-h-screen bg-white">
+      {/* Cover + Avatar + Info */}
+      <div className="relative h-52 md:h-64">
+        <img src={person.cover} alt="cover" className="w-full h-full object-cover" />
+        <div className="absolute inset-0 bg-black/30" />
+        {/* Avatar block */}
+        <div className="absolute bottom-0 left-0 right-0">
+          <div className="max-w-6xl mx-auto px-6 flex items-end gap-4 pb-4">
+            <div className="relative -mb-10">
+              <img src={person.avatar} alt={person.name} className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-lg" />
+            </div>
+            <div className="mb-2 text-white">
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl font-black">{person.name}</h1>
+                <svg className="w-5 h-5 text-[#ff8d28]" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M10 1.8l2 1.5 2.5-.1.7 2.4 2 1.5-.9 2.4.9 2.4-2 1.5-.7 2.4-2.5-.1-2 1.5-2-1.5-2.5.1-.7-2.4-2-1.5.9-2.4-.9-2.4 2-1.5.7-2.4 2.5.1 2-1.5z" />
+                </svg>
+              </div>
+              <p className="text-sm text-white/80">{person.title}</p>
+            </div>
+          </div>
+        </div>
+        {/* Badge */}
+        <div className="absolute bottom-4 left-6 md:left-[calc(50%-480px+6rem+1rem+1.5rem)]">
+          <span className="hidden" />
+        </div>
+      </div>
+
+      {/* Main layout */}
+      <div className="max-w-6xl mx-auto px-6 pt-14 pb-16 grid md:grid-cols-[220px_minmax(0,1fr)] gap-8">
+
+        {/* Sidebar */}
+        <aside>
+          {/* Profile mini */}
+          <div className="text-center mb-6">
+            <p className="font-bold text-gray-900 text-sm">{person.name}</p>
+            <p className="text-xs text-gray-500">{person.title}</p>
+            <button className="mt-3 w-full border border-gray-200 text-gray-600 text-xs py-2 rounded-full hover:bg-gray-50 flex items-center justify-center gap-1.5 transition-colors">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+              Gửi tin nhắn
+            </button>
+          </div>
+
+          <nav className="space-y-1">
+            {sideNavItems.map((item) => (
+              <button
+                key={item.label}
+                onClick={() => setActiveTab(item.label === "Bộ sưu tập" ? "Portfolio" : item.label === "Đánh giá" ? "Đánh giá" : item.label === "Dịch vụ" ? "Gói dịch vụ" : "Tổng quan")}
+                className={`flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-sm transition-colors ${
+                  (item.label === "Tổng quan" && activeTab === "Tổng quan") ||
+                  (item.label === "Bộ sưu tập" && activeTab === "Portfolio") ||
+                  (item.label === "Dịch vụ" && activeTab === "Gói dịch vụ") ||
+                  (item.label === "Đánh giá" && activeTab === "Đánh giá")
+                    ? "bg-[#ff8d28] text-white font-semibold"
+                    : "text-gray-500 hover:bg-gray-50"
+                }`}
+              >
+                <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d={item.icon} />
+                </svg>
+                {item.label}
+              </button>
+            ))}
+          </nav>
+
+          <div className="mt-6 pt-6 border-t border-gray-100 space-y-1">
+            <button className="flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-sm text-gray-400 hover:bg-gray-50 transition-colors">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              Cài đặt
+            </button>
+            <button className="flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-sm text-gray-400 hover:bg-gray-50 transition-colors">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Trợ giúp
+            </button>
+          </div>
+        </aside>
+
+        {/* Main content */}
+        <div className="min-w-0">
+          {/* Badge */}
+          <div className="mb-3">
+            <span className="inline-block bg-[#ff8d28] text-white text-[11px] font-bold px-3 py-1 rounded-full">{person.badge}</span>
+          </div>
+
+          {/* Tabs */}
+          <div className="flex gap-6 border-b border-gray-100 mb-6">
+            {tabs.map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`pb-3 text-sm font-semibold border-b-2 transition-colors ${
+                  activeTab === tab ? "border-[#ff8d28] text-[#ff8d28]" : "border-transparent text-gray-400 hover:text-gray-700"
+                }`}
+              >
+                {tab}
+                {tab === "Đánh giá" && <span className="ml-1.5 bg-gray-100 text-gray-500 text-[10px] font-bold px-1.5 py-0.5 rounded-full">{person.totalReviews}</span>}
+              </button>
+            ))}
+          </div>
+
+          <div className="grid md:grid-cols-[minmax(0,1fr)_280px] gap-6">
+            {/* Left column */}
+            <div>
+              {/* Tổng quan tab */}
+              {activeTab === "Tổng quan" && (
+                <div className="space-y-6">
+                  <div>
+                    <h2 className="font-bold text-gray-900 mb-2 text-sm">Về tôi</h2>
+                    <p className="text-sm text-gray-600 leading-relaxed">{person.bio}</p>
+                  </div>
+                  <div>
+                    <h2 className="font-bold text-gray-900 mb-3 text-sm">Bộ sưu tập</h2>
+                    <div className="grid grid-cols-2 gap-2">
+                      {person.portfolio.slice(0, 4).map((src, i) => (
+                        <img key={i} src={src} alt="" className="w-full h-36 object-cover rounded-xl" />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Portfolio tab */}
+              {activeTab === "Portfolio" && (
+                <div className="grid grid-cols-2 gap-3">
+                  {person.portfolio.map((src, i) => (
+                    <img key={i} src={src} alt="" className="w-full h-40 object-cover rounded-xl" />
+                  ))}
+                </div>
+              )}
+
+              {/* Gói dịch vụ tab */}
+              {activeTab === "Gói dịch vụ" && (
+                <div className="space-y-3">
+                  {person.services.map((svc) => (
+                    <div key={svc.name} className="border border-[#e0e7ff] rounded-xl p-4 flex items-start justify-between gap-4">
+                      <div className="flex-1">
+                        <h3 className="font-bold text-gray-900 text-sm">{svc.name}</h3>
+                        <p className="text-gray-500 text-xs mt-1 leading-relaxed">{svc.desc}</p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-xs text-gray-400">Từ</p>
+                        <p className="font-black text-gray-900 text-sm whitespace-nowrap">{svc.price}</p>
+                        <button className="mt-2 border border-[#ff8d28] text-[#ff8d28] text-xs font-bold px-4 py-1.5 rounded-full hover:bg-[#fff4eb] transition-colors">
+                          Chọn
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Đánh giá tab */}
+              {activeTab === "Đánh giá" && (
+                <div>
+                  <div className="flex items-center gap-4 mb-6">
+                    <div className="text-center">
+                      <p className="text-4xl font-black text-gray-900">{person.ratingScore}</p>
+                      <p className="text-xs text-gray-400 mt-1">/5</p>
+                      <div className="flex gap-0.5 mt-1 justify-center">
+                        {[1,2,3,4,5].map((s) => (
+                          <svg key={s} className={`w-4 h-4 ${s <= Math.round(person.ratingScore) ? "text-[#ff8d28]" : "text-gray-200"}`} viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M10 2.8l1.9 4 4.4.6-3.2 3.1.8 4.4-3.9-2.1-3.9 2.1.8-4.4-3.2-3.1 4.4-.6 1.9-4z" />
+                          </svg>
+                        ))}
+                      </div>
+                      <p className="text-xs text-gray-400 mt-1">Dựa trên {person.totalReviews} đánh giá</p>
+                    </div>
+                  </div>
+                  <div className="grid md:grid-cols-2 gap-4">
+                    {person.reviews.map((r, i) => (
+                      <div key={i} className="border border-gray-100 rounded-xl p-4">
+                        <div className="flex gap-0.5 mb-2">
+                          {[1,2,3,4,5].map((s) => (
+                            <svg key={s} className={`w-3.5 h-3.5 ${s <= r.rating ? "text-[#ff8d28]" : "text-gray-200"}`} viewBox="0 0 20 20" fill="currentColor">
+                              <path d="M10 2.8l1.9 4 4.4.6-3.2 3.1.8 4.4-3.9-2.1-3.9 2.1.8-4.4-3.2-3.1 4.4-.6 1.9-4z" />
+                            </svg>
+                          ))}
+                        </div>
+                        <p className="text-sm text-gray-700 leading-relaxed line-clamp-3">{r.text}</p>
+                        <div className="flex items-center gap-2 mt-3">
+                          <div className="w-7 h-7 rounded-full bg-[#ff8d28] flex items-center justify-center text-white text-[10px] font-black">
+                            {r.name.charAt(0)}
+                          </div>
+                          <div>
+                            <p className="text-xs font-semibold text-gray-800">{r.name}</p>
+                            <p className="text-[10px] text-gray-400">{r.time}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Services box (shown in Tổng quan) */}
+              {activeTab === "Tổng quan" && (
+                <div className="mt-6 border-2 border-dashed border-[#c7d2fe] rounded-2xl p-4">
+                  <h3 className="font-bold text-gray-900 text-sm mb-3">Dịch vụ & Bảng giá</h3>
+                  <div className="space-y-3">
+                    {person.services.map((svc) => (
+                      <div key={svc.name} className="flex items-start justify-between gap-3 pb-3 border-b border-gray-100 last:border-0 last:pb-0">
+                        <div className="flex-1">
+                          <p className="text-sm font-semibold text-gray-900">{svc.name}</p>
+                          <p className="text-xs text-gray-400 mt-0.5 leading-relaxed line-clamp-2">{svc.desc}</p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-xs text-[#ff8d28] font-black whitespace-nowrap">Từ {svc.price}</p>
+                          <button className="mt-1.5 border border-[#ff8d28] text-[#ff8d28] text-[11px] font-bold px-3 py-1 rounded-full hover:bg-[#fff4eb] transition-colors">
+                            Chọn
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <button className="mt-3 text-[#ff8d28] text-xs font-semibold hover:underline">Xem tất cả →</button>
+                </div>
+              )}
+            </div>
+
+            {/* Right column — booking card */}
+            <div className="space-y-4">
+              <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm sticky top-24">
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <p className="text-xs text-gray-400">Giá khởi điểm</p>
+                    <p className="text-lg font-black text-gray-900">{person.startPrice}</p>
+                  </div>
+                  <div className="flex items-center gap-1 text-sm font-bold text-gray-900">
+                    <svg className="w-4 h-4 text-[#ff8d28]" viewBox="0 0 20 20" fill="currentColor">
+                      <path d="M10 2.8l1.9 4 4.4.6-3.2 3.1.8 4.4-3.9-2.1-3.9 2.1.8-4.4-3.2-3.1 4.4-.6 1.9-4z" />
+                    </svg>
+                    {person.ratingScore} ({person.totalReviews})
+                  </div>
+                </div>
+
+                {/* Mini calendar */}
+                <div className="mb-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold text-gray-700">Tháng 10, 2026</span>
+                    <div className="flex gap-1">
+                      <button className="w-5 h-5 rounded-full border border-gray-200 flex items-center justify-center text-gray-400 hover:bg-gray-50">
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                      </button>
+                      <button className="w-5 h-5 rounded-full border border-gray-200 flex items-center justify-center text-gray-400 hover:bg-gray-50">
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                      </button>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-7 gap-0.5 text-center">
+                    {["T2","T3","T4","T5","T6","T7","CN"].map((d) => (
+                      <div key={d} className="text-[9px] text-gray-400 font-semibold py-0.5">{d}</div>
+                    ))}
+                    {[28,29,30,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18].map((d, i) => (
+                      <button key={i} className={`text-[11px] py-1 rounded-full font-semibold transition-colors ${
+                        d === selected && i > 3 ? "bg-[#ff8d28] text-white" :
+                        d === today && i > 3 ? "border border-[#ff8d28] text-[#ff8d28]" :
+                        i < 3 ? "text-gray-300" : "text-gray-600 hover:bg-gray-100"
+                      }`}>{d}</button>
+                    ))}
+                  </div>
+                </div>
+
+                <Link
+                  href={`/booking?photographer=${person.id}`}
+                  className="w-full bg-[#ff8d28] hover:bg-[#e0751b] text-white text-sm font-extrabold py-3 rounded-full flex items-center justify-center transition-all hover:-translate-y-0.5 shadow-[0_8px_18px_rgba(255,141,40,0.2)]"
+                >
+                  Đặt lịch ngay
+                </Link>
+                <p className="text-[10px] text-gray-400 text-center mt-2">Bạn sẽ không bị trừ tiền cho đến khi xác nhận xong.</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Reviews preview in Tổng quan */}
+          {activeTab === "Tổng quan" && (
+            <div className="mt-8">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-bold text-gray-900 text-base flex items-center gap-2">
+                  Đánh giá từ khách hàng
+                </h2>
+                <div className="flex items-center gap-1">
+                  <svg className="w-4 h-4 text-[#ff8d28]" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M10 2.8l1.9 4 4.4.6-3.2 3.1.8 4.4-3.9-2.1-3.9 2.1.8-4.4-3.2-3.1 4.4-.6 1.9-4z" />
+                  </svg>
+                  <span className="font-black text-gray-900 text-sm">{person.ratingScore}/5</span>
+                  <span className="text-xs text-gray-400 ml-1">Dựa trên {person.totalReviews} đánh giá</span>
+                </div>
+              </div>
+              <div className="grid md:grid-cols-2 gap-4">
+                {person.reviews.map((r, i) => (
+                  <div key={i} className="border border-gray-100 rounded-xl p-4">
+                    <div className="flex gap-0.5 mb-2">
+                      {[1,2,3,4,5].map((s) => (
+                        <svg key={s} className={`w-3.5 h-3.5 ${s <= r.rating ? "text-[#ff8d28]" : "text-gray-200"}`} viewBox="0 0 20 20" fill="currentColor">
+                          <path d="M10 2.8l1.9 4 4.4.6-3.2 3.1.8 4.4-3.9-2.1-3.9 2.1.8-4.4-3.2-3.1 4.4-.6 1.9-4z" />
+                        </svg>
+                      ))}
+                    </div>
+                    <p className="text-sm text-gray-700 leading-relaxed line-clamp-3">{r.text}</p>
+                    <div className="flex items-center gap-2 mt-3">
+                      <div className="w-7 h-7 rounded-full bg-[#ff8d28] flex items-center justify-center text-white text-[10px] font-black">
+                        {r.name.charAt(0)}
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold text-gray-800">{r.name}</p>
+                        <p className="text-[10px] text-gray-400">{r.time}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
