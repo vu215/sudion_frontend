@@ -209,6 +209,7 @@ const photographers = [
     availability: ["Tháng tới"],
     addOns: ["retouch", "album"],
   },
+  
 ];
 
 export default function PhotographerPage() {
@@ -436,7 +437,7 @@ export default function PhotographerPage() {
               </button>
             </div>
 
-            <div className="flex flex-wrap gap-8 border-b border-[#e9e3f2] pt-5">
+            <div className="flex flex-wrap gap-8  pt-5">
               {tabs.map((tab, index) => (
                 <button
                   type="button"
