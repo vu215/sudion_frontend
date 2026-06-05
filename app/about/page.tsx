@@ -28,7 +28,7 @@ export default function AboutPage() {
         </section>
 
         {/* Get started */}
-        <section className="py-20 bg-[#fff5f0]">
+        <section className="py-20 bg-white">
           <div className="max-w-5xl mx-auto px-4 text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900">
               Bắt đầu hành trình của bạn <br />tại <span className="text-orange-500">STUDION</span>
@@ -79,77 +79,42 @@ export default function AboutPage() {
         </section>
 
         {/* Our story */}
-        <section className="py-20 bg-white">
-          <div className="max-w-5xl mx-auto px-4 grid md:grid-cols-2 gap-12 items-center">
+        <section className="py-24 bg-white">
+          <div className="max-w-5xl mx-auto px-4 grid md:grid-cols-[1.1fr_0.9fr] gap-12 items-start">
             {/* Images */}
-            <div className="relative h-80 md:h-96">
+            <div className="relative overflow-visible">
               <img
-                src="https://images.unsplash.com/photo-1554080353-a576cf803bda?w=600&q=80"
-                alt="Story main"
-                className="absolute top-0 left-0 w-4/5 h-full object-cover rounded-2xl shadow-lg"
+                src="/Overlay+Shadow.png"
+                alt="Hình ảnh chính"
+                className="w-full h-[28rem] md:h-[34rem] rounded-[2rem] object-cover shadow-[0_32px_64px_rgba(15,23,42,0.08)]"
               />
-              <img
-                src="https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=300&q=80"
-                alt="Story secondary"
-                className="absolute bottom-0 right-0 w-2/5 h-2/5 object-cover rounded-2xl shadow-xl border-4 border-white"
-              />
+              <div className="absolute -bottom-8 -right-8 w-44 h-44 md:w-52 md:h-52 rounded-[1.75rem] overflow-hidden shadow-2xl z-10">
+                <img
+                  src="/Overlay+Border+Shadow.png"
+                  alt="Hình ảnh phụ"
+                  className="w-[110%] h-[110%] object-cover -translate-x-1 -translate-y-1"
+                />
+              </div>
             </div>
 
             {/* Text */}
-            <div>
-              <p className="text-orange-500 text-xs font-semibold uppercase tracking-widest mb-2">CÂU CHUYỆN CỦA CHÚNG TÔI</p>
-              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+            <div className="space-y-6 pt-2">
+              <p className="text-orange-500 text-xs font-semibold uppercase tracking-widest">CÂU CHUYỆN CỦA CHÚNG TÔI</p>
+              <h2 className="text-3xl md:text-5xl font-bold text-gray-900 leading-tight">
                 Kết nối đam mê với sự tinh hoa
               </h2>
-              <p className="text-gray-500 text-sm leading-relaxed mb-4">
-                Studion ra đời từ một câu hỏi đơn giản: Làm thế nào để mọi khoảnh khắc đáng giá đều có thể trở thành những đôi mắt tưởng như, được hỗ trợ bởi công nghệ tiên tiến nhất?
-              </p>
-              <p className="text-gray-500 text-sm leading-relaxed mb-6">
-                Chúng tôi xây dựng một hệ sinh thái nơi các nhiếp ảnh gia và khách hàng không chỉ tìm thấy nhau, mà còn tìm thấy công cụ để cùng tạo được hỗ trợ bởi AI, giúp từng sự kiện trở thành ký ức hoàn hảo.
-              </p>
-              <Link href="/photographer" className="inline-block bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium px-6 py-3 rounded-full transition-colors">
+              <div className="space-y-4 text-gray-600 text-sm md:text-base leading-relaxed max-w-xl">
+                <p>
+                  Photar AI ra đời từ một tầm nhìn đơn giản: Làm thế nào để mọi khoảnh khắc đáng giá đều có thể trở thành những đôi mắt tưởng như, được hỗ trợ bởi công nghệ tiên tiến nhất?
+                </p>
+                <p>
+                  Chúng tôi xây dựng một hệ sinh thái nơi các nhiếp ảnh gia tài năng không chỉ tìm thấy khách hàng, mà còn tìm thấy một cộng đồng sáng tạo được hỗ trợ bởi AI, giúp tối ưu hoá quy trình từ tìm kiếm địa điểm đến hậu kỳ hoàn hảo.
+                </p>
+              </div>
+              <Link href="/photographer" className="inline-flex items-center justify-center bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold px-7 py-3 rounded-full transition-colors">
                 Tìm hiểu thêm
               </Link>
             </div>
-          </div>
-        </section>
-
-        {/* Stats */}
-        <section className="py-16 bg-gray-900 text-white">
-          <div className="max-w-4xl mx-auto px-4 grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-            {[
-              { number: "5000+", label: "Nhiếp ảnh gia" },
-              { number: "50K+", label: "Khách hàng" },
-              { number: "200K+", label: "Bức ảnh" },
-              { number: "4.9★", label: "Đánh giá" },
-            ].map((s) => (
-              <div key={s.label}>
-                <div className="text-3xl md:text-4xl font-bold text-orange-400">{s.number}</div>
-                <div className="text-gray-400 text-sm mt-1">{s.label}</div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* Team */}
-        <section className="py-20 bg-white">
-          <div className="max-w-5xl mx-auto px-4 text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900">Đội ngũ của chúng tôi</h2>
-            <p className="text-gray-500 mt-2 text-sm">Những con người đam mê đứng sau STUDION</p>
-          </div>
-          <div className="max-w-5xl mx-auto px-4 grid grid-cols-2 md:grid-cols-4 gap-6">
-            {[
-              { name: "Minh Tuấn", role: "CEO & Co-founder", img: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&q=80" },
-              { name: "Linh Phương", role: "Head of Design", img: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&q=80" },
-              { name: "Hồng Sơn", role: "Lead Engineer", img: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&q=80" },
-              { name: "Mai Anh", role: "Community Lead", img: "https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=200&q=80" },
-            ].map((m) => (
-              <div key={m.name} className="text-center">
-                <img src={m.img} alt={m.name} className="w-20 h-20 md:w-24 md:h-24 rounded-full object-cover mx-auto mb-3 shadow" />
-                <div className="font-semibold text-gray-900 text-sm">{m.name}</div>
-                <div className="text-orange-500 text-xs">{m.role}</div>
-              </div>
-            ))}
           </div>
         </section>
 
