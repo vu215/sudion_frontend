@@ -123,10 +123,10 @@ function Footer() {
         <div>
           <div className="flex items-center gap-2.5">
             <img
-            src="/logo_sudion_remove.png"
-            alt="Studion logo"
-            className="h-[70px] w-[70px] rounded-full "
-          />
+              src="/logo_sudion_remove.png"
+              alt="Studion logo"
+              className="h-[70px] w-[70px] rounded-full"
+            />
             <span className="text-[20px] font-black tracking-[0.05em] text-white uppercase">
               STUDION
             </span>
@@ -183,16 +183,6 @@ function MenuGlyph() {
   return (
     <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true">
       <path d="M4 6H16M4 10H16M4 14H16" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function LogoMark({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <circle cx="12" cy="12" r="10" fill="#FF8D28" />
-      <circle cx="12" cy="12" r="5" fill="white" />
-      <circle cx="12" cy="12" r="2" fill="#0e111d" />
     </svg>
   );
 }
