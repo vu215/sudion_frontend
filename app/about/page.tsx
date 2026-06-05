@@ -11,7 +11,7 @@ export default function AboutPage() {
         <section className="relative h-[70vh] min-h-[480px] flex flex-col items-center justify-center text-center overflow-hidden">
           <div
             className="absolute inset-0 bg-cover bg-center"
-            style={{ backgroundImage: "url('https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?w=1600&q=80')" }}
+            style={{ backgroundImage: "url('/screen%201.png')" }}
           />
           <div className="absolute inset-0 bg-black/65" />
           <div className="relative z-10 px-4">
@@ -34,7 +34,7 @@ export default function AboutPage() {
               Bắt đầu hành trình của bạn <br />tại <span className="text-orange-500">STUDION</span>
             </h2>
             <p className="text-gray-500 mt-3 text-sm md:text-base">
-              Xây dựng career với hàng trăm khách hàng và thể hiện tốt nhất.
+             Vui lòng chọn vai trò của bạn để chúng tôi có thể hỗ trợ tốt nhất.
             </p>
           </div>
 
@@ -49,11 +49,11 @@ export default function AboutPage() {
               <div>
                 <h3 className="text-lg font-bold text-gray-900">Tôi là Khách hàng</h3>
                 <p className="text-gray-500 text-sm mt-2">
-                  Tìm kiếm nhiếp ảnh gia chuyên nghiệp, lịch chụp và những khoảnh khắc lưu mãi mãi.
+                 Tìm kiếm nhiếp ảnh gia chuyên nghiệp, đặt lịch chụp ảnh và lưu giữ những khoảnh khắc tuyệt vời nhất.
                 </p>
               </div>
               <Link href="/" className="bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium px-5 py-2.5 rounded-full transition-colors mt-auto">
-                BẮT ĐẦU NGAY
+               ĐẶT LỊCH NGAY
               </Link>
             </div>
 
@@ -68,11 +68,11 @@ export default function AboutPage() {
               <div>
                 <h3 className="text-lg font-bold text-gray-900">Tôi là Nhiếp ảnh gia</h3>
                 <p className="text-gray-500 text-sm mt-2">
-                  Gia nhập cộng đồng, được hỗ trợ toàn diện và phát triển sự nghiệp cùng Studion.
+                  Gia nhập cộng đồng nhiếp ảnh gia tài năng, quản lý lịch trình và phát triển sự nghiệpcùng Lumina Studio.
                 </p>
               </div>
               <Link href="/photographer" className="bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium px-5 py-2.5 rounded-full transition-colors mt-auto">
-                GIA NHẬP NGAY
+              GIA NHẬP ĐỘI NGŨ
               </Link>
             </div>
           </div>
