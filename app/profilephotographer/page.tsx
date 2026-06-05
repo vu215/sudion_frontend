@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 const photographers = [
@@ -145,6 +145,14 @@ const navItems = [
 ];
 
 export default function ProfilePhotographerPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gray-50" />}>
+      <ProfilePhotographerContent />
+    </Suspense>
+  );
+}
+
+function ProfilePhotographerContent() {
   const searchParams = useSearchParams();
   const id = searchParams.get("id");
   const person = photographers.find((p) => p.id === id) || photographers[0];
