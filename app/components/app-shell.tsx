@@ -22,7 +22,9 @@ const footerColumns = [
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const isStandalonePage = pathname.startsWith("/profilephotographer");
+  const standalonePaths = ["/login", "/register", "/forgot-password", "/reset-password"];
+  const isStandalonePage =
+    pathname.startsWith("/profilephotographer") || standalonePaths.includes(pathname);
 
   if (isStandalonePage) {
     return <>{children}</>;
