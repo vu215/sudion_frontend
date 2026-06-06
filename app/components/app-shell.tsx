@@ -12,8 +12,6 @@ const headerLinks = [
   { href: "/photographer", label: "Photographer" },
   { href: "/#services", label: "Dịch vụ" },
   { href: "/news", label: "Tin tức" },
-  { href: "/pricing", label: "Bảng giá" },
-  { href: "/portfolio", label: "Portfolio" },
 ];
 
 const footerColumns = [
