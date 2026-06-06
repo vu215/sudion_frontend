@@ -695,7 +695,7 @@ function PhotographerCard({
               {person.name}
               {person.verified ? <VerifyIcon className="h-6 w-6 text-[#1687ff]" /> : null}
             </h3>
-            <p className="mt-2 flex items-center gap-1 text-[14px] font-medium leading-none text-[#575966]">
+            <p className="mt-2 flex items-center gap-1 text-[10px] font-medium leading-none text-[#575966]">
               <PinIcon className="h-4 w-4" />
               {person.location}
             </p>
