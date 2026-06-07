@@ -1,4 +1,10 @@
+"use client";
+
 import Link from "next/link";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { registerUser, setSession, type UserRole } from "@/app/auth-store";
+import { useAuth } from "@/app/auth-context";
 
 const assets = {
   dalat: "https://www.figma.com/api/mcp/asset/5b095a9c-ad55-48b1-81b3-784b326613ba",
@@ -6,13 +12,38 @@ const assets = {
 };
 
 export default function RegisterPage() {
+  const router = useRouter();
+  const { refresh } = useAuth();
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [role, setRole] = useState<UserRole>("client");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    if (!fullName || !email || !password || !confirmPassword) { setError("Vui lòng nhập đầy đủ thông tin."); return; }
+    if (password.length < 6) { setError("Mật khẩu phải có ít nhất 6 ký tự."); return; }
+    if (password !== confirmPassword) { setError("Mật khẩu xác nhận không khớp."); return; }
+    setLoading(true);
+    const result = registerUser(fullName, email, password, role);
+    setLoading(false);
+    if (result.ok === false) { setError(result.error); return; }
+    setSession({ userId: result.user.id, email: result.user.email, fullName: result.user.fullName, role: result.user.role });
+    refresh();
+    router.push("/");
+  }
+
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#fbf8ff] text-[#1a1b24]">
       <section className="absolute left-1/2 top-1/2 flex min-h-[1080px] w-[1920px] origin-center -translate-x-1/2 -translate-y-1/2 scale-[0.375] flex-col items-center justify-center px-[410px] py-[98px] min-[640px]:scale-[0.333] min-[768px]:scale-[0.4] min-[1024px]:scale-[0.533] min-[1280px]:scale-[0.667] min-[1366px]:scale-[0.711] min-[1440px]:scale-[0.75] min-[1536px]:scale-[0.8] min-[1728px]:scale-[0.9] min-[1920px]:scale-100">
         <div className="grid h-[775px] w-[1100px] grid-cols-[550px_550px] overflow-hidden rounded-[24px] border border-[#c5c5d8]/20 bg-white shadow-[0_10px_40px_-10px_rgba(0,0,0,0.08)]">
           <div className="flex h-full items-center bg-white px-[74px] py-8">
             <div className="w-full max-w-[400px]">
-              <div className="mb-8">
+              <div className="mb-6">
                 <h1 className="text-[32px] font-extrabold leading-[1.2] tracking-[-0.01em] text-[#1a1b24]">
                   Bắt đầu hành trình của bạn
                 </h1>
@@ -21,70 +52,66 @@ export default function RegisterPage() {
                 </p>
               </div>
 
-              <form className="grid gap-5">
+              {error && (
+                <div className="mb-4 rounded-[8px] bg-red-50 border border-red-100 px-4 py-3 text-[14px] text-red-600">
+                  {error}
+                </div>
+              )}
+
+              <form onSubmit={handleSubmit} className="grid gap-4">
+                {/* Role selector — thêm mới, nhỏ gọn */}
+                <div className="grid grid-cols-2 gap-3">
+                  {(["client", "photographer"] as UserRole[]).map((val) => (
+                    <button key={val} type="button" onClick={() => setRole(val)}
+                      className={`h-[44px] rounded-[8px] border-2 text-[14px] font-bold transition-all ${role === val ? "border-[#ff8d28] bg-[#fff4eb] text-[#ff8d28]" : "border-[#c5c5d8] text-[#444655] hover:border-[#ff8d28]/50"}`}>
+                      {val === "client" ? "Khách hàng" : "Nhiếp ảnh gia"}
+                    </button>
+                  ))}
+                </div>
+
                 <label className="grid gap-2 text-[16px] font-bold leading-5 text-[#1a1b24]">
                   Họ và tên
-                  <input
-                    type="text"
-                    placeholder="Nhập họ và tên"
-                    className="!h-[55px] !min-h-0 w-full !rounded-[8px] !border !border-[#c5c5d8] !bg-[#f4f2ff] !px-4 text-[16px] font-medium !text-[#1a1b24] !shadow-none outline-none transition focus:!border-[#ff8d28] focus:!bg-white focus:!ring-4 focus:!ring-[#ff8d28]/15"
-                  />
+                  <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Nhập họ và tên"
+                    className="!h-[55px] !min-h-0 w-full !rounded-[8px] !border !border-[#c5c5d8] !bg-[#f4f2ff] !px-4 text-[16px] font-medium !text-[#1a1b24] !shadow-none outline-none transition focus:!border-[#ff8d28] focus:!bg-white focus:!ring-4 focus:!ring-[#ff8d28]/15" />
                 </label>
 
                 <label className="grid gap-2 text-[16px] font-bold leading-5 text-[#1a1b24]">
                   Email
-                  <input
-                    type="email"
-                    placeholder="example@photor.ai"
-                    className="!h-[55px] !min-h-0 w-full !rounded-[8px] !border !border-[#c5c5d8] !bg-[#f4f2ff] !px-4 text-[16px] font-medium !text-[#1a1b24] !shadow-none outline-none transition focus:!border-[#ff8d28] focus:!bg-white focus:!ring-4 focus:!ring-[#ff8d28]/15"
-                  />
+                  <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="example@photor.ai"
+                    className="!h-[55px] !min-h-0 w-full !rounded-[8px] !border !border-[#c5c5d8] !bg-[#f4f2ff] !px-4 text-[16px] font-medium !text-[#1a1b24] !shadow-none outline-none transition focus:!border-[#ff8d28] focus:!bg-white focus:!ring-4 focus:!ring-[#ff8d28]/15" />
                 </label>
 
                 <div className="grid grid-cols-2 gap-4">
                   <label className="grid gap-2 text-[16px] font-bold leading-5 text-[#1a1b24]">
                     Mật khẩu
-                    <input
-                      type="password"
-                      placeholder="••••••••"
-                      className="!h-[55px] !min-h-0 w-full !rounded-[8px] !border !border-[#c5c5d8] !bg-[#f4f2ff] !px-4 text-[16px] font-medium tracking-[0.22em] !text-[#1a1b24] !shadow-none outline-none placeholder:tracking-[0.22em] focus:!border-[#ff8d28] focus:!bg-white focus:!ring-4 focus:!ring-[#ff8d28]/15"
-                    />
+                    <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••"
+                      className="!h-[55px] !min-h-0 w-full !rounded-[8px] !border !border-[#c5c5d8] !bg-[#f4f2ff] !px-4 text-[16px] font-medium tracking-[0.22em] !text-[#1a1b24] !shadow-none outline-none placeholder:tracking-[0.22em] focus:!border-[#ff8d28] focus:!bg-white focus:!ring-4 focus:!ring-[#ff8d28]/15" />
                   </label>
-
                   <label className="grid gap-2 text-[16px] font-bold leading-5 text-[#1a1b24]">
                     Xác nhận mật khẩu
-                    <input
-                      type="password"
-                      placeholder="••••••••"
-                      className="!h-[55px] !min-h-0 w-full !rounded-[8px] !border !border-[#c5c5d8] !bg-[#f4f2ff] !px-4 text-[16px] font-medium tracking-[0.22em] !text-[#1a1b24] !shadow-none outline-none placeholder:tracking-[0.22em] focus:!border-[#ff8d28] focus:!bg-white focus:!ring-4 focus:!ring-[#ff8d28]/15"
-                    />
+                    <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="••••••••"
+                      className="!h-[55px] !min-h-0 w-full !rounded-[8px] !border !border-[#c5c5d8] !bg-[#f4f2ff] !px-4 text-[16px] font-medium tracking-[0.22em] !text-[#1a1b24] !shadow-none outline-none placeholder:tracking-[0.22em] focus:!border-[#ff8d28] focus:!bg-white focus:!ring-4 focus:!ring-[#ff8d28]/15" />
                   </label>
                 </div>
 
-                <button
-                  type="submit"
-                  className="h-[52px] rounded-[8px] bg-[#ff8d28] px-5 text-[16px] font-bold text-white shadow-[0_10px_15px_-3px_rgba(29,60,221,0.10),0_4px_6px_-4px_rgba(29,60,221,0.10)] transition hover:-translate-y-0.5 hover:bg-[#e9791d]"
-                >
-                  Tạo tài khoản ngay
+                <button type="submit" disabled={loading}
+                  className="h-[52px] rounded-[8px] bg-[#ff8d28] px-5 text-[16px] font-bold text-white shadow-[0_10px_15px_-3px_rgba(29,60,221,0.10),0_4px_6px_-4px_rgba(29,60,221,0.10)] transition hover:-translate-y-0.5 hover:bg-[#e9791d] disabled:opacity-60">
+                  {loading ? "Đang tạo tài khoản..." : "Tạo tài khoản ngay"}
                 </button>
               </form>
 
-              <p className="mt-8 text-center text-[16px] font-medium text-[#444655]">
+              <p className="mt-6 text-center text-[16px] font-medium text-[#444655]">
                 Đã có tài khoản?{" "}
-                <Link href="/login" className="font-bold text-[#ff8d28]">
-                  Đăng nhập
-                </Link>
+                <Link href="/login" className="font-bold text-[#ff8d28]">Đăng nhập</Link>
               </p>
 
-              <div className="my-8 flex items-center gap-4">
+              <div className="my-6 flex items-center gap-4">
                 <span className="h-px flex-1 bg-[#c5c5d8]/50" />
                 <span className="text-[14px] font-semibold text-[#444655]/60">HOẶC</span>
                 <span className="h-px flex-1 bg-[#c5c5d8]/50" />
               </div>
 
-              <button
-                type="button"
-                className="flex h-[50px] w-full items-center justify-center gap-3 rounded-[12px] border border-[#c5c5d8] bg-[#fbf8ff] text-[16px] font-bold text-[#1a1b24] transition hover:border-[#ff8d28]"
-              >
+              <button type="button" className="flex h-[50px] w-full items-center justify-center gap-3 rounded-[12px] border border-[#c5c5d8] bg-[#fbf8ff] text-[16px] font-bold text-[#1a1b24] transition hover:border-[#ff8d28]">
                 <img src={assets.google} alt="" className="h-5 w-5" />
                 Tiếp tục với Google
               </button>
@@ -95,9 +122,7 @@ export default function RegisterPage() {
             <img src={assets.dalat} alt="" className="h-full w-full object-cover" />
             <div className="absolute bottom-12 left-12 right-12 rounded-[16px] border border-white/20 bg-black/20 px-8 py-7 text-white shadow-[0_18px_40px_rgba(0,0,0,0.12)] backdrop-blur-md">
               <h2 className="text-[30px] font-extrabold leading-[1.18] tracking-[-0.02em]">
-                Nâng tầm câu chuyện
-                <br />
-                hình ảnh của bạn.
+                Nâng tầm câu chuyện<br />hình ảnh của bạn.
               </h2>
               <p className="mt-5 text-[17px] font-medium leading-[1.6] text-white/80">
                 Tham gia cộng đồng hàng nghìn nhiếp ảnh gia và doanh nghiệp đang thay đổi cách họ làm việc với AI.

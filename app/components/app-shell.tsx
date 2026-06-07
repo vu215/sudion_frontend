@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import { useState, useRef, useEffect, type ReactNode } from "react";
+import { useAuth } from "@/app/auth-context";
 
 const containerClass = "w-full max-w-[1440px] mx-auto px-6 md:px-12 lg:px-20";
 
@@ -40,6 +41,23 @@ export function AppShell({ children }: { children: ReactNode }) {
 }
 
 function Header({ pathname }: { pathname: string }) {
+  const { session, logout, loading } = useAuth();
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  const initials = session?.fullName
+    ? session.fullName.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2)
+    : "";
   return (
     <header className="fixed top-0 left-0 right-0 z-50 w-full border-b border-[#e8eaf1]/80 bg-white/95 backdrop-blur-md shadow-sm">
       <div
@@ -86,20 +104,69 @@ function Header({ pathname }: { pathname: string }) {
             <SearchGlyph className="h-5 w-5" />
           </button>
 
-          <button
-            type="button"
-            aria-label="Profile"
-            className="hidden h-10 w-10 items-center justify-center rounded-full text-[#4b5563] transition-colors hover:bg-[#f3f4f6] hover:text-[#0e111d] lg:inline-flex"
-          >
-            <ProfileGlyph className="h-5 w-5" />
-          </button>
+          {!loading && !session ? (
+            <Link
+              href="/register"
+              className="rounded-lg bg-[#ff8d28] px-5 py-2.5 text-[14px] font-bold text-white shadow-[0_6px_14px_rgba(255,141,40,0.15)] transition-all hover:translate-y-[-1px] hover:bg-[#e0751b]"
+            >
+              Đăng ký
+            </Link>
+          ) : !loading && session ? (
+            <div className="relative" ref={dropdownRef}>
+              <button
+                type="button"
+                onClick={() => setDropdownOpen((v) => !v)}
+                className="flex items-center gap-2.5 rounded-full border border-[#e8eaf1] px-3 py-1.5 hover:bg-[#f9f9fb] transition-colors"
+              >
+                <div className="w-8 h-8 rounded-full bg-[#ff8d28] flex items-center justify-center text-white text-xs font-black">
+                  {initials}
+                </div>
+                <span className="hidden text-sm font-bold text-[#0e111d] md:block max-w-[120px] truncate">
+                  {session.fullName}
+                </span>
+                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
 
-          <Link
-            href="/booking"
-            className="rounded-lg bg-[#ff8d28] px-5 py-2.5 text-[14px] font-bold text-white shadow-[0_6px_14px_rgba(255,141,40,0.15)] transition-all hover:translate-y-[-1px] hover:bg-[#e0751b]"
-          >
-            Đặt lịch ngay
-          </Link>
+              {dropdownOpen && (
+                <div className="absolute right-0 top-full mt-2 w-56 rounded-2xl border border-[#e8eaf1] bg-white shadow-xl py-2 z-50">
+                  <div className="px-4 py-3 border-b border-gray-100">
+                    <p className="text-sm font-bold text-gray-900 truncate">{session.fullName}</p>
+                    <p className="text-xs text-gray-400 truncate">{session.email}</p>
+                    <span className="mt-1 inline-block text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-100 text-orange-600">
+                      {session.role === "photographer" ? "Nhiếp ảnh gia" : "Khách hàng"}
+                    </span>
+                  </div>
+                  {session.role === "photographer" && (
+                    <Link href="/profilephotographer" onClick={() => setDropdownOpen(false)}
+                      className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                      <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                      </svg>
+                      Dashboard nhiếp ảnh gia
+                    </Link>
+                  )}
+                  <Link href="/bookings" onClick={() => setDropdownOpen(false)}
+                    className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    Lịch đặt của tôi
+                  </Link>
+                  <div className="border-t border-gray-100 mt-1 pt-1">
+                    <button type="button" onClick={() => { setDropdownOpen(false); logout(); }}
+                      className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                      </svg>
+                      Đăng xuất
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : null}
 
           <button
             type="button"

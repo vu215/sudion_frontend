@@ -1,4 +1,10 @@
+"use client";
+
 import Link from "next/link";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { loginUser } from "@/app/auth-store";
+import { useAuth } from "@/app/auth-context";
 
 const assets = {
   google: "https://www.figma.com/api/mcp/asset/7799c334-9a5d-4ef7-a51b-c5701a78b252",
@@ -8,6 +14,25 @@ const assets = {
 };
 
 export default function LoginPage() {
+  const router = useRouter();
+  const { refresh } = useAuth();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    if (!email || !password) { setError("Vui lòng nhập đầy đủ thông tin."); return; }
+    setLoading(true);
+    const result = loginUser(email, password);
+    setLoading(false);
+    if (result.ok === false) { setError(result.error); return; }
+    refresh();
+    router.push("/");
+  }
+
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#fbf8ff] text-[#1a1b24]">
       <section className="absolute left-1/2 top-1/2 flex min-h-[1080px] w-[1920px] origin-center -translate-x-1/2 -translate-y-1/2 scale-[0.375] flex-col items-center justify-center px-[410px] py-[126px] min-[640px]:scale-[0.333] min-[768px]:scale-[0.4] min-[1024px]:scale-[0.533] min-[1280px]:scale-[0.667] min-[1366px]:scale-[0.711] min-[1440px]:scale-[0.75] min-[1536px]:scale-[0.8] min-[1728px]:scale-[0.9] min-[1920px]:scale-100">
@@ -20,9 +45,7 @@ export default function LoginPage() {
             </div>
             <div className="absolute bottom-12 left-12 right-12 rounded-[16px] border border-white/20 bg-black/25 px-8 py-7 text-white shadow-[0_18px_40px_rgba(0,0,0,0.12)] backdrop-blur-md">
               <h2 className="text-[30px] font-extrabold leading-[1.18] tracking-[-0.02em]">
-                Nâng tầm câu chuyện
-                <br />
-                hình ảnh của bạn.
+                Nâng tầm câu chuyện<br />hình ảnh của bạn.
               </h2>
               <p className="mt-5 text-[17px] font-medium leading-[1.6] text-white/80">
                 Tham gia cộng đồng hàng nghìn nhiếp ảnh gia và doanh nghiệp đang thay đổi cách họ làm việc với AI.
@@ -41,11 +64,19 @@ export default function LoginPage() {
                 </p>
               </div>
 
-              <form className="grid gap-5">
+              {error && (
+                <div className="mb-5 rounded-[8px] bg-red-50 border border-red-100 px-4 py-3 text-[15px] text-red-600">
+                  {error}
+                </div>
+              )}
+
+              <form onSubmit={handleSubmit} className="grid gap-5">
                 <label className="grid gap-2 text-[16px] font-bold leading-5 text-[#1a1b24]">
                   Email hoặc tên đăng nhập
                   <input
                     type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                     placeholder="name@company.com"
                     className="!h-[55px] !min-h-0 w-full !rounded-[8px] !border !border-[#c5c5d8] !bg-[#f4f2ff] !px-4 text-[16px] font-medium !text-[#1a1b24] !shadow-none outline-none transition focus:!border-[#ff8d28] focus:!bg-white focus:!ring-4 focus:!ring-[#ff8d28]/15"
                   />
@@ -61,6 +92,8 @@ export default function LoginPage() {
                   <span className="relative block">
                     <input
                       type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
                       placeholder="••••••••"
                       className="!h-[55px] !min-h-0 w-full !rounded-[8px] !border !border-[#c5c5d8] !bg-[#f4f2ff] !px-4 !pr-12 text-[16px] font-medium tracking-[0.22em] !text-[#1a1b24] !shadow-none outline-none placeholder:tracking-[0.22em] focus:!border-[#ff8d28] focus:!bg-white focus:!ring-4 focus:!ring-[#ff8d28]/15"
                     />
@@ -77,17 +110,16 @@ export default function LoginPage() {
 
                 <button
                   type="submit"
-                  className="mt-1 h-[52px] rounded-[8px] bg-[#ff8d28] px-5 text-[16px] font-bold text-white shadow-[0_10px_15px_-3px_rgba(29,60,221,0.10),0_4px_6px_-4px_rgba(29,60,221,0.10)] transition hover:-translate-y-0.5 hover:bg-[#e9791d]"
+                  disabled={loading}
+                  className="mt-1 h-[52px] rounded-[8px] bg-[#ff8d28] px-5 text-[16px] font-bold text-white shadow-[0_10px_15px_-3px_rgba(29,60,221,0.10),0_4px_6px_-4px_rgba(29,60,221,0.10)] transition hover:-translate-y-0.5 hover:bg-[#e9791d] disabled:opacity-60"
                 >
-                  Đăng nhập
+                  {loading ? "Đang đăng nhập..." : "Đăng nhập"}
                 </button>
               </form>
 
               <p className="mt-8 text-center text-[16px] font-medium text-[#444655]">
                 Chưa có tài khoản?{" "}
-                <Link href="/register" className="font-bold text-[#ff8d28]">
-                  Đăng ký ngay
-                </Link>
+                <Link href="/register" className="font-bold text-[#ff8d28]">Đăng ký ngay</Link>
               </p>
 
               <div className="my-8 flex items-center gap-4">
@@ -96,10 +128,7 @@ export default function LoginPage() {
                 <span className="h-px flex-1 bg-[#c5c5d8]/50" />
               </div>
 
-              <button
-                type="button"
-                className="flex h-[50px] w-full items-center justify-center gap-3 rounded-[12px] border border-[#c5c5d8] bg-[#fbf8ff] text-[16px] font-bold text-[#1a1b24] transition hover:border-[#ff8d28]"
-              >
+              <button type="button" className="flex h-[50px] w-full items-center justify-center gap-3 rounded-[12px] border border-[#c5c5d8] bg-[#fbf8ff] text-[16px] font-bold text-[#1a1b24] transition hover:border-[#ff8d28]">
                 <img src={assets.google} alt="" className="h-5 w-5" />
                 Tiếp tục với Google
               </button>
