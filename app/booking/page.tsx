@@ -23,6 +23,34 @@ const services = [
       "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=640&q=82",
   },
   {
+    id: "portrait",
+    name: "Chân dung cá nhân (Portrait)",
+    price: "Từ 2.500.000 VND",
+    basePrice: 2500000,
+    duration: "Studio hoặc ngoại cảnh",
+    peopleOptions: [
+      { label: "1 người", extra: 0 },
+      { label: "2 người", extra: 300000 },
+      { label: "3-5 người", extra: 600000 },
+    ],
+    image:
+      "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=640&q=82",
+  },
+  {
+    id: "fashion",
+    name: "Thời trang thương mại (Fashion)",
+    price: "Từ 5.000.000 VND",
+    basePrice: 5000000,
+    duration: "Lookbook thương hiệu",
+    peopleOptions: [
+      { label: "1 người", extra: 0 },
+      { label: "2-4 người", extra: 600000 },
+      { label: "5-10 người", extra: 1200000 },
+    ],
+    image:
+      "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=640&q=82",
+  },
+  {
     id: "couple",
     name: "Chụp ảnh đôi",
     price: "Từ 1.500.000 VND",
@@ -247,7 +275,10 @@ function BookingContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const photographerId = searchParams.get("photographer") || "studion-match";
+  const serviceQuery = searchParams.get("service")?.trim() || "";
+  const datesQuery = searchParams.get("dates")?.trim() || "";
   const [selectedService, setSelectedService] = useState(services[0].id);
+  const [preferredServiceLabel, setPreferredServiceLabel] = useState<string | null>(null);
   const [peopleByService, setPeopleByService] = useState(() =>
     Object.fromEntries(services.map((item) => [item.id, item.peopleOptions[0].label])),
   );
@@ -264,6 +295,7 @@ function BookingContent() {
   const [email, setEmail] = useState("");
   const [contactChannel, setContactChannel] = useState(contactChannels[0]);
   const [selectedSlotId, setSelectedSlotId] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("momo");
 
   const service = useMemo(
     () => services.find((item) => item.id === selectedService) || services[0],
@@ -281,16 +313,43 @@ function BookingContent() {
     photographerProfile.availableSlots[0];
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      const nextSlot = photographerProfile.availableSlots[0];
-      setSelectedSlotId(nextSlot.id);
-      setShootDate(nextSlot.date);
-      setShootTime(nextSlot.time);
-      setLocation(nextSlot.location);
-    }, 0);
+    if (!serviceQuery) {
+      setPreferredServiceLabel(null);
+    } else {
+      const normalizedService = serviceQuery.toLowerCase();
+      const matchedService = services.find(
+        (item) =>
+          item.id === normalizedService ||
+          item.name.toLowerCase() === normalizedService ||
+          item.name.toLowerCase().includes(normalizedService),
+      );
+      if (matchedService) {
+        setSelectedService(matchedService.id);
+        setPreferredServiceLabel(null);
+      } else {
+        setPreferredServiceLabel(serviceQuery);
+      }
+    }
+  }, [serviceQuery]);
 
-    return () => window.clearTimeout(timer);
-  }, [photographerProfile]);
+  useEffect(() => {
+    if (!datesQuery) {
+      return;
+    }
+    const firstDate = datesQuery.split(",").find(Boolean);
+    if (firstDate) {
+      setShootDate(firstDate);
+    }
+  }, [datesQuery]);
+
+  useEffect(() => {
+    const matchingSlot = photographerProfile.availableSlots.find((slot) => slot.date === shootDate);
+    const nextSlot = matchingSlot ?? photographerProfile.availableSlots[0];
+    setSelectedSlotId(nextSlot.id);
+    setShootDate(nextSlot.date);
+    setShootTime(nextSlot.time);
+    setLocation(nextSlot.location);
+  }, [photographerProfile, shootDate]);
 
   const budgetValue = useMemo(() => parseBudget(budget), [budget]);
   const selectedPeopleScale = peopleByService[selectedService] || service.peopleOptions[0].label;
@@ -318,6 +377,10 @@ function BookingContent() {
     [budgetValue, photographerProfile.addOns, selectedService],
   );
 
+  const selectedAddOnNames = availableAddOns
+    .filter((item) => selectedAddOns.includes(item.id))
+    .map((item) => item.name);
+
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -343,6 +406,7 @@ function BookingContent() {
       estimatedTotal,
       addOns: selectedAddOnNames,
       referenceFileName,
+      paymentMethod,
       customer: {
         fullName,
         phone,
@@ -354,9 +418,14 @@ function BookingContent() {
     router.push(`/booking-success?id=${encodeURIComponent(bookingId)}`);
   };
 
-  const selectedAddOnNames = availableAddOns
-    .filter((item) => selectedAddOns.includes(item.id))
-    .map((item) => item.name);
+  const paymentMethods = [
+    { id: "momo", name: "MoMo", mark: "M" },
+    { id: "vnpay", name: "VNPay", mark: "QR" },
+    { id: "bank", name: "Chuyển khoản", mark: "B" },
+  ];
+
+  const depositAmount = Math.round(estimatedTotal * 0.5);
+  const remainingAmount = estimatedTotal - depositAmount;
 
   const toggleAddOn = (id: string) => {
     setSelectedAddOns((current) =>
@@ -390,6 +459,11 @@ function BookingContent() {
                   <h2 className="mt-2 text-[22px] font-black leading-tight text-[#0e111d]">
                     Chọn dịch vụ
                   </h2>
+                  {preferredServiceLabel ? (
+                    <p className="mt-2 text-sm text-[#6b7280]">
+                      Dịch vụ gợi ý từ trang profile: <span className="font-semibold text-[#0e111d]">{preferredServiceLabel}</span>
+                    </p>
+                  ) : null}
                 </div>
                 <span className="hidden rounded-full bg-[#fcf2e9] px-3 py-1.5 text-[12px] font-extrabold text-[#ff8d28] sm:inline-flex">
                   {service.price}
@@ -713,7 +787,49 @@ function BookingContent() {
             </div>
 
             <div className="shrink-0 border-t border-[#f1f3f7] pt-3">
-              <button
+              <div className="mt-4 rounded-[18px] border border-[#e8eaf1] bg-[#fffaf5] p-4">
+              <p className="text-[13px] font-bold uppercase tracking-[0.14em] text-[#ff8d28]">
+                Chọn phương thức thanh toán
+              </p>
+              <div className="mt-3 grid grid-cols-3 gap-2">
+                {paymentMethods.map((method) => {
+                  const active = method.id === paymentMethod;
+
+                  return (
+                    <button
+                      key={method.id}
+                      type="button"
+                      onClick={() => setPaymentMethod(method.id)}
+                      aria-pressed={active}
+                      className={`flex min-h-[56px] flex-col items-center justify-center gap-1 rounded-[12px] border px-3 py-2 text-center transition-all ${
+                        active
+                          ? "border-[#ff8d28] bg-[#fff4eb] text-[#ff8d28]"
+                          : "border-[#d8dce8] bg-white text-[#4b5563] hover:border-[#ffcfaa]"
+                      }`}
+                    >
+                      <span className={`grid h-8 w-8 place-items-center rounded-full text-[12px] font-black ${
+                        active ? "bg-[#ff8d28] text-white" : "bg-[#f3f4f6] text-[#6b7280]"
+                      }`}>
+                        {method.mark}
+                      </span>
+                      <span className="text-[12px] font-black leading-4">{method.name}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="mt-4 grid gap-3 rounded-[14px] border border-[#f1f3f7] bg-white p-4">
+                <div className="flex items-center justify-between gap-3 text-[13px] font-semibold text-[#4b5563]">
+                  <span>Tiền cọc (50%)</span>
+                  <span className="text-[15px] font-black text-[#ff8d28]">{formatCurrency(depositAmount)}</span>
+                </div>
+                <div className="flex items-center justify-between gap-3 text-[13px] font-semibold text-[#4b5563]">
+                  <span>Còn lại</span>
+                  <span className="text-[15px] font-black text-[#0e111d]">{formatCurrency(remainingAmount)}</span>
+                </div>
+              </div>
+            </div>
+            <button
                 type="submit"
                 className="w-full rounded-lg bg-[#ff8d28] px-5 py-3.5 text-[14px] font-extrabold text-white shadow-[0_8px_18px_rgba(255,141,40,0.18)] transition-all hover:translate-y-[-1px] hover:bg-[#e0751b]"
               >

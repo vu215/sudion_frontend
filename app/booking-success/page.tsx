@@ -154,6 +154,7 @@ function BookingDetails({ booking }: { booking: StoredBooking }) {
       { label: "Quy mô", value: booking.peopleScale },
       { label: "Bối cảnh", value: booking.scene || "Chưa chọn" },
       { label: "Kênh liên hệ", value: booking.customer.contactChannel },
+      { label: "Phương thức thanh toán", value: booking.paymentMethod || "Chưa chọn" },
       { label: "Ngân sách dự kiến", value: booking.budget ? `${booking.budget} VND` : "Chưa nhập" },
       { label: "Ảnh minh họa", value: booking.referenceFileName || "Chưa tải" },
     ],

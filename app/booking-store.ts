@@ -21,6 +21,7 @@ export type StoredBooking = {
   estimatedTotal: number;
   addOns: string[];
   referenceFileName: string;
+  paymentMethod: string;
   customer: {
     fullName: string;
     phone: string;
