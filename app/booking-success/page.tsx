@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getBookingById, saveBooking, type StoredBooking } from "../booking-store";
@@ -234,11 +235,8 @@ function NextSteps({ booking, onConfirmPayment }: { booking: StoredBooking; onCo
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(booking.paymentMethod || "vnpay");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isPaid, setIsPaid] = useState(booking.status === "confirmed");
 
-  useEffect(() => {
-    setIsPaid(booking.status === "confirmed");
-  }, [booking.status]);
+  const isPaid = booking.status === "confirmed";
 
   const paymentMethods = [
     { id: "vnpay", name: "VNPay", mark: "QR" },
@@ -295,13 +293,12 @@ function NextSteps({ booking, onConfirmPayment }: { booking: StoredBooking; onCo
 
   const handleConfirmPayment = () => {
     setIsProcessing(true);
-    const updatedBooking = {
+    const updatedBooking: StoredBooking = {
       ...booking,
       status: "confirmed",
       paymentMethod: selectedPaymentMethod,
     };
     saveBooking(updatedBooking);
-    setIsPaid(true);
     setIsProcessing(false);
     setIsModalOpen(false);
     onConfirmPayment(updatedBooking);
@@ -486,11 +483,14 @@ function NextSteps({ booking, onConfirmPayment }: { booking: StoredBooking; onCo
                 {paymentInfo.qrData ? (
                   <div className="rounded-[18px] border border-[#eef0f5] bg-white p-4 text-center">
                     <p className="text-[13px] font-bold text-[#4b5563]">Quét mã QR để thanh toán</p>
-                    <img
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(paymentInfo.qrData)}`}
-                      alt="QR code thanh toán"
-                      className="mx-auto mt-4 h-[260px] w-[260px] rounded-[18px] bg-white"
-                    />
+                    <div className="relative mx-auto mt-4 h-[260px] w-[260px] overflow-hidden rounded-[18px] bg-white">
+                      <Image
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(paymentInfo.qrData)}`}
+                        alt="QR code thanh toán"
+                        fill
+                        className="rounded-[18px] object-cover"
+                      />
+                    </div>
                   </div>
                 ) : (
                   <div className="rounded-[18px] border border-[#eef0f5] bg-[#fafbfc] p-4 text-[13px] text-[#4b5563]">
