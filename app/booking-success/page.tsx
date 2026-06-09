@@ -2,8 +2,8 @@
 
 import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { getBookingById, type StoredBooking } from "../booking-store";
+import { useRouter, useSearchParams } from "next/navigation";
+import { getBookingById, saveBooking, type StoredBooking } from "../booking-store";
 
 function formatCurrency(value: number) {
   return `${value.toLocaleString("vi-VN")} VND`;
@@ -71,7 +71,7 @@ function BookingSuccessContent() {
   return (
     <main className="min-h-screen bg-[#fafbfc] text-[#0e111d]">
       <section className="mx-auto w-full max-w-[1440px] px-6 py-14 md:px-12 lg:px-20 lg:py-1">
-        <HorizontalSteps />
+        <HorizontalSteps status={booking.status} />
 
         <div data-reveal data-reveal-delay="260" className="mt-8 rounded-[18px] border border-[#e8eaf1] bg-white px-5 py-4 shadow-[0_16px_42px_rgba(20,21,31,0.045)] sm:flex sm:items-center sm:justify-between sm:px-6">
           <div>
@@ -89,30 +89,32 @@ function BookingSuccessContent() {
 
         <div className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_420px] xl:grid-cols-[minmax(0,1fr)_450px]">
           <BookingDetails booking={booking} />
-          <NextSteps booking={booking} />
+          <NextSteps booking={booking} onConfirmPayment={(updatedBooking) => setBooking(updatedBooking)} />
         </div>
       </section>
     </main>
   );
 }
 
-function HorizontalSteps() {
+function HorizontalSteps({ status }: { status: StoredBooking["status"] }) {
   const steps = [
     "Gói dịch vụ",
     "Lịch trình",
     "Thanh toán",
     "Xác nhận",
   ];
+  const activeStep = status === "confirmed" ? 3 : 2;
+  const progressWidth = `${(activeStep / (steps.length - 1)) * 100}%`;
 
   return (
     <section data-reveal data-reveal-delay="230" className="mt-8 rounded-[18px]  px-4 pb-4 pt-5  sm:px-6">
       <div className="relative">
         <div className="absolute left-[12.5%] right-[12.5%] top-5 h-[2px] bg-[#dfe3ee]" />
-        <div className="absolute left-[12.5%] top-5 h-[2px] w-[50%] bg-[#ff8d28]" />
+        <div className="absolute left-[12.5%] top-5 h-[2px] bg-[#ff8d28]" style={{ width: progressWidth }} />
         <div className="relative grid grid-cols-4">
         {steps.map((step, index) => {
-          const done = index < 2;
-          const active = index === 2;
+          const done = index < activeStep;
+          const active = index === activeStep;
 
           return (
             <div
@@ -154,6 +156,7 @@ function BookingDetails({ booking }: { booking: StoredBooking }) {
       { label: "Quy mô", value: booking.peopleScale },
       { label: "Bối cảnh", value: booking.scene || "Chưa chọn" },
       { label: "Kênh liên hệ", value: booking.customer.contactChannel },
+      { label: "Trạng thái thanh toán", value: booking.status === "confirmed" ? "Đã thanh toán" : "Chờ thanh toán" },
       { label: "Phương thức thanh toán", value: booking.paymentMethod || "Chưa chọn" },
       { label: "Ngân sách dự kiến", value: booking.budget ? `${booking.budget} VND` : "Chưa nhập" },
       { label: "Ảnh minh họa", value: booking.referenceFileName || "Chưa tải" },
@@ -193,8 +196,8 @@ function BookingDetails({ booking }: { booking: StoredBooking }) {
         {booking.addOns.length ? (
           <div className="flex flex-wrap gap-2">
             {booking.addOns.map((addOn) => (
-              <span key={addOn} className="rounded-full bg-[#f0f3fe] px-3 py-1.5 text-[11px] font-bold text-[#556080]">
-                {addOn}
+              <span key={addOn.id} className="rounded-full bg-[#f0f3fe] px-3 py-1.5 text-[11px] font-bold text-[#556080]">
+                {addOn.name}
               </span>
             ))}
           </div>
@@ -226,164 +229,283 @@ function BookingDetails({ booking }: { booking: StoredBooking }) {
   );
 }
 
-function NextSteps({ booking }: { booking: StoredBooking }) {
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("vnpay");
-  const addOnPrices: Record<string, number> = {
-    Makeup: 200000,
-    "Video highlight": 700000,
-    Flycam: 900000,
-    "Album in ấn": 500000,
-    "Retouch nâng cao": 300000,
-    Stylist: 450000,
-  };
-  const addOnRows = booking.addOns.map((addOn) => ({
-    name: addOn,
-    price: addOnPrices[addOn] || 0,
-  }));
-  const packagePrice = Math.max(booking.estimatedTotal - booking.peopleExtra, 0);
-  const addOnTotal = addOnRows.reduce((total, addOn) => total + addOn.price, 0);
-  const finalTotal = booking.estimatedTotal + addOnTotal;
-  const depositAmount = Math.round(finalTotal * 0.5);
-  const remainingAmount = finalTotal - depositAmount;
+function NextSteps({ booking, onConfirmPayment }: { booking: StoredBooking; onConfirmPayment: (booking: StoredBooking) => void }) {
+  const router = useRouter();
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(booking.paymentMethod || "vnpay");
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [isPaid, setIsPaid] = useState(booking.status === "confirmed");
+
+  useEffect(() => {
+    setIsPaid(booking.status === "confirmed");
+  }, [booking.status]);
+
   const paymentMethods = [
-    {
-      id: "vnpay",
-      name: "VNPay",
-      mark: "QR",
-    },
-    {
-      id: "momo",
-      name: "MoMo",
-      mark: "M",
-    },
-    {
-      id: "bank",
-      name: "Chuyển khoản",
-      mark: "B",
-    },
+    { id: "vnpay", name: "VNPay", mark: "QR" },
+    { id: "momo", name: "MoMo", mark: "M" },
+    { id: "bank", name: "Chuyển khoản", mark: "B" },
   ];
 
+  const packagePrice = booking.basePrice;
+  const addOnRows = booking.addOns;
+  const finalTotal = booking.estimatedTotal;
+  const depositAmount = Math.round(finalTotal * 0.5);
+  const remainingAmount = finalTotal - depositAmount;
+
+  const paymentInfo = useMemo(() => {
+    const commonText = `Booking ${booking.id}\n${booking.serviceName} • ${formatCurrency(finalTotal)}`;
+
+    if (selectedPaymentMethod === "momo") {
+      return {
+        title: "Thanh toán bằng MoMo",
+        description: "Mở ứng dụng MoMo để quét mã QR hoặc chuyển trực tiếp tới ví STUDION.",
+        details: [
+          { label: "Số ví", value: "037 123 4567" },
+          { label: "Tên người nhận", value: "STUDION" },
+          { label: "Nội dung", value: commonText },
+        ],
+        qrData: `MoMo|${commonText}`,
+      };
+    }
+
+    if (selectedPaymentMethod === "vnpay") {
+      return {
+        title: "Thanh toán bằng VNPay",
+        description: "Quét mã QR VNPay hoặc dùng app ngân hàng để thanh toán.",
+        details: [
+          { label: "Mã đơn hàng", value: booking.id },
+          { label: "Tổng tiền", value: formatCurrency(finalTotal) },
+          { label: "Nội dung", value: commonText },
+        ],
+        qrData: `VNPay|${commonText}`,
+      };
+    }
+
+    return {
+      title: "Thanh toán bằng chuyển khoản",
+      description: "Chuyển tiền vào tài khoản ngân hàng của STUDION và xác nhận đã thanh toán.",
+      details: [
+        { label: "Ngân hàng", value: "Techcombank" },
+        { label: "Số tài khoản", value: "1903 123 4567" },
+        { label: "Chủ tài khoản", value: "Công ty TNHH STUDION" },
+      ],
+      qrData: "",
+    };
+  }, [selectedPaymentMethod, booking.id, booking.serviceName, finalTotal]);
+
+  const handleConfirmPayment = () => {
+    setIsProcessing(true);
+    const updatedBooking = {
+      ...booking,
+      status: "confirmed",
+      paymentMethod: selectedPaymentMethod,
+    };
+    saveBooking(updatedBooking);
+    setIsPaid(true);
+    setIsProcessing(false);
+    setIsModalOpen(false);
+    onConfirmPayment(updatedBooking);
+    router.push(`/booking-success/confirmed?id=${encodeURIComponent(updatedBooking.id)}`);
+  };
+
   return (
-    <aside data-reveal data-reveal-delay="380" className="rounded-[16px] border border-[#e1e4ef] bg-white p-4 shadow-[0_14px_34px_rgba(20,21,31,0.055)] sm:p-5 lg:sticky lg:top-[112px] lg:self-start">
-      <div className="flex items-center gap-3">
-        <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#fff7ef] text-[15px] font-black text-[#ff8d28]">
-          {booking.photographerName.slice(0, 1)}
-        </div>
-        <div className="min-w-0">
-          <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#6b7280]">
-            Đặt lịch với
-          </p>
-          <h2 className="truncate text-[22px] font-black leading-tight tracking-[-0.02em] text-[#20212b]">
-            {booking.photographerName}
-          </h2>
-          <p className="mt-0.5 text-[12px] font-extrabold text-[#ff8d28]">
-            ★ 4.9 (120 reviews)
-          </p>
-        </div>
-      </div>
-
-      <div className="mt-5 grid gap-3 border-t border-[#f1f3f7] pt-5">
-        <div className="flex items-start justify-between gap-4">
+    <>
+      <aside data-reveal data-reveal-delay="380" className="rounded-[16px] border border-[#e1e4ef] bg-white p-4 shadow-[0_14px_34px_rgba(20,21,31,0.055)] sm:p-5 lg:sticky lg:top-[112px] lg:self-start">
+        <div className="flex items-center gap-3">
+          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#fff7ef] text-[15px] font-black text-[#ff8d28]">
+            {booking.photographerName.slice(0, 1)}
+          </div>
           <div className="min-w-0">
-            <p className="text-[16px] font-black leading-5 text-[#20212b]">
-              {booking.serviceName}
+            <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#6b7280]">
+              Đặt lịch với
             </p>
-            <p className="mt-1 text-[12px] font-semibold leading-5 text-[#4b5563]">
-              {formatDate(booking.shootDate)} • {formatTimeRange(booking.shootTime)}
+            <h2 className="truncate text-[22px] font-black leading-tight tracking-[-0.02em] text-[#20212b]">
+              {booking.photographerName}
+            </h2>
+            <p className="mt-0.5 text-[12px] font-extrabold text-[#ff8d28]">
+              ★ 4.9 (120 reviews)
             </p>
           </div>
-          <p className="shrink-0 text-right text-[16px] font-black leading-5 text-[#20212b]">
-            {formatCurrency(packagePrice)}
+        </div>
+
+        <div className="mt-5 grid gap-3 border-t border-[#f1f3f7] pt-5">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-[16px] font-black leading-5 text-[#20212b]">
+                {booking.serviceName}
+              </p>
+              <p className="mt-1 text-[12px] font-semibold leading-5 text-[#4b5563]">
+                {formatDate(booking.shootDate)} • {formatTimeRange(booking.shootTime)}
+              </p>
+            </div>
+            <p className="shrink-0 text-right text-[16px] font-black leading-5 text-[#20212b]">
+              {formatCurrency(packagePrice)}
+            </p>
+          </div>
+
+          <div className="grid gap-2 rounded-[12px] border border-[#eef0f5] bg-[#fbfcfe] px-3.5 py-3">
+            <PaymentRow label="Giá gói chụp" value={formatCurrency(packagePrice)} />
+            <PaymentRow
+              label={`Phụ thu quy mô (${booking.peopleScale})`}
+              value={booking.peopleExtra ? formatCurrency(booking.peopleExtra) : "Không có"}
+              muted={!booking.peopleExtra}
+            />
+            {addOnRows.length ? (
+              addOnRows.map((addOn) => (
+                <PaymentRow
+                  key={addOn.id}
+                  label={`Dịch vụ kèm: ${addOn.name}`}
+                  value={formatCurrency(addOn.price)}
+                />
+              ))
+            ) : (
+              <PaymentRow label="Dịch vụ đi kèm" value="Chưa chọn" muted />
+            )}
+          </div>
+
+          <div className="grid gap-2.5 border-t border-[#f1f3f7] pt-4">
+            <div className="flex items-center justify-between gap-4">
+              <p className="text-[14px] font-semibold text-[#4b5563]">Tổng chi phí</p>
+              <p className="text-[19px] font-black text-[#20212b]">
+                {formatCurrency(finalTotal)}
+              </p>
+            </div>
+            <div className="flex items-center justify-between gap-4 rounded-[10px] border border-[#dcd9f3] bg-[#f0ecff] px-3.5 py-2.5">
+              <p className="text-[14px] font-black text-[#ff8d28]">Tiền cọc (50%)</p>
+              <p className="text-[15px] font-black text-[#ff8d28]">
+                {formatCurrency(depositAmount)}
+              </p>
+            </div>
+            <PaymentRow label="Còn lại sau cọc" value={formatCurrency(remainingAmount)} />
+          </div>
+
+          <div>
+            <p className="text-[14px] font-semibold text-[#20212b]">
+              Chọn phương thức thanh toán
+            </p>
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              {paymentMethods.map((method) => {
+                const active = method.id === selectedPaymentMethod;
+
+                return (
+                  <button
+                    key={method.id}
+                    type="button"
+                    onClick={() => setSelectedPaymentMethod(method.id)}
+                    aria-pressed={active}
+                    className={`flex min-h-[52px] flex-col items-center justify-center gap-1 rounded-[8px] border px-2 py-2 text-center transition-all ${
+                      active
+                        ? "border-[#ff8d28] bg-[#fff7ef] text-[#ff8d28]"
+                        : "border-[#cfd3df] bg-white text-[#4b5563] hover:border-[#ffcfaa]"
+                    }`}
+                  >
+                    <span className={`grid h-6 w-6 place-items-center rounded-full text-[10px] font-black ${
+                      active ? "bg-[#ff8d28] text-white" : "bg-[#f3f4f6] text-[#6b7280]"
+                    }`}>
+                      {method.mark}
+                    </span>
+                    <span className="text-[11px] font-black leading-3">
+                      {method.name}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setIsModalOpen(true)}
+            disabled={isPaid}
+            className={`inline-flex justify-center rounded-[9px] px-5 py-3.5 text-[15px] font-black text-white shadow-[0_8px_18px_rgba(255,141,40,0.22)] transition-all ${
+              isPaid
+                ? "cursor-not-allowed bg-[#9c9c9c]"
+                : "bg-[#ff8d28] hover:translate-y-[-1px] hover:bg-[#e0751b]"
+            }`}
+          >
+            {isPaid ? "Đã thanh toán" : "Tiến hành thanh toán"}
+          </button>
+
+          <p className="rounded-[9px] border border-[#eee8f6] bg-[#fbf7ff] px-3 py-2.5 text-center text-[11px] font-semibold leading-5 text-[#5f5a6b]">
+            ⓘ Hủy lịch miễn phí lên đến 48 giờ trước buổi chụp. Đọc <span className="font-black text-[#ff8d28]">chính sách hoàn tiền</span> của chúng tôi.
           </p>
+
+          <Link
+            href="/bookings"
+            className="inline-flex justify-center rounded-lg border border-[#e8eaf1] bg-white px-5 py-3 text-[14px] font-extrabold text-[#4b5563] transition-colors hover:border-[#ffcfaa] hover:text-[#ff8d28]"
+          >
+            Xem lịch đặt
+          </Link>
         </div>
+      </aside>
 
-        <div className="grid gap-2 rounded-[12px] border border-[#eef0f5] bg-[#fbfcfe] px-3.5 py-3">
-          <PaymentRow label="Giá gói chụp" value={formatCurrency(packagePrice)} />
-          <PaymentRow
-            label={`Phụ thu quy mô (${booking.peopleScale})`}
-            value={booking.peopleExtra ? formatCurrency(booking.peopleExtra) : "Không có"}
-            muted={!booking.peopleExtra}
-          />
-          {addOnRows.length ? (
-            addOnRows.map((addOn) => (
-              <PaymentRow
-                key={addOn.name}
-                label={`Dịch vụ kèm: ${addOn.name}`}
-                value={addOn.price ? formatCurrency(addOn.price) : "Đã gồm"}
-              />
-            ))
-          ) : (
-            <PaymentRow label="Dịch vụ đi kèm" value="Chưa chọn" muted />
-          )}
-        </div>
+      {isModalOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6">
+          <div className="w-full max-w-2xl overflow-hidden rounded-[24px] bg-white shadow-[0_30px_80px_rgba(15,23,42,0.25)]">
+            <div className="flex items-center justify-between border-b border-[#eef0f5] px-6 py-5">
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#8a8fa1]">Thanh toán</p>
+                <h3 className="mt-2 text-[22px] font-black text-[#0e111d]">{paymentInfo.title}</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(false)}
+                className="text-[14px] font-bold text-[#6b7280] hover:text-[#0e111d]"
+              >
+                Đóng
+              </button>
+            </div>
 
-        <div className="grid gap-2.5 border-t border-[#f1f3f7] pt-4">
-          <div className="flex items-center justify-between gap-4">
-            <p className="text-[14px] font-semibold text-[#4b5563]">Tổng chi phí</p>
-            <p className="text-[19px] font-black text-[#20212b]">
-              {formatCurrency(finalTotal)}
-            </p>
-          </div>
-          <div className="flex items-center justify-between gap-4 rounded-[10px] border border-[#dcd9f3] bg-[#f0ecff] px-3.5 py-2.5">
-            <p className="text-[14px] font-black text-[#ff8d28]">Tiền cọc (50%)</p>
-            <p className="text-[15px] font-black text-[#ff8d28]">
-              {formatCurrency(depositAmount)}
-            </p>
-          </div>
-          <PaymentRow label="Còn lại sau cọc" value={formatCurrency(remainingAmount)} />
-        </div>
-
-        <div>
-          <p className="text-[14px] font-semibold text-[#20212b]">
-            Chọn phương thức thanh toán
-          </p>
-          <div className="mt-3 grid grid-cols-3 gap-2">
-            {paymentMethods.map((method) => {
-              const active = method.id === selectedPaymentMethod;
-
-              return (
+            <div className="grid gap-6 px-6 py-6 sm:grid-cols-[1.3fr_0.9fr]">
+              <div className="grid gap-4">
+                <p className="text-[14px] font-medium text-[#4b5563]">{paymentInfo.description}</p>
+                <div className="grid gap-3 rounded-[18px] border border-[#eef0f5] bg-[#fafbfc] p-4">
+                  {paymentInfo.details.map((item) => (
+                    <div key={item.label} className="flex items-center justify-between gap-4 text-[13px] font-semibold text-[#4b5563]">
+                      <span>{item.label}</span>
+                      <span className="text-right font-black text-[#0e111d]">{item.value}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="rounded-[18px] border border-[#eef0f5] bg-[#fffaf5] p-4 text-[13px] text-[#4b5563]">
+                  <p className="font-black text-[#20212b]">Tổng cần thanh toán</p>
+                  <p className="mt-2 text-[22px] font-black text-[#ff8d28]">{formatCurrency(finalTotal)}</p>
+                  <p className="mt-2 text-sm leading-6 text-[#4b5563]">Sau khi chuyển, nhấn xác nhận để cập nhật trạng thái booking.</p>
+                </div>
                 <button
-                  key={method.id}
                   type="button"
-                  onClick={() => setSelectedPaymentMethod(method.id)}
-                  aria-pressed={active}
-                  className={`flex min-h-[52px] flex-col items-center justify-center gap-1 rounded-[8px] border px-2 py-2 text-center transition-all ${
-                    active
-                      ? "border-[#ff8d28] bg-[#fff7ef] text-[#ff8d28]"
-                      : "border-[#cfd3df] bg-white text-[#4b5563] hover:border-[#ffcfaa]"
-                  }`}
+                  onClick={handleConfirmPayment}
+                  disabled={isProcessing}
+                  className="inline-flex justify-center rounded-[12px] bg-[#ff8d28] px-5 py-3 text-[14px] font-black text-white transition-colors hover:bg-[#e0751b] disabled:cursor-not-allowed disabled:bg-[#d6d6d6]"
                 >
-                  <span className={`grid h-6 w-6 place-items-center rounded-full text-[10px] font-black ${
-                    active ? "bg-[#ff8d28] text-white" : "bg-[#f3f4f6] text-[#6b7280]"
-                  }`}>
-                    {method.mark}
-                  </span>
-                  <span className="text-[11px] font-black leading-3">
-                    {method.name}
-                  </span>
+                  {isProcessing ? "Đang xử lý..." : "Xác nhận đã thanh toán"}
                 </button>
-              );
-            })}
+              </div>
+
+              <div className="grid gap-4">
+                {paymentInfo.qrData ? (
+                  <div className="rounded-[18px] border border-[#eef0f5] bg-white p-4 text-center">
+                    <p className="text-[13px] font-bold text-[#4b5563]">Quét mã QR để thanh toán</p>
+                    <img
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(paymentInfo.qrData)}`}
+                      alt="QR code thanh toán"
+                      className="mx-auto mt-4 h-[260px] w-[260px] rounded-[18px] bg-white"
+                    />
+                  </div>
+                ) : (
+                  <div className="rounded-[18px] border border-[#eef0f5] bg-[#fafbfc] p-4 text-[13px] text-[#4b5563]">
+                    <p className="font-bold text-[#0e111d]">Hướng dẫn chuyển khoản</p>
+                    <p className="mt-2">1. Chuyển tiền chính xác theo nội dung.</p>
+                    <p className="mt-2">2. Lưu lại biên lai.</p>
+                    <p className="mt-2">3. Nhấn xác nhận để cập nhật trạng thái booking.</p>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
-
-        <button
-          type="button"
-          className="inline-flex justify-center rounded-[9px] bg-[#ff8d28] px-5 py-3.5 text-[15px] font-black text-white shadow-[0_8px_18px_rgba(255,141,40,0.22)] transition-all hover:translate-y-[-1px] hover:bg-[#e0751b]"
-        >
-          Tiến hành thanh toán
-        </button>
-        <p className="rounded-[9px] border border-[#eee8f6] bg-[#fbf7ff] px-3 py-2.5 text-center text-[11px] font-semibold leading-5 text-[#5f5a6b]">
-          ⓘ Hủy lịch miễn phí lên đến 48 giờ trước buổi chụp. Đọc <span className="font-black text-[#ff8d28]">chính sách hoàn tiền</span> của chúng tôi.
-        </p>
-        <Link
-          href="/bookings"
-          className="inline-flex justify-center rounded-lg border border-[#e8eaf1] bg-white px-5 py-3 text-[14px] font-extrabold text-[#4b5563] transition-colors hover:border-[#ffcfaa] hover:text-[#ff8d28]"
-        >
-          Xem lịch đặt
-        </Link>
-      </div>
-    </aside>
+      ) : null}
+    </>
   );
 }
 

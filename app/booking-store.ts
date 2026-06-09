@@ -6,6 +6,7 @@ export type StoredBooking = {
   createdAt: string;
   serviceId: string;
   serviceName: string;
+  basePrice: number;
   photographerId: string;
   photographerName: string;
   availabilitySlotId: string;
@@ -19,7 +20,8 @@ export type StoredBooking = {
   concept: string;
   budget: string;
   estimatedTotal: number;
-  addOns: string[];
+  addOnTotal: number;
+  addOns: Array<{ id: string; name: string; price: number }>;
   referenceFileName: string;
   paymentMethod: string;
   customer: {
@@ -36,6 +38,57 @@ function canUseStorage() {
   return typeof window !== "undefined" && Boolean(window.localStorage);
 }
 
+function normalizeBooking(value: unknown): StoredBooking | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const booking = value as { [key: string]: unknown };
+  const storedAddOns = Array.isArray(booking.addOns) ? booking.addOns : [];
+
+  return {
+    id: String(booking.id ?? ""),
+    status: (booking.status as BookingStatus) ?? "awaiting_payment",
+    createdAt: String(booking.createdAt ?? new Date().toISOString()),
+    serviceId: String(booking.serviceId ?? ""),
+    serviceName: String(booking.serviceName ?? ""),
+    basePrice: typeof booking.basePrice === "number" ? booking.basePrice : 0,
+    photographerId: String(booking.photographerId ?? ""),
+    photographerName: String(booking.photographerName ?? ""),
+    availabilitySlotId: String(booking.availabilitySlotId ?? ""),
+    availabilitySlotLabel: String(booking.availabilitySlotLabel ?? ""),
+    location: String(booking.location ?? ""),
+    shootDate: String(booking.shootDate ?? ""),
+    shootTime: String(booking.shootTime ?? ""),
+    peopleScale: String(booking.peopleScale ?? ""),
+    peopleExtra: typeof booking.peopleExtra === "number" ? booking.peopleExtra : 0,
+    scene: String(booking.scene ?? ""),
+    concept: String(booking.concept ?? ""),
+    budget: String(booking.budget ?? ""),
+    estimatedTotal: typeof booking.estimatedTotal === "number" ? booking.estimatedTotal : 0,
+    addOnTotal: typeof booking.addOnTotal === "number" ? booking.addOnTotal : 0,
+    addOns: storedAddOns.map((item) => {
+      if (typeof item === "string") {
+        return { id: item, name: item, price: 0 };
+      }
+
+      return {
+        id: String((item as { id?: unknown }).id ?? ""),
+        name: String((item as { name?: unknown }).name ?? ""),
+        price: typeof (item as { price?: unknown }).price === "number" ? (item as { price: number }).price : 0,
+      };
+    }),
+    referenceFileName: String(booking.referenceFileName ?? ""),
+    paymentMethod: String(booking.paymentMethod ?? ""),
+    customer: {
+      fullName: String((booking.customer as { fullName?: unknown })?.fullName ?? ""),
+      phone: String((booking.customer as { phone?: unknown })?.phone ?? ""),
+      email: String((booking.customer as { email?: unknown })?.email ?? ""),
+      contactChannel: String((booking.customer as { contactChannel?: unknown })?.contactChannel ?? ""),
+    },
+  };
+}
+
 function readBookings(): StoredBooking[] {
   if (!canUseStorage()) {
     return [];
@@ -43,7 +96,18 @@ function readBookings(): StoredBooking[] {
 
   try {
     const rawBookings = window.localStorage.getItem(storageKey);
-    return rawBookings ? (JSON.parse(rawBookings) as StoredBooking[]) : [];
+    if (!rawBookings) {
+      return [];
+    }
+
+    const parsed = JSON.parse(rawBookings);
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed
+      .map(normalizeBooking)
+      .filter((booking): booking is StoredBooking => booking !== null);
   } catch {
     return [];
   }

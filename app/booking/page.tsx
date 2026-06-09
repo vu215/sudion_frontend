@@ -356,7 +356,6 @@ function BookingContent() {
   const selectedPeopleOption =
     service.peopleOptions.find((item) => item.label === selectedPeopleScale) ||
     service.peopleOptions[0];
-  const estimatedTotal = service.basePrice + selectedPeopleOption.extra;
 
   const availableAddOns = useMemo(
     () =>
@@ -377,9 +376,14 @@ function BookingContent() {
     [budgetValue, photographerProfile.addOns, selectedService],
   );
 
-  const selectedAddOnNames = availableAddOns
+  const selectedAddOnsDetails = availableAddOns
     .filter((item) => selectedAddOns.includes(item.id))
-    .map((item) => item.name);
+    .map((item) => ({ id: item.id, name: item.name, price: item.minBudget }))
+    .filter((item): item is { id: string; name: string; price: number } => Boolean(item));
+
+  const addOnTotal = selectedAddOnsDetails.reduce((total, addOn) => total + addOn.price, 0);
+  const selectedAddOnNames = selectedAddOnsDetails.map((item) => item.name);
+  const estimatedTotal = service.basePrice + selectedPeopleOption.extra + addOnTotal;
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -391,6 +395,7 @@ function BookingContent() {
       createdAt: new Date().toISOString(),
       serviceId: service.id,
       serviceName: service.name,
+      basePrice: service.basePrice,
       photographerId,
       photographerName: photographerProfile.name,
       availabilitySlotId: selectedSlot.id,
@@ -404,7 +409,8 @@ function BookingContent() {
       concept,
       budget,
       estimatedTotal,
-      addOns: selectedAddOnNames,
+      addOnTotal,
+      addOns: selectedAddOnsDetails,
       referenceFileName,
       paymentMethod,
       customer: {
