@@ -144,3 +144,8 @@ export function getBookingById(id: string) {
 export function getAllBookings() {
   return readBookings();
 }
+
+export function deleteBooking(id: string) {
+  const remaining = readBookings().filter((b) => b.id !== id);
+  writeBookings(remaining);
+}

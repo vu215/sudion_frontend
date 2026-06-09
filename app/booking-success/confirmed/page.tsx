@@ -140,10 +140,13 @@ export default function BookingSuccessConfirmedPage() {
               </div>
 
               <div className="mt-6 flex flex-wrap items-center gap-3">
-                <button className="inline-flex items-center gap-2 rounded-[10px] bg-[#ff8d28] px-5 py-3 text-[14px] font-black text-white shadow-md">
+                <Link
+                  href={`/messages?with=${encodeURIComponent(booking.photographerId)}&bookingId=${encodeURIComponent(booking.id)}`}
+                  className="inline-flex items-center gap-2 rounded-[10px] bg-[#ff8d28] px-5 py-3 text-[14px] font-black text-white shadow-md"
+                >
                   <span>💬</span>
                   <span>Nhắn tin ngay</span>
-                </button>
+                </Link>
 
                 <Link href="/bookings" className="inline-flex items-center justify-center rounded-[10px] border border-[#e8eaf1] bg-white px-5 py-3 text-[14px] font-extrabold text-[#475569]">
                   Xem chi tiết đơn đặt
