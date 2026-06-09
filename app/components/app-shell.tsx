@@ -96,13 +96,14 @@ function Header({ pathname }: { pathname: string }) {
         </nav>
 
         <div className="flex items-center gap-4">
-          <button
-            type="button"
-            aria-label="Search"
-            className="hidden h-10 w-10 items-center justify-center rounded-full text-[#4b5563] transition-colors hover:bg-[#f3f4f6] hover:text-[#0e111d] lg:inline-flex"
-          >
-            <SearchGlyph className="h-5 w-5" />
-          </button>
+          <div className="hidden lg:flex max-w-[320px] flex-1 items-center gap-3 rounded-full border border-[#e8eaf1] bg-white px-4 py-2 shadow-sm">
+            <SearchGlyph className="h-5 w-5 text-[#4b5563]" />
+            <input
+              type="search"
+              placeholder="Tìm kiếm..."
+              className="w-full bg-transparent text-sm text-[#0e111d] placeholder:text-[#9ca3af] outline-none"
+            />
+          </div>
 
           {!loading && !session ? (
             <Link
