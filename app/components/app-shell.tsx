@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState, useRef, useEffect, type ReactNode } from "react";
 import { useAuth } from "@/app/auth-context";
 
@@ -41,19 +41,33 @@ export function AppShell({ children }: { children: ReactNode }) {
 }
 
 function Header({ pathname }: { pathname: string }) {
+  const router = useRouter();
   const { session, logout, loading } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setDropdownOpen(false);
       }
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setSearchOpen(false);
+      }
     }
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
+
+  useEffect(() => {
+    if (searchOpen) {
+      inputRef.current?.focus();
+    }
+  }, [searchOpen]);
 
   const initials = session?.fullName
     ? session.fullName.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2)
@@ -96,13 +110,44 @@ function Header({ pathname }: { pathname: string }) {
         </nav>
 
         <div className="flex items-center gap-4">
-          <div className="hidden lg:flex max-w-[320px] flex-1 items-center gap-3 rounded-full border border-[#e8eaf1] bg-white px-4 py-2 shadow-sm">
-            <SearchGlyph className="h-5 w-5 text-[#4b5563]" />
-            <input
-              type="search"
-              placeholder="Tìm kiếm..."
-              className="w-full bg-transparent text-sm text-[#0e111d] placeholder:text-[#9ca3af] outline-none"
-            />
+          <div ref={searchRef} className="relative hidden lg:flex items-center">
+            <button
+              type="button"
+              onClick={() => setSearchOpen((value) => !value)}
+              className="relative z-50 inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#e8eaf1] text-[#4b5563] hover:bg-gray-50"
+              aria-label="Mở tìm kiếm"
+            >
+              <SearchGlyph className="h-5 w-5" />
+            </button>
+            {searchOpen && (
+              <div className="absolute right-0 top-full mt-2 z-50">
+                <form
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    const target = `/photographer${searchQuery.trim() ? `?search=${encodeURIComponent(searchQuery.trim())}` : ""}`;
+                    router.push(target);
+                  }}
+                  className="relative w-72 rounded-full border border-[#e8eaf1] bg-white px-2 py-1 shadow-[0_18px_50px_rgba(15,23,42,0.08)]"
+                >
+                  <input
+                    ref={inputRef}
+                    name="search"
+                    value={searchQuery}
+                    onChange={(event) => setSearchQuery(event.target.value)}
+                    type="search"
+                    placeholder="Tìm kiếm photographer..."
+                    className="h-11 w-full rounded-full border-none bg-transparent px-4 pr-12 text-sm text-[#0e111d] outline-none placeholder:text-[#9ca3af]"
+                  />
+                  <button
+                    type="submit"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#ff8d28] text-white shadow-sm hover:bg-[#e27517]"
+                    aria-label="Tìm kiếm"
+                  >
+                    <SearchGlyph className="h-4 w-4" />
+                  </button>
+                </form>
+              </div>
+            )}
           </div>
 
           {!loading && !session ? (

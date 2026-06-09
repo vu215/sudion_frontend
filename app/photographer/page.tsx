@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Inter } from "next/font/google";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 
 const inter = Inter({
   subsets: ["latin", "vietnamese"],
@@ -216,6 +217,8 @@ export default function PhotographerPage() {
   const [isReady, setIsReady] = useState(false);
   const [activeTab, setActiveTab] = useState("AI đề xuất");
   const [aiSuggested, setAiSuggested] = useState(true);
+  const searchParams = useSearchParams();
+  const searchQuery = searchParams.get("search")?.trim().toLowerCase() ?? "";
   const [location, setLocation] = useState("Ho Chi Minh City, VN");
   const [selectedStyles, setSelectedStyles] = useState<string[]>([
     "Chân dung",
@@ -310,8 +313,20 @@ export default function PhotographerPage() {
       .slice(0, 6);
   }, [location, shootLocationId, userLocation]);
 
-  const displayedPhotographers =
-    activeTab === "Photo ở gần bạn" ? nearbyPhotographers : visiblePhotographers;
+  const displayedPhotographers = useMemo(() => {
+    const baseList = activeTab === "Photo ở gần bạn" ? nearbyPhotographers : visiblePhotographers;
+
+    if (!searchQuery) {
+      return baseList;
+    }
+
+    return baseList.filter((person) => {
+      const text = [person.name, person.location, person.city, person.tags.join(" ")]
+        .join(" ")
+        .toLowerCase();
+      return text.includes(searchQuery);
+    });
+  }, [activeTab, nearbyPhotographers, visiblePhotographers, searchQuery]);
 
   const getDisplayDistance = (person: (typeof displayedPhotographers)[number]) => {
     if (activeTab !== "Photo ở gần bạn") {

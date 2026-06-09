@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 
 const photographers = [
@@ -203,8 +203,51 @@ function PhotographerProfileContent() {
   const id = searchParams.get("id");
   const person = photographers.find((p) => p.id === id) || photographers[0];
   const [activeTab, setActiveTab] = useState("Tổng quan");
-  const today = 12;
-  const selected = 13;
+  const today = new Date();
+  const todayStr = today.toISOString().slice(0, 10);
+  const [selectedDates, setSelectedDates] = useState<string[]>([todayStr]);
+  const [selectedService, setSelectedService] = useState(person.services[0]);
+  const [reviews, setReviews] = useState(person.reviews);
+  const [reviewerName, setReviewerName] = useState("");
+  const [reviewText, setReviewText] = useState("");
+  const [reviewRating, setReviewRating] = useState(5);
+
+  useEffect(() => {
+    setSelectedService(person.services[0]);
+    setSelectedDates([todayStr]);
+    setReviews(person.reviews);
+    setReviewerName("");
+    setReviewText("");
+    setReviewRating(5);
+  }, [person.id, todayStr, person.services, person.reviews]);
+
+  const averageRating = reviews.length ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length : 0;
+  const totalReviews = reviews.length;
+
+  const getCalendarDays = (year: number, month: number) => {
+    const firstDay = new Date(year, month, 1);
+    const offset = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1;
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const days: (number | null)[] = [];
+
+    for (let i = 0; i < offset; i += 1) {
+      days.push(null);
+    }
+    for (let d = 1; d <= daysInMonth; d += 1) {
+      days.push(d);
+    }
+    return days;
+  };
+
+  const calendarYear = today.getFullYear();
+  const calendarMonth = today.getMonth();
+  const calendarDays = getCalendarDays(calendarYear, calendarMonth);
+
+  const selectedServicePrice = selectedService?.price || person.startPrice;
+  const selectedServiceName = selectedService?.name || "Chọn dịch vụ";
+  const selectedDatesLabel = selectedDates.length === 1
+    ? new Date(selectedDates[0]).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" })
+    : `${selectedDates.length} ngày đã chọn`;
 
   return (
     <div className="min-h-screen bg-white">
@@ -309,7 +352,7 @@ function PhotographerProfileContent() {
                 }`}
               >
                 {tab}
-                {tab === "Đánh giá" && <span className="ml-1.5 bg-gray-100 text-gray-500 text-[10px] font-bold px-1.5 py-0.5 rounded-full">{person.totalReviews}</span>}
+                {tab === "Đánh giá" && <span className="ml-1.5 bg-gray-100 text-gray-500 text-[10px] font-bold px-1.5 py-0.5 rounded-full">{totalReviews}</span>}
               </button>
             ))}
           </div>
@@ -348,7 +391,7 @@ function PhotographerProfileContent() {
               {activeTab === "Gói dịch vụ" && (
                 <div className="space-y-3">
                   {person.services.map((svc) => (
-                    <div key={svc.name} className="border border-[#e0e7ff] rounded-xl p-4 flex items-start justify-between gap-4">
+                    <div key={svc.name} className={`border rounded-xl p-4 flex items-start justify-between gap-4 transition ${selectedService.name === svc.name ? "border-[#ff8d28] bg-[#fff4eb]" : "border-[#e0e7ff] bg-white"}`}>
                       <div className="flex-1">
                         <h3 className="font-bold text-gray-900 text-sm">{svc.name}</h3>
                         <p className="text-gray-500 text-xs mt-1 leading-relaxed">{svc.desc}</p>
@@ -356,8 +399,12 @@ function PhotographerProfileContent() {
                       <div className="text-right shrink-0">
                         <p className="text-xs text-gray-400">Từ</p>
                         <p className="font-black text-gray-900 text-sm whitespace-nowrap">{svc.price}</p>
-                        <button className="mt-2 border border-[#ff8d28] text-[#ff8d28] text-xs font-bold px-4 py-1.5 rounded-full hover:bg-[#fff4eb] transition-colors">
-                          Chọn
+                        <button
+                          type="button"
+                          onClick={() => setSelectedService(svc)}
+                          className={`mt-2 text-xs font-bold px-4 py-1.5 rounded-full transition-colors ${selectedService.name === svc.name ? "bg-[#ff8d28] text-white border border-[#ff8d28]" : "border border-[#ff8d28] text-[#ff8d28] hover:bg-[#fff4eb]"}`}
+                        >
+                          {selectedService.name === svc.name ? "Đã chọn" : "Chọn"}
                         </button>
                       </div>
                     </div>
@@ -370,20 +417,79 @@ function PhotographerProfileContent() {
                 <div>
                   <div className="flex items-center gap-4 mb-6">
                     <div className="text-center">
-                      <p className="text-4xl font-black text-gray-900">{person.ratingScore}</p>
+                      <p className="text-4xl font-black text-gray-900">{averageRating.toFixed(1)}</p>
                       <p className="text-xs text-gray-400 mt-1">/5</p>
                       <div className="flex gap-0.5 mt-1 justify-center">
                         {[1,2,3,4,5].map((s) => (
-                          <svg key={s} className={`w-4 h-4 ${s <= Math.round(person.ratingScore) ? "text-[#ff8d28]" : "text-gray-200"}`} viewBox="0 0 20 20" fill="currentColor">
+                          <svg key={s} className={`w-4 h-4 ${s <= Math.round(averageRating) ? "text-[#ff8d28]" : "text-gray-200"}`} viewBox="0 0 20 20" fill="currentColor">
                             <path d="M10 2.8l1.9 4 4.4.6-3.2 3.1.8 4.4-3.9-2.1-3.9 2.1.8-4.4-3.2-3.1 4.4-.6 1.9-4z" />
                           </svg>
                         ))}
                       </div>
-                      <p className="text-xs text-gray-400 mt-1">Dựa trên {person.totalReviews} đánh giá</p>
+                      <p className="text-xs text-gray-400 mt-1">Dựa trên {totalReviews} đánh giá</p>
                     </div>
                   </div>
+
+                  <div className="mb-6 rounded-3xl border border-gray-200 bg-white p-4 shadow-sm">
+                    <h3 className="text-sm font-bold text-gray-900 mb-3">Gửi đánh giá của bạn</h3>
+                    <div className="space-y-3">
+                      <div>
+                        <p className="text-[11px] text-gray-500 mb-2">Chọn số sao</p>
+                        <div className="flex gap-2">
+                          {[1,2,3,4,5].map((value) => (
+                            <button
+                              key={value}
+                              type="button"
+                              onClick={() => setReviewRating(value)}
+                              className={`w-9 h-9 rounded-full border text-sm font-bold transition ${value <= reviewRating ? "bg-[#ff8d28] text-white border-[#ff8d28]" : "border-gray-200 text-gray-500 hover:bg-gray-50"}`}
+                            >
+                              {value}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-gray-500 mb-1">Tên của bạn</label>
+                        <input
+                          value={reviewerName}
+                          onChange={(event) => setReviewerName(event.target.value)}
+                          className="w-full rounded-2xl border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-[#ff8d28] outline-none"
+                          placeholder="Nhập tên"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-gray-500 mb-1">Nhận xét</label>
+                        <textarea
+                          value={reviewText}
+                          onChange={(event) => setReviewText(event.target.value)}
+                          className="w-full min-h-[110px] rounded-2xl border border-gray-200 p-3 text-sm text-gray-900 focus:border-[#ff8d28] outline-none"
+                          placeholder="Viết cảm nghĩ của bạn về photographer"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!reviewText.trim()) return;
+                          const newReview = {
+                            name: reviewerName.trim() || "Khách hàng",
+                            time: "Vừa xong",
+                            rating: reviewRating,
+                            text: reviewText.trim(),
+                          };
+                          setReviews([newReview, ...reviews]);
+                          setReviewerName("");
+                          setReviewText("");
+                          setReviewRating(5);
+                        }}
+                        className="w-full rounded-2xl bg-[#ff8d28] text-white text-sm font-bold py-3 hover:bg-[#e0751b] transition-colors"
+                      >
+                        Gửi đánh giá
+                      </button>
+                    </div>
+                  </div>
+
                   <div className="grid md:grid-cols-2 gap-4">
-                    {person.reviews.map((r, i) => (
+                    {reviews.map((r, i) => (
                       <div key={i} className="border border-gray-100 rounded-xl p-4">
                         <div className="flex gap-0.5 mb-2">
                           {[1,2,3,4,5].map((s) => (
@@ -414,15 +520,19 @@ function PhotographerProfileContent() {
                   <h3 className="font-bold text-gray-900 text-sm mb-3">Dịch vụ & Bảng giá</h3>
                   <div className="space-y-3">
                     {person.services.map((svc) => (
-                      <div key={svc.name} className="flex items-start justify-between gap-3 pb-3 border-b border-gray-100 last:border-0 last:pb-0">
+                      <div key={svc.name} className={`flex items-start justify-between gap-3 pb-3 border-b border-gray-100 last:border-0 last:pb-0 transition ${selectedService.name === svc.name ? "bg-[#fff4eb]" : "bg-transparent"}`}>
                         <div className="flex-1">
                           <p className="text-sm font-semibold text-gray-900">{svc.name}</p>
                           <p className="text-xs text-gray-400 mt-0.5 leading-relaxed line-clamp-2">{svc.desc}</p>
                         </div>
                         <div className="text-right shrink-0">
                           <p className="text-xs text-[#ff8d28] font-black whitespace-nowrap">Từ {svc.price}</p>
-                          <button className="mt-1.5 border border-[#ff8d28] text-[#ff8d28] text-[11px] font-bold px-3 py-1 rounded-full hover:bg-[#fff4eb] transition-colors">
-                            Chọn
+                          <button
+                            type="button"
+                            onClick={() => setSelectedService(svc)}
+                            className={`mt-1.5 text-[11px] font-bold px-3 py-1 rounded-full transition-colors ${selectedService.name === svc.name ? "bg-[#ff8d28] text-white border border-[#ff8d28]" : "border border-[#ff8d28] text-[#ff8d28] hover:bg-[#fff4eb]"}`}
+                          >
+                            {selectedService.name === svc.name ? "Đã chọn" : "Chọn"}
                           </button>
                         </div>
                       </div>
@@ -438,26 +548,35 @@ function PhotographerProfileContent() {
               <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm sticky top-24">
                 <div className="flex items-center justify-between mb-3">
                   <div>
-                    <p className="text-xs text-gray-400">Giá khởi điểm</p>
-                    <p className="text-lg font-black text-gray-900">{person.startPrice}</p>
+                    <p className="text-xs text-gray-400">Giá gói đã chọn</p>
+                    <p className="text-lg font-black text-gray-900">{selectedServicePrice}</p>
                   </div>
                   <div className="flex items-center gap-1 text-sm font-bold text-gray-900">
                     <svg className="w-4 h-4 text-[#ff8d28]" viewBox="0 0 20 20" fill="currentColor">
                       <path d="M10 2.8l1.9 4 4.4.6-3.2 3.1.8 4.4-3.9-2.1-3.9 2.1.8-4.4-3.2-3.1 4.4-.6 1.9-4z" />
                     </svg>
-                    {person.ratingScore} ({person.totalReviews})
+                    {averageRating.toFixed(1)} ({totalReviews})
                   </div>
                 </div>
 
-                {/* Mini calendar */}
+                <div className="mb-4 rounded-2xl border border-gray-100 bg-gray-50 p-3 text-sm">
+                  <p className="text-[10px] text-gray-400">Dịch vụ đã chọn</p>
+                  <p className="font-semibold text-gray-900">{selectedServiceName}</p>
+                  <p className="text-xs text-gray-500 leading-relaxed mt-1 line-clamp-2">{selectedService.desc}</p>
+                  <div className="mt-3 text-xs text-gray-500">
+                    <p>Ngày chụp: <span className="font-semibold text-gray-900">{selectedDatesLabel}</span></p>
+                    <p className="mt-1">Giá hiện tại: <span className="font-black text-gray-900">{selectedServicePrice}</span></p>
+                  </div>
+                </div>
+
                 <div className="mb-3">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-bold text-gray-700">Tháng 10, 2026</span>
+                    <span className="text-xs font-bold text-gray-700">{today.toLocaleString("vi-VN", { month: "long", year: "numeric" })}</span>
                     <div className="flex gap-1">
-                      <button className="w-5 h-5 rounded-full border border-gray-200 flex items-center justify-center text-gray-400 hover:bg-gray-50">
+                      <button className="w-5 h-5 rounded-full border border-gray-200 flex items-center justify-center text-gray-400 hover:bg-gray-50" type="button" disabled>
                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
                       </button>
-                      <button className="w-5 h-5 rounded-full border border-gray-200 flex items-center justify-center text-gray-400 hover:bg-gray-50">
+                      <button className="w-5 h-5 rounded-full border border-gray-200 flex items-center justify-center text-gray-400 hover:bg-gray-50" type="button" disabled>
                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                       </button>
                     </div>
@@ -466,18 +585,36 @@ function PhotographerProfileContent() {
                     {["T2","T3","T4","T5","T6","T7","CN"].map((d) => (
                       <div key={d} className="text-[9px] text-gray-400 font-semibold py-0.5">{d}</div>
                     ))}
-                    {[28,29,30,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18].map((d, i) => (
-                      <button key={i} className={`text-[11px] py-1 rounded-full font-semibold transition-colors ${
-                        d === selected && i > 3 ? "bg-[#ff8d28] text-white" :
-                        d === today && i > 3 ? "border border-[#ff8d28] text-[#ff8d28]" :
-                        i < 3 ? "text-gray-300" : "text-gray-600 hover:bg-gray-100"
-                      }`}>{d}</button>
-                    ))}
+                    {calendarDays.map((d, i) => {
+                      const dateString = d ? `${calendarYear}-${String(calendarMonth + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}` : "";
+                      const isSelected = d ? selectedDates.includes(dateString) : false;
+                      return (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => {
+                            if (!d) return;
+                            setSelectedDates((current) => {
+                              if (current.includes(dateString)) {
+                                return current.filter((item) => item !== dateString);
+                              }
+                              return [...current, dateString].sort();
+                            });
+                          }}
+                          disabled={!d}
+                          className={`text-[11px] py-1 rounded-full font-semibold transition-colors ${
+                            !d ? "bg-transparent text-transparent pointer-events-none" : isSelected ? "bg-[#ff8d28] text-white" : dateString === todayStr ? "border border-[#ff8d28] text-[#ff8d28]" : "text-gray-600 hover:bg-gray-100"
+                          }`}
+                        >
+                          {d || ""}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
                 <Link
-                  href={`/booking?photographer=${person.id}`}
+                  href={`/booking?photographer=${person.id}&service=${encodeURIComponent(selectedServiceName)}&dates=${encodeURIComponent(selectedDates.join(","))}`}
                   className="w-full bg-[#ff8d28] hover:bg-[#e0751b] text-white text-sm font-extrabold py-3 rounded-full flex items-center justify-center transition-all hover:-translate-y-0.5 shadow-[0_8px_18px_rgba(255,141,40,0.2)]"
                 >
                   Đặt lịch ngay
@@ -498,12 +635,12 @@ function PhotographerProfileContent() {
                   <svg className="w-4 h-4 text-[#ff8d28]" viewBox="0 0 20 20" fill="currentColor">
                     <path d="M10 2.8l1.9 4 4.4.6-3.2 3.1.8 4.4-3.9-2.1-3.9 2.1.8-4.4-3.2-3.1 4.4-.6 1.9-4z" />
                   </svg>
-                  <span className="font-black text-gray-900 text-sm">{person.ratingScore}/5</span>
-                  <span className="text-xs text-gray-400 ml-1">Dựa trên {person.totalReviews} đánh giá</span>
+                  <span className="font-black text-gray-900 text-sm">{averageRating.toFixed(1)}/5</span>
+                  <span className="text-xs text-gray-400 ml-1">Dựa trên {totalReviews} đánh giá</span>
                 </div>
               </div>
               <div className="grid md:grid-cols-2 gap-4">
-                {person.reviews.map((r, i) => (
+                {reviews.map((r, i) => (
                   <div key={i} className="border border-gray-100 rounded-xl p-4">
                     <div className="flex gap-0.5 mb-2">
                       {[1,2,3,4,5].map((s) => (
