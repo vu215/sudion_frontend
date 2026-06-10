@@ -1,118 +1,31 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import Image from "next/image";
 import Link from "next/link";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { serviceCategories, servicePackages } from "./service-data";
 
-/* ─── data ───────────────────────────────────────────────────── */
-const serviceSections = [
-  {
-    id: "wedding",
-    eyebrow: "WEDDING PHOTOGRAPHY",
-    title: "Chụp ảnh cưới",
-    description:
-      "Lưu giữ khoảnh khắc thiêng liêng và cảm xúc chân thật nhất trong ngày trọng đại của bạn.",
-    price: "Từ 5.000.000 VND",
-    network: "1.200+ Thợ ảnh",
-    tags: ["Makeup", "Video", "Flycam", "Album", "Retouching"],
-    mainImage:
-      "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=900&q=80",
-    detailImage:
-      "https://images.unsplash.com/photo-1522673607200-164d1b6ce486?auto=format&fit=crop&w=400&q=80",
-    badgeTitle: "Top Pick",
-    badgeText: "Tỷ lệ match cao",
-  },
-  {
-    id: "couple",
-    eyebrow: "COUPLE PHOTOGRAPHY",
-    title: "Chụp ảnh đôi",
-    description:
-      "Kể lại câu chuyện tình yêu của hai bạn qua những khung hình lãng mạn và tự nhiên nhất.",
-    price: "Từ 1.500.000 VND",
-    network: "850+ Thợ ảnh",
-    tags: ["Makeup", "Video", "Flycam", "Album", "Chỉnh sửa"],
-    mainImage:
-      "https://images.unsplash.com/photo-1529634597503-139d3726fed5?auto=format&fit=crop&w=900&q=80",
-    detailImage:
-      "https://images.unsplash.com/photo-1500917293891-ef795e70e1f6?auto=format&fit=crop&w=400&q=80",
-    badgeTitle: "Yêu thích nhất",
-    badgeText: "Đánh giá 4.9+",
-    reverse: true,
-    muted: true,
-  },
-  {
-    id: "yearbook",
-    eyebrow: "YEARBOOK PHOTOGRAPHY",
-    title: "Chụp kỉ yếu",
-    description:
-      "Lưu giữ những kỉ niệm rực rỡ của thời học sinh, sinh viên bên bạn bè và thầy cô giáo.",
-    price: "Từ 2.000.000 VND",
-    network: "640+ Thợ ảnh",
-    tags: ["Makeup", "Video", "Flycam", "Album", "Chỉnh sửa"],
-    mainImage:
-      "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&w=900&q=80",
-    detailImage:
-      "https://images.unsplash.com/photo-1508672019048-805c876b67e2?auto=format&fit=crop&w=400&q=80",
-    badgeTitle: "Kỉ yếu trọn gói",
-    badgeText: "Nhiều ưu đãi nhóm",
-  },
-  {
-    id: "event",
-    eyebrow: "EVENT PHOTOGRAPHY",
-    title: "Chụp sự kiện",
-    description:
-      "Ghi lại mọi khoảnh khắc quan trọng trong các sự kiện doanh nghiệp, hội nghị và tiệc cá nhân.",
-    price: "Từ 1.000.000 VND/giờ",
-    network: "920+ Thợ ảnh",
-    tags: ["Makeup", "Video", "Album", "Chỉnh sửa"],
-    mainImage:
-      "https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=900&q=80",
-    detailImage:
-      "https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=400&q=80",
-    badgeTitle: "Nhận lịch gấp",
-    badgeText: "Có mặt trong 2 giờ",
-    reverse: true,
-    muted: true,
-  },
-  {
-    id: "food",
-    eyebrow: "FOOD & PRODUCT",
-    title: "Chụp food & product",
-    description:
-      "Tôn vinh giá trị và vẻ đẹp của món ăn, sản phẩm để thu hút khách hàng từ cái nhìn đầu tiên.",
-    price: "Từ 1.200.000 VND/concept",
-    network: "450+ Thợ ảnh",
-    tags: ["Makeup", "Video", "Flycam", "Album", "Chỉnh sửa"],
-    mainImage:
-      "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=900&q=80",
-    detailImage:
-      "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?auto=format&fit=crop&w=400&q=80",
-    badgeTitle: "Stylist chuyên nghiệp",
-    badgeText: "Hỗ trợ lên ý tưởng",
-  },
-  {
-    id: "travel",
-    eyebrow: "TRAVEL PHOTOGRAPHY",
-    title: "Chụp travel",
-    description:
-      "Lưu lại những kỷ niệm đáng nhớ trong các chuyến hành trình khám phá thế giới đầy màu sắc của bạn.",
-    price: "Từ 1.200.000 VND",
-    network: "530+ Thợ ảnh",
-    tags: ["Makeup", "Video", "Album", "Chỉnh sửa"],
-    mainImage:
-      "https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?auto=format&fit=crop&w=900&q=80",
-    detailImage:
-      "https://images.unsplash.com/photo-1507608616759-54f48f0af0ee?auto=format&fit=crop&w=400&q=80",
-    badgeTitle: "Đặt lịch toàn quốc",
-    badgeText: "Hỗ trợ 24/7",
-    reverse: true,
-    muted: true,
-  },
-];
+const containerClass = "mx-auto w-full max-w-[1440px] px-6 md:px-12 lg:px-20";
 
-const containerClass = "w-full max-w-[1440px] mx-auto px-6 md:px-12 lg:px-20";
+function fadeUpStyle(isReady: boolean, delay = 0): CSSProperties {
+  return {
+    opacity: isReady ? 1 : 0,
+    transform: isReady ? "translate3d(0, 0, 0)" : "translate3d(0, 56px, 0) scale(0.96)",
+    transition:
+      "opacity 1000ms cubic-bezier(0.16, 1, 0.3, 1), transform 1000ms cubic-bezier(0.16, 1, 0.3, 1)",
+    transitionDelay: `${delay}ms`,
+    willChange: isReady ? "auto" : "opacity, transform",
+  };
+}
 
-/* ─── helpers ────────────────────────────────────────────────── */
-function SparkGlyph({ className }: { className?: string }) {
+export default function ServicesPage() {
+  const [isReady, setIsReady] = useState(false);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setIsReady(true), 80);
+    return () => window.clearTimeout(timer);
+  }, []);
+
   return (
     <svg
       className={className}
@@ -137,12 +50,8 @@ function PhotoCluster({
   reverse,
   muted,
 }: {
-  mainImage: string;
-  detailImage: string;
-  badgeTitle: string;
-  badgeText: string;
-  reverse?: boolean;
-  muted?: boolean;
+  children: ReactNode;
+  delay: number;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
