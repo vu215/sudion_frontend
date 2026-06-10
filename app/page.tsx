@@ -1,7 +1,13 @@
 "use client";
 
 /* eslint-disable @next/next/no-img-element */
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 import Link from "next/link";
 
 const assets = {
@@ -152,6 +158,7 @@ export default function Home() {
     <div className="min-h-screen overflow-x-hidden bg-[#fafbfc] text-[#0e111d] font-sans antialiased selection:bg-[#ff8d28]/20">
       <main className="w-full">
         <HeroSection />
+
         <div id="services">
           {serviceSections.map((section) => (
             <ServiceSection key={section.id} {...section} />
@@ -198,10 +205,14 @@ function HeroSection() {
             className="mt-6 max-w-[520px] text-[16px] sm:text-[17px] md:text-[18px] leading-[1.7] text-[#4b5563] font-medium"
             style={heroRevealStyle(isReady, 240)}
           >
-            Tìm kiếm thông minh và kết nối trực tiếp với hàng ngàn nhiếp ảnh gia chuyên nghiệp tại Việt Nam.
+            Tìm kiếm thông minh và kết nối trực tiếp với hàng ngàn nhiếp ảnh gia
+            chuyên nghiệp tại Việt Nam.
           </p>
 
-          <div className="mt-7 max-w-[720px]" style={heroRevealStyle(isReady, 360)}>
+          <div
+            className="mt-7 max-w-[720px]"
+            style={heroRevealStyle(isReady, 360)}
+          >
             <SearchBar />
           </div>
 
@@ -225,6 +236,7 @@ function HeroSection() {
 function SearchBar() {
   const [service, setService] = useState("Tất cả");
   const [location, setLocation] = useState("Hồ Chí Minh");
+
   const [date, setDate] = useState(() => {
     const today = new Date();
     const day = String(today.getDate()).padStart(2, "0");
@@ -233,6 +245,7 @@ function SearchBar() {
 
     return `${day}/${month}/${year}`;
   });
+
   const serviceOptions = [
     "Tất cả",
     "Chụp ảnh cưới",
@@ -242,6 +255,17 @@ function SearchBar() {
     "Chụp food & product",
     "Chụp travel",
   ];
+
+  const serviceSlugMap: Record<string, string> = {
+    "Tất cả": "all",
+    "Chụp ảnh cưới": "wedding",
+    "Chụp ảnh đôi": "couple",
+    "Chụp kỉ yếu": "yearbook",
+    "Chụp sự kiện": "event",
+    "Chụp food & product": "food",
+    "Chụp travel": "travel",
+  };
+
   const locationOptions = [
     "Hồ Chí Minh",
     "Hà Nội",
@@ -250,6 +274,18 @@ function SearchBar() {
     "Nha Trang",
     "Cần Thơ",
   ];
+
+  const locationMap: Record<string, string> = {
+    "Hồ Chí Minh": "Ho Chi Minh City, VN",
+    "Hà Nội": "Hà Nội, VN",
+    "Đà Nẵng": "Đà Nẵng, VN",
+    "Đà Lạt": "Đà Lạt, VN",
+    "Nha Trang": "Nha Trang, VN",
+    "Cần Thơ": "Cần Thơ, Việt Nam",
+  };
+
+  const selectedCategory = serviceSlugMap[service] || "all";
+  const selectedLocation = locationMap[location] || location;
 
   return (
     <div className="rounded-[14px] bg-white/95 p-1.5 shadow-[0_12px_30px_rgba(0,0,0,0.08)] ring-1 ring-black/5">
@@ -261,6 +297,7 @@ function SearchBar() {
           selected={service}
           onChange={setService}
         />
+
         <SearchSelect
           icon={<PinGlyph />}
           helper="Địa điểm"
@@ -268,6 +305,7 @@ function SearchBar() {
           selected={location}
           onChange={setLocation}
         />
+
         <SearchInput
           icon={<CalendarGlyph className="h-8 w-8" />}
           helper="Ngày chụp"
@@ -275,9 +313,11 @@ function SearchBar() {
           placeholder={date}
           onChange={setDate}
         />
-        
+
         <Link
-          href="/photographer"
+          href={`/photographer?category=${selectedCategory}&location=${encodeURIComponent(
+            selectedLocation,
+          )}`}
           className="inline-flex min-h-[42px] items-center justify-center rounded-[10px] bg-[#ff8d28] px-4 text-[14px] font-extrabold text-white shadow-[0_8px_18px_rgba(255,141,40,0.22)] transition-all hover:bg-[#e0751b] sm:col-span-2 lg:col-span-1 lg:min-h-full"
         >
           Tìm Kiếm
@@ -302,7 +342,10 @@ function SearchSelect({
 }) {
   return (
     <label className="group !flex min-h-[42px] min-w-0 items-center gap-2 rounded-[10px] px-3 py-1.5 transition-colors hover:bg-[#fff7ef] lg:border-r lg:border-dashed lg:border-[#d9dce6]">
-      <span className="grid h-7 w-7 shrink-0 place-items-center text-[#ff8d28]">{icon}</span>
+      <span className="grid h-7 w-7 shrink-0 place-items-center text-[#ff8d28]">
+        {icon}
+      </span>
+
       <span className="min-w-0 flex-1">
         <select
           value={selected}
@@ -316,6 +359,7 @@ function SearchSelect({
             </option>
           ))}
         </select>
+
         <span className="mt-0.5 block truncate text-[11px] font-semibold leading-3 text-[#4b5563]">
           {helper}
         </span>
@@ -339,7 +383,10 @@ function SearchInput({
 }) {
   return (
     <label className="group !flex min-h-[42px] min-w-0 items-center gap-2 rounded-[10px] px-3 py-1.5 transition-colors hover:bg-[#fff7ef] lg:border-r lg:border-dashed lg:border-[#d9dce6]">
-      <span className="grid h-7 w-7 shrink-0 place-items-center text-[#ff8d28]">{icon}</span>
+      <span className="grid h-7 w-7 shrink-0 place-items-center text-[#ff8d28]">
+        {icon}
+      </span>
+
       <span className="min-w-0 flex-1">
         <input
           type="text"
@@ -350,6 +397,7 @@ function SearchInput({
           className="block !h-4 !min-h-0 w-full !border-0 bg-transparent !p-0 text-[13px] font-bold leading-4 text-[#0e111d] placeholder:text-[#0e111d] !shadow-none outline-none"
           aria-label={helper}
         />
+
         <span className="mt-0.5 block truncate text-[11px] font-semibold leading-3 text-[#4b5563]">
           {helper}
         </span>
@@ -369,8 +417,12 @@ function PhotographerCard() {
             className="h-full w-full object-cover transition-all duration-700 ease-out group-hover:scale-110 group-hover:brightness-105"
           />
         </div>
+
         <div className="-mt-28 bg-gradient-to-t from-[rgba(0,0,0,0.85)] via-[rgba(0,0,0,0.4)] to-transparent px-7 pb-7 pt-24 text-white">
-          <h2 className="text-[26px] sm:text-[30px] font-extrabold leading-tight">Đức Anh</h2>
+          <h2 className="text-[26px] sm:text-[30px] font-extrabold leading-tight">
+            Đức Anh
+          </h2>
+
           <p className="mt-1.5 text-[14px] text-white/80 font-bold">
             Premium Wedding Photographer
           </p>
@@ -382,8 +434,12 @@ function PhotographerCard() {
           <div className="grid h-9 w-9 place-items-center rounded-full bg-[#fcf2e9] shrink-0">
             <SparkGlyph className="h-4.5 w-4.5 text-[#ff8d28]" />
           </div>
+
           <div>
-            <p className="text-[13px] font-extrabold text-[#0e111d]">98% Match</p>
+            <p className="text-[13px] font-extrabold text-[#0e111d]">
+              98% Match
+            </p>
+
             <p className="text-[11px] leading-normal text-[#8a8fa1] font-bold mt-0.5">
               Phù hợp phong cách & ngân sách
             </p>
@@ -395,6 +451,7 @@ function PhotographerCard() {
 }
 
 function ServiceSection({
+  id,
   eyebrow,
   title,
   description,
@@ -410,6 +467,7 @@ function ServiceSection({
   reverse,
   muted,
 }: {
+  id: string;
   eyebrow: string;
   title: string;
   description: string;
@@ -426,12 +484,17 @@ function ServiceSection({
   muted?: boolean;
 }) {
   return (
-    <section className={`w-full ${muted ? "bg-[#f8f9fd]" : "bg-white"} overflow-hidden`}>
+    <section
+      className={`w-full ${
+        muted ? "bg-[#f8f9fd]" : "bg-white"
+      } overflow-hidden`}
+    >
       <div
         className={`${containerClass} grid gap-16 py-20 sm:py-24 lg:grid-cols-2 lg:items-center lg:gap-24 lg:py-28`}
       >
         <div className={reverse ? "lg:order-2" : ""}>
           <ServiceCopy
+            id={id}
             eyebrow={eyebrow}
             title={title}
             description={description}
@@ -441,6 +504,7 @@ function ServiceSection({
             cta={cta}
           />
         </div>
+
         <div className={reverse ? "lg:order-1" : ""}>
           <PhotoCluster
             mainImage={mainImage}
@@ -458,6 +522,7 @@ function ServiceSection({
 }
 
 function ServiceCopy({
+  id,
   eyebrow,
   title,
   description,
@@ -466,6 +531,7 @@ function ServiceCopy({
   tags,
   cta,
 }: {
+  id: string;
   eyebrow: string;
   title: string;
   description: string;
@@ -476,36 +542,61 @@ function ServiceCopy({
 }) {
   return (
     <div className="max-w-[540px] lg:max-w-none">
-      <p data-reveal data-reveal-delay="0" className="text-[11px] sm:text-[12px] font-black uppercase tracking-[0.18em] text-[#ff8d28]">
+      <p
+        data-reveal
+        data-reveal-delay="0"
+        className="text-[11px] sm:text-[12px] font-black uppercase tracking-[0.18em] text-[#ff8d28]"
+      >
         {eyebrow}
       </p>
-      <h2 data-reveal data-reveal-delay="80" className="mt-3 text-[32px] sm:text-[38px] md:text-[42px] lg:text-[46px] font-black leading-[1.08] tracking-[-0.03em] text-[#0e111d]">
+
+      <h2
+        data-reveal
+        data-reveal-delay="80"
+        className="mt-3 text-[32px] sm:text-[38px] md:text-[42px] lg:text-[46px] font-black leading-[1.08] tracking-[-0.03em] text-[#0e111d]"
+      >
         {title}
       </h2>
-      <p data-reveal data-reveal-delay="160" className="mt-5 text-[15px] sm:text-[16px] md:text-[17px] leading-[1.7] text-[#4b5563] font-medium">
+
+      <p
+        data-reveal
+        data-reveal-delay="160"
+        className="mt-5 text-[15px] sm:text-[16px] md:text-[17px] leading-[1.7] text-[#4b5563] font-medium"
+      >
         {description}
       </p>
 
-      <div data-reveal data-reveal-delay="240" className="mt-8 grid grid-cols-2 gap-5 border-t border-[#f1f3f7] pt-7 max-w-[420px] lg:max-w-none">
+      <div
+        data-reveal
+        data-reveal-delay="240"
+        className="mt-8 grid grid-cols-2 gap-5 border-t border-[#f1f3f7] pt-7 max-w-[420px] lg:max-w-none"
+      >
         <div>
           <p className="text-[11px] font-bold leading-4 text-[#8a8fa1] uppercase tracking-wider">
             Giá khởi điểm
           </p>
+
           <p className="mt-1 text-[22px] sm:text-[26px] md:text-[28px] font-extrabold leading-none tracking-[-0.02em] text-[#ff8d28]">
             {price}
           </p>
         </div>
+
         <div>
           <p className="text-[11px] font-bold leading-4 text-[#8a8fa1] uppercase tracking-wider">
             Mạng lưới
           </p>
+
           <p className="mt-1 text-[22px] sm:text-[26px] md:text-[28px] font-extrabold leading-none tracking-[-0.02em] text-[#0e111d]">
             {network}
           </p>
         </div>
       </div>
 
-      <div data-reveal data-reveal-delay="320" className="mt-7 flex flex-wrap gap-2.5">
+      <div
+        data-reveal
+        data-reveal-delay="320"
+        className="mt-7 flex flex-wrap gap-2.5"
+      >
         {tags.map((tag) => (
           <span
             key={tag}
@@ -519,8 +610,8 @@ function ServiceCopy({
       <Link
         data-reveal
         data-reveal-delay="400"
-        href="/photographer"
-        className="mt-8 inline-flex rounded-lg bg-[#ff8d28] hover:bg-[#e0751b] px-7 py-3.5 text-[13px] sm:text-[14px] font-bold text-white shadow-[0_8px_16px_rgba(255,141,40,0.12)] transition-all hover:translate-y-[-1px] "
+        href={`/photographer?category=${id}`}
+        className="mt-8 inline-flex rounded-lg bg-[#ff8d28] hover:bg-[#e0751b] px-7 py-3.5 text-[13px] sm:text-[14px] font-bold text-white shadow-[0_8px_16px_rgba(255,141,40,0.12)] transition-all hover:translate-y-[-1px]"
       >
         {cta}
       </Link>
@@ -550,6 +641,7 @@ function PhotoCluster({
 
   useEffect(() => {
     const node = clusterRef.current;
+
     if (!node) {
       return;
     }
@@ -570,18 +662,23 @@ function PhotoCluster({
   }, []);
 
   const visibleOpacity = isVisible ? 1 : 0;
+
   const clusterReveal = isVisible
     ? "translate3d(0, 0, 0) scale(1)"
     : "translate3d(0, 72px, 0) scale(0.96)";
+
   const labelReveal = isVisible
     ? "translateX(-50%) translateY(0) scale(1)"
     : "translateX(-50%) translateY(28px) scale(0.96)";
+
   const badgeReveal = isVisible
     ? "translateY(0) scale(1)"
     : "translateY(38px) scale(0.96)";
+
   const mainReveal = isVisible
     ? "translateY(0) scale(1)"
     : "translateY(76px) scale(0.96)";
+
   const detailReveal = isVisible
     ? "translateY(0) scale(1)"
     : "translateY(92px) scale(0.94)";
@@ -613,9 +710,8 @@ function PhotoCluster({
         </p>
       ) : null}
 
-      {/* Floating Badge (Always top-left of the main photo) */}
       <div
-        className={`absolute z-30 w-[48%] rounded-[12px] border border-[#ececf1] bg-white/95 backdrop-blur px-4 py-3 shadow-[0_10px_25px_rgba(0,0,0,0.05)]`}
+        className="absolute z-30 w-[48%] rounded-[12px] border border-[#ececf1] bg-white/95 backdrop-blur px-4 py-3 shadow-[0_10px_25px_rgba(0,0,0,0.05)]"
         style={{
           top: reverse ? "12%" : "12%",
           left: reverse ? "4%" : "18%",
@@ -629,10 +725,12 @@ function PhotoCluster({
           <div className="grid h-7.5 w-7.5 place-items-center rounded-full bg-[#fcf2e9] shrink-0">
             <SparkGlyph className="h-4.5 w-4.5 text-[#ff8d28]" />
           </div>
+
           <div className="min-w-0">
             <p className="truncate text-[12px] sm:text-[13px] font-extrabold text-[#0e111d] leading-none">
               {badgeTitle}
             </p>
+
             {badgeText ? (
               <p className="truncate text-[10px] sm:text-[11px] text-[#8a8fa1] mt-1 leading-none font-medium">
                 {badgeText}
@@ -642,9 +740,8 @@ function PhotoCluster({
         </div>
       </div>
 
-      {/* Main Image Container */}
       <div
-        className={`absolute z-10 overflow-hidden rounded-[24px] shadow-[0_24px_48px_rgba(0,0,0,0.06)]`}
+        className="absolute z-10 overflow-hidden rounded-[24px] shadow-[0_24px_48px_rgba(0,0,0,0.06)]"
         style={{
           left: reverse ? "0" : "15%",
           right: reverse ? "15%" : "0",
@@ -665,7 +762,6 @@ function PhotoCluster({
         />
       </div>
 
-      {/* Detail Image Container */}
       <div
         className={`absolute z-20 w-[42%] aspect-square overflow-hidden rounded-[18px] border-[4px] shadow-[0_16px_32px_rgba(0,0,0,0.1)] ${
           muted ? "border-[#f8f9fd]" : "border-white"
@@ -698,7 +794,10 @@ function Stat({ value, label }: { value: string; label: string }) {
       <p className="text-[36px] sm:text-[40px] font-black leading-none tracking-[-0.03em] text-[#0e111d]">
         {value}
       </p>
-      <p className="mt-2 text-[12px] font-extrabold text-[#8a8fa1] uppercase tracking-wider">{label}</p>
+
+      <p className="mt-2 text-[12px] font-extrabold text-[#8a8fa1] uppercase tracking-wider">
+        {label}
+      </p>
     </div>
   );
 }
@@ -739,6 +838,7 @@ function CameraGlyph({ className }: { className?: string }) {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
+
       <circle cx="10" cy="10.8" r="2.35" stroke="currentColor" strokeWidth="1.8" />
     </svg>
   );
@@ -760,6 +860,7 @@ function PinGlyph({ className }: { className?: string }) {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
+
       <circle cx="10" cy="8.4" r="1.8" stroke="currentColor" strokeWidth="1.8" />
     </svg>
   );
