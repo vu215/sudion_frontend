@@ -150,9 +150,10 @@ function Header({ pathname }: { pathname: string }) {
           {!loading && !session ? (
             <Link
               href="/register"
-              className="rounded-lg bg-[#ff8d28] px-5 py-2.5 text-[14px] font-bold text-white shadow-[0_6px_14px_rgba(255,141,40,0.15)] transition-all hover:translate-y-[-1px] hover:bg-[#e0751b]"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#e8eaf1] text-[#4b5563] hover:border-[#ff8d28] hover:text-[#ff8d28] transition-colors"
+              aria-label="Đăng ký"
             >
-              Đăng ký
+              <ProfileGlyph className="h-5 w-5" />
             </Link>
           ) : !loading && session ? (
             <div className="relative" ref={dropdownRef}>
