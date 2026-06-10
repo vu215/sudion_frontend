@@ -11,7 +11,7 @@ const headerLinks = [
   { href: "/", label: "Trang chủ" },
   { href: "/about", label: "Về chúng tôi" },
   { href: "/photographer", label: "Photographer" },
-  { href: "/#services", label: "Dịch vụ" },
+  { href: "/services", label: "Dịch vụ" },
   { href: "/news", label: "Tin tức" },
 ];
 
@@ -110,44 +110,41 @@ function Header({ pathname }: { pathname: string }) {
         </nav>
 
         <div className="flex items-center gap-4">
-          <div ref={searchRef} className="relative hidden lg:flex items-center">
-            <button
-              type="button"
-              onClick={() => setSearchOpen((value) => !value)}
-              className="relative z-50 inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#e8eaf1] text-[#4b5563] hover:bg-gray-50"
-              aria-label="Mở tìm kiếm"
+          <div ref={searchRef} className="hidden lg:flex items-center">
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                const target = `/photographer${searchQuery.trim() ? `?search=${encodeURIComponent(searchQuery.trim())}` : ""}`;
+                router.push(target);
+                setSearchOpen(false);
+                setSearchQuery("");
+              }}
+              className={`flex items-center overflow-hidden rounded-xl border bg-white shadow-sm transition-all duration-300 ${
+                searchOpen
+                  ? "w-[280px] border-[#ff8d28] ring-2 ring-[#ff8d28]/10"
+                  : "w-10 border-[#e8eaf1]"
+              }`}
             >
-              <SearchGlyph className="h-5 w-5" />
-            </button>
-            {searchOpen && (
-              <div className="absolute right-0 top-full mt-2 z-50">
-                <form
-                  onSubmit={(event) => {
-                    event.preventDefault();
-                    const target = `/photographer${searchQuery.trim() ? `?search=${encodeURIComponent(searchQuery.trim())}` : ""}`;
-                    router.push(target);
-                  }}
-                  className="relative w-72 rounded-full border border-[#e8eaf1] bg-white px-2 py-1 shadow-[0_18px_50px_rgba(15,23,42,0.08)]"
-                >
-                  <input
-                    ref={inputRef}
-                    name="search"
-                    value={searchQuery}
-                    onChange={(event) => setSearchQuery(event.target.value)}
-                    type="search"
-                    placeholder="Tìm kiếm photographer..."
-                    className="h-11 w-full rounded-full border-none bg-transparent px-4 pr-12 text-sm text-[#0e111d] outline-none placeholder:text-[#9ca3af]"
-                  />
-                  <button
-                    type="submit"
-                    className="absolute right-1 top-1/2 -translate-y-1/2 inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#ff8d28] text-white shadow-sm hover:bg-[#e27517]"
-                    aria-label="Tìm kiếm"
-                  >
-                    <SearchGlyph className="h-4 w-4" />
-                  </button>
-                </form>
-              </div>
-            )}
+              <button
+                type="button"
+                aria-label="Mở tìm kiếm"
+                onClick={() => setSearchOpen(true)}
+                className="flex h-10 w-10 shrink-0 items-center justify-center text-[#4b5563] hover:text-[#ff8d28] transition-colors"
+              >
+                <SearchGlyph className="h-5 w-5" />
+              </button>
+              <input
+                ref={inputRef}
+                name="search"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                type="search"
+                placeholder="Tìm kiếm photographer..."
+                className={`h-10 flex-1 bg-transparent pr-3 text-sm text-[#0e111d] outline-none placeholder:text-[#9ca3af] transition-all duration-300 ${
+                  searchOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none w-0"
+                }`}
+              />
+            </form>
           </div>
 
           {!loading && !session ? (
