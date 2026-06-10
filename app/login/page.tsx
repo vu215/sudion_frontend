@@ -20,6 +20,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isSwitching, setIsSwitching] = useState(false);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -33,8 +34,21 @@ export default function LoginPage() {
     router.push("/");
   }
 
+  function handleRegisterSwitch(e: React.MouseEvent<HTMLAnchorElement>) {
+    e.preventDefault();
+    if (isSwitching) return;
+    setIsSwitching(true);
+    window.setTimeout(() => router.push("/register"), 420);
+  }
+
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#fbf8ff] text-[#1a1b24]">
+      <div
+        className={`pointer-events-none absolute inset-0 z-50 bg-[#ff8d28] transition-transform duration-500 ease-[cubic-bezier(0.83,0,0.17,1)] ${
+          isSwitching ? "translate-x-0" : "-translate-x-full"
+        }`}
+        aria-hidden="true"
+      />
       <section className="absolute left-1/2 top-1/2 flex min-h-[1080px] w-[1920px] origin-center -translate-x-1/2 -translate-y-1/2 scale-[0.375] flex-col items-center justify-center px-[410px] py-[126px] min-[640px]:scale-[0.333] min-[768px]:scale-[0.4] min-[1024px]:scale-[0.533] min-[1280px]:scale-[0.667] min-[1366px]:scale-[0.711] min-[1440px]:scale-[0.75] min-[1536px]:scale-[0.8] min-[1728px]:scale-[0.9] min-[1920px]:scale-100">
         <div className="grid h-[736px] w-[1100px] grid-cols-[625px_475px] overflow-hidden rounded-[24px] border border-[#c5c5d8]/20 bg-white shadow-[0_10px_40px_-10px_rgba(0,0,0,0.08)]">
           <div className="relative h-full overflow-hidden">
@@ -119,7 +133,9 @@ export default function LoginPage() {
 
               <p className="mt-8 text-center text-[16px] font-medium text-[#444655]">
                 Chưa có tài khoản?{" "}
-                <Link href="/register" className="font-bold text-[#ff8d28]">Đăng ký ngay</Link>
+                <Link href="/register" onClick={handleRegisterSwitch} className="font-bold text-[#ff8d28] transition hover:text-[#e9791d]">
+                  Đăng ký ngay
+                </Link>
               </p>
 
               <div className="my-8 flex items-center gap-4">

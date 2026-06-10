@@ -188,7 +188,7 @@ function HeroSection() {
           </div>
 
           <h1
-            className="mt-5 max-w-[15ch] text-[40px] sm:text-[48px] md:text-[54px] lg:text-[56px] xl:text-[64px] font-black leading-[1.05] tracking-[-0.03em] text-[#0e111d]"
+            className="mt-5 max-w-[15ch] text-[40px] sm:text-[48px] md:text-[54px] lg:text-[56px] xl:text-[64px] font-black leading-[1.18] tracking-normal text-[#0e111d]"
             style={heroRevealStyle(isReady, 120)}
           >
             Tìm photographer phù hợp cho mọi khoảnh khắc
@@ -225,7 +225,14 @@ function HeroSection() {
 function SearchBar() {
   const [service, setService] = useState("Tất cả");
   const [location, setLocation] = useState("Hồ Chí Minh");
-  const [date, setDate] = useState("");
+  const [date, setDate] = useState(() => {
+    const today = new Date();
+    const day = String(today.getDate()).padStart(2, "0");
+    const month = String(today.getMonth() + 1).padStart(2, "0");
+    const year = today.getFullYear();
+
+    return `${day}/${month}/${year}`;
+  });
   const serviceOptions = [
     "Tất cả",
     "Chụp ảnh cưới",
@@ -265,7 +272,7 @@ function SearchBar() {
           icon={<CalendarGlyph className="h-8 w-8" />}
           helper="Ngày chụp"
           value={date}
-          placeholder="31.07.2025"
+          placeholder={date}
           onChange={setDate}
         />
         
