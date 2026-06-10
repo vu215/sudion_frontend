@@ -259,7 +259,7 @@ function Footer() {
               {column.links.map((link) => (
                 <Link
                   key={link}
-                  href={column.title === "Dịch vụ" ? "/#services" : column.title === "Công ty" ? "/about" : "/support"}
+                  href={column.title === "Dịch vụ" ? "/services" : column.title === "Công ty" ? "/about" : "/support"}
                   className="block text-[14px] font-semibold text-gray-400 transition-colors hover:text-white"
                 >
                   {link}
