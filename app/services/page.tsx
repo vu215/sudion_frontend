@@ -1,140 +1,179 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import Image from "next/image";
 import Link from "next/link";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { serviceCategories, servicePackages } from "./service-data";
 
-/* ─── data ───────────────────────────────────────────────────── */
-const serviceSections = [
-  {
-    id: "wedding",
-    eyebrow: "WEDDING PHOTOGRAPHY",
-    title: "Chụp ảnh cưới",
-    description:
-      "Lưu giữ khoảnh khắc thiêng liêng và cảm xúc chân thật nhất trong ngày trọng đại của bạn.",
-    price: "Từ 5.000.000 VND",
-    network: "1.200+ Thợ ảnh",
-    tags: ["Makeup", "Video", "Flycam", "Album", "Retouching"],
-    mainImage:
-      "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=900&q=80",
-    detailImage:
-      "https://images.unsplash.com/photo-1522673607200-164d1b6ce486?auto=format&fit=crop&w=400&q=80",
-    badgeTitle: "Top Pick",
-    badgeText: "Tỷ lệ match cao",
-  },
-  {
-    id: "couple",
-    eyebrow: "COUPLE PHOTOGRAPHY",
-    title: "Chụp ảnh đôi",
-    description:
-      "Kể lại câu chuyện tình yêu của hai bạn qua những khung hình lãng mạn và tự nhiên nhất.",
-    price: "Từ 1.500.000 VND",
-    network: "850+ Thợ ảnh",
-    tags: ["Makeup", "Video", "Flycam", "Album", "Chỉnh sửa"],
-    mainImage:
-      "https://images.unsplash.com/photo-1529634597503-139d3726fed5?auto=format&fit=crop&w=900&q=80",
-    detailImage:
-      "https://images.unsplash.com/photo-1500917293891-ef795e70e1f6?auto=format&fit=crop&w=400&q=80",
-    badgeTitle: "Yêu thích nhất",
-    badgeText: "Đánh giá 4.9+",
-    reverse: true,
-    muted: true,
-  },
-  {
-    id: "yearbook",
-    eyebrow: "YEARBOOK PHOTOGRAPHY",
-    title: "Chụp kỉ yếu",
-    description:
-      "Lưu giữ những kỉ niệm rực rỡ của thời học sinh, sinh viên bên bạn bè và thầy cô giáo.",
-    price: "Từ 2.000.000 VND",
-    network: "640+ Thợ ảnh",
-    tags: ["Makeup", "Video", "Flycam", "Album", "Chỉnh sửa"],
-    mainImage:
-      "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&w=900&q=80",
-    detailImage:
-      "https://images.unsplash.com/photo-1508672019048-805c876b67e2?auto=format&fit=crop&w=400&q=80",
-    badgeTitle: "Kỉ yếu trọn gói",
-    badgeText: "Nhiều ưu đãi nhóm",
-  },
-  {
-    id: "event",
-    eyebrow: "EVENT PHOTOGRAPHY",
-    title: "Chụp sự kiện",
-    description:
-      "Ghi lại mọi khoảnh khắc quan trọng trong các sự kiện doanh nghiệp, hội nghị và tiệc cá nhân.",
-    price: "Từ 1.000.000 VND/giờ",
-    network: "920+ Thợ ảnh",
-    tags: ["Makeup", "Video", "Album", "Chỉnh sửa"],
-    mainImage:
-      "https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=900&q=80",
-    detailImage:
-      "https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=400&q=80",
-    badgeTitle: "Nhận lịch gấp",
-    badgeText: "Có mặt trong 2 giờ",
-    reverse: true,
-    muted: true,
-  },
-  {
-    id: "food",
-    eyebrow: "FOOD & PRODUCT",
-    title: "Chụp food & product",
-    description:
-      "Tôn vinh giá trị và vẻ đẹp của món ăn, sản phẩm để thu hút khách hàng từ cái nhìn đầu tiên.",
-    price: "Từ 1.200.000 VND/concept",
-    network: "450+ Thợ ảnh",
-    tags: ["Makeup", "Video", "Flycam", "Album", "Chỉnh sửa"],
-    mainImage:
-      "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=900&q=80",
-    detailImage:
-      "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?auto=format&fit=crop&w=400&q=80",
-    badgeTitle: "Stylist chuyên nghiệp",
-    badgeText: "Hỗ trợ lên ý tưởng",
-  },
-  {
-    id: "travel",
-    eyebrow: "TRAVEL PHOTOGRAPHY",
-    title: "Chụp travel",
-    description:
-      "Lưu lại những kỷ niệm đáng nhớ trong các chuyến hành trình khám phá thế giới đầy màu sắc của bạn.",
-    price: "Từ 1.200.000 VND",
-    network: "530+ Thợ ảnh",
-    tags: ["Makeup", "Video", "Album", "Chỉnh sửa"],
-    mainImage:
-      "https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?auto=format&fit=crop&w=900&q=80",
-    detailImage:
-      "https://images.unsplash.com/photo-1507608616759-54f48f0af0ee?auto=format&fit=crop&w=400&q=80",
-    badgeTitle: "Đặt lịch toàn quốc",
-    badgeText: "Hỗ trợ 24/7",
-    reverse: true,
-    muted: true,
-  },
-];
+const containerClass = "mx-auto w-full max-w-[1440px] px-6 md:px-12 lg:px-20";
 
-const containerClass = "w-full max-w-[1440px] mx-auto px-6 md:px-12 lg:px-20";
+function fadeUpStyle(isReady: boolean, delay = 0): CSSProperties {
+  return {
+    opacity: isReady ? 1 : 0,
+    transform: isReady ? "translate3d(0, 0, 0)" : "translate3d(0, 56px, 0) scale(0.96)",
+    transition:
+      "opacity 1000ms cubic-bezier(0.16, 1, 0.3, 1), transform 1000ms cubic-bezier(0.16, 1, 0.3, 1)",
+    transitionDelay: `${delay}ms`,
+    willChange: isReady ? "auto" : "opacity, transform",
+  };
+}
 
-/* ─── helpers ────────────────────────────────────────────────── */
-function SparkGlyph({ className }: { className?: string }) {
+export default function ServicesPage() {
+  const [isReady, setIsReady] = useState(false);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setIsReady(true), 80);
+    return () => window.clearTimeout(timer);
+  }, []);
+
   return (
-    <svg className={className} viewBox="0 0 20 20" fill="none" aria-hidden="true">
-      <path d="M10 2.5L11.9 8.1L17.5 10L11.9 11.9L10 17.5L8.1 11.9L2.5 10L8.1 8.1L10 2.5Z" fill="currentColor" />
-    </svg>
+    <main className="min-h-screen bg-[#fafbfc] text-[#0e111d]">
+      <section className="w-full overflow-hidden bg-white">
+        <div className={`${containerClass} grid gap-10 py-14 lg:grid-cols-[1.05fr_0.85fr] lg:items-center lg:gap-14 lg:py-16`}>
+          <div className="pt-2">
+            <div
+              className="inline-flex items-center gap-1.5 rounded-full bg-[#fcf2e9] px-4 py-1.5 text-[12px] font-extrabold text-[#ff8d28]"
+              style={fadeUpStyle(isReady, 0)}
+            >
+              <span className="grid h-4 w-4 place-items-center">✦</span>
+              Dịch vụ nhiếp ảnh
+            </div>
+            <h1
+              className="mt-5 max-w-[15ch] text-[40px] font-black leading-[1.18] tracking-normal text-[#0e111d] sm:text-[48px] md:text-[54px] lg:text-[56px] xl:text-[64px]"
+              style={fadeUpStyle(isReady, 120)}
+            >
+              Chọn dịch vụ trước, rồi tìm gói chụp gần bạn
+            </h1>
+            <p
+              className="mt-6 max-w-[560px] text-[16px] font-medium leading-[1.7] text-[#4b5563] sm:text-[17px] md:text-[18px]"
+              style={fadeUpStyle(isReady, 240)}
+            >
+              Mỗi dịch vụ là một danh mục. Bên trong là nhiều gói chụp của nhiều photographer, có thể lọc theo khoảng cách, giá, add-on và lịch trống.
+            </p>
+            <div className="mt-7 flex flex-wrap gap-3" style={fadeUpStyle(isReady, 360)}>
+              {serviceCategories.map((service) => (
+                <Link
+                  key={service.slug}
+                  href={`/services/${service.slug}`}
+                  className="rounded-full border border-[#e8eaf1] bg-white px-5 py-2.5 text-[14px] font-extrabold text-[#0e111d] shadow-[0_8px_18px_rgba(14,17,29,0.04)] transition hover:border-[#ff8d28] hover:bg-[#fff7ef] hover:text-[#ff8d28]"
+                >
+                  {service.title}
+                </Link>
+              ))}
+            </div>
+            <div className="mt-10 flex flex-wrap items-start gap-10" style={fadeUpStyle(isReady, 480)}>
+              <div className="grid gap-1 border-l-4 border-[#ff8d28] pl-4">
+                <strong className="text-[32px] font-black leading-none text-[#0e111d]">3</strong>
+                <span className="text-[12px] font-bold uppercase tracking-[0.12em] text-[#6b7280]">Dịch vụ chính</span>
+              </div>
+              <div className="grid gap-1 border-l-4 border-[#ff8d28] pl-4">
+                <strong className="text-[32px] font-black leading-none text-[#0e111d]">2K+</strong>
+                <span className="text-[12px] font-bold uppercase tracking-[0.12em] text-[#6b7280]">Photographer</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="relative min-h-[430px] lg:min-h-[520px]" style={fadeUpStyle(isReady, 320)}>
+            <div className="absolute right-0 top-0 h-[82%] w-[86%] overflow-hidden rounded-[24px] bg-[#eef1f7] shadow-[0_24px_56px_rgba(14,17,29,0.12)] ring-1 ring-black/5">
+              <Image
+                src="https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1200&q=82"
+                alt="Dịch vụ chụp ảnh Studion"
+                fill
+                priority
+                sizes="(max-width: 1023px) 100vw, 560px"
+                className="object-cover"
+              />
+              <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black/50 to-transparent" />
+            </div>
+            <div className="absolute bottom-[10%] left-0 flex w-[min(340px,72%)] items-center gap-4 rounded-2xl border border-[#e8eaf1] bg-white p-4 shadow-[0_18px_42px_rgba(14,17,29,0.12)]">
+              <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-[#fcf2e9] text-[#ff8d28]">
+                ✦
+              </div>
+              <div>
+                <p className="text-[15px] font-black text-[#0e111d]">Listing theo gói</p>
+                <p className="mt-1 text-[13px] font-semibold leading-5 text-[#667085]">
+                  Cùng dịch vụ, mỗi photographer có giá, add-on và khoảng cách khác nhau.
+                </p>
+              </div>
+            </div>
+            <div className="absolute bottom-0 right-[8%] w-[42%] overflow-hidden rounded-[18px] border-4 border-white bg-[#eef1f7] shadow-[0_18px_42px_rgba(14,17,29,0.14)]">
+              <div className="relative aspect-square">
+                <Image
+                  src="https://images.unsplash.com/photo-1529634597503-139d3726fed5?auto=format&fit=crop&w=640&q=82"
+                  alt=""
+                  fill
+                  sizes="220px"
+                  className="object-cover"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className={`${containerClass} py-14 lg:py-18`}>
+        
+
+        <div className="mt-8 grid gap-5 lg:grid-cols-3">
+          {serviceCategories.map((service, index) => {
+            const packageCount = servicePackages.filter((item) => item.serviceSlug === service.slug).length;
+
+            return (
+              <RevealCard key={service.slug} delay={index * 130}>
+                <Link
+                  href={`/services/${service.slug}`}
+                  className="group block overflow-hidden rounded-2xl border border-[#e5e7ef] bg-white shadow-[0_16px_42px_rgba(14,17,29,0.045)] transition hover:-translate-y-1 hover:border-[#ffcfaa] hover:shadow-[0_22px_54px_rgba(255,141,40,0.12)]"
+                >
+                  <div className="relative aspect-[16/10] overflow-hidden bg-[#eef1f7]">
+                    <Image
+                      src={service.heroImage}
+                      alt={service.title}
+                      fill
+                      sizes="(max-width: 1023px) 100vw, 420px"
+                      className="object-cover transition duration-700 group-hover:scale-105"
+                    />
+                    <div className="absolute left-4 top-4 rounded-full bg-white/95 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.12em] text-[#ff8d28]">
+                      {service.shortTitle}
+                    </div>
+                  </div>
+                  <div className="p-5">
+                    <div className="flex items-start justify-between gap-3">
+                      <h3 className="text-[22px] font-black text-[#0e111d]">{service.title}</h3>
+                      <span className="shrink-0 rounded-full bg-[#fff4eb] px-3 py-1 text-[11px] font-extrabold text-[#ff8d28]">
+                        {packageCount} gói mẫu
+                      </span>
+                    </div>
+                    <p className="mt-3 text-[14px] font-semibold leading-6 text-[#667085]">
+                      {service.description}
+                    </p>
+                    <div className="mt-5 flex items-end justify-between gap-4 border-t border-[#f0f2f6] pt-5">
+                      <div>
+                        <p className="text-[11px] font-black uppercase tracking-[0.12em] text-[#98a2b3]">
+                          Giá khởi điểm
+                        </p>
+                        <p className="mt-1 text-[18px] font-black text-[#ff8d28]">{service.startingPrice}</p>
+                      </div>
+                      <span className="rounded-lg bg-[#ff8d28] px-4 py-2 text-[12px]  font-black text-white">
+                        Xem gói
+                      </span>
+                    </div>
+                  </div>
+                </Link>
+              </RevealCard>
+            );
+          })}
+        </div>
+      </section>
+    </main>
   );
 }
 
-/* ─── photo cluster (same pattern as homepage) ───────────────── */
-function PhotoCluster({
-  mainImage,
-  detailImage,
-  badgeTitle,
-  badgeText,
-  reverse,
-  muted,
+function RevealCard({
+  children,
+  delay,
 }: {
-  mainImage: string;
-  detailImage: string;
-  badgeTitle: string;
-  badgeText: string;
-  reverse?: boolean;
-  muted?: boolean;
+  children: ReactNode;
+  delay: number;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
@@ -142,176 +181,30 @@ function PhotoCluster({
   useEffect(() => {
     const node = ref.current;
     if (!node) return;
+
     const observer = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) { setVisible(true); observer.disconnect(); } },
-      { rootMargin: "0px 0px -10% 0px", threshold: 0.12 },
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setVisible(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "0px 0px -8% 0px", threshold: 0.16 },
     );
+
     observer.observe(node);
     return () => observer.disconnect();
   }, []);
 
-  const op = visible ? 1 : 0;
-  const base: CSSProperties = { transition: "opacity 1050ms cubic-bezier(0.16,1,0.3,1), transform 1050ms cubic-bezier(0.16,1,0.3,1)" };
-
   return (
     <div
       ref={ref}
-      className="relative w-full aspect-[1.18/1] max-w-[500px] lg:max-w-[520px] mx-auto select-none group"
-      style={{ opacity: op, transform: visible ? "none" : "translateY(72px) scale(0.96)", ...base }}
+      style={{ transitionDelay: visible ? `${delay}ms` : "0ms" }}
+      className={`transition-[opacity,transform] duration-[900ms] ease-[cubic-bezier(0.16,1,0.3,1)] ${
+        visible ? "translate-y-0 opacity-100" : "translate-y-10 opacity-0"
+      }`}
     >
-      {/* badge */}
-      <div
-        className="absolute z-30 w-[48%] rounded-[12px] border border-[#ececf1] bg-white/95 backdrop-blur px-4 py-3 shadow-[0_10px_25px_rgba(0,0,0,0.05)]"
-        style={{ top: "12%", left: reverse ? "4%" : "18%", opacity: op, transform: visible ? "none" : "translateY(38px) scale(0.96)", transition: "opacity 1050ms 260ms cubic-bezier(0.16,1,0.3,1), transform 1050ms 260ms cubic-bezier(0.16,1,0.3,1)" }}
-      >
-        <div className="flex items-center gap-2.5">
-          <div className="grid h-7 w-7 place-items-center rounded-full bg-[#fcf2e9] shrink-0">
-            <SparkGlyph className="h-3.5 w-3.5 text-[#ff8d28]" />
-          </div>
-          <div className="min-w-0">
-            <p className="truncate text-[12px] font-extrabold text-[#0e111d] leading-none">{badgeTitle}</p>
-            <p className="truncate text-[10px] text-[#8a8fa1] mt-1 leading-none font-medium">{badgeText}</p>
-          </div>
-        </div>
-      </div>
-
-      {/* main image */}
-      <div
-        className="absolute z-10 overflow-hidden rounded-[24px] shadow-[0_24px_48px_rgba(0,0,0,0.06)]"
-        style={{ left: reverse ? "0" : "15%", right: reverse ? "15%" : "0", top: "8%", bottom: "4%", opacity: op, transform: visible ? `rotate(${reverse ? "-1deg" : "1deg"})` : `translateY(76px) scale(0.96) rotate(${reverse ? "-1deg" : "1deg"})`, transition: "opacity 1150ms cubic-bezier(0.16,1,0.3,1), transform 1150ms cubic-bezier(0.16,1,0.3,1)" }}
-      >
-        <img src={mainImage} alt="" className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
-      </div>
-
-      {/* detail image */}
-      <div
-        className={`absolute z-20 w-[42%] aspect-square overflow-hidden rounded-[18px] border-[4px] shadow-[0_16px_32px_rgba(0,0,0,0.1)] ${muted ? "border-[#f8f9fd]" : "border-white"}`}
-        style={{ bottom: "0", left: reverse ? "auto" : "0", right: reverse ? "0" : "auto", opacity: op, transform: visible ? `rotate(${reverse ? "2deg" : "-2deg"})` : `translateY(92px) scale(0.94) rotate(${reverse ? "2deg" : "-2deg"})`, transition: "opacity 1150ms 160ms cubic-bezier(0.16,1,0.3,1), transform 1150ms 160ms cubic-bezier(0.16,1,0.3,1)" }}
-      >
-        <img src={detailImage} alt="" className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
-      </div>
-    </div>
-  );
-}
-
-/* ─── service section ────────────────────────────────────────── */
-function ServiceSection({
-  eyebrow, title, description, price, network, tags,
-  mainImage, detailImage, badgeTitle, badgeText, reverse, muted,
-}: (typeof serviceSections)[number]) {
-  return (
-    <section className={`w-full overflow-hidden ${muted ? "bg-[#f8f9fd]" : "bg-white"}`}>
-      <div className={`${containerClass} grid gap-16 py-20 sm:py-24 lg:grid-cols-2 lg:items-center lg:gap-24 lg:py-28`}>
-        <div className={reverse ? "lg:order-2" : ""}>
-          <div className="max-w-[540px] lg:max-w-none">
-            <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#ff8d28]">{eyebrow}</p>
-            <h2 className="mt-3 text-[32px] sm:text-[38px] md:text-[46px] font-black leading-[1.08] tracking-[-0.03em] text-[#0e111d]">
-              {title}
-            </h2>
-            <p className="mt-5 text-[16px] leading-[1.7] text-[#4b5563] font-medium">{description}</p>
-
-            <div className="mt-8 grid grid-cols-2 gap-5 border-t border-[#f1f3f7] pt-7 max-w-[420px] lg:max-w-none">
-              <div>
-                <p className="text-[11px] font-bold leading-4 text-[#8a8fa1] uppercase tracking-wider">Giá khởi điểm</p>
-                <p className="mt-1 text-[24px] font-extrabold leading-none tracking-[-0.02em] text-[#ff8d28]">{price}</p>
-              </div>
-              <div>
-                <p className="text-[11px] font-bold leading-4 text-[#8a8fa1] uppercase tracking-wider">Mạng lưới</p>
-                <p className="mt-1 text-[24px] font-extrabold leading-none tracking-[-0.02em] text-[#0e111d]">{network}</p>
-              </div>
-            </div>
-
-            <div className="mt-7 flex flex-wrap gap-2.5">
-              {tags.map((tag) => (
-                <span key={tag} className="rounded-full bg-[#f0f3fe] px-4 py-2 text-[12px] font-bold text-[#556080]">
-                  {tag}
-                </span>
-              ))}
-            </div>
-
-            <Link
-              href="/photographer"
-              className="mt-8 inline-flex rounded-lg bg-[#ff8d28] hover:bg-[#e0751b] px-7 py-3.5 text-[14px] font-bold text-white shadow-[0_8px_16px_rgba(255,141,40,0.12)] transition-all hover:-translate-y-[1px]"
-            >
-              Đặt lịch ngay
-            </Link>
-          </div>
-        </div>
-
-        <div className={reverse ? "lg:order-1" : ""}>
-          <PhotoCluster
-            mainImage={mainImage}
-            detailImage={detailImage}
-            badgeTitle={badgeTitle}
-            badgeText={badgeText}
-            reverse={reverse}
-            muted={muted}
-          />
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* ─── page ───────────────────────────────────────────────────── */
-export default function ServicesPage() {
-  return (
-    <div className="min-h-screen bg-white text-[#0e111d]">
-      {/* hero banner */}
-      <section className="bg-[#0e111d] py-16 text-center">
-        <div className={containerClass}>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#ff8d28]/15 px-4 py-1.5 text-[12px] font-extrabold text-[#ff8d28] mb-4">
-            <SparkGlyph className="h-4 w-4" />
-            Dịch vụ nhiếp ảnh
-          </span>
-          <h1 className="mt-4 text-[36px] sm:text-[48px] md:text-[56px] font-black leading-[1.1] text-white">
-            Mọi khoảnh khắc đáng được
-            <br />
-            <span className="text-[#ff8d28]">ghi lại hoàn hảo</span>
-          </h1>
-          <p className="mx-auto mt-5 max-w-[560px] text-[16px] leading-[1.7] text-gray-400 font-medium">
-            Khám phá đa dạng dịch vụ chụp ảnh chuyên nghiệp — từ cưới hỏi, kỉ yếu đến thương mại và du lịch.
-          </p>
-          <div className="mt-8 flex items-center justify-center gap-3 flex-wrap">
-            {serviceSections.map((s) => (
-              <a
-                key={s.id}
-                href={`#${s.id}`}
-                className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[12px] font-semibold text-gray-300 transition hover:border-[#ff8d28]/50 hover:text-[#ff8d28]"
-              >
-                {s.title}
-              </a>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* service sections */}
-      <main>
-        {serviceSections.map((section) => (
-          <div key={section.id} id={section.id}>
-            <ServiceSection {...section} />
-          </div>
-        ))}
-      </main>
-
-      {/* CTA strip */}
-      <section className="bg-[#ff8d28] py-16 text-center">
-        <div className={containerClass}>
-          <h2 className="text-[28px] sm:text-[36px] font-black text-white leading-tight">
-            Sẵn sàng đặt lịch chụp?
-          </h2>
-          <p className="mt-3 text-[15px] text-white/80 font-medium">
-            Hàng ngàn nhiếp ảnh gia chuyên nghiệp đang chờ bạn.
-          </p>
-          <Link
-            href="/photographer"
-            className="mt-7 inline-flex items-center gap-2 rounded-lg bg-white px-8 py-3.5 text-[14px] font-bold text-[#ff8d28] shadow-lg transition hover:-translate-y-[1px] hover:shadow-xl"
-          >
-            Tìm Photographer ngay
-          </Link>
-        </div>
-      </section>
+      {children}
     </div>
   );
 }
