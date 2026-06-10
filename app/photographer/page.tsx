@@ -18,7 +18,7 @@ const styleOptions = [
   "Đời thường & Lifestyle",
 ];
 
-const tabs = ["Tất cả", "AI đề xuất", "Photo ở gần bạn", "Được yêu thích", "Mới nhất", "Đang trống lịch"];
+const tabs = ["Tất cả", "AI đề xuất", "Photo ở gần bạn", "Được yêu thích", "Mới nhất"];
 const locations = ["Ho Chi Minh City, VN", "Đà Lạt, VN", "Hà Nội, VN", "Đà Nẵng, VN", "Huế, VN"];
 const tabTextClass = "pb-4 !text-[12px] !font-bold leading-none";
 
@@ -102,7 +102,6 @@ const photographers = [
     ],
     extra: "+12",
     verified: true,
-    availability: ["Tuần này", "Cuối tuần"],
     addOns: ["makeup", "video", "album", "retouch"],
   },
   {
@@ -123,7 +122,6 @@ const photographers = [
     ],
     extra: "+24",
     verified: true,
-    availability: ["Cuối tuần", "Tháng tới"],
     addOns: ["makeup", "video", "flycam", "album"],
   },
   {
@@ -144,7 +142,6 @@ const photographers = [
     ],
     extra: "+8",
     verified: false,
-    availability: ["Tuần này", "Tháng tới"],
     addOns: ["retouch", "stylist"],
   },
   {
@@ -165,7 +162,6 @@ const photographers = [
     ],
     extra: "+20",
     verified: true,
-    availability: ["Tuần này"],
     addOns: ["makeup", "retouch", "stylist"],
   },
   {
@@ -186,7 +182,6 @@ const photographers = [
     ],
     extra: "+14",
     verified: true,
-    availability: ["Cuối tuần"],
     addOns: ["makeup", "video", "flycam"],
   },
   {
@@ -207,7 +202,6 @@ const photographers = [
     ],
     extra: "+7",
     verified: false,
-    availability: ["Tháng tới"],
     addOns: ["retouch", "album"],
   },
   
@@ -225,7 +219,6 @@ export default function PhotographerPage() {
     "Cưới & Sự kiện",
     "Sản phẩm & Thương mại",
   ]);
-  const [availability, setAvailability] = useState("Tuần này");
   const [maxPrice, setMaxPrice] = useState(10);
   const [favorites, setFavorites] = useState<string[]>([]);
   const [userLocation, setUserLocation] = useState<Coordinates | null>(null);
@@ -265,14 +258,6 @@ export default function PhotographerPage() {
         return false;
       }
 
-      if (availability && !person.availability.includes(availability)) {
-        return false;
-      }
-
-      if (activeTab === "Đang trống lịch" && !person.availability.includes("Tuần này")) {
-        return false;
-      }
-
       if (activeTab === "Được yêu thích") {
         return favorites.includes(person.name);
       }
@@ -289,7 +274,7 @@ export default function PhotographerPage() {
     }
 
     return tabFiltered;
-  }, [activeTab, aiSuggested, availability, favorites, location, maxPrice, selectedStyles]);
+  }, [activeTab, aiSuggested, favorites, location, maxPrice, selectedStyles]);
 
   const nearbyPhotographers = useMemo(() => {
     const selectedShootLocation = shootLocationOptions.find((item) => item.id === shootLocationId);
@@ -350,7 +335,6 @@ export default function PhotographerPage() {
 
   const clearFilters = () => {
     setSelectedStyles([]);
-    setAvailability("");
     setLocation("Ho Chi Minh City, VN");
     setMaxPrice(10);
     setActiveTab("Tất cả");
@@ -399,14 +383,12 @@ export default function PhotographerPage() {
       <main className="mx-auto w-full max-w-[1296px] px-5 pb-24 pt-12 sm:px-6 lg:px-0">
         <div className="grid gap-6 md:grid-cols-[288px_minmax(0,1fr)] xl:grid-cols-[312px_minmax(0,1fr)]">
           <FilterSidebar
-            availability={availability}
             location={location}
             maxPrice={maxPrice}
             onClear={clearFilters}
             onLocationChange={setLocation}
             onMaxPriceChange={setMaxPrice}
             onStyleToggle={toggleStyle}
-            onAvailabilityChange={setAvailability}
             selectedStyles={selectedStyles}
           />
 
@@ -524,20 +506,16 @@ export default function PhotographerPage() {
 }
 
 function FilterSidebar({
-  availability,
   location,
   maxPrice,
-  onAvailabilityChange,
   onClear,
   onLocationChange,
   onMaxPriceChange,
   onStyleToggle,
   selectedStyles,
 }: {
-  availability: string;
   location: string;
   maxPrice: number;
-  onAvailabilityChange: (value: string) => void;
   onClear: () => void;
   onLocationChange: (value: string) => void;
   onMaxPriceChange: (value: number) => void;
@@ -627,25 +605,6 @@ function FilterSidebar({
           />
         </div>
 
-        <div>
-          <p className="mb-3 !text-[16px] !font-bold leading-none text-[#252631]">Thời gian sẵn sàng</p>
-          <div className="flex flex-wrap gap-3">
-            {["Tuần này", "Cuối tuần", "Tháng tới"].map((item) => (
-              <button
-                type="button"
-                key={item}
-                onClick={() => onAvailabilityChange(item)}
-                className={`h-[34px] rounded-full border px-4 !text-[12px] !font-semibold ${
-                  item === availability
-                    ? "border-[#ff8d28] bg-[#fff4eb] text-[#ff7d1a]"
-                    : "border-[#d9d4e4] bg-white text-[#5d5c68]"
-                }`}
-              >
-                {item}
-              </button>
-            ))}
-          </div>
-        </div>
       </div>
     </aside>
   );
@@ -730,14 +689,6 @@ function PhotographerCard({
           {person.tags.map((tag) => (
             <span key={tag} className="rounded-full bg-[#f0eefb] px-3 py-1 text-[10px] font-bold text-[#747084]">
               {tag}
-            </span>
-          ))}
-        </div>
-
-        <div className="mt-3 flex flex-wrap gap-2">
-          {person.availability.map((item) => (
-            <span key={item} className="rounded-full bg-[#fff4eb] px-3 py-1 text-[10px] font-extrabold text-[#ff7d1a]">
-              Trống {item.toLowerCase()}
             </span>
           ))}
         </div>
