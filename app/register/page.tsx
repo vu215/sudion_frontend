@@ -21,12 +21,13 @@ export default function RegisterPage() {
   const [role, setRole] = useState<UserRole>("client");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isSwitching, setIsSwitching] = useState(false);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     if (!fullName || !email || !password || !confirmPassword) { setError("Vui lòng nhập đầy đủ thông tin."); return; }
-    if (password.length < 6) { setError("Mật khẩu phải có ít nhất 6 ký tự."); return; }
+    if (password.length < 8) { setError("Mật khẩu phải có ít nhất 8 ký tự."); return; }
     if (password !== confirmPassword) { setError("Mật khẩu xác nhận không khớp."); return; }
     setLoading(true);
     const result = registerUser(fullName, email, password, role);
@@ -37,8 +38,21 @@ export default function RegisterPage() {
     router.push("/");
   }
 
+  function handleLoginSwitch(e: React.MouseEvent<HTMLAnchorElement>) {
+    e.preventDefault();
+    if (isSwitching) return;
+    setIsSwitching(true);
+    window.setTimeout(() => router.push("/login"), 420);
+  }
+
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#fbf8ff] text-[#1a1b24]">
+      <div
+        className={`pointer-events-none absolute inset-0 z-50 bg-[#ff8d28] transition-transform duration-500 ease-[cubic-bezier(0.83,0,0.17,1)] ${
+          isSwitching ? "translate-x-0" : "translate-x-full"
+        }`}
+        aria-hidden="true"
+      />
       <section className="absolute left-1/2 top-1/2 flex min-h-[1080px] w-[1920px] origin-center -translate-x-1/2 -translate-y-1/2 scale-[0.375] flex-col items-center justify-center px-[410px] py-[98px] min-[640px]:scale-[0.333] min-[768px]:scale-[0.4] min-[1024px]:scale-[0.533] min-[1280px]:scale-[0.667] min-[1366px]:scale-[0.711] min-[1440px]:scale-[0.75] min-[1536px]:scale-[0.8] min-[1728px]:scale-[0.9] min-[1920px]:scale-100">
         <div className="grid h-[775px] w-[1100px] grid-cols-[550px_550px] overflow-hidden rounded-[24px] border border-[#c5c5d8]/20 bg-white shadow-[0_10px_40px_-10px_rgba(0,0,0,0.08)]">
           <div className="flex h-full items-center bg-white px-[74px] py-8">
@@ -59,15 +73,7 @@ export default function RegisterPage() {
               )}
 
               <form onSubmit={handleSubmit} className="grid gap-4">
-                {/* Role selector — thêm mới, nhỏ gọn */}
-                <div className="grid grid-cols-2 gap-3">
-                  {(["client", "photographer"] as UserRole[]).map((val) => (
-                    <button key={val} type="button" onClick={() => setRole(val)}
-                      className={`h-[44px] rounded-[8px] border-2 text-[14px] font-bold transition-all ${role === val ? "border-[#ff8d28] bg-[#fff4eb] text-[#ff8d28]" : "border-[#c5c5d8] text-[#444655] hover:border-[#ff8d28]/50"}`}>
-                      {val === "client" ? "Khách hàng" : "Nhiếp ảnh gia"}
-                    </button>
-                  ))}
-                </div>
+                
 
                 <label className="grid gap-2 text-[16px] font-bold leading-5 text-[#1a1b24]">
                   Họ và tên
@@ -102,7 +108,9 @@ export default function RegisterPage() {
 
               <p className="mt-6 text-center text-[16px] font-medium text-[#444655]">
                 Đã có tài khoản?{" "}
-                <Link href="/login" className="font-bold text-[#ff8d28]">Đăng nhập</Link>
+                <Link href="/login" onClick={handleLoginSwitch} className="font-bold text-[#ff8d28] transition hover:text-[#e9791d]">
+                  Đăng nhập
+                </Link>
               </p>
 
               <div className="my-6 flex items-center gap-4">
