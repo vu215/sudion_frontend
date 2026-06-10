@@ -52,7 +52,7 @@ export default function AboutPage() {
                  Tìm kiếm nhiếp ảnh gia chuyên nghiệp, đặt lịch chụp ảnh và lưu giữ những khoảnh khắc tuyệt vời nhất.
                 </p>
               </div>
-              <Link href="/" className="bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium px-5 py-2.5 rounded-full transition-colors mt-auto">
+              <Link href="/photographer" className="bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium px-5 py-2.5 rounded-full transition-colors mt-auto">
                ĐẶT LỊCH NGAY
               </Link>
             </div>
@@ -71,7 +71,7 @@ export default function AboutPage() {
                   Gia nhập cộng đồng nhiếp ảnh gia tài năng, quản lý lịch trình và phát triển sự nghiệpcùng Lumina Studio.
                 </p>
               </div>
-              <Link href="/photographer" className="bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium px-5 py-2.5 rounded-full transition-colors mt-auto">
+              <Link href="/profilephotographer" className="bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium px-5 py-2.5 rounded-full transition-colors mt-auto">
               GIA NHẬP ĐỘI NGŨ
               </Link>
             </div>
