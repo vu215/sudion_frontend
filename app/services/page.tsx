@@ -76,7 +76,7 @@ export default function ServicesPage() {
           <div className="relative min-h-[430px] lg:min-h-[520px]" style={fadeUpStyle(isReady, 320)}>
             <div className="absolute right-0 top-0 h-[82%] w-[86%] overflow-hidden rounded-[24px] bg-[#eef1f7] shadow-[0_24px_56px_rgba(14,17,29,0.12)] ring-1 ring-black/5">
               <Image
-                src="https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1200&q=82"
+                src="https://i.pinimg.com/736x/ca/71/ce/ca71ce56cb9dae9a65d13a823f3c66fa.jpg"
                 alt="Dịch vụ chụp ảnh Studion"
                 fill
                 priority
