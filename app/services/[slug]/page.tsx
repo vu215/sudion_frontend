@@ -85,258 +85,258 @@ export default function ServiceDetailPage() {
     />
   );
 
-  return (
-    <main className="min-h-screen bg-[#fafbfc] text-[#0e111d]">
-      <section className="bg-[#0e111d]">
-        <div className={`${containerClass} grid gap-10 py-12 lg:grid-cols-[minmax(0,0.86fr)_minmax(360px,0.7fr)] lg:items-center lg:py-16`}>
-          <div>
-            <Link href="/services" className="text-[13px] font-extrabold text-[#ff8d28]">
-              Dịch vụ
-            </Link>
-            <p className="mt-6 text-[12px] font-black uppercase tracking-[0.18em] text-[#ff8d28]">
-              {service.eyebrow}
-            </p>
-            <h1 className="mt-3 text-[40px] font-black leading-[1.05] text-white sm:text-[56px]">
-              {service.title}
-            </h1>
-            <p className="mt-5 max-w-[680px] text-[16px] font-medium leading-7 text-slate-300">
-              {service.longDescription}
-            </p>
-            <div className="mt-7 grid max-w-[620px] gap-3 sm:grid-cols-3">
-              <Metric label="Giá từ" value={service.startingPrice} />
-              <Metric label="Mạng lưới" value={service.photographerCount} />
-              <Metric label="Phong cách" value={service.mood} />
-            </div>
-            <div className="mt-7 flex flex-wrap gap-2">
-              {service.tags.map((tag) => (
-                <span key={tag} className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[12px] font-bold text-slate-200">
-                  {tag}
-                </span>
-              ))}
-            </div>
-          </div>
+  // return (
+  //   <main className="min-h-screen bg-[#fafbfc] text-[#0e111d]">
+  //     <section className="bg-[#0e111d]">
+  //       <div className={`${containerClass} grid gap-10 py-12 lg:grid-cols-[minmax(0,0.86fr)_minmax(360px,0.7fr)] lg:items-center lg:py-16`}>
+  //         <div>
+  //           <Link href="/services" className="text-[13px] font-extrabold text-[#ff8d28]">
+  //             Dịch vụ
+  //           </Link>
+  //           <p className="mt-6 text-[12px] font-black uppercase tracking-[0.18em] text-[#ff8d28]">
+  //             {service.eyebrow}
+  //           </p>
+  //           <h1 className="mt-3 text-[40px] font-black leading-[1.05] text-white sm:text-[56px]">
+  //             {service.title}
+  //           </h1>
+  //           <p className="mt-5 max-w-[680px] text-[16px] font-medium leading-7 text-slate-300">
+  //             {service.longDescription}
+  //           </p>
+  //           <div className="mt-7 grid max-w-[620px] gap-3 sm:grid-cols-3">
+  //             <Metric label="Giá từ" value={service.startingPrice} />
+  //             <Metric label="Mạng lưới" value={service.photographerCount} />
+  //             <Metric label="Phong cách" value={service.mood} />
+  //           </div>
+  //           <div className="mt-7 flex flex-wrap gap-2">
+  //             {service.tags.map((tag) => (
+  //               <span key={tag} className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[12px] font-bold text-slate-200">
+  //                 {tag}
+  //               </span>
+  //             ))}
+  //           </div>
+  //         </div>
 
-          <div className="relative min-h-[360px]">
-            <div className="absolute inset-y-7 left-0 right-10 overflow-hidden rounded-[28px] bg-[#1f2430] shadow-[0_24px_70px_rgba(0,0,0,0.24)]">
-              <Image src={service.heroImage} alt={service.title} fill priority sizes="(max-width: 1023px) 100vw, 560px" className="object-cover" />
-            </div>
-            <div className="absolute bottom-0 right-0 h-[44%] w-[42%] overflow-hidden rounded-2xl border-4 border-[#0e111d] bg-white shadow-[0_18px_46px_rgba(0,0,0,0.24)]">
-              <Image src={service.accentImage} alt="" fill sizes="220px" className="object-cover" />
-            </div>
-          </div>
-        </div>
-      </section>
+  //         <div className="relative min-h-[360px]">
+  //           <div className="absolute inset-y-7 left-0 right-10 overflow-hidden rounded-[28px] bg-[#1f2430] shadow-[0_24px_70px_rgba(0,0,0,0.24)]">
+  //             <Image src={service.heroImage} alt={service.title} fill priority sizes="(max-width: 1023px) 100vw, 560px" className="object-cover" />
+  //           </div>
+  //           <div className="absolute bottom-0 right-0 h-[44%] w-[42%] overflow-hidden rounded-2xl border-4 border-[#0e111d] bg-white shadow-[0_18px_46px_rgba(0,0,0,0.24)]">
+  //             <Image src={service.accentImage} alt="" fill sizes="220px" className="object-cover" />
+  //           </div>
+  //         </div>
+  //       </div>
+  //     </section>
 
-      <section className={`${containerClass} grid gap-6 py-10 lg:grid-cols-[300px_minmax(0,1fr)] lg:py-12`}>
-        <aside className="h-fit rounded-2xl border border-[#e5e7ef] bg-white p-5 shadow-[0_16px_42px_rgba(14,17,29,0.045)] lg:sticky lg:top-[112px]">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="text-[20px] font-black text-[#0e111d]">Bộ lọc</h2>
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedAddOns([]);
-                setMaxPrice(15000000);
-                setSortMode("nearest");
-                setPage(1);
-              }}
-              className="text-[12px] font-extrabold text-[#ff8d28]"
-            >
-              Xóa lọc
-            </button>
-          </div>
+  //     <section className={`${containerClass} grid gap-6 py-10 lg:grid-cols-[300px_minmax(0,1fr)] lg:py-12`}>
+  //       <aside className="h-fit rounded-2xl border border-[#e5e7ef] bg-white p-5 shadow-[0_16px_42px_rgba(14,17,29,0.045)] lg:sticky lg:top-[112px]">
+  //         <div className="flex items-center justify-between gap-3">
+  //           <h2 className="text-[20px] font-black text-[#0e111d]">Bộ lọc</h2>
+  //           <button
+  //             type="button"
+  //             onClick={() => {
+  //               setSelectedAddOns([]);
+  //               setMaxPrice(15000000);
+  //               setSortMode("nearest");
+  //               setPage(1);
+  //             }}
+  //             className="text-[12px] font-extrabold text-[#ff8d28]"
+  //           >
+  //             Xóa lọc
+  //           </button>
+  //         </div>
 
-          <div className="mt-6 grid gap-6">
-            <label className="grid gap-3">
-              <span className="text-[13px] font-black text-[#0e111d]">Khoảng giá tối đa</span>
-              <input
-                type="range"
-                min={1000000}
-                max={15000000}
-                step={500000}
-                value={maxPrice}
-                onChange={(event) => {
-                  setMaxPrice(Number(event.target.value));
-                  setPage(1);
-                }}
-                className="h-6 min-h-0 border-0 p-0 accent-[#ff8d28]"
-              />
-              <span className="text-[13px] font-extrabold text-[#ff8d28]">{formatVnd(maxPrice)}</span>
-            </label>
+  //         <div className="mt-6 grid gap-6">
+  //           <label className="grid gap-3">
+  //             <span className="text-[13px] font-black text-[#0e111d]">Khoảng giá tối đa</span>
+  //             <input
+  //               type="range"
+  //               min={1000000}
+  //               max={15000000}
+  //               step={500000}
+  //               value={maxPrice}
+  //               onChange={(event) => {
+  //                 setMaxPrice(Number(event.target.value));
+  //                 setPage(1);
+  //               }}
+  //               className="h-6 min-h-0 border-0 p-0 accent-[#ff8d28]"
+  //             />
+  //             <span className="text-[13px] font-extrabold text-[#ff8d28]">{formatVnd(maxPrice)}</span>
+  //           </label>
 
-            <div>
-              <p className="text-[13px] font-black text-[#0e111d]">Dịch vụ đi kèm</p>
-              <div className="mt-3 grid gap-2">
-                {allAddOns.map((addOn) => {
-                  const active = selectedAddOns.includes(addOn);
+  //           <div>
+  //             <p className="text-[13px] font-black text-[#0e111d]">Dịch vụ đi kèm</p>
+  //             <div className="mt-3 grid gap-2">
+  //               {allAddOns.map((addOn) => {
+  //                 const active = selectedAddOns.includes(addOn);
 
-                  return (
-                    <button
-                      key={addOn}
-                      type="button"
-                      onClick={() => toggleAddOn(addOn)}
-                      className="flex items-center gap-3 rounded-xl border border-[#e5e7ef] bg-[#fafbfc] px-3 py-2.5 text-left text-[13px] font-bold text-[#475467] transition hover:border-[#ffcfaa]"
-                      aria-pressed={active}
-                    >
-                      <span className={`grid h-5 w-5 place-items-center rounded-md border ${active ? "border-[#ff8d28] bg-[#ff8d28] text-white" : "border-[#d0d5dd] bg-white text-transparent"}`}>
-                        <CheckIcon />
-                      </span>
-                      {addOn}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        </aside>
+  //                 return (
+  //                   <button
+  //                     key={addOn}
+  //                     type="button"
+  //                     onClick={() => toggleAddOn(addOn)}
+  //                     className="flex items-center gap-3 rounded-xl border border-[#e5e7ef] bg-[#fafbfc] px-3 py-2.5 text-left text-[13px] font-bold text-[#475467] transition hover:border-[#ffcfaa]"
+  //                     aria-pressed={active}
+  //                   >
+  //                     <span className={`grid h-5 w-5 place-items-center rounded-md border ${active ? "border-[#ff8d28] bg-[#ff8d28] text-white" : "border-[#d0d5dd] bg-white text-transparent"}`}>
+  //                       <CheckIcon />
+  //                     </span>
+  //                     {addOn}
+  //                   </button>
+  //                 );
+  //               })}
+  //             </div>
+  //           </div>
+  //         </div>
+  //       </aside>
 
-        <section className="min-w-0">
-          <div className="flex flex-col gap-4 rounded-2xl border border-[#e5e7ef] bg-white p-5 shadow-[0_16px_42px_rgba(14,17,29,0.045)] sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-[12px] font-black uppercase tracking-[0.16em] text-[#ff8d28]">
-                {packages.length} gói phù hợp
-              </p>
-              <h2 className="mt-1 text-[24px] font-black text-[#0e111d]">
-                Gói {service.title.toLowerCase()} gần bạn
-              </h2>
-            </div>
-            <div className="grid gap-2 sm:min-w-[220px]">
-              <label className="text-[12px] font-black text-[#667085]" htmlFor="sort-service-packages">
-                Sắp xếp
-              </label>
-              <select
-                id="sort-service-packages"
-                value={sortMode}
-                onChange={(event) => {
-                  setSortMode(event.target.value as SortMode);
-                  setPage(1);
-                }}
-                className="min-h-11 rounded-xl border border-[#e5e7ef] bg-[#fafbfc] px-3 text-[14px] font-bold text-[#0e111d]"
-              >
-                <option value="nearest">Gần nhất</option>
-                <option value="rating">Đánh giá cao</option>
-                <option value="priceLow">Giá thấp trước</option>
-                <option value="soonest">Lịch gần nhất</option>
-              </select>
-            </div>
-          </div>
+  //       <section className="min-w-0">
+  //         <div className="flex flex-col gap-4 rounded-2xl border border-[#e5e7ef] bg-white p-5 shadow-[0_16px_42px_rgba(14,17,29,0.045)] sm:flex-row sm:items-center sm:justify-between">
+  //           <div>
+  //             <p className="text-[12px] font-black uppercase tracking-[0.16em] text-[#ff8d28]">
+  //               {packages.length} gói phù hợp
+  //             </p>
+  //             <h2 className="mt-1 text-[24px] font-black text-[#0e111d]">
+  //               Gói {service.title.toLowerCase()} gần bạn
+  //             </h2>
+  //           </div>
+  //           <div className="grid gap-2 sm:min-w-[220px]">
+  //             <label className="text-[12px] font-black text-[#667085]" htmlFor="sort-service-packages">
+  //               Sắp xếp
+  //             </label>
+  //             <select
+  //               id="sort-service-packages"
+  //               value={sortMode}
+  //               onChange={(event) => {
+  //                 setSortMode(event.target.value as SortMode);
+  //                 setPage(1);
+  //               }}
+  //               className="min-h-11 rounded-xl border border-[#e5e7ef] bg-[#fafbfc] px-3 text-[14px] font-bold text-[#0e111d]"
+  //             >
+  //               <option value="nearest">Gần nhất</option>
+  //               <option value="rating">Đánh giá cao</option>
+  //               <option value="priceLow">Giá thấp trước</option>
+  //               <option value="soonest">Lịch gần nhất</option>
+  //             </select>
+  //           </div>
+  //         </div>
 
-          <div className="mt-6 grid gap-5">
-            {visiblePackages.map((item) => (
-              <article key={item.id} className="grid overflow-hidden rounded-2xl border border-[#e5e7ef] bg-white shadow-[0_16px_42px_rgba(14,17,29,0.045)] md:grid-cols-[280px_minmax(0,1fr)]">
-                <div className="relative min-h-[240px] bg-[#eef1f7]">
-                  <Image src={item.image} alt={item.packageName} fill sizes="(max-width: 767px) 100vw, 280px" className="object-cover" />
-                  {item.verified ? (
-                    <span className="absolute left-4 top-4 rounded-full bg-white/95 px-3 py-1.5 text-[11px] font-black text-[#ff8d28]">
-                      Đã xác minh
-                    </span>
-                  ) : null}
-                </div>
+  //         <div className="mt-6 grid gap-5">
+  //           {visiblePackages.map((item) => (
+  //             <article key={item.id} className="grid overflow-hidden rounded-2xl border border-[#e5e7ef] bg-white shadow-[0_16px_42px_rgba(14,17,29,0.045)] md:grid-cols-[280px_minmax(0,1fr)]">
+  //               <div className="relative min-h-[240px] bg-[#eef1f7]">
+  //                 <Image src={item.image} alt={item.packageName} fill sizes="(max-width: 767px) 100vw, 280px" className="object-cover" />
+  //                 {item.verified ? (
+  //                   <span className="absolute left-4 top-4 rounded-full bg-white/95 px-3 py-1.5 text-[11px] font-black text-[#ff8d28]">
+  //                     Đã xác minh
+  //                   </span>
+  //                 ) : null}
+  //               </div>
 
-                <div className="grid gap-5 p-5">
-                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                    <div>
-                      <p className="text-[13px] font-extrabold text-[#667085]">{item.photographerName}</p>
-                      <h3 className="mt-1 text-[24px] font-black leading-tight text-[#0e111d]">
-                        {item.packageName}
-                      </h3>
-                      <div className="mt-3 flex flex-wrap gap-2 text-[12px] font-bold text-[#667085]">
-                        <span>{item.location}</span>
-                        <span>•</span>
-                        <span className="text-[#ff8d28]">Cách bạn {item.distanceKm.toFixed(1)} km</span>
-                        <span>•</span>
-                        <span>{item.rating.toFixed(1)} sao ({item.reviewCount})</span>
-                      </div>
-                    </div>
-                    <div className="lg:text-right">
-                      <p className="text-[12px] font-black uppercase tracking-[0.12em] text-[#98a2b3]">Giá từ</p>
-                      <p className="mt-1 text-[24px] font-black text-[#ff8d28]">{formatVnd(item.price)}</p>
-                    </div>
-                  </div>
+  //               <div className="grid gap-5 p-5">
+  //                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+  //                   <div>
+  //                     <p className="text-[13px] font-extrabold text-[#667085]">{item.photographerName}</p>
+  //                     <h3 className="mt-1 text-[24px] font-black leading-tight text-[#0e111d]">
+  //                       {item.packageName}
+  //                     </h3>
+  //                     <div className="mt-3 flex flex-wrap gap-2 text-[12px] font-bold text-[#667085]">
+  //                       <span>{item.location}</span>
+  //                       <span>•</span>
+  //                       <span className="text-[#ff8d28]">Cách bạn {item.distanceKm.toFixed(1)} km</span>
+  //                       <span>•</span>
+  //                       <span>{item.rating.toFixed(1)} sao ({item.reviewCount})</span>
+  //                     </div>
+  //                   </div>
+  //                   <div className="lg:text-right">
+  //                     <p className="text-[12px] font-black uppercase tracking-[0.12em] text-[#98a2b3]">Giá từ</p>
+  //                     <p className="mt-1 text-[24px] font-black text-[#ff8d28]">{formatVnd(item.price)}</p>
+  //                   </div>
+  //                 </div>
 
-                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                    <InfoPill label="Thời lượng" value={item.duration} />
-                    <InfoPill label="Lịch gần nhất" value={item.nextSlot} />
-                    <InfoPill label="Dịch vụ" value={service.shortTitle} />
-                  </div>
+  //                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+  //                   <InfoPill label="Thời lượng" value={item.duration} />
+  //                   <InfoPill label="Lịch gần nhất" value={item.nextSlot} />
+  //                   <InfoPill label="Dịch vụ" value={service.shortTitle} />
+  //                 </div>
 
-                  <div className="flex flex-wrap gap-2">
-                    {item.addOns.map((addOn) => (
-                      <span key={addOn} className="rounded-full bg-[#fff4eb] px-3 py-1.5 text-[12px] font-extrabold text-[#ff8d28]">
-                        {addOn}
-                      </span>
-                    ))}
-                  </div>
+  //                 <div className="flex flex-wrap gap-2">
+  //                   {item.addOns.map((addOn) => (
+  //                     <span key={addOn} className="rounded-full bg-[#fff4eb] px-3 py-1.5 text-[12px] font-extrabold text-[#ff8d28]">
+  //                       {addOn}
+  //                     </span>
+  //                   ))}
+  //                 </div>
 
-                  <div className="flex flex-col gap-3 border-t border-[#f0f2f6] pt-5 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex items-center">
-                      {item.portfolioImages.map((image) => (
-                        <Image
-                          key={image}
-                          src={image}
-                          alt=""
-                          width={40}
-                          height={40}
-                          className="-ml-2 h-10 w-10 rounded-lg border-2 border-white object-cover first:ml-0"
-                        />
-                      ))}
-                    </div>
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      <Link href={`/photographer-profile?id=${item.photographerId}`} className="rounded-lg border border-[#d0d5dd] bg-white px-4 py-2.5 text-center text-[13px] font-black text-[#344054] transition hover:border-[#ffcfaa] hover:text-[#ff8d28]">
-                        Xem chi tiết
-                      </Link>
-                      <Link href={`/booking?photographer=${item.photographerId}&service=${encodeURIComponent(service.title)}`} className="rounded-lg bg-[#ff8d28] px-4 py-2.5 text-center text-[13px] font-black text-white shadow-[0_8px_18px_rgba(255,141,40,0.16)] transition hover:bg-[#e0751b]">
-                        Đặt lịch
-                      </Link>
-                    </div>
-                  </div>
-                </div>
-              </article>
-            ))}
-          </div>
+  //                 <div className="flex flex-col gap-3 border-t border-[#f0f2f6] pt-5 sm:flex-row sm:items-center sm:justify-between">
+  //                   <div className="flex items-center">
+  //                     {item.portfolioImages.map((image) => (
+  //                       <Image
+  //                         key={image}
+  //                         src={image}
+  //                         alt=""
+  //                         width={40}
+  //                         height={40}
+  //                         className="-ml-2 h-10 w-10 rounded-lg border-2 border-white object-cover first:ml-0"
+  //                       />
+  //                     ))}
+  //                   </div>
+  //                   <div className="grid gap-2 sm:grid-cols-2">
+  //                     <Link href={`/photographer-profile?id=${item.photographerId}`} className="rounded-lg border border-[#d0d5dd] bg-white px-4 py-2.5 text-center text-[13px] font-black text-[#344054] transition hover:border-[#ffcfaa] hover:text-[#ff8d28]">
+  //                       Xem chi tiết
+  //                     </Link>
+  //                     <Link href={`/booking?photographer=${item.photographerId}&service=${encodeURIComponent(service.title)}`} className="rounded-lg bg-[#ff8d28] px-4 py-2.5 text-center text-[13px] font-black text-white shadow-[0_8px_18px_rgba(255,141,40,0.16)] transition hover:bg-[#e0751b]">
+  //                       Đặt lịch
+  //                     </Link>
+  //                   </div>
+  //                 </div>
+  //               </div>
+  //             </article>
+  //           ))}
+  //         </div>
 
-          {visiblePackages.length === 0 ? (
-            <div className="mt-6 rounded-2xl border border-[#e5e7ef] bg-white px-6 py-12 text-center">
-              <p className="text-[18px] font-black text-[#0e111d]">Chưa có gói phù hợp bộ lọc.</p>
-              <p className="mt-2 text-[14px] font-semibold text-[#667085]">Hãy bỏ bớt add-on hoặc tăng khoảng giá để xem thêm lựa chọn.</p>
-            </div>
-          ) : null}
+  //         {visiblePackages.length === 0 ? (
+  //           <div className="mt-6 rounded-2xl border border-[#e5e7ef] bg-white px-6 py-12 text-center">
+  //             <p className="text-[18px] font-black text-[#0e111d]">Chưa có gói phù hợp bộ lọc.</p>
+  //             <p className="mt-2 text-[14px] font-semibold text-[#667085]">Hãy bỏ bớt add-on hoặc tăng khoảng giá để xem thêm lựa chọn.</p>
+  //           </div>
+  //         ) : null}
 
-          <div className="mt-8 flex items-center justify-center gap-2">
-            <button
-              type="button"
-              onClick={() => setPage((current) => Math.max(1, current - 1))}
-              className="grid h-10 w-10 place-items-center rounded-full border border-[#d0d5dd] bg-white text-[14px] font-black text-[#475467]"
-              aria-label="Trang trước"
-            >
-              &lt;
-            </button>
-            {Array.from({ length: totalPages }).map((_, index) => {
-              const pageNumber = index + 1;
+  //         <div className="mt-8 flex items-center justify-center gap-2">
+  //           <button
+  //             type="button"
+  //             onClick={() => setPage((current) => Math.max(1, current - 1))}
+  //             className="grid h-10 w-10 place-items-center rounded-full border border-[#d0d5dd] bg-white text-[14px] font-black text-[#475467]"
+  //             aria-label="Trang trước"
+  //           >
+  //             &lt;
+  //           </button>
+  //           {Array.from({ length: totalPages }).map((_, index) => {
+  //             const pageNumber = index + 1;
 
-              return (
-                <button
-                  key={pageNumber}
-                  type="button"
-                  onClick={() => setPage(pageNumber)}
-                  className={`grid h-10 min-w-10 place-items-center rounded-full px-3 text-[13px] font-black ${page === pageNumber ? "bg-[#ff8d28] text-white" : "border border-[#d0d5dd] bg-white text-[#475467]"}`}
-                >
-                  {pageNumber}
-                </button>
-              );
-            })}
-            <button
-              type="button"
-              onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
-              className="grid h-10 w-10 place-items-center rounded-full border border-[#d0d5dd] bg-white text-[14px] font-black text-[#475467]"
-              aria-label="Trang sau"
-            >
-              &gt;
-            </button>
-          </div>
-        </section>
-      </section>
-    </main>
-  );
+  //             return (
+  //               <button
+  //                 key={pageNumber}
+  //                 type="button"
+  //                 onClick={() => setPage(pageNumber)}
+  //                 className={`grid h-10 min-w-10 place-items-center rounded-full px-3 text-[13px] font-black ${page === pageNumber ? "bg-[#ff8d28] text-white" : "border border-[#d0d5dd] bg-white text-[#475467]"}`}
+  //               >
+  //                 {pageNumber}
+  //               </button>
+  //             );
+  //           })}
+  //           <button
+  //             type="button"
+  //             onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+  //             className="grid h-10 w-10 place-items-center rounded-full border border-[#d0d5dd] bg-white text-[14px] font-black text-[#475467]"
+  //             aria-label="Trang sau"
+  //           >
+  //             &gt;
+  //           </button>
+  //         </div>
+  //       </section>
+  //     </section>
+  //   </main>
+  // );
 }
 
 function Metric({ label, value }: { label: string; value: string }) {
@@ -362,31 +362,31 @@ const portraitStyles = [
     name: "Cinematic",
     count: "128 photographer",
     image:
-      "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=220&q=82",
+      "https://i.pinimg.com/1200x/40/7d/bc/407dbcc049319e116fe6667e0ffd8552.jpg",
   },
   {
     name: "Hàn Quốc",
     count: "96 photographer",
     image:
-      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=220&q=82",
+      "https://i.pinimg.com/736x/5e/8d/27/5e8d272394e7c994a87322c6679221eb.jpg",
   },
   {
     name: "Tự nhiên",
     count: "112 photographer",
     image:
-      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=220&q=82",
+      "https://i.pinimg.com/736x/af/f4/95/aff49527301b29ba577e1fad9be256be.jpg",
   },
   {
     name: "Vintage",
     count: "58 photographer",
     image:
-      "https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&w=220&q=82",
+      "https://i.pinimg.com/736x/2a/38/a5/2a38a5a6170d922d03cbb410db4f5409.jpg",
   },
   {
     name: "Minimalist",
     count: "74 photographer",
     image:
-      "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=220&q=82",
+      "https://i.pinimg.com/1200x/c7/f9/1c/c7f91ceb6242dd1b2e29a2bf217ac6f2.jpg",
   },
 ];
 
@@ -471,18 +471,18 @@ function ServiceListingPage({
   const heroMeta =
     serviceSlug === "wedding"
       ? {
-          image: "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1800&q=82",
+          image: "https://i.pinimg.com/736x/e1/a8/16/e1a816d82b5a387c8a3a7e2318f87133.jpg",
           description:
             "Lưu giữ ngày trọng đại với các gói pre-wedding, phóng sự cưới và album được cá nhân hóa theo câu chuyện của hai bạn.",
         }
       : serviceSlug === "couple"
         ? {
-            image: "https://images.unsplash.com/photo-1529634597503-139d3726fed5?auto=format&fit=crop&w=1800&q=82",
+            image: "https://i.pinimg.com/736x/f1/b3/a7/f1b3a74c133b8060f9e4935865dae3c0.jpg",
             description:
               "Ghi lại câu chuyện của hai bạn qua những khung hình tự nhiên, gần gũi và giàu cảm xúc.",
           }
         : {
-            image: "https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&w=1800&q=82",
+            image: "https://i.pinimg.com/736x/35/5e/45/355e4567ee65e77e43be0d243510572b.jpg",
             description:
               "Ghi lại những khoảnh khắc chân thật và tôn vinh cá tính của bạn với những bức ảnh chuyên nghiệp và đầy cảm xúc.",
           };

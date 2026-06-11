@@ -94,11 +94,11 @@ const photographers = [
     match: "98%",
     price: "2.500.000 VNĐ",
     image:
-      "https://images.unsplash.com/photo-1496440737103-cd596325d314?auto=format&fit=crop&w=900&q=85",
+      "https://i.pinimg.com/736x/9c/44/0c/9c440c4652d4e4476a5c61d25efbef1e.jpg",
     tags: ["Thời trang", "Chân dung", "Biên tập"],
     thumbs: [
-      "https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&w=80&q=80",
-      "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=80&q=80",
+      "https://i.pinimg.com/736x/a9/60/35/a9603541b3d536cab535250572903e28.jpg",
+      "https://i.pinimg.com/1200x/bf/96/6a/bf966a251881671b7e6e0652665ebae1.jpg",
     ],
     extra: "+12",
     verified: true,
@@ -114,11 +114,11 @@ const photographers = [
     match: "92%",
     price: "5.000.000 VNĐ",
     image:
-      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=900&q=85",
+      "https://i.pinimg.com/736x/a0/b0/00/a0b000947356b75df1e4ec794477fc49.jpg",
     tags: ["Cưới", "Cặp đôi"],
     thumbs: [
-      "https://images.unsplash.com/photo-1523438885200-e635ba2c371e?auto=format&fit=crop&w=80&q=80",
-      "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=80&q=80",
+      "https://i.pinimg.com/736x/d2/27/a2/d227a2a75b3904a201772c24c4c59e88.jpg",
+      "https://i.pinimg.com/736x/4e/4c/5a/4e4c5a0596692b041ad52af1a4c6fec2.jpg",
     ],
     extra: "+24",
     verified: true,
@@ -134,11 +134,11 @@ const photographers = [
     match: "88%",
     price: "1.800.000 VNĐ",
     image:
-      "https://images.unsplash.com/photo-1595425964071-2c1ec7c88201?auto=format&fit=crop&w=900&q=85",
+      "https://i.pinimg.com/736x/eb/77/e1/eb77e13b0d770ef3091af4e459f77181.jpg",
     tags: ["Sản phẩm", "Thương mại"],
     thumbs: [
-      "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=80&q=80",
-      "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=80&q=80",
+      "https://i.pinimg.com/736x/e2/d4/2c/e2d42cac2f246dd143b7561d7156a1fd.jpg",
+      "https://i.pinimg.com/736x/e2/d4/2c/e2d42cac2f246dd143b7561d7156a1fd.jpg",
     ],
     extra: "+8",
     verified: false,
@@ -154,11 +154,11 @@ const photographers = [
     match: "98%",
     price: "2.500.000 VNĐ",
     image:
-      "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=900&q=85",
+      "https://i.pinimg.com/1200x/e1/25/2c/e1252c8cfb12860877eb7937bafcf47b.jpg",
     tags: ["Thời trang", "Chân dung", "Biên tập"],
     thumbs: [
-      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=80&q=80",
-      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=80&q=80",
+      "https://i.pinimg.com/736x/d2/27/a2/d227a2a75b3904a201772c24c4c59e88.jpg",
+      "https://i.pinimg.com/736x/4e/4c/5a/4e4c5a0596692b041ad52af1a4c6fec2.jpg",
     ],
     extra: "+20",
     verified: true,
@@ -174,11 +174,11 @@ const photographers = [
     match: "92%",
     price: "5.000.000 VNĐ",
     image:
-      "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=900&q=85&sat=-100",
+      "https://i.pinimg.com/736x/55/1c/16/551c16fba1056bd0e5862cb552b66513.jpg",
     tags: ["Cưới", "Cặp đôi"],
     thumbs: [
-      "https://images.unsplash.com/photo-1523438885200-e635ba2c371e?auto=format&fit=crop&w=80&q=80",
-      "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=80&q=80",
+      "https://i.pinimg.com/736x/d3/16/cf/d316cf2cef71d3a0b9ff9cc2fc778052.jpg",
+      "https://i.pinimg.com/736x/bb/cc/37/bbcc37f0caa97bdff1f08ad8355ac9f4.jpg",
     ],
     extra: "+14",
     verified: true,
@@ -194,11 +194,11 @@ const photographers = [
     match: "88%",
     price: "1.800.000 VNĐ",
     image:
-      "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=900&q=85",
+      "https://i.pinimg.com/736x/bb/cc/37/bbcc37f0caa97bdff1f08ad8355ac9f4.jpg",
     tags: ["Sản phẩm", "Thương mại"],
     thumbs: [
-      "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?auto=format&fit=crop&w=80&q=80",
-      "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=80&q=80",
+      "https://i.pinimg.com/736x/44/92/2b/44922b0a2eb2d9614dc9cf075e4b0b76.jpg",
+      "https://i.pinimg.com/736x/d3/16/cf/d316cf2cef71d3a0b9ff9cc2fc778052.jpg",
     ],
     extra: "+7",
     verified: false,
@@ -703,9 +703,9 @@ function PhotographerCard({
             <p className="mt-2 text-[20px] font-black leading-none text-[#ff7518]">{person.price}</p>
           </div>
           <div className="flex items-center">
-            {person.thumbs.map((thumb) => (
+            {person.thumbs.map((thumb, thumbIndex) => (
               <img
-                key={thumb}
+                key={`${person.id}-${thumbIndex}-${thumb}`}
                 src={thumb}
                 alt=""
                 className="-ml-2 h-8 w-8 rounded-md border-2 border-white object-cover first:ml-0"
