@@ -4,7 +4,10 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
-import { generateBookingId, saveBooking } from "../booking-store";
+import { saveBooking } from "../booking-store";
+
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
 const services = [
   {
@@ -143,9 +146,27 @@ const photographerProfiles = [
     name: "Bình Nguyễn",
     addOns: ["makeup", "video", "album", "retouch"],
     availableSlots: [
-      { id: "binh-0612-am", date: "2026-06-12", time: "09:00", location: "Quận 1, TP.HCM", label: "12/06 · 09:00" },
-      { id: "binh-0614-pm", date: "2026-06-14", time: "14:30", location: "Thảo Điền, TP.HCM", label: "14/06 · 14:30" },
-      { id: "binh-0618-am", date: "2026-06-18", time: "08:30", location: "Studio trung tâm", label: "18/06 · 08:30" },
+      {
+        id: "binh-0612-am",
+        date: "2026-06-12",
+        time: "09:00",
+        location: "Quận 1, TP.HCM",
+        label: "12/06 · 09:00",
+      },
+      {
+        id: "binh-0614-pm",
+        date: "2026-06-14",
+        time: "14:30",
+        location: "Thảo Điền, TP.HCM",
+        label: "14/06 · 14:30",
+      },
+      {
+        id: "binh-0618-am",
+        date: "2026-06-18",
+        time: "08:30",
+        location: "Studio trung tâm",
+        label: "18/06 · 08:30",
+      },
     ],
   },
   {
@@ -153,9 +174,27 @@ const photographerProfiles = [
     name: "Hào Lê",
     addOns: ["makeup", "video", "flycam", "album"],
     availableSlots: [
-      { id: "hao-0611-am", date: "2026-06-11", time: "07:30", location: "Đồi cỏ hồng Đà Lạt", label: "11/06 · 07:30" },
-      { id: "hao-0615-pm", date: "2026-06-15", time: "15:00", location: "Hồ Xuân Hương", label: "15/06 · 15:00" },
-      { id: "hao-0620-am", date: "2026-06-20", time: "08:00", location: "Studio Đà Lạt", label: "20/06 · 08:00" },
+      {
+        id: "hao-0611-am",
+        date: "2026-06-11",
+        time: "07:30",
+        location: "Đồi cỏ hồng Đà Lạt",
+        label: "11/06 · 07:30",
+      },
+      {
+        id: "hao-0615-pm",
+        date: "2026-06-15",
+        time: "15:00",
+        location: "Hồ Xuân Hương",
+        label: "15/06 · 15:00",
+      },
+      {
+        id: "hao-0620-am",
+        date: "2026-06-20",
+        time: "08:00",
+        location: "Studio Đà Lạt",
+        label: "20/06 · 08:00",
+      },
     ],
   },
   {
@@ -163,9 +202,27 @@ const photographerProfiles = [
     name: "Studio K",
     addOns: ["retouch", "stylist"],
     availableSlots: [
-      { id: "studiok-0610-am", date: "2026-06-10", time: "10:00", location: "Cầu Giấy, Hà Nội", label: "10/06 · 10:00" },
-      { id: "studiok-0613-pm", date: "2026-06-13", time: "13:30", location: "Studio K Hà Nội", label: "13/06 · 13:30" },
-      { id: "studiok-0619-am", date: "2026-06-19", time: "09:30", location: "Tây Hồ, Hà Nội", label: "19/06 · 09:30" },
+      {
+        id: "studiok-0610-am",
+        date: "2026-06-10",
+        time: "10:00",
+        location: "Cầu Giấy, Hà Nội",
+        label: "10/06 · 10:00",
+      },
+      {
+        id: "studiok-0613-pm",
+        date: "2026-06-13",
+        time: "13:30",
+        location: "Studio K Hà Nội",
+        label: "13/06 · 13:30",
+      },
+      {
+        id: "studiok-0619-am",
+        date: "2026-06-19",
+        time: "09:30",
+        location: "Tây Hồ, Hà Nội",
+        label: "19/06 · 09:30",
+      },
     ],
   },
   {
@@ -173,9 +230,27 @@ const photographerProfiles = [
     name: "Hưng Trịnh",
     addOns: ["makeup", "retouch", "stylist"],
     availableSlots: [
-      { id: "hung-0612-pm", date: "2026-06-12", time: "16:00", location: "Vĩnh Long", label: "12/06 · 16:00" },
-      { id: "hung-0616-am", date: "2026-06-16", time: "08:00", location: "TP.HCM", label: "16/06 · 08:00" },
-      { id: "hung-0621-pm", date: "2026-06-21", time: "14:00", location: "Cần Thơ", label: "21/06 · 14:00" },
+      {
+        id: "hung-0612-pm",
+        date: "2026-06-12",
+        time: "16:00",
+        location: "Vĩnh Long",
+        label: "12/06 · 16:00",
+      },
+      {
+        id: "hung-0616-am",
+        date: "2026-06-16",
+        time: "08:00",
+        location: "TP.HCM",
+        label: "16/06 · 08:00",
+      },
+      {
+        id: "hung-0621-pm",
+        date: "2026-06-21",
+        time: "14:00",
+        location: "Cần Thơ",
+        label: "21/06 · 14:00",
+      },
     ],
   },
   {
@@ -183,9 +258,27 @@ const photographerProfiles = [
     name: "Hoàng Anh",
     addOns: ["makeup", "video", "flycam"],
     availableSlots: [
-      { id: "hoang-0613-am", date: "2026-06-13", time: "07:00", location: "Mỹ Khê, Đà Nẵng", label: "13/06 · 07:00" },
-      { id: "hoang-0617-pm", date: "2026-06-17", time: "15:30", location: "Sơn Trà, Đà Nẵng", label: "17/06 · 15:30" },
-      { id: "hoang-0622-am", date: "2026-06-22", time: "09:00", location: "Studio Đà Nẵng", label: "22/06 · 09:00" },
+      {
+        id: "hoang-0613-am",
+        date: "2026-06-13",
+        time: "07:00",
+        location: "Mỹ Khê, Đà Nẵng",
+        label: "13/06 · 07:00",
+      },
+      {
+        id: "hoang-0617-pm",
+        date: "2026-06-17",
+        time: "15:30",
+        location: "Sơn Trà, Đà Nẵng",
+        label: "17/06 · 15:30",
+      },
+      {
+        id: "hoang-0622-am",
+        date: "2026-06-22",
+        time: "09:00",
+        location: "Studio Đà Nẵng",
+        label: "22/06 · 09:00",
+      },
     ],
   },
   {
@@ -193,9 +286,27 @@ const photographerProfiles = [
     name: "Công Tuấn",
     addOns: ["retouch", "album"],
     availableSlots: [
-      { id: "tuan-0614-am", date: "2026-06-14", time: "08:30", location: "Huế", label: "14/06 · 08:30" },
-      { id: "tuan-0618-pm", date: "2026-06-18", time: "14:00", location: "Đại Nội Huế", label: "18/06 · 14:00" },
-      { id: "tuan-0623-am", date: "2026-06-23", time: "09:00", location: "Studio Huế", label: "23/06 · 09:00" },
+      {
+        id: "tuan-0614-am",
+        date: "2026-06-14",
+        time: "08:30",
+        location: "Huế",
+        label: "14/06 · 08:30",
+      },
+      {
+        id: "tuan-0618-pm",
+        date: "2026-06-18",
+        time: "14:00",
+        location: "Đại Nội Huế",
+        label: "18/06 · 14:00",
+      },
+      {
+        id: "tuan-0623-am",
+        date: "2026-06-23",
+        time: "09:00",
+        location: "Studio Huế",
+        label: "23/06 · 09:00",
+      },
     ],
   },
   {
@@ -203,9 +314,27 @@ const photographerProfiles = [
     name: "STUDION Match",
     addOns: ["makeup", "video", "album", "retouch"],
     availableSlots: [
-      { id: "match-0610-am", date: "2026-06-10", time: "09:00", location: "Hồ Chí Minh", label: "10/06 · 09:00" },
-      { id: "match-0612-pm", date: "2026-06-12", time: "14:00", location: "Hồ Chí Minh", label: "12/06 · 14:00" },
-      { id: "match-0615-am", date: "2026-06-15", time: "08:30", location: "Hồ Chí Minh", label: "15/06 · 08:30" },
+      {
+        id: "match-0610-am",
+        date: "2026-06-10",
+        time: "09:00",
+        location: "Hồ Chí Minh",
+        label: "10/06 · 09:00",
+      },
+      {
+        id: "match-0612-pm",
+        date: "2026-06-12",
+        time: "14:00",
+        location: "Hồ Chí Minh",
+        label: "12/06 · 14:00",
+      },
+      {
+        id: "match-0615-am",
+        date: "2026-06-15",
+        time: "08:30",
+        location: "Hồ Chí Minh",
+        label: "15/06 · 08:30",
+      },
     ],
   },
 ];
@@ -274,14 +403,17 @@ export default function BookingPage() {
 function BookingContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+
   const photographerId = searchParams.get("photographer") || "studion-match";
   const serviceQuery = searchParams.get("service")?.trim() || "";
   const datesQuery = searchParams.get("dates")?.trim() || "";
+
   const [selectedService, setSelectedService] = useState(services[0].id);
   const [preferredServiceLabel, setPreferredServiceLabel] = useState<string | null>(null);
   const [peopleByService, setPeopleByService] = useState(() =>
     Object.fromEntries(services.map((item) => [item.id, item.peopleOptions[0].label])),
   );
+
   const [location, setLocation] = useState("Hồ Chí Minh");
   const [shootDate, setShootDate] = useState("");
   const [shootTime, setShootTime] = useState("09:00");
@@ -297,6 +429,9 @@ function BookingContent() {
   const [selectedSlotId, setSelectedSlotId] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("momo");
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+
   const service = useMemo(
     () => services.find((item) => item.id === selectedService) || services[0],
     [selectedService],
@@ -308,6 +443,7 @@ function BookingContent() {
       photographerProfiles[photographerProfiles.length - 1],
     [photographerId],
   );
+
   const selectedSlot =
     photographerProfile.availableSlots.find((slot) => slot.id === selectedSlotId) ||
     photographerProfile.availableSlots[0];
@@ -317,12 +453,14 @@ function BookingContent() {
       setPreferredServiceLabel(null);
     } else {
       const normalizedService = serviceQuery.toLowerCase();
+
       const matchedService = services.find(
         (item) =>
           item.id === normalizedService ||
           item.name.toLowerCase() === normalizedService ||
           item.name.toLowerCase().includes(normalizedService),
       );
+
       if (matchedService) {
         setSelectedService(matchedService.id);
         setPreferredServiceLabel(null);
@@ -336,15 +474,21 @@ function BookingContent() {
     if (!datesQuery) {
       return;
     }
+
     const firstDate = datesQuery.split(",").find(Boolean);
+
     if (firstDate) {
       setShootDate(firstDate);
     }
   }, [datesQuery]);
 
   useEffect(() => {
-    const matchingSlot = photographerProfile.availableSlots.find((slot) => slot.date === shootDate);
+    const matchingSlot = photographerProfile.availableSlots.find(
+      (slot) => slot.date === shootDate,
+    );
+
     const nextSlot = matchingSlot ?? photographerProfile.availableSlots[0];
+
     setSelectedSlotId(nextSlot.id);
     setShootDate(nextSlot.date);
     setShootTime(nextSlot.time);
@@ -352,7 +496,10 @@ function BookingContent() {
   }, [photographerProfile, shootDate]);
 
   const budgetValue = useMemo(() => parseBudget(budget), [budget]);
-  const selectedPeopleScale = peopleByService[selectedService] || service.peopleOptions[0].label;
+
+  const selectedPeopleScale =
+    peopleByService[selectedService] || service.peopleOptions[0].label;
+
   const selectedPeopleOption =
     service.peopleOptions.find((item) => item.label === selectedPeopleScale) ||
     service.peopleOptions[0];
@@ -378,50 +525,136 @@ function BookingContent() {
 
   const selectedAddOnsDetails = availableAddOns
     .filter((item) => selectedAddOns.includes(item.id))
-    .map((item) => ({ id: item.id, name: item.name, price: item.minBudget }))
-    .filter((item): item is { id: string; name: string; price: number } => Boolean(item));
+    .map((item) => ({
+      id: item.id,
+      name: item.name,
+      price: item.minBudget,
+    }));
 
-  const addOnTotal = selectedAddOnsDetails.reduce((total, addOn) => total + addOn.price, 0);
+  const addOnTotal = selectedAddOnsDetails.reduce(
+    (total, addOn) => total + addOn.price,
+    0,
+  );
+
   const selectedAddOnNames = selectedAddOnsDetails.map((item) => item.name);
-  const estimatedTotal = service.basePrice + selectedPeopleOption.extra + addOnTotal;
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const estimatedTotal = service.basePrice + selectedPeopleOption.extra + addOnTotal;
+  const depositAmount = Math.round(estimatedTotal * 0.5);
+  const remainingAmount = estimatedTotal - depositAmount;
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    const bookingId = generateBookingId();
-    saveBooking({
-      id: bookingId,
-      status: "awaiting_payment",
-      createdAt: new Date().toISOString(),
-      serviceId: service.id,
-      serviceName: service.name,
-      basePrice: service.basePrice,
-      photographerId,
-      photographerName: photographerProfile.name,
-      availabilitySlotId: selectedSlot.id,
-      availabilitySlotLabel: selectedSlot.label,
-      location,
-      shootDate,
-      shootTime,
-      peopleScale: selectedPeopleScale,
-      peopleExtra: selectedPeopleOption.extra,
-      scene,
-      concept,
-      budget,
-      estimatedTotal,
-      addOnTotal,
-      addOns: selectedAddOnsDetails,
-      referenceFileName,
-      paymentMethod,
-      customer: {
-        fullName,
-        phone,
-        email,
-        contactChannel,
-      },
-    });
+    try {
+      setIsSubmitting(true);
+      setSubmitError("");
 
-    router.push(`/booking-success?id=${encodeURIComponent(bookingId)}`);
+      const payload = {
+        serviceId: service.id,
+        serviceName: service.name,
+        basePrice: service.basePrice,
+
+        photographerId,
+        photographerName: photographerProfile.name,
+
+        availabilitySlotId: selectedSlot.id,
+        availabilitySlotLabel: selectedSlot.label,
+
+        location,
+        shootDate,
+        shootTime,
+
+        peopleScale: selectedPeopleScale,
+        peopleExtra: selectedPeopleOption.extra,
+
+        scene,
+        concept,
+        budget,
+
+        estimatedTotal,
+        addOnTotal,
+        addOns: selectedAddOnsDetails,
+
+        referenceFileName,
+        paymentMethod,
+
+        customer: {
+          fullName,
+          phone,
+          email,
+          contactChannel,
+        },
+      };
+
+      const response = await fetch(`${API_URL}/bookings`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const json = await response.json();
+
+      if (!response.ok || !json.success) {
+        throw new Error(json.message || "Không thể tạo booking.");
+      }
+
+      const bookingCode = json.data.booking_code;
+
+      saveBooking({
+        id: bookingCode,
+        status: "awaiting_payment",
+        createdAt: json.data.created_at || new Date().toISOString(),
+
+        serviceId: service.id,
+        serviceName: service.name,
+        basePrice: service.basePrice,
+
+        photographerId,
+        photographerName: photographerProfile.name,
+
+        availabilitySlotId: selectedSlot.id,
+        availabilitySlotLabel: selectedSlot.label,
+
+        location,
+        shootDate,
+        shootTime,
+
+        peopleScale: selectedPeopleScale,
+        peopleExtra: selectedPeopleOption.extra,
+
+        scene,
+        concept,
+        budget,
+
+        estimatedTotal,
+        addOnTotal,
+        addOns: selectedAddOnsDetails,
+
+        referenceFileName,
+        paymentMethod,
+
+        customer: {
+          fullName,
+          phone,
+          email,
+          contactChannel,
+        },
+      });
+
+      router.push(`/booking-success?id=${encodeURIComponent(bookingCode)}`);
+    } catch (error) {
+      console.error("Lỗi gửi booking:", error);
+
+      setSubmitError(
+        error instanceof Error
+          ? error.message
+          : "Có lỗi xảy ra khi gửi yêu cầu đặt lịch.",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const paymentMethods = [
@@ -429,9 +662,6 @@ function BookingContent() {
     { id: "vnpay", name: "VNPay", mark: "QR" },
     { id: "bank", name: "Chuyển khoản", mark: "B" },
   ];
-
-  const depositAmount = Math.round(estimatedTotal * 0.5);
-  const remainingAmount = estimatedTotal - depositAmount;
 
   const toggleAddOn = (id: string) => {
     setSelectedAddOns((current) =>
@@ -445,32 +675,52 @@ function BookingContent() {
     <main className="min-h-screen bg-[#fafbfc] text-[#0e111d]">
       <section className="mx-auto w-full max-w-[1440px] px-6 py-12 md:px-12 lg:px-20 lg:py-16">
         <div className="grid gap-3">
-          <p data-reveal className="text-[12px] font-black uppercase tracking-[0.18em] text-[#ff8d28]">
+          <p
+            data-reveal
+            className="text-[12px] font-black uppercase tracking-[0.18em] text-[#ff8d28]"
+          >
             Booking request
           </p>
-          <h1 data-reveal data-reveal-delay="80" className="max-w-[760px] text-[36px] font-black leading-[1.08] tracking-[-0.03em] text-[#0e111d] sm:text-[46px]">
+
+          <h1
+            data-reveal
+            data-reveal-delay="80"
+            className="max-w-[760px] text-[36px] font-black leading-[1.08] tracking-[-0.03em] text-[#0e111d] sm:text-[46px]"
+          >
             Đặt lịch chụp
           </h1>
-         
         </div>
 
-        <form onSubmit={handleSubmit} className="mt-10 grid gap-8 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start xl:grid-cols-[minmax(0,1fr)_400px]">
+        <form
+          onSubmit={handleSubmit}
+          className="mt-10 grid gap-8 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start xl:grid-cols-[minmax(0,1fr)_400px]"
+        >
           <div className="grid gap-6">
-            <section data-reveal data-reveal-delay="220" className="rounded-[18px] border border-[#e8eaf1] bg-white p-5 shadow-[0_16px_42px_rgba(20,21,31,0.045)] sm:p-6">
+            <section
+              data-reveal
+              data-reveal-delay="220"
+              className="rounded-[18px] border border-[#e8eaf1] bg-white p-5 shadow-[0_16px_42px_rgba(20,21,31,0.045)] sm:p-6"
+            >
               <div className="flex items-end justify-between gap-4">
                 <div>
                   <p className="text-[12px] font-black uppercase tracking-[0.16em] text-[#ff8d28]">
                     Bước 1
                   </p>
+
                   <h2 className="mt-2 text-[22px] font-black leading-tight text-[#0e111d]">
                     Chọn dịch vụ
                   </h2>
+
                   {preferredServiceLabel ? (
                     <p className="mt-2 text-sm text-[#6b7280]">
-                      Dịch vụ gợi ý từ trang profile: <span className="font-semibold text-[#0e111d]">{preferredServiceLabel}</span>
+                      Dịch vụ gợi ý từ trang profile:{" "}
+                      <span className="font-semibold text-[#0e111d]">
+                        {preferredServiceLabel}
+                      </span>
                     </p>
                   ) : null}
                 </div>
+
                 <span className="hidden rounded-full bg-[#fcf2e9] px-3 py-1.5 text-[12px] font-extrabold text-[#ff8d28] sm:inline-flex">
                   {service.price}
                 </span>
@@ -500,22 +750,28 @@ function BookingContent() {
                           sizes="(max-width: 639px) 100vw, (max-width: 1023px) 50vw, 360px"
                           className="object-cover transition-transform duration-500 group-hover:scale-105"
                         />
+
                         <span className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/45 to-transparent" />
                       </span>
+
                       <span className="block p-4">
                         <span className="block text-[15px] font-black text-[#0e111d]">
                           {item.name}
                         </span>
+
                         <span className="mt-2 block text-[12px] font-bold text-[#ff8d28]">
                           {item.price}
                         </span>
+
                         <span className="mt-1 block text-[12px] font-semibold text-[#6b7280]">
                           {item.duration}
                         </span>
+
                         <span className="mt-4 grid gap-2">
                           <span className="text-[11px] font-black uppercase tracking-[0.12em] text-[#8a8fa1]">
                             Quy mô
                           </span>
+
                           <span className="booking-field">
                             <select
                               value={peopleByService[item.id]}
@@ -544,15 +800,22 @@ function BookingContent() {
               </div>
             </section>
 
-            <section data-reveal data-reveal-delay="300" className="rounded-[18px] border border-[#e8eaf1] bg-white p-5 shadow-[0_16px_42px_rgba(20,21,31,0.045)] sm:p-6">
+            <section
+              data-reveal
+              data-reveal-delay="300"
+              className="rounded-[18px] border border-[#e8eaf1] bg-white p-5 shadow-[0_16px_42px_rgba(20,21,31,0.045)] sm:p-6"
+            >
               <p className="text-[12px] font-black uppercase tracking-[0.16em] text-[#ff8d28]">
                 Bước 2
               </p>
+
               <h2 className="mt-2 text-[22px] font-black leading-tight text-[#0e111d]">
                 Chọn lịch rảnh
               </h2>
+
               <p className="mt-2 text-[13px] font-semibold leading-6 text-[#6b7280]">
-                Đây là các khung giờ {photographerProfile.name} còn trống. Chọn một lịch để giữ slot trước khi thanh toán.
+                Đây là các khung giờ {photographerProfile.name} còn trống. Chọn
+                một lịch để giữ slot trước khi thanh toán.
               </p>
 
               <div className="mt-5 grid gap-3 sm:grid-cols-3">
@@ -579,9 +842,11 @@ function BookingContent() {
                       <span className="block text-[15px] font-black text-[#0e111d]">
                         {slot.label}
                       </span>
+
                       <span className="mt-2 block text-[12px] font-bold text-[#ff8d28]">
                         Còn trống
                       </span>
+
                       <span className="mt-1 block text-[12px] font-semibold leading-5 text-[#6b7280]">
                         {slot.location}
                       </span>
@@ -592,19 +857,42 @@ function BookingContent() {
 
               <div className="mt-5 grid gap-4 sm:grid-cols-2">
                 <Field label="Địa điểm chụp">
-                  <input value={location} onChange={(event) => setLocation(event.target.value)} placeholder="Ví dụ: Đà Lạt" />
+                  <input
+                    value={location}
+                    onChange={(event) => setLocation(event.target.value)}
+                    placeholder="Ví dụ: Đà Lạt"
+                  />
                 </Field>
+
                 <Field label="Ngày chụp">
-                  <input type="date" value={shootDate} onChange={(event) => setShootDate(event.target.value)} />
+                  <input
+                    type="date"
+                    value={shootDate}
+                    onChange={(event) => setShootDate(event.target.value)}
+                  />
                 </Field>
+
                 <Field label="Khung giờ">
-                  <input type="time" value={shootTime} onChange={(event) => setShootTime(event.target.value)} />
+                  <input
+                    type="time"
+                    value={shootTime}
+                    onChange={(event) => setShootTime(event.target.value)}
+                  />
                 </Field>
+
                 <Field label="Ngân sách dự kiến">
-                  <input value={budget} onChange={(event) => setBudget(event.target.value)} placeholder="5.000.000" />
+                  <input
+                    value={budget}
+                    onChange={(event) => setBudget(event.target.value)}
+                    placeholder="5.000.000"
+                  />
                 </Field>
+
                 <Field label="Kênh liên hệ ưu tiên">
-                  <select value={contactChannel} onChange={(event) => setContactChannel(event.target.value)}>
+                  <select
+                    value={contactChannel}
+                    onChange={(event) => setContactChannel(event.target.value)}
+                  >
                     {contactChannels.map((item) => (
                       <option key={item} value={item}>
                         {item}
@@ -612,16 +900,20 @@ function BookingContent() {
                     ))}
                   </select>
                 </Field>
+
                 <Field label="Bối cảnh mong muốn">
-                    <select value={scene} onChange={(event) => setScene(event.target.value)}>
-                      {sceneOptions.map((item) => (
-                        <option key={item} value={item}>
-                          {item}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
-                
+                  <select
+                    value={scene}
+                    onChange={(event) => setScene(event.target.value)}
+                  >
+                    {sceneOptions.map((item) => (
+                      <option key={item} value={item}>
+                        {item}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+
                 <div className="sm:col-span-2">
                   <Field label="Concept hoặc ghi chú">
                     <textarea
@@ -635,16 +927,25 @@ function BookingContent() {
               </div>
             </section>
 
-            <section data-reveal data-reveal-delay="380" className="rounded-[18px] border border-[#e8eaf1] bg-white p-5 shadow-[0_16px_42px_rgba(20,21,31,0.045)] sm:p-6">
+            <section
+              data-reveal
+              data-reveal-delay="380"
+              className="rounded-[18px] border border-[#e8eaf1] bg-white p-5 shadow-[0_16px_42px_rgba(20,21,31,0.045)] sm:p-6"
+            >
               <p className="text-[12px] font-black uppercase tracking-[0.16em] text-[#ff8d28]">
                 Bước 3
               </p>
+
               <h2 className="mt-2 text-[22px] font-black leading-tight text-[#0e111d]">
                 Yêu cầu sáng tạo
               </h2>
 
               <div className="mt-5 grid gap-5">
-                <label data-reveal data-reveal-delay="420" className="group grid cursor-pointer gap-3 rounded-[16px] border border-dashed border-[#ffd2ad] bg-[#fffaf5] px-5 py-6 text-center transition-colors hover:bg-[#fff4eb]">
+                <label
+                  data-reveal
+                  data-reveal-delay="420"
+                  className="group grid cursor-pointer gap-3 rounded-[16px] border border-dashed border-[#ffd2ad] bg-[#fffaf5] px-5 py-6 text-center transition-colors hover:bg-[#fff4eb]"
+                >
                   <input
                     type="file"
                     accept="image/*"
@@ -654,15 +955,20 @@ function BookingContent() {
                       setReferenceFileName(file?.name || "");
                     }}
                   />
+
                   <span className="mx-auto grid h-11 w-11 place-items-center rounded-full bg-white text-[#ff8d28] shadow-[0_8px_18px_rgba(255,141,40,0.12)]">
                     <UploadIcon className="h-5 w-5" />
                   </span>
+
                   <span className="text-[14px] font-black text-[#0e111d]">
                     Tải ảnh minh họa phong cách mong muốn
                   </span>
+
                   <span className="text-[12px] font-semibold leading-5 text-[#6b7280]">
-                    JPG, PNG hoặc WebP. File này chỉ dùng để photographer hiểu mood/concept của bạn.
+                    JPG, PNG hoặc WebP. File này chỉ dùng để photographer hiểu
+                    mood/concept của bạn.
                   </span>
+
                   {referenceFileName ? (
                     <span className="mx-auto max-w-full truncate rounded-full bg-white px-3 py-1.5 text-[12px] font-extrabold text-[#ff8d28]">
                       {referenceFileName}
@@ -674,6 +980,7 @@ function BookingContent() {
                   <p className="text-[13px] font-extrabold text-[#0e111d]">
                     Dịch vụ đi kèm
                   </p>
+
                   <div className="mt-3 grid gap-3 sm:grid-cols-2">
                     {availableAddOns.map((item, index) => {
                       const active = selectedAddOns.includes(item.id);
@@ -701,11 +1008,13 @@ function BookingContent() {
                           >
                             <CheckIcon className="h-3.5 w-3.5" />
                           </span>
+
                           <span>
                             <span className="flex flex-wrap items-center gap-2">
                               <span className="text-[14px] font-black text-[#0e111d]">
                                 {item.name}
                               </span>
+
                               {item.isOfferedByPhotographer ? (
                                 <span className="rounded-full bg-[#eaf7ee] px-2 py-1 text-[10px] font-extrabold text-[#16a34a]">
                                   Có trong photographer
@@ -716,59 +1025,93 @@ function BookingContent() {
                                 </span>
                               )}
                             </span>
+
                             <span className="mt-1 block text-[12px] font-semibold leading-5 text-[#6b7280]">
-                              {item.note} · Từ {item.minBudget.toLocaleString("vi-VN")} VND
+                              {item.note} · Từ{" "}
+                              {item.minBudget.toLocaleString("vi-VN")} VND
                             </span>
                           </span>
                         </button>
                       );
                     })}
                   </div>
+
                   {availableAddOns.length === 0 ? (
                     <div className="mt-3 rounded-[14px] border border-[#e8eaf1] bg-[#fafbfc] px-4 py-5 text-[13px] font-semibold leading-6 text-[#6b7280]">
-                      Chưa có dịch vụ đi kèm phù hợp với dịch vụ chính hoặc ngân sách hiện tại. Hãy tăng ngân sách hoặc đổi dịch vụ để xem thêm gợi ý.
+                      Chưa có dịch vụ đi kèm phù hợp với dịch vụ chính hoặc ngân
+                      sách hiện tại. Hãy tăng ngân sách hoặc đổi dịch vụ để xem
+                      thêm gợi ý.
                     </div>
                   ) : null}
                 </div>
               </div>
             </section>
 
-            <section data-reveal data-reveal-delay="460" className="rounded-[18px] border border-[#e8eaf1] bg-white p-5 shadow-[0_16px_42px_rgba(20,21,31,0.045)] sm:p-6">
+            <section
+              data-reveal
+              data-reveal-delay="460"
+              className="rounded-[18px] border border-[#e8eaf1] bg-white p-5 shadow-[0_16px_42px_rgba(20,21,31,0.045)] sm:p-6"
+            >
               <p className="text-[12px] font-black uppercase tracking-[0.16em] text-[#ff8d28]">
                 Bước 4
               </p>
+
               <h2 className="mt-2 text-[22px] font-black leading-tight text-[#0e111d]">
                 Thông tin liên hệ
               </h2>
 
               <div className="mt-5 grid gap-4 sm:grid-cols-2">
                 <Field label="Họ và tên">
-                  <input value={fullName} onChange={(event) => setFullName(event.target.value)} placeholder="Nguyễn Minh Anh" required />
+                  <input
+                    value={fullName}
+                    onChange={(event) => setFullName(event.target.value)}
+                    placeholder="Nguyễn Minh Anh"
+                    required
+                  />
                 </Field>
+
                 <Field label="Số điện thoại">
-                  <input value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="090..." required />
+                  <input
+                    value={phone}
+                    onChange={(event) => setPhone(event.target.value)}
+                    placeholder="090..."
+                    required
+                  />
                 </Field>
+
                 <div className="sm:col-span-2">
                   <Field label="Email">
-                    <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@sudion.vn" required />
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(event) => setEmail(event.target.value)}
+                      placeholder="you@sudion.vn"
+                      required
+                    />
                   </Field>
                 </div>
               </div>
             </section>
           </div>
 
-          <aside data-reveal data-reveal-delay="300" className="flex rounded-[18px] border border-[#e8eaf1] bg-white p-5 shadow-[0_16px_42px_rgba(20,21,31,0.06)] lg:sticky lg:top-[112px] lg:flex-col">
+          <aside
+            data-reveal
+            data-reveal-delay="300"
+            className="flex rounded-[18px] border border-[#e8eaf1] bg-white p-5 shadow-[0_16px_42px_rgba(20,21,31,0.06)] lg:sticky lg:top-[112px] lg:flex-col"
+          >
             <div className="flex shrink-0 items-start justify-between gap-4 border-b border-[#f1f3f7] pb-3">
               <div>
                 <p className="text-[12px] font-black uppercase tracking-[0.16em] text-[#ff8d28]">
                   Tóm tắt
                 </p>
+
                 <h2 className="mt-1.5 text-[20px] font-black leading-tight text-[#0e111d]">
                   Yêu cầu đặt lịch
                 </h2>
               </div>
+
               <span className="rounded-full bg-[#fff7ef] px-3 py-1.5 text-[11px] font-extrabold text-[#ff8d28]">
-                Chưa gửi
+                {isSubmitting ? "Đang gửi" : "Chưa gửi"}
               </span>
             </div>
 
@@ -780,66 +1123,100 @@ function BookingContent() {
               <SummaryRow label="Ngày chụp" value={shootDate || "Chưa chọn"} />
               <SummaryRow label="Khung giờ" value={shootTime || "Chưa chọn"} />
               <SummaryRow label="Quy mô" value={selectedPeopleScale} />
-              <SummaryRow label="Phụ phí quy mô" value={formatCurrency(selectedPeopleOption.extra)} />
+              <SummaryRow
+                label="Phụ phí quy mô"
+                value={formatCurrency(selectedPeopleOption.extra)}
+              />
               <SummaryRow label="Tạm tính" value={formatCurrency(estimatedTotal)} />
               <SummaryRow label="Bối cảnh" value={scene || "Chưa chọn"} />
-              <SummaryRow label="Ảnh minh họa" value={referenceFileName || "Chưa tải"} />
+              <SummaryRow
+                label="Ảnh minh họa"
+                value={referenceFileName || "Chưa tải"}
+              />
               <SummaryRow
                 label="Dịch vụ kèm"
-                value={selectedAddOnNames.length ? selectedAddOnNames.join(", ") : "Chưa chọn"}
+                value={
+                  selectedAddOnNames.length
+                    ? selectedAddOnNames.join(", ")
+                    : "Chưa chọn"
+                }
               />
-              <SummaryRow label="Ngân sách" value={budget ? `${budget} VND` : "Chưa nhập"} />
+              <SummaryRow
+                label="Ngân sách"
+                value={budget ? `${budget} VND` : "Chưa nhập"}
+              />
               <SummaryRow label="Liên hệ qua" value={contactChannel} />
             </div>
 
             <div className="shrink-0 border-t border-[#f1f3f7] pt-3">
               <div className="mt-4 rounded-[18px] border border-[#e8eaf1] bg-[#fffaf5] p-4">
-              <p className="text-[13px] font-bold uppercase tracking-[0.14em] text-[#ff8d28]">
-                Chọn phương thức thanh toán
-              </p>
-              <div className="mt-3 grid grid-cols-3 gap-2">
-                {paymentMethods.map((method) => {
-                  const active = method.id === paymentMethod;
+                <p className="text-[13px] font-bold uppercase tracking-[0.14em] text-[#ff8d28]">
+                  Chọn phương thức thanh toán
+                </p>
 
-                  return (
-                    <button
-                      key={method.id}
-                      type="button"
-                      onClick={() => setPaymentMethod(method.id)}
-                      aria-pressed={active}
-                      className={`flex min-h-[56px] flex-col items-center justify-center gap-1 rounded-[12px] border px-3 py-2 text-center transition-all ${
-                        active
-                          ? "border-[#ff8d28] bg-[#fff4eb] text-[#ff8d28]"
-                          : "border-[#d8dce8] bg-white text-[#4b5563] hover:border-[#ffcfaa]"
-                      }`}
-                    >
-                      <span className={`grid h-8 w-8 place-items-center rounded-full text-[12px] font-black ${
-                        active ? "bg-[#ff8d28] text-white" : "bg-[#f3f4f6] text-[#6b7280]"
-                      }`}>
-                        {method.mark}
-                      </span>
-                      <span className="text-[12px] font-black leading-4">{method.name}</span>
-                    </button>
-                  );
-                })}
+                <div className="mt-3 grid grid-cols-3 gap-2">
+                  {paymentMethods.map((method) => {
+                    const active = method.id === paymentMethod;
+
+                    return (
+                      <button
+                        key={method.id}
+                        type="button"
+                        onClick={() => setPaymentMethod(method.id)}
+                        aria-pressed={active}
+                        className={`flex min-h-[56px] flex-col items-center justify-center gap-1 rounded-[12px] border px-3 py-2 text-center transition-all ${
+                          active
+                            ? "border-[#ff8d28] bg-[#fff4eb] text-[#ff8d28]"
+                            : "border-[#d8dce8] bg-white text-[#4b5563] hover:border-[#ffcfaa]"
+                        }`}
+                      >
+                        <span
+                          className={`grid h-8 w-8 place-items-center rounded-full text-[12px] font-black ${
+                            active
+                              ? "bg-[#ff8d28] text-white"
+                              : "bg-[#f3f4f6] text-[#6b7280]"
+                          }`}
+                        >
+                          {method.mark}
+                        </span>
+
+                        <span className="text-[12px] font-black leading-4">
+                          {method.name}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="mt-4 grid gap-3 rounded-[14px] border border-[#f1f3f7] bg-white p-4">
+                  <div className="flex items-center justify-between gap-3 text-[13px] font-semibold text-[#4b5563]">
+                    <span>Tiền cọc (50%)</span>
+                    <span className="text-[15px] font-black text-[#ff8d28]">
+                      {formatCurrency(depositAmount)}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3 text-[13px] font-semibold text-[#4b5563]">
+                    <span>Còn lại</span>
+                    <span className="text-[15px] font-black text-[#0e111d]">
+                      {formatCurrency(remainingAmount)}
+                    </span>
+                  </div>
+                </div>
               </div>
 
-              <div className="mt-4 grid gap-3 rounded-[14px] border border-[#f1f3f7] bg-white p-4">
-                <div className="flex items-center justify-between gap-3 text-[13px] font-semibold text-[#4b5563]">
-                  <span>Tiền cọc (50%)</span>
-                  <span className="text-[15px] font-black text-[#ff8d28]">{formatCurrency(depositAmount)}</span>
-                </div>
-                <div className="flex items-center justify-between gap-3 text-[13px] font-semibold text-[#4b5563]">
-                  <span>Còn lại</span>
-                  <span className="text-[15px] font-black text-[#0e111d]">{formatCurrency(remainingAmount)}</span>
-                </div>
-              </div>
-            </div>
-            <button
+              {submitError ? (
+                <p className="mb-3 mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-center text-[12px] font-bold text-red-600">
+                  {submitError}
+                </p>
+              ) : null}
+
+              <button
                 type="submit"
-                className="w-full rounded-lg bg-[#ff8d28] px-5 py-3.5 text-[14px] font-extrabold text-white shadow-[0_8px_18px_rgba(255,141,40,0.18)] transition-all hover:translate-y-[-1px] hover:bg-[#e0751b]"
+                disabled={isSubmitting}
+                className="mt-4 w-full rounded-lg bg-[#ff8d28] px-5 py-3.5 text-[14px] font-extrabold text-white shadow-[0_8px_18px_rgba(255,141,40,0.18)] transition-all hover:translate-y-[-1px] hover:bg-[#e0751b] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
               >
-                Gửi yêu cầu đặt lịch
+                {isSubmitting ? "Đang gửi yêu cầu..." : "Gửi yêu cầu đặt lịch"}
               </button>
 
               <p className="mt-2 text-center text-[11px] font-semibold leading-4 text-[#6b7280]">
@@ -856,8 +1233,19 @@ function BookingContent() {
 function UploadIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 20 20" fill="none" aria-hidden="true">
-      <path d="M10 13V4M10 4L6.5 7.5M10 4L13.5 7.5" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M4 13.5V15.5C4 16.3 4.7 17 5.5 17H14.5C15.3 17 16 16.3 16 15.5V13.5" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+      <path
+        d="M10 13V4M10 4L6.5 7.5M10 4L13.5 7.5"
+        stroke="currentColor"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M4 13.5V15.5C4 16.3 4.7 17 5.5 17H14.5C15.3 17 16 16.3 16 15.5V13.5"
+        stroke="currentColor"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
@@ -865,7 +1253,13 @@ function UploadIcon({ className }: { className?: string }) {
 function CheckIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 20 20" fill="none" aria-hidden="true">
-      <path d="M5 10.3L8.3 13.5L15 6.5" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M5 10.3L8.3 13.5L15 6.5"
+        stroke="currentColor"
+        strokeWidth="2.3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
