@@ -172,7 +172,7 @@ function ServiceListingPage({
               <Image src={heroMeta.image} alt={serviceTitle} fill priority sizes="(max-width: 1023px) 100vw, 560px" className="object-cover" />
               <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black/50 to-transparent" />
             </div>
-            <div className="absolute bottom-[10%] left-0 flex w-[min(340px,72%)] items-center gap-4 rounded-2xl border border-[#e8eaf1] bg-white p-4 shadow-[0_18px_42px_rgba(14,17,29,0.12)]">
+            <div className="absolute bottom-[10%] left-0 z-10 flex w-[min(340px,78%)] items-center gap-4 rounded-2xl border border-[#e8eaf1] bg-white p-4 shadow-[0_18px_42px_rgba(14,17,29,0.12)] lg:-left-14 xl:-left-18">
               <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-[#fcf2e9] text-[#ff8d28]">✦</div>
               <div>
                 <p className="text-[15px] font-black text-[#0e111d]">Listing theo gói</p>

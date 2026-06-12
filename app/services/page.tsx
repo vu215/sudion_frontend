@@ -40,17 +40,13 @@ export default function ServicesPage() {
               Dịch vụ nhiếp ảnh
             </div>
             <h1
-              className="mt-5 max-w-[15ch] text-[40px] font-black leading-[1.18] tracking-normal text-[#0e111d] sm:text-[48px] md:text-[54px] lg:text-[56px] xl:text-[64px]"
+              className="mt-5 max-w-[18ch] text-[40px] font-black leading-[1.16] tracking-normal text-[#0e111d] sm:text-[38px] md:text-[44px] lg:text-[48px] xl:text-[52px]"
               style={fadeUpStyle(isReady, 120)}
             >
-              Chọn dịch vụ trước, rồi tìm gói chụp gần bạn
+              Chọn dịch vụ trước, <br></br>
+              rồi tìm gói chụp gần bạn
             </h1>
-            <p
-              className="mt-6 max-w-[560px] text-[16px] font-medium leading-[1.7] text-[#4b5563] sm:text-[17px] md:text-[18px]"
-              style={fadeUpStyle(isReady, 240)}
-            >
-              Mỗi dịch vụ là một danh mục. Bên trong là nhiều gói chụp của nhiều photographer, có thể lọc theo khoảng cách, giá, add-on và lịch trống.
-            </p>
+            
             <div className="mt-7 flex flex-wrap gap-3" style={fadeUpStyle(isReady, 360)}>
               {serviceCategories.map((service) => (
                 <Link
@@ -89,11 +85,11 @@ export default function ServicesPage() {
               />
               <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black/50 to-transparent" />
             </div>
-            <div className="absolute bottom-[10%] left-0 flex w-[min(340px,72%)] items-center gap-4 rounded-2xl border border-[#e8eaf1] bg-white p-4 shadow-[0_18px_42px_rgba(14,17,29,0.12)]">
+            <div className="absolute bottom-[10%] left-0 z-10 flex w-[min(320px,78%)] items-center gap-3 rounded-2xl border border-[#e8eaf1] bg-white p-4 shadow-[0_18px_42px_rgba(14,17,29,0.12)] lg:-left-10 xl:-left-14">
               <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-[#fcf2e9] text-[#ff8d28]">
                 ✦
               </div>
-              <div>
+              <div className="min-w-0">
                 <p className="text-[15px] font-black text-[#0e111d]">Listing theo gói</p>
                 <p className="mt-1 text-[13px] font-semibold leading-5 text-[#667085]">
                   Cùng dịch vụ, mỗi photographer có giá, add-on và khoảng cách khác nhau.
