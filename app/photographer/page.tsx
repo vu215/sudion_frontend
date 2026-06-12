@@ -37,6 +37,8 @@ const tabTextClass = "pb-4 !text-[12px] !font-bold leading-none";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
+const PHOTOGRAPHERS_PER_PAGE = 12;
+
 const fallbackImages = [
   "https://images.unsplash.com/photo-1496440737103-cd596325d314?auto=format&fit=crop&w=900&q=85",
   "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=900&q=85",
@@ -189,6 +191,18 @@ function getCoordinatesByArea(area: string | null | undefined): Coordinates {
 
 function formatPrice(price: number) {
   return `${Number(price || 0).toLocaleString("vi-VN")} VNĐ`;
+}
+
+function buildBookingHref(photographerId: string, category: string) {
+  const params = new URLSearchParams();
+
+  params.set("photographer", photographerId);
+
+  if (category && category !== "all") {
+    params.set("service", category);
+  }
+
+  return `/booking?${params.toString()}`;
 }
 
 function getTagsFromCategories(categories: string | null | undefined) {
@@ -396,6 +410,40 @@ export default function PhotographerPage() {
     });
   }, [activeTab, nearbyPhotographers, visiblePhotographers, searchQuery]);
 
+  const totalPages = Math.max(
+    1,
+    Math.ceil(displayedPhotographers.length / PHOTOGRAPHERS_PER_PAGE),
+  );
+
+  const currentPage = Math.min(page, totalPages);
+
+  const paginatedPhotographers = useMemo(() => {
+    const startIndex = (currentPage - 1) * PHOTOGRAPHERS_PER_PAGE;
+    return displayedPhotographers.slice(
+      startIndex,
+      startIndex + PHOTOGRAPHERS_PER_PAGE,
+    );
+  }, [currentPage, displayedPhotographers]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [
+    activeTab,
+    aiSuggested,
+    category,
+    location,
+    maxPrice,
+    searchQuery,
+    selectedStyles,
+    shootLocationId,
+  ]);
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
+
   const getDisplayDistance = (person: (typeof displayedPhotographers)[number]) => {
     if (activeTab !== "Photo ở gần bạn") {
       return nearbyEnabled && userLocation
@@ -556,6 +604,7 @@ export default function PhotographerPage() {
                 isReady={isReady}
                 locationMessage={locationMessage}
                 nearbyPhotographers={nearbyPhotographers}
+                category={category}
                 onScan={requestNearbyPhotographers}
                 customShootLocation={customShootLocation}
                 onCustomShootLocationChange={setCustomShootLocation}
@@ -576,9 +625,10 @@ export default function PhotographerPage() {
             ) : (
               <>
                 <div className="mt-8 grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
-                  {displayedPhotographers.map((person, index) => (
+                  {paginatedPhotographers.map((person, index) => (
                     <PhotographerCard
                       aiSuggested={aiSuggested}
+                      category={category}
                       isFavorite={favorites.includes(person.name)}
                       isReady={isReady}
                       key={person.id}
@@ -603,7 +653,13 @@ export default function PhotographerPage() {
                   </div>
                 ) : null}
 
-                <Pagination activePage={page} onPageChange={setPage} />
+                {displayedPhotographers.length > PHOTOGRAPHERS_PER_PAGE ? (
+                  <Pagination
+                    activePage={currentPage}
+                    totalPages={totalPages}
+                    onPageChange={setPage}
+                  />
+                ) : null}
               </>
             )}
           </section>
@@ -740,6 +796,7 @@ function FilterSidebar({
 
 function PhotographerCard({
   aiSuggested,
+  category,
   distanceKm,
   distanceLabel,
   isFavorite,
@@ -749,6 +806,7 @@ function PhotographerCard({
   index,
 }: {
   aiSuggested: boolean;
+  category: string;
   distanceKm?: number;
   distanceLabel?: string;
   isFavorite: boolean;
@@ -861,7 +919,7 @@ function PhotographerCard({
           </Link>
 
           <Link
-            href={`/booking?photographer=${person.id}`}
+            href={buildBookingHref(person.id, category)}
             className="rounded-lg bg-[#ff8d28] px-3 py-2.5 text-center text-[12px] font-extrabold text-white shadow-[0_8px_18px_rgba(255,141,40,0.14)] transition-all hover:translate-y-[-1px] hover:bg-[#e0751b]"
           >
             Đặt lịch
@@ -874,6 +932,7 @@ function PhotographerCard({
 
 function NearbyMapPanel({
   customShootLocation,
+  category,
   isReady,
   locationMessage,
   nearbyPhotographers,
@@ -884,6 +943,7 @@ function NearbyMapPanel({
   userLocation,
 }: {
   customShootLocation: string;
+  category: string;
   isReady: boolean;
   locationMessage: string;
   nearbyPhotographers: PhotographerCardData[];
@@ -1042,7 +1102,7 @@ function NearbyMapPanel({
             {nearbyPhotographers.slice(0, 4).map((person) => (
               <Link
                 key={person.id}
-                href={`/booking?photographer=${person.id}`}
+                href={buildBookingHref(person.id, category)}
                 className="flex items-center justify-between gap-3 rounded-[14px] border border-[#ebe6f1] bg-[#faf8ff] px-3 py-3 transition-colors hover:border-[#ffcfaa] hover:bg-[#fff7ef]"
               >
                 <span className="min-w-0">
@@ -1071,11 +1131,45 @@ function NearbyMapPanel({
 
 function Pagination({
   activePage,
+  totalPages,
   onPageChange,
 }: {
   activePage: number;
+  totalPages: number;
   onPageChange: (page: number) => void;
 }) {
+  const pageItems = useMemo(() => {
+    if (totalPages <= 7) {
+      return Array.from({ length: totalPages }, (_, index) => String(index + 1));
+    }
+
+    if (activePage <= 4) {
+      return ["1", "2", "3", "4", "5", "...", String(totalPages)];
+    }
+
+    if (activePage >= totalPages - 3) {
+      return [
+        "1",
+        "...",
+        String(totalPages - 4),
+        String(totalPages - 3),
+        String(totalPages - 2),
+        String(totalPages - 1),
+        String(totalPages),
+      ];
+    }
+
+    return [
+      "1",
+      "...",
+      String(activePage - 1),
+      String(activePage),
+      String(activePage + 1),
+      "...",
+      String(totalPages),
+    ];
+  }, [activePage, totalPages]);
+
   return (
     <nav
       data-reveal
@@ -1085,22 +1179,24 @@ function Pagination({
     >
       <button
         type="button"
+        disabled={activePage <= 1}
         onClick={() => onPageChange(Math.max(1, activePage - 1))}
-        className="grid h-9 w-9 place-items-center rounded-full border border-[#ddd8e8] bg-white text-[#6c6878]"
+        className="grid h-9 w-9 place-items-center rounded-full border border-[#ddd8e8] bg-white text-[#6c6878] disabled:cursor-not-allowed disabled:opacity-40"
       >
         <ChevronLeftIcon className="h-4 w-4" />
       </button>
 
-      {["1", "2", "3", "...", "12"].map((item) => (
+      {pageItems.map((item, index) => (
         <button
-          key={item}
+          key={`${item}-${index}`}
           type="button"
+          disabled={item === "..."}
           onClick={() => item !== "..." && onPageChange(Number(item))}
           className={`grid h-9 min-w-9 place-items-center rounded-full px-3 text-xs font-black ${
             item === String(activePage)
               ? "bg-[#ff8d28] text-white"
               : item === "..."
-              ? "bg-transparent text-[#6c6878]"
+              ? "cursor-default bg-transparent text-[#6c6878]"
               : "border border-[#ddd8e8] bg-white text-[#20212b]"
           }`}
         >
@@ -1110,8 +1206,9 @@ function Pagination({
 
       <button
         type="button"
-        onClick={() => onPageChange(Math.min(12, activePage + 1))}
-        className="grid h-9 w-9 place-items-center rounded-full border border-[#ddd8e8] bg-white text-[#6c6878]"
+        disabled={activePage >= totalPages}
+        onClick={() => onPageChange(Math.min(totalPages, activePage + 1))}
+        className="grid h-9 w-9 place-items-center rounded-full border border-[#ddd8e8] bg-white text-[#6c6878] disabled:cursor-not-allowed disabled:opacity-40"
       >
         <ChevronRightIcon className="h-4 w-4" />
       </button>
