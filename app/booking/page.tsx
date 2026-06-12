@@ -1,10 +1,11 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { generateBookingId, saveBooking } from "../booking-store";
+import { servicePackages, type ServiceSlug } from "../services/service-data-fresh";
 
 const services = [
   {
@@ -20,7 +21,7 @@ const services = [
       { label: "Trên 80 người", extra: 4000000 },
     ],
     image:
-      "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=640&q=82",
+      "https://i.pinimg.com/736x/26/e9/6c/26e96c6c35a006344570ac3fdcb44c41.jpg",
   },
   {
     id: "portrait",
@@ -34,7 +35,7 @@ const services = [
       { label: "3-5 người", extra: 600000 },
     ],
     image:
-      "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=640&q=82",
+      "https://i.pinimg.com/736x/9d/4d/50/9d4d50b9b37526003d3a2ce6b799f907.jpg",
   },
   {
     id: "fashion",
@@ -62,7 +63,7 @@ const services = [
       { label: "6-10 người", extra: 1000000 },
     ],
     image:
-      "https://images.unsplash.com/photo-1523438885200-e635ba2c371e?auto=format&fit=crop&w=640&q=82",
+      "https://i.pinimg.com/736x/5b/59/1b/5b591b25939e47f8ef1e58e7d19ce2f1.jpg",
   },
   {
     id: "yearbook",
@@ -125,6 +126,108 @@ const services = [
       "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=640&q=82",
   },
 ];
+
+const serviceAliases: Record<string, string> = {
+  "chụp ảnh đơn": "portrait",
+  "ảnh đơn": "portrait",
+  portrait: "portrait",
+  "chụp ảnh cá nhân": "portrait",
+  "chân dung cá nhân": "portrait",
+  "chụp ảnh sự kiện": "event",
+  "ảnh sự kiện": "event",
+  "chụp ảnh kỷ yếu": "yearbook",
+  "chụp ảnh kỉ yếu": "yearbook",
+  "chụp ảnh ẩm thực": "product",
+  "ảnh ẩm thực": "product",
+  food: "product",
+};
+
+const bookingServiceBySlug: Record<ServiceSlug, string> = {
+  wedding: "wedding",
+  couple: "couple",
+  portrait: "portrait",
+  event: "event",
+  yearbook: "yearbook",
+  travel: "travel",
+  food: "product",
+};
+
+function resolveServiceId(serviceQuery: string) {
+  const normalizedService = serviceQuery.trim().toLowerCase();
+  if (!normalizedService) return null;
+
+  const aliasMatch = serviceAliases[normalizedService];
+  if (aliasMatch) return aliasMatch;
+
+  const matchedService = services.find(
+    (item) =>
+      item.id === normalizedService ||
+      item.name.toLowerCase() === normalizedService ||
+      item.name.toLowerCase().includes(normalizedService),
+  );
+
+  return matchedService?.id ?? null;
+}
+
+function getPhotographerServiceIds(photographerId: string) {
+  const ids = new Set(
+    servicePackages
+      .filter((item) => item.photographerId === photographerId)
+      .map((item) => bookingServiceBySlug[item.serviceSlug]),
+  );
+
+  return ids.size ? ids : new Set(services.map((item) => item.id));
+}
+
+const timeRanges = [
+  { id: "morning", name: "Sáng", label: "Sáng (07:00 - 11:30)", start: "07:00", end: "11:30" },
+  { id: "afternoon", name: "Chiều", label: "Chiều (13:00 - 17:30)", start: "13:00", end: "17:30" },
+  { id: "evening", name: "Tối", label: "Tối (18:00 - 21:00)", start: "18:00", end: "21:00" },
+];
+
+function timeToMinutes(time: string) {
+  const [hours = "0", minutes = "0"] = time.split(":");
+  return Number(hours) * 60 + Number(minutes);
+}
+
+function getTimeRangeId(time: string) {
+  if (timeRanges.some((range) => range.id === time)) return time;
+  const value = timeToMinutes(time);
+  return timeRanges.find((range) => value >= timeToMinutes(range.start) && value <= timeToMinutes(range.end))?.id ?? "";
+}
+
+function getTimeRangeLabel(rangeId: string) {
+  return timeRanges.find((range) => range.id === rangeId)?.label ?? "";
+}
+
+function formatDateKey(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function dateFromKey(dateKey: string) {
+  return new Date(`${dateKey}T00:00:00`);
+}
+
+function formatDayLabel(dateKey: string) {
+  return dateFromKey(dateKey).toLocaleDateString("vi-VN", {
+    day: "2-digit",
+    month: "2-digit",
+  });
+}
+
+function getFirstSlotForDateRange(
+  slots: Array<{ id: string; date: string; time: string; location: string; label: string }>,
+  date: string,
+  rangeId: string,
+  todayKey: string,
+) {
+  return [...slots]
+    .filter((slot) => slot.date === date && slot.date >= todayKey && getTimeRangeId(slot.time) === rangeId)
+    .sort((a, b) => a.time.localeCompare(b.time))[0] ?? null;
+}
 
 const contactChannels = ["Zalo", "Điện thoại", "Email"];
 
@@ -277,14 +380,29 @@ function BookingContent() {
   const photographerId = searchParams.get("photographer") || "studion-match";
   const serviceQuery = searchParams.get("service")?.trim() || "";
   const datesQuery = searchParams.get("dates")?.trim() || "";
-  const [selectedService, setSelectedService] = useState(services[0].id);
-  const [preferredServiceLabel, setPreferredServiceLabel] = useState<string | null>(null);
+  const todayKey = useMemo(() => formatDateKey(new Date()), []);
+  const initialShootDate = useMemo(() => {
+    const firstDate = datesQuery.split(",").find(Boolean);
+    return firstDate && firstDate >= todayKey ? firstDate : "";
+  }, [datesQuery, todayKey]);
+  const requestedServiceId = useMemo(() => resolveServiceId(serviceQuery), [serviceQuery]);
+  const availableServiceIds = useMemo(() => getPhotographerServiceIds(photographerId), [photographerId]);
+  const visibleServices = useMemo(
+    () => services.filter((item) => availableServiceIds.has(item.id)),
+    [availableServiceIds],
+  );
+  const initialServiceId =
+    requestedServiceId && availableServiceIds.has(requestedServiceId)
+      ? requestedServiceId
+      : visibleServices[0]?.id ?? services[0].id;
+  const [selectedService, setSelectedService] = useState(initialServiceId);
+  const preferredServiceLabel = serviceQuery && !requestedServiceId ? serviceQuery : null;
   const [peopleByService, setPeopleByService] = useState(() =>
     Object.fromEntries(services.map((item) => [item.id, item.peopleOptions[0].label])),
   );
   const [location, setLocation] = useState("Hồ Chí Minh");
-  const [shootDate, setShootDate] = useState("");
-  const [shootTime, setShootTime] = useState("09:00");
+  const [shootDate, setShootDate] = useState(initialShootDate);
+  const [shootTime, setShootTime] = useState("");
   const [budget, setBudget] = useState("5.000.000");
   const [scene, setScene] = useState(sceneOptions[0]);
   const [referenceFileName, setReferenceFileName] = useState("");
@@ -308,48 +426,9 @@ function BookingContent() {
       photographerProfiles[photographerProfiles.length - 1],
     [photographerId],
   );
+  const selectedTimeRangeId = getTimeRangeId(shootTime);
   const selectedSlot =
-    photographerProfile.availableSlots.find((slot) => slot.id === selectedSlotId) ||
-    photographerProfile.availableSlots[0];
-
-  useEffect(() => {
-    if (!serviceQuery) {
-      setPreferredServiceLabel(null);
-    } else {
-      const normalizedService = serviceQuery.toLowerCase();
-      const matchedService = services.find(
-        (item) =>
-          item.id === normalizedService ||
-          item.name.toLowerCase() === normalizedService ||
-          item.name.toLowerCase().includes(normalizedService),
-      );
-      if (matchedService) {
-        setSelectedService(matchedService.id);
-        setPreferredServiceLabel(null);
-      } else {
-        setPreferredServiceLabel(serviceQuery);
-      }
-    }
-  }, [serviceQuery]);
-
-  useEffect(() => {
-    if (!datesQuery) {
-      return;
-    }
-    const firstDate = datesQuery.split(",").find(Boolean);
-    if (firstDate) {
-      setShootDate(firstDate);
-    }
-  }, [datesQuery]);
-
-  useEffect(() => {
-    const matchingSlot = photographerProfile.availableSlots.find((slot) => slot.date === shootDate);
-    const nextSlot = matchingSlot ?? photographerProfile.availableSlots[0];
-    setSelectedSlotId(nextSlot.id);
-    setShootDate(nextSlot.date);
-    setShootTime(nextSlot.time);
-    setLocation(nextSlot.location);
-  }, [photographerProfile, shootDate]);
+    photographerProfile.availableSlots.find((slot) => slot.id === selectedSlotId) || null;
 
   const budgetValue = useMemo(() => parseBudget(budget), [budget]);
   const selectedPeopleScale = peopleByService[selectedService] || service.peopleOptions[0].label;
@@ -384,9 +463,17 @@ function BookingContent() {
   const addOnTotal = selectedAddOnsDetails.reduce((total, addOn) => total + addOn.price, 0);
   const selectedAddOnNames = selectedAddOnsDetails.map((item) => item.name);
   const estimatedTotal = service.basePrice + selectedPeopleOption.extra + addOnTotal;
+  const selectedTimeRangeLabel = getTimeRangeLabel(selectedTimeRangeId);
+  const selectedScheduleLabel =
+    shootDate && selectedTimeRangeLabel
+      ? `${formatDayLabel(shootDate)} · ${selectedTimeRangeLabel}`
+      : "";
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!shootDate || !selectedTimeRangeId) {
+      return;
+    }
 
     const bookingId = generateBookingId();
     saveBooking({
@@ -398,11 +485,11 @@ function BookingContent() {
       basePrice: service.basePrice,
       photographerId,
       photographerName: photographerProfile.name,
-      availabilitySlotId: selectedSlot.id,
-      availabilitySlotLabel: selectedSlot.label,
+      availabilitySlotId: selectedSlot?.id ?? `${photographerId}-${shootDate}-${selectedTimeRangeId}`,
+      availabilitySlotLabel: selectedSlot?.label ?? selectedScheduleLabel,
       location,
       shootDate,
-      shootTime,
+      shootTime: selectedTimeRangeLabel || shootTime,
       peopleScale: selectedPeopleScale,
       peopleExtra: selectedPeopleOption.extra,
       scene,
@@ -432,6 +519,7 @@ function BookingContent() {
 
   const depositAmount = Math.round(estimatedTotal * 0.5);
   const remainingAmount = estimatedTotal - depositAmount;
+  const canSubmit = Boolean(shootDate && selectedTimeRangeId);
 
   const toggleAddOn = (id: string) => {
     setSelectedAddOns((current) =>
@@ -477,7 +565,7 @@ function BookingContent() {
               </div>
 
               <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                {services.map((item, index) => {
+                {visibleServices.map((item, index) => {
                   const active = item.id === selectedService;
 
                   return (
@@ -552,42 +640,19 @@ function BookingContent() {
                 Chọn lịch rảnh
               </h2>
               <p className="mt-2 text-[13px] font-semibold leading-6 text-[#6b7280]">
-                Đây là các khung giờ {photographerProfile.name} còn trống. Chọn một lịch để giữ slot trước khi thanh toán.
+                Chọn ngày bằng ô lịch bên dưới, có thể chuyển sang tháng sau hoặc các tháng tiếp theo. Ngày đã qua sẽ không chọn được.
               </p>
 
-              <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                {photographerProfile.availableSlots.map((slot) => {
-                  const active = slot.id === selectedSlot.id;
-
-                  return (
-                    <button
-                      key={slot.id}
-                      type="button"
-                      onClick={() => {
-                        setSelectedSlotId(slot.id);
-                        setShootDate(slot.date);
-                        setShootTime(slot.time);
-                        setLocation(slot.location);
-                      }}
-                      className={`rounded-[14px] border px-4 py-4 text-left transition-all ${
-                        active
-                          ? "border-[#ff8d28] bg-[#fff7ef] shadow-[0_10px_24px_rgba(255,141,40,0.12)]"
-                          : "border-[#e8eaf1] bg-white hover:border-[#ffcfaa]"
-                      }`}
-                      aria-pressed={active}
-                    >
-                      <span className="block text-[15px] font-black text-[#0e111d]">
-                        {slot.label}
-                      </span>
-                      <span className="mt-2 block text-[12px] font-bold text-[#ff8d28]">
-                        Còn trống
-                      </span>
-                      <span className="mt-1 block text-[12px] font-semibold leading-5 text-[#6b7280]">
-                        {slot.location}
-                      </span>
-                    </button>
-                  );
-                })}
+              <div className="mt-5 rounded-[14px] border border-[#e8eaf1] bg-[#fafbfc] px-4 py-3">
+                {shootDate && selectedTimeRangeId ? (
+                  <p className="text-[12px] font-semibold leading-5 text-[#6b7280]">
+                    Lịch đang chọn: <span className="font-black text-[#0e111d]">{formatDayLabel(shootDate)}</span> · {getTimeRangeLabel(selectedTimeRangeId)}
+                  </p>
+                ) : (
+                  <p className="text-[12px] font-semibold leading-5 text-[#b45309]">
+                    Chọn ngày chụp và khung giờ để tiếp tục.
+                  </p>
+                )}
               </div>
 
               <div className="mt-5 grid gap-4 sm:grid-cols-2">
@@ -595,10 +660,43 @@ function BookingContent() {
                   <input value={location} onChange={(event) => setLocation(event.target.value)} placeholder="Ví dụ: Đà Lạt" />
                 </Field>
                 <Field label="Ngày chụp">
-                  <input type="date" value={shootDate} onChange={(event) => setShootDate(event.target.value)} />
+                  <input
+                    type="date"
+                    min={todayKey}
+                    value={shootDate}
+                    onChange={(event) => {
+                      const nextDate = event.target.value;
+                      setShootDate(nextDate);
+                      setSelectedSlotId("");
+                    }}
+                  />
                 </Field>
                 <Field label="Khung giờ">
-                  <input type="time" value={shootTime} onChange={(event) => setShootTime(event.target.value)} />
+                  <select
+                    value={selectedTimeRangeId}
+                    disabled={!shootDate}
+                    onChange={(event) => {
+                      const nextRangeId = event.target.value;
+                      const nextSlot = getFirstSlotForDateRange(
+                        photographerProfile.availableSlots,
+                        shootDate,
+                        nextRangeId,
+                        todayKey,
+                      );
+                      setShootTime(nextRangeId);
+                      setSelectedSlotId(nextSlot?.id ?? "");
+                      if (nextSlot) setLocation(nextSlot.location);
+                    }}
+                  >
+                    <option value="" disabled>
+                      Chọn khung giờ
+                    </option>
+                    {timeRanges.map((range) => (
+                      <option key={range.id} value={range.id}>
+                        {range.label}
+                      </option>
+                    ))}
+                  </select>
                 </Field>
                 <Field label="Ngân sách dự kiến">
                   <input value={budget} onChange={(event) => setBudget(event.target.value)} placeholder="5.000.000" />
@@ -778,7 +876,7 @@ function BookingContent() {
               <SummaryRow label="Giá cơ bản" value={formatCurrency(service.basePrice)} />
               <SummaryRow label="Địa điểm" value={location || "Chưa chọn"} />
               <SummaryRow label="Ngày chụp" value={shootDate || "Chưa chọn"} />
-              <SummaryRow label="Khung giờ" value={shootTime || "Chưa chọn"} />
+              <SummaryRow label="Khung giờ" value={selectedTimeRangeLabel || "Chưa chọn"} />
               <SummaryRow label="Quy mô" value={selectedPeopleScale} />
               <SummaryRow label="Phụ phí quy mô" value={formatCurrency(selectedPeopleOption.extra)} />
               <SummaryRow label="Tạm tính" value={formatCurrency(estimatedTotal)} />
@@ -837,7 +935,8 @@ function BookingContent() {
             </div>
             <button
                 type="submit"
-                className="w-full rounded-lg bg-[#ff8d28] px-5 py-3.5 text-[14px] font-extrabold text-white shadow-[0_8px_18px_rgba(255,141,40,0.18)] transition-all hover:translate-y-[-1px] hover:bg-[#e0751b]"
+                disabled={!canSubmit}
+                className="w-full rounded-lg bg-[#ff8d28] px-5 py-3.5 text-[14px] font-extrabold text-white shadow-[0_8px_18px_rgba(255,141,40,0.18)] transition-all hover:translate-y-[-1px] hover:bg-[#e0751b] disabled:cursor-not-allowed disabled:bg-[#d0d5dd] disabled:shadow-none disabled:hover:translate-y-0"
               >
                 Gửi yêu cầu đặt lịch
               </button>

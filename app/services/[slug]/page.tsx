@@ -150,7 +150,7 @@ function ServiceListingPage({
         <div className={`${containerClass} grid gap-10 py-14 lg:grid-cols-[1.05fr_0.85fr] lg:items-center lg:gap-14 lg:py-16`}>
           <div className="pt-2">
             <div className="flex items-center gap-3 text-[12px] font-semibold text-[#667085]" style={fadeUpStyle(isReady, 0)}>
-              <Link href="/" className="hover:text-[#ff8d28]">🏠</Link>
+              <Link href="/" className="hover:text-[#ff8d28]">Trang chủ</Link>
               <span>|</span>
               <Link href="/services" className="hover:text-[#ff8d28]">Dịch vụ</Link>
               <span>›</span>
@@ -236,7 +236,7 @@ function ServiceListingPage({
               item={item}
               isReady={isReady}
               revealDelay={120 + index * 90}
-              serviceTitle={serviceTitle}
+              serviceSlug={serviceSlug}
             />
           ))}
         </div>
@@ -313,13 +313,15 @@ function TopFilter({
   options: string[];
   onChange: (v: string) => void;
 }) {
+  const selectWidth = label === "Giá" ? "w-[132px] sm:w-[188px]" : "w-[112px] sm:w-[132px]";
+
   return (
-    <div className="flex items-center gap-1.5 rounded-full border border-[#e5e7ef] bg-white px-3 py-1.5">
-      <span className="text-[11px] font-black uppercase tracking-wide text-[#98a2b3]">{label}:</span>
+    <div className="flex h-10 items-center gap-2 rounded-full border border-[#e5e7ef] bg-white px-2.5 shadow-sm">
+      <span className="shrink-0 whitespace-nowrap text-[10px] font-black uppercase leading-none tracking-wide text-[#98a2b3]">{label}:</span>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="border-0 bg-transparent text-[12px] font-bold text-[#0e111d] outline-none"
+        className={`${selectWidth} !min-h-0 !border-0 !bg-transparent !p-0 text-[12px] font-bold leading-none text-[#0e111d] outline-none !shadow-none`}
       >
         {options.map((o) => <option key={o} value={o}>{o}</option>)}
       </select>
@@ -331,12 +333,12 @@ function PortraitResultCard({
   isReady,
   item,
   revealDelay,
-  serviceTitle,
+  serviceSlug,
 }: {
   isReady: boolean;
   item: ServicePackage;
   revealDelay: number;
-  serviceTitle: string;
+  serviceSlug: ServiceSlug;
 }) {
   const detailRows = [
     item.duration,
@@ -375,12 +377,15 @@ function PortraitResultCard({
           <div>
             <h3 className="text-[20px] font-black leading-tight text-[#0e111d]">{item.photographerName}</h3>
             <p className="mt-1 text-[13px] font-bold text-[#ff8d28]">{item.packageName}</p>
-            <p className="mt-1 flex items-center gap-1 text-[12px] font-medium text-[#344054]">
-              📍 {item.location} ({item.distanceKm.toFixed(1)}km)
-            </p>
+            {/* <p className="mt-1 flex items-center gap-1 text-[12px] font-medium text-[#344054]">
+             {item.location} ({item.distanceKm.toFixed(1)}km)
+            </p> */}
           </div>
           <div className="shrink-0 text-right">
             <p className="text-[15px] font-black text-[#ff8d28]">Từ {formatVnd(item.price).replace(" VND", "đ")}</p>
+             <p className="mt-1 flex items-center gap-1 text-[12px] font-medium text-[#344054]">
+             {item.location} ({item.distanceKm.toFixed(1)}km)
+            </p>
           </div>
         </div>
 
@@ -406,7 +411,7 @@ function PortraitResultCard({
             Xem profile
           </Link>
           <Link
-            href={`/booking?photographer=${item.photographerId}&service=${encodeURIComponent(serviceTitle)}`}
+            href={`/booking?photographer=${item.photographerId}&service=${encodeURIComponent(serviceSlug)}`}
             className="rounded-lg bg-[#ff8d28] px-3 py-2.5 text-center text-[12px] font-black text-white shadow-[0_10px_22px_rgba(255,141,40,0.2)] transition hover:bg-[#e0751b]"
           >
             Xem gói dịch vụ
