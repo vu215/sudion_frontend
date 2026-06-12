@@ -66,6 +66,17 @@ img {
 [data-reveal] {
   --reveal-y: 48px;
   --reveal-scale: 0.98;
+  opacity: 0;
+  transform: translate3d(0, var(--reveal-y), 0) scale(var(--reveal-scale));
+  transition:
+    opacity 1100ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 1100ms cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+}
+
+[data-reveal].is-visible {
+  opacity: 1;
+  transform: translate3d(0, 0, 0) scale(1);
 }
 
 [data-reveal].reveal-complete {
@@ -1377,4 +1388,23 @@ textarea:focus {
   border-color: #ff8d28;
   background: #ffffff;
   box-shadow: 0 0 0 4px rgba(255, 141, 40, 0.14);
+}
+
+@media (max-width: 639px) {
+  .booking-panel,
+  .booking-summary {
+    scroll-margin-top: 84px;
+  }
+
+  .booking-field input,
+  .booking-field select,
+  .booking-field textarea {
+    min-height: 48px;
+    border-radius: 11px;
+    font-size: 16px;
+  }
+
+  .booking-field select {
+    padding-right: 32px;
+  }
 }
