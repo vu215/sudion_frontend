@@ -101,9 +101,9 @@ export const serviceCategories: ServiceCategory[] = [
     startingPrice: "Từ 2.000.000 VND",
     photographerCount: "760+ photographer",
     heroImage:
-      "https://i.pinimg.com/736x/1d/0a/4a/1d0a4a4a3bbf8fd0568c20b7d6a1f2ab.jpg",
+      "https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=1200&q=80&fit=crop",
     accentImage:
-      "https://i.pinimg.com/736x/44/ee/3b/44ee3b7abf5a27906fd22d7c1f61f9fd.jpg",
+      "https://images.unsplash.com/photo-1505373877841-8d25f7d46678?w=640&q=80&fit=crop",
     tags: ["Sự kiện", "Hội nghị", "Phóng sự", "Live", "Truyền thông"],
     mood: "Năng động, sôi nổi, chuyên nghiệp",
   },
@@ -119,9 +119,9 @@ export const serviceCategories: ServiceCategory[] = [
     startingPrice: "Từ 1.200.000 VND",
     photographerCount: "520+ photographer",
     heroImage:
-      "https://i.pinimg.com/736x/78/84/b7/7884b7e095b89dff3339ef8465aa19d1.jpg",
+      "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=1200&q=80&fit=crop",
     accentImage:
-      "https://i.pinimg.com/736x/d8/f6/b0/d8f6b0881d32c8940b8b74f42b4d6f27.jpg",
+      "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=640&q=80&fit=crop",
     tags: ["Kỷ yếu", "Tốt nghiệp", "Nhóm bạn", "Trang phục", "Sáng tạo"],
     mood: "Tươi trẻ, thân mật, đầy hoài niệm",
   },
@@ -137,9 +137,9 @@ export const serviceCategories: ServiceCategory[] = [
     startingPrice: "Từ 1.800.000 VND",
     photographerCount: "630+ photographer",
     heroImage:
-      "https://i.pinimg.com/736x/24/3f/f0/243ff0492bd974d86836f9f0e30b1a14.jpg",
+      "https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=1200&q=80&fit=crop",
     accentImage:
-      "https://i.pinimg.com/736x/33/f0/45/33f0459e8510f90f14e7a7dd9bb0517b.jpg",
+      "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=640&q=80&fit=crop",
     tags: ["Ngoại cảnh", "Lifestyle", "Phiêu lưu", "Cảnh đẹp", "Story"],
     mood: "Phiêu lưu, phóng khoáng, sáng tạo",
   },
@@ -155,9 +155,9 @@ export const serviceCategories: ServiceCategory[] = [
     startingPrice: "Từ 1.500.000 VND",
     photographerCount: "410+ photographer",
     heroImage:
-      "https://i.pinimg.com/736x/21/c7/d5/21c7d5a3176e53860c34b3f0dab7c5f5.jpg",
+      "https://images.unsplash.com/photo-1504674900247-0877df9cc836",
     accentImage:
-      "https://i.pinimg.com/736x/ae/1c/57/ae1c577d9ed8e656c402bb16d9f17586.jpg",
+      "https://images.unsplash.com/photo-1512621776951-a57141f2eefd",
     tags: ["Ẩm thực", "Food styling", "Menu", "Editorial", "Fine dining"],
     mood: "Tinh tế, ngon mắt, sang trọng",
   },
@@ -394,10 +394,10 @@ export const servicePackages: ServicePackage[] = [
     addOns: ["Video", "Retouch", "Flycam"],
     nextSlot: "20/06 - 10:00",
     image:
-      "https://i.pinimg.com/736x/31/2d/5e/312d5ec3c6d1f5ae14c9fd3c3c1a2f60.jpg",
+      "https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&q=80&fit=crop",
     portfolioImages: [
-      "https://i.pinimg.com/736x/44/7e/bf/447ebfcdec3d3297ee4ef83f1b59e263.jpg",
-      "https://i.pinimg.com/736x/6b/40/c2/6b40c200d3b4a68f9b9a7cd9167f2f38.jpg",
+      "https://images.unsplash.com/photo-1505373877841-8d25f7d46678?w=400&q=80&fit=crop",
+      "https://images.unsplash.com/photo-1531058020387-3be344556be6?w=400&q=80&fit=crop",
     ],
   },
   {
@@ -415,10 +415,10 @@ export const servicePackages: ServicePackage[] = [
     addOns: ["Live", "Phóng sự", "Retouch"],
     nextSlot: "21/06 - 09:00",
     image:
-      "https://i.pinimg.com/736x/e2/1c/3d/e21c3d0a7c8d02b26a9ae9d788ce4ac6.jpg",
+      "https://images.unsplash.com/photo-1475721027785-f74eccf877e2?w=800&q=80&fit=crop",
     portfolioImages: [
-      "https://i.pinimg.com/736x/4a/d7/ef/4ad7ef07f51618e007b6c83254c9826d.jpg",
-      "https://i.pinimg.com/736x/83/8c/58/838c5873b90f1c1eebbe3d3f2f2d67a1.jpg",
+      "https://images.unsplash.com/photo-1587825140708-dfaf72ae4b04?w=400&q=80&fit=crop",
+      "https://images.unsplash.com/photo-1523580494863-6f3031224c94?w=400&q=80&fit=crop",
     ],
   },
   {
@@ -436,10 +436,10 @@ export const servicePackages: ServicePackage[] = [
     addOns: ["Video", "Flycam", "Album"],
     nextSlot: "24/06 - 14:00",
     image:
-      "https://i.pinimg.com/736x/7f/18/8b/7f188b77cf6642791f5a2e1cadc2682b.jpg",
+      "https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=800&q=80&fit=crop",
     portfolioImages: [
-      "https://i.pinimg.com/736x/8b/9d/7a/8b9d7a4ead5b29af7c8ee2f7b2ae6d10.jpg",
-      "https://i.pinimg.com/736x/29/0f/18/290f186879ee65b988357cb8f72e766b.jpg",
+      "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=400&q=80&fit=crop",
+      "https://images.unsplash.com/photo-1511578314322-379afb476865?w=400&q=80&fit=crop",
     ],
   },
   {
@@ -457,10 +457,10 @@ export const servicePackages: ServicePackage[] = [
     addOns: ["Concept", "Retouch", "Studio"],
     nextSlot: "22/06 - 14:00",
     image:
-      "https://i.pinimg.com/736x/e7/1c/05/e71c05c782b25b341342e2604cc3d6d0.jpg",
+      "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=800&q=80&fit=crop",
     portfolioImages: [
-      "https://i.pinimg.com/736x/70/b0/0d/70b00d9de7438031a7a8a5796e3ba325.jpg",
-      "https://i.pinimg.com/736x/f7/df/23/f7df230c7a5b1df0e72f5244d7fb9a02.jpg",
+      "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=400&q=80&fit=crop",
+      "https://images.unsplash.com/photo-1580582932707-520aed937b7b?w=400&q=80&fit=crop",
     ],
   },
   {
@@ -478,10 +478,10 @@ export const servicePackages: ServicePackage[] = [
     addOns: ["Makeup", "Concept", "Album"],
     nextSlot: "25/06 - 10:00",
     image:
-      "https://i.pinimg.com/736x/66/92/1a/66921aae805f8f1bdf1f15f64c05a7f5.jpg",
+      "https://images.unsplash.com/photo-1546410531-bb4caa6b424d?w=800&q=80&fit=crop",
     portfolioImages: [
-      "https://i.pinimg.com/736x/18/28/45/1828454dc5d7b8da56a7b0f1cee11922.jpg",
-      "https://i.pinimg.com/736x/92/ab/89/92ab892b5f8e7ef0ec7e1e070e742a0f.jpg",
+      "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=400&q=80&fit=crop",
+      "https://images.unsplash.com/photo-1497633762265-9d179a990aa6?w=400&q=80&fit=crop",
     ],
   },
   {
@@ -499,10 +499,10 @@ export const servicePackages: ServicePackage[] = [
     addOns: ["Album", "Retouch", "Studio"],
     nextSlot: "26/06 - 08:30",
     image:
-      "https://i.pinimg.com/736x/3a/8b/25/3a8b2580b2c7e1b8c7aad1e0e6253ef3.jpg",
+      "https://images.unsplash.com/photo-1509062522246-3755977927d7?w=800&q=80&fit=crop",
     portfolioImages: [
-      "https://i.pinimg.com/736x/72/d4/cd/72d4cdd925b109b31fda7cdb77cc1e74.jpg",
-      "https://i.pinimg.com/736x/4e/77/42/4e7742cc92983bd8f0deec0bdbf1e624.jpg",
+      "https://images.unsplash.com/photo-1627556704302-624286467c65?w=400&q=80&fit=crop",
+      "https://images.unsplash.com/photo-1523580494863-6f3031224c94?w=400&q=80&fit=crop",
     ],
   },
   {
@@ -520,10 +520,10 @@ export const servicePackages: ServicePackage[] = [
     addOns: ["Concept", "Retouch", "Flycam"],
     nextSlot: "18/06 - 08:30",
     image:
-      "https://i.pinimg.com/736x/9e/e6/f7/9ee6f758266d6d8e6ce28e8a4cb9bf1c.jpg",
+      "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&q=80&fit=crop",
     portfolioImages: [
-      "https://i.pinimg.com/736x/7f/0c/9e/7f0c9e2c3f7b0a47f9f3c3b10c28f8c3.jpg",
-      "https://i.pinimg.com/736x/2f/8b/43/2f8b435c8e6b0b4ad5ec9b1a9a3e0d14.jpg",
+      "https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=400&q=80&fit=crop",
+      "https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=400&q=80&fit=crop",
     ],
   },
   {
@@ -541,10 +541,10 @@ export const servicePackages: ServicePackage[] = [
     addOns: ["Lifestyle", "Retouch", "Flycam"],
     nextSlot: "24/06 - 09:00",
     image:
-      "https://i.pinimg.com/736x/2e/3d/0a/2e3d0a7a04f5bb6cd834b9d6f6e2b7c4.jpg",
+      "https://images.unsplash.com/photo-1501854140801-50d01698950b?w=800&q=80&fit=crop",
     portfolioImages: [
-      "https://i.pinimg.com/736x/9b/5f/0c/9b5f0cc428c1dd2b4d9f9a83b34dab70.jpg",
-      "https://i.pinimg.com/736x/0f/20/af/0f20af2d9b8f8a1dfeb19c4cd1062c8f.jpg",
+      "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?w=400&q=80&fit=crop",
+      "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&q=80&fit=crop",
     ],
   },
   {
@@ -562,10 +562,10 @@ export const servicePackages: ServicePackage[] = [
     addOns: ["Concept", "Retouch", "Nature"],
     nextSlot: "23/06 - 08:30",
     image:
-      "https://i.pinimg.com/736x/68/f9/4d/68f94db71a89f314d7af9d5c0310f7f8.jpg",
+      "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=800&q=80&fit=crop",
     portfolioImages: [
-      "https://i.pinimg.com/736x/f4/85/78/f4857886723d9cd4385a797ab6af1457.jpg",
-      "https://i.pinimg.com/736x/95/e8/14/95e8142f8d75ac00cb0e1cc2ef57574b.jpg",
+      "https://images.unsplash.com/photo-1519681393784-d120267933ba?w=400&q=80&fit=crop",
+      "https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=400&q=80&fit=crop",
     ],
   },
   {
@@ -582,11 +582,10 @@ export const servicePackages: ServicePackage[] = [
     duration: "2.5 giờ",
     addOns: ["Studio", "Retouch", "Concept"],
     nextSlot: "19/06 - 11:00",
-    image:
-      "https://i.pinimg.com/736x/0d/a5/10/0da5100ed0c9f2df105f7b82d2d1d838.jpg",
+    image: "https://images.unsplash.com/photo-1504674900247-0877df9cc836",
     portfolioImages: [
-      "https://i.pinimg.com/736x/31/ef/1b/31ef1b07d99056f4bfb7d24b0d69f6c4.jpg",
-      "https://i.pinimg.com/736x/b9/8a/8d/b98a8d78e5f8f0a7bb73903d0a3ec3c9.jpg",
+      "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38",
+      "https://images.unsplash.com/photo-1482049016688-2d3e1b311543",
     ],
   },
   {
@@ -603,11 +602,10 @@ export const servicePackages: ServicePackage[] = [
     duration: "3 giờ",
     addOns: ["Food styling", "Retouch", "Studio"],
     nextSlot: "21/06 - 10:30",
-    image:
-      "https://i.pinimg.com/736x/84/3a/41/843a4117b7d35f4ee891b2dd6d2d3575.jpg",
+    image: "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38",
     portfolioImages: [
-      "https://i.pinimg.com/736x/db/0e/14/db0e14e2d04f45d9e8a873e8b3cf0b4a.jpg",
-      "https://i.pinimg.com/736x/68/d1/ee/68d1eea818f3eb0e2d2362681a8a80ed.jpg",
+      "https://images.unsplash.com/photo-1504674900247-0877df9cc836",
+      "https://images.unsplash.com/photo-1467003909585-2f8a72700288",
     ],
   },
   {
@@ -624,11 +622,10 @@ export const servicePackages: ServicePackage[] = [
     duration: "3 giờ",
     addOns: ["Food styling", "Retouch", "Editorial"],
     nextSlot: "23/06 - 09:00",
-    image:
-      "https://i.pinimg.com/736x/4f/1a/4d/4f1a4d66f2d196be9ae36a68c3caef35.jpg",
+    image: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd",
     portfolioImages: [
-      "https://i.pinimg.com/736x/7f/f0/77/7ff0773028ad0e74ee3a38818af5a171.jpg",
-      "https://i.pinimg.com/736x/28/cd/63/28cd63af288543d8e5a59c2cf31177c0.jpg",
+      "https://images.unsplash.com/photo-1490645935967-10de6ba17061",
+      "https://images.unsplash.com/photo-1543353071-873f17a7a088",
     ],
   },
 ];
