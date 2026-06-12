@@ -11,42 +11,46 @@ const services = [
   {
     id: "wedding",
     name: "Chụp ảnh cưới",
-    price: "Từ 5.000.000 VND",
+    price: " 5.000.000 VND",
     basePrice: 5000000,
-    duration: "Nửa ngày - cả ngày",
     peopleOptions: [
-      { label: "2-10 người", extra: 0 },
-      { label: "11-30 người", extra: 1200000 },
-      { label: "31-80 người", extra: 2500000 },
-      { label: "Trên 80 người", extra: 4000000 },
+      { label: "Pre-Wedding - Cơ bản", price: 5000000 },
+      { label: "Pre-Wedding - Tiêu chuẩn", price: 8000000 },
+      { label: "Pre-Wedding - Cao cấp", price: 12000000 },
+      { label: "Pre-Wedding - Premium", price: 20000000, priceLabel: "20.000.000+ VND" },
+      { label: "Ăn hỏi - Cơ bản", price: 3000000 },
+      { label: "Ăn hỏi - Tiêu chuẩn", price: 5000000 },
+      { label: "Ăn hỏi - Cao cấp", price: 8000000 },
+      { label: "Lễ cưới - Cơ bản", price: 5000000 },
+      { label: "Lễ cưới - Tiêu chuẩn", price: 8000000 },
+      { label: "Lễ cưới - Cao cấp", price: 12000000 },
+      { label: "Tiệc cưới - Dưới 100 khách", price: 5000000 },
+      { label: "Tiệc cưới - 100-300 khách", price: 8000000 },
+      { label: "Tiệc cưới - Trên 300 khách", price: 12000000, priceLabel: "12.000.000+ VND" },
     ],
     image:
       "https://i.pinimg.com/736x/26/e9/6c/26e96c6c35a006344570ac3fdcb44c41.jpg",
   },
   {
     id: "portrait",
-    name: "Chân dung cá nhân (Portrait)",
-    price: "Từ 2.500.000 VND",
+    name: "Chụp ảnh đơn",
+    price: " 2.500.000 VND",
     basePrice: 2500000,
-    duration: "Studio hoặc ngoại cảnh",
     peopleOptions: [
-      { label: "1 người", extra: 0 },
-      { label: "2 người", extra: 300000 },
-      { label: "3-5 người", extra: 600000 },
+      { label: "1 người", price: 2500000 },
     ],
     image:
       "https://i.pinimg.com/736x/9d/4d/50/9d4d50b9b37526003d3a2ce6b799f907.jpg",
   },
   {
     id: "fashion",
-    name: "Thời trang thương mại (Fashion)",
-    price: "Từ 5.000.000 VND",
-    basePrice: 5000000,
-    duration: "Lookbook thương hiệu",
+    name: "Fashion",
+    price: "2.500.000 VND",
+    basePrice: 2500000,
     peopleOptions: [
-      { label: "1 người", extra: 0 },
-      { label: "2-4 người", extra: 600000 },
-      { label: "5-10 người", extra: 1200000 },
+      { label: "1 mẫu", price: 2500000 },
+      { label: "2-4 mẫu", price: 4000000 },
+      { label: "5+ mẫu", price: 6000000 },
     ],
     image:
       "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=640&q=82",
@@ -54,13 +58,10 @@ const services = [
   {
     id: "couple",
     name: "Chụp ảnh đôi",
-    price: "Từ 1.500.000 VND",
+    price: " 1.500.000 VND",
     basePrice: 1500000,
-    duration: "2 - 3 giờ",
     peopleOptions: [
-      { label: "2 người", extra: 0 },
-      { label: "3-5 người", extra: 500000 },
-      { label: "6-10 người", extra: 1000000 },
+      { label: "2 người", price: 1500000 },
     ],
     image:
       "https://i.pinimg.com/736x/5b/59/1b/5b591b25939e47f8ef1e58e7d19ce2f1.jpg",
@@ -70,42 +71,39 @@ const services = [
     name: "Chụp kỉ yếu",
     price: "Từ 2.000.000 VND",
     basePrice: 2000000,
-    duration: "Theo lớp/nhóm",
     peopleOptions: [
-      { label: "10-20 người", extra: 0 },
-      { label: "21-40 người", extra: 800000 },
-      { label: "41-60 người", extra: 1600000 },
-      { label: "Trên 60 người", extra: 2600000 },
+      { label: "10-20 người", price: 2000000 },
+      { label: "21-40 người", price: 2800000 },
+      { label: "41-60 người", price: 3600000 },
+      { label: "60+ người", price: 4600000 },
     ],
     image:
       "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&w=640&q=82",
   },
   {
     id: "event",
-    name: "Chụp sự kiện",
-    price: "Từ 1.000.000 VND/giờ",
+    name: "Sự kiện",
+    price: " 1.000.000 VND/giờ",
     basePrice: 1000000,
-    duration: "Theo giờ",
     peopleOptions: [
-      { label: "Dưới 30 khách", extra: 0 },
-      { label: "30-80 khách", extra: 700000 },
-      { label: "80-150 khách", extra: 1500000 },
-      { label: "Trên 150 khách", extra: 2800000 },
+      { label: "Dưới 30 khách", price: 1000000 },
+      { label: "30-80 khách", price: 1700000 },
+      { label: "80-150 khách", price: 2500000 },
+      { label: "150+ khách", price: 3800000 },
     ],
     image:
       "https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=640&q=82",
   },
   {
     id: "product",
-    name: "Food & product",
-    price: "Từ 1.200.000 VND/concept",
-    basePrice: 1200000,
-    duration: "Theo concept",
+    name: "Food & Product",
+    price: " 1.500.000 VND/concept",
+    basePrice: 1500000,
     peopleOptions: [
-      { label: "1-5 sản phẩm", extra: 0 },
-      { label: "6-15 sản phẩm", extra: 600000 },
-      { label: "16-30 sản phẩm", extra: 1400000 },
-      { label: "Trên 30 sản phẩm", extra: 2400000 },
+      { label: "1-5 sản phẩm", price: 1500000 },
+      { label: "6-15 sản phẩm", price: 3000000 },
+      { label: "16-30 sản phẩm", price: 5000000 },
+      { label: "30+ sản phẩm - Liên hệ", price: 5000000, priceLabel: "Liên hệ" },
     ],
     image:
       "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=640&q=82",
@@ -113,14 +111,13 @@ const services = [
   {
     id: "travel",
     name: "Chụp travel",
-    price: "Từ 1.200.000 VND",
-    basePrice: 1200000,
-    duration: "Theo lịch trình",
+    price: " 2.000.000 VND",
+    basePrice: 2000000,
     peopleOptions: [
-      { label: "1 người", extra: 0 },
-      { label: "2 người", extra: 300000 },
-      { label: "3-6 người", extra: 900000 },
-      { label: "Nhóm trên 6 người", extra: 1800000 },
+      { label: "1 người", price: 2000000 },
+      { label: "2 người", price: 2500000 },
+      { label: "3-6 người", price: 3500000 },
+      { label: "Trên 6 người", price: 5000000 },
     ],
     image:
       "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=640&q=82",
@@ -315,46 +312,204 @@ const photographerProfiles = [
 
 const addOnServices = [
   {
-    id: "makeup",
+    id: "wedding-makeup",
+    name: "Makeup cô dâu",
+    note: "Makeup cho gói cưới",
+    priceLabel: "1.000.000 - 3.000.000 VND",
+    minBudget: 1000000,
+    services: ["wedding"],
+  },
+  {
+    id: "fashion-makeup",
     name: "Makeup",
-    note: "Artist đi cùng buổi chụp",
-    minBudget: 1500000,
-    services: ["wedding", "couple", "yearbook", "event", "travel"],
+    note: "Makeup cho buổi chụp fashion",
+    priceLabel: "500.000 - 1.500.000 VND",
+    minBudget: 500000,
+    services: ["fashion"],
   },
   {
-    id: "video",
-    name: "Video highlight",
-    note: "Clip ngắn hậu kỳ",
-    minBudget: 2500000,
-    services: ["wedding", "couple", "yearbook", "event", "travel"],
+    id: "travel-makeup",
+    name: "Makeup",
+    note: "Makeup cho buổi chụp travel",
+    priceLabel: "500.000 - 1.200.000 VND",
+    minBudget: 500000,
+    services: ["travel"],
   },
   {
-    id: "flycam",
+    id: "wedding-video",
+    name: "Quay phim",
+    note: "Quay phim cho gói cưới",
+    priceLabel: "2.000.000 - 10.000.000 VND",
+    minBudget: 2000000,
+    services: ["wedding"],
+  },
+  {
+    id: "product-video",
+    name: "Video ngắn sản phẩm",
+    note: "Video ngắn cho sản phẩm",
+    priceLabel: "500.000 - 2.000.000 VND",
+    minBudget: 500000,
+    services: ["product"],
+  },
+  {
+    id: "fashion-video",
+    name: "Quay video lookbook",
+    note: "Video lookbook cho fashion",
+    priceLabel: "2.000.000 - 10.000.000 VND",
+    minBudget: 2000000,
+    services: ["fashion"],
+  },
+  {
+    id: "wedding-flycam",
     name: "Flycam",
-    note: "Góc quay/chụp từ trên cao",
-    minBudget: 5000000,
-    services: ["wedding", "event", "travel"],
+    note: "Flycam cho gói cưới",
+    priceLabel: "1.000.000 - 3.000.000 VND",
+    minBudget: 1000000,
+    services: ["wedding"],
+  },
+  {
+    id: "travel-flycam",
+    name: "Flycam",
+    note: "Flycam cho lịch trình travel",
+    priceLabel: "800.000 - 1.500.000 VND",
+    minBudget: 800000,
+    services: ["travel"],
   },
   {
     id: "album",
     name: "Album in ấn",
     note: "Thiết kế và in album",
-    minBudget: 3000000,
-    services: ["wedding", "couple", "yearbook", "travel"],
+    priceLabel: "1.500.000 - 5.000.000 VND",
+    minBudget: 1500000,
+    services: ["wedding"],
   },
   {
-    id: "retouch",
-    name: "Retouch nâng cao",
-    note: "Chỉnh sửa chi tiết hơn",
-    minBudget: 1200000,
-    services: ["wedding", "couple", "yearbook", "event", "product", "travel"],
+    id: "travel-retouch",
+    name: "Chỉnh sửa ảnh nâng cao",
+    note: "Tính theo ảnh travel",
+    priceLabel: "50.000 - 100.000 VND/ảnh",
+    minBudget: 50000,
+    services: ["travel"],
   },
   {
-    id: "stylist",
-    name: "Stylist",
-    note: "Hỗ trợ concept/trang phục",
-    minBudget: 4000000,
-    services: ["wedding", "couple", "product", "travel"],
+    id: "product-retouch",
+    name: "Retouch cao cấp",
+    note: "Tính theo ảnh sản phẩm",
+    priceLabel: "50.000 - 200.000 VND/ảnh",
+    minBudget: 50000,
+    services: ["product"],
+  },
+  {
+    id: "fashion-retouch",
+    name: "Chỉnh sửa cao cấp",
+    note: "Tính theo ảnh fashion",
+    priceLabel: "100.000 - 300.000 VND/ảnh",
+    minBudget: 100000,
+    services: ["fashion"],
+  },
+  {
+    id: "product-concept",
+    name: "Setup concept riêng",
+    note: "Setup concept riêng cho sản phẩm",
+    priceLabel: "500.000 - 3.000.000 VND",
+    minBudget: 500000,
+    services: ["product"],
+  },
+  {
+    id: "wedding-concept",
+    name: "Concept riêng",
+    note: "Concept riêng cho gói cưới",
+    priceLabel: "1.000.000 - 10.000.000 VND",
+    minBudget: 1000000,
+    services: ["wedding"],
+  },
+  {
+    id: "wedding-outside-city",
+    name: "Ngoại tỉnh",
+    note: "Phụ phí di chuyển ngoại tỉnh cho gói cưới",
+    priceLabel: "1.000.000 - 5.000.000 VND",
+    minBudget: 1000000,
+    services: ["wedding"],
+  },
+  {
+    id: "travel-outside-city",
+    name: "Di chuyển ngoại tỉnh",
+    note: "Phụ phí di chuyển cho lịch trình travel",
+    priceLabel: "500.000 - 1.500.000 VND",
+    minBudget: 500000,
+    services: ["travel"],
+  },
+  {
+    id: "overnight",
+    name: "Qua đêm",
+    note: "Chi phí lưu trú theo ngày",
+    priceLabel: "1.000.000 VND/ngày",
+    minBudget: 1000000,
+    services: ["travel"],
+  },
+  {
+    id: "flight-ticket",
+    name: "Vé máy bay",
+    note: "Khách thanh toán trực tiếp",
+    priceLabel: "Khách thanh toán",
+    minBudget: 0,
+    services: ["travel"],
+  },
+  {
+    id: "entrance-ticket",
+    name: "Vé tham quan",
+    note: "Khách thanh toán trực tiếp",
+    priceLabel: "Khách thanh toán",
+    minBudget: 0,
+    services: ["travel"],
+  },
+  {
+    id: "extra-product",
+    name: "Sản phẩm phát sinh",
+    note: "Tính theo từng sản phẩm thêm",
+    priceLabel: "150.000 - 300.000 VND/sp",
+    minBudget: 150000,
+    services: ["product"],
+  },
+  {
+    id: "product-360",
+    name: "Chụp 360°",
+    note: "Chụp xoay sản phẩm",
+    priceLabel: "300.000 - 800.000 VND/sp",
+    minBudget: 300000,
+    services: ["product"],
+  },
+  {
+    id: "extra-model",
+    name: "Mẫu phát sinh",
+    note: "Tính theo người mẫu thêm",
+    priceLabel: "300.000 - 500.000 VND/người",
+    minBudget: 300000,
+    services: ["fashion"],
+  },
+  {
+    id: "hair-stylist",
+    name: "Hair stylist",
+    note: "Hỗ trợ tóc trong buổi chụp",
+    priceLabel: "300.000 - 1.000.000 VND",
+    minBudget: 300000,
+    services: ["fashion"],
+  },
+  {
+    id: "studio-rental",
+    name: "Thuê studio",
+    note: "Chi phí thuê không gian chụp",
+    priceLabel: "500.000 - 3.000.000 VND",
+    minBudget: 500000,
+    services: ["fashion"],
+  },
+  {
+    id: "wedding-dress",
+    name: "Trang phục cưới",
+    note: "Thuê trang phục cưới",
+    priceLabel: "1.000.000 - 5.000.000 VND",
+    minBudget: 1000000,
+    services: ["wedding"],
   },
 ];
 
@@ -364,6 +519,10 @@ function parseBudget(value: string) {
 
 function formatCurrency(value: number) {
   return `${value.toLocaleString("vi-VN")} VND`;
+}
+
+function getOptionPriceLabel(option: { price?: number; priceLabel?: string }) {
+  return option.priceLabel ?? (typeof option.price === "number" ? formatCurrency(option.price) : "");
 }
 
 export default function BookingPage() {
@@ -435,6 +594,10 @@ function BookingContent() {
   const selectedPeopleOption =
     service.peopleOptions.find((item) => item.label === selectedPeopleScale) ||
     service.peopleOptions[0];
+  const selectedOptionPricing = selectedPeopleOption as { price?: number; extra?: number };
+  const selectedPackagePrice = selectedOptionPricing.price ?? service.basePrice + (selectedOptionPricing.extra ?? 0);
+  const selectedPackagePriceLabel =
+    "priceLabel" in selectedPeopleOption ? selectedPeopleOption.priceLabel : undefined;
 
   const availableAddOns = useMemo(
     () =>
@@ -457,12 +620,11 @@ function BookingContent() {
 
   const selectedAddOnsDetails = availableAddOns
     .filter((item) => selectedAddOns.includes(item.id))
-    .map((item) => ({ id: item.id, name: item.name, price: item.minBudget }))
-    .filter((item): item is { id: string; name: string; price: number } => Boolean(item));
+    .map((item) => ({ id: item.id, name: item.name, price: item.minBudget, priceLabel: item.priceLabel }));
 
-  const addOnTotal = selectedAddOnsDetails.reduce((total, addOn) => total + addOn.price, 0);
+  const addOnTotal = 0;
   const selectedAddOnNames = selectedAddOnsDetails.map((item) => item.name);
-  const estimatedTotal = service.basePrice + selectedPeopleOption.extra + addOnTotal;
+  const estimatedTotal = selectedPackagePrice;
   const selectedTimeRangeLabel = getTimeRangeLabel(selectedTimeRangeId);
   const selectedScheduleLabel =
     shootDate && selectedTimeRangeLabel
@@ -482,7 +644,7 @@ function BookingContent() {
       createdAt: new Date().toISOString(),
       serviceId: service.id,
       serviceName: service.name,
-      basePrice: service.basePrice,
+      basePrice: selectedPackagePrice,
       photographerId,
       photographerName: photographerProfile.name,
       availabilitySlotId: selectedSlot?.id ?? `${photographerId}-${shootDate}-${selectedTimeRangeId}`,
@@ -491,7 +653,7 @@ function BookingContent() {
       shootDate,
       shootTime: selectedTimeRangeLabel || shootTime,
       peopleScale: selectedPeopleScale,
-      peopleExtra: selectedPeopleOption.extra,
+      peopleExtra: 0,
       scene,
       concept,
       budget,
@@ -531,26 +693,26 @@ function BookingContent() {
 
   return (
     <main className="min-h-screen bg-[#fafbfc] text-[#0e111d]">
-      <section className="mx-auto w-full max-w-[1440px] px-6 py-12 md:px-12 lg:px-20 lg:py-16">
+      <section className="mx-auto w-full max-w-[1440px] px-4 py-8 sm:px-6 sm:py-12 md:px-12 lg:px-20 lg:py-16">
         <div className="grid gap-3">
           <p data-reveal className="text-[12px] font-black uppercase tracking-[0.18em] text-[#ff8d28]">
             Booking request
           </p>
-          <h1 data-reveal data-reveal-delay="80" className="max-w-[760px] text-[36px] font-black leading-[1.08] tracking-[-0.03em] text-[#0e111d] sm:text-[46px]">
+          <h1 data-reveal data-reveal-delay="80" className="max-w-[760px] text-[32px] font-black leading-[1.08] text-[#0e111d] sm:text-[46px]">
             Đặt lịch chụp
           </h1>
          
         </div>
 
-        <form onSubmit={handleSubmit} className="mt-10 grid gap-8 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start xl:grid-cols-[minmax(0,1fr)_400px]">
-          <div className="grid gap-6">
-            <section data-reveal data-reveal-delay="220" className="rounded-[18px] border border-[#e8eaf1] bg-white p-5 shadow-[0_16px_42px_rgba(20,21,31,0.045)] sm:p-6">
+        <form onSubmit={handleSubmit} className="mt-7 grid gap-5 sm:mt-10 sm:gap-8 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start xl:grid-cols-[minmax(0,1fr)_400px]">
+          <div className="grid gap-5 sm:gap-6">
+            <section data-reveal data-reveal-delay="220" className="booking-panel rounded-[16px] border border-[#e8eaf1] bg-white p-4 shadow-[0_16px_42px_rgba(20,21,31,0.045)] sm:rounded-[18px] sm:p-6">
               <div className="flex items-end justify-between gap-4">
                 <div>
                   <p className="text-[12px] font-black uppercase tracking-[0.16em] text-[#ff8d28]">
                     Bước 1
                   </p>
-                  <h2 className="mt-2 text-[22px] font-black leading-tight text-[#0e111d]">
+                  <h2 className="mt-2 text-[20px] font-black leading-tight text-[#0e111d] sm:text-[22px]">
                     Chọn dịch vụ
                   </h2>
                   {preferredServiceLabel ? (
@@ -567,6 +729,11 @@ function BookingContent() {
               <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 {visibleServices.map((item, index) => {
                   const active = item.id === selectedService;
+                  const selectedOptionLabel = peopleByService[item.id] || item.peopleOptions[0].label;
+                  const selectedOption =
+                    item.peopleOptions.find((option) => option.label === selectedOptionLabel) ||
+                    item.peopleOptions[0];
+                  const priceLabel = getOptionPriceLabel(selectedOption);
 
                   return (
                     <article
@@ -574,13 +741,13 @@ function BookingContent() {
                       onClick={() => setSelectedService(item.id)}
                       data-reveal
                       data-reveal-delay={`${260 + index * 55}`}
-                      className={`group cursor-pointer overflow-hidden rounded-[14px] border text-left transition-all ${
+                      className={`group grid cursor-pointer grid-cols-[104px_minmax(0,1fr)] overflow-hidden rounded-[14px] border text-left transition-all sm:block ${
                         active
                           ? "border-[#ff8d28] bg-[#fff7ef] shadow-[0_10px_24px_rgba(255,141,40,0.12)]"
                           : "border-[#e8eaf1] bg-white hover:border-[#ffcfaa]"
                       }`}
                     >
-                      <span className="relative block aspect-[16/9] overflow-hidden bg-[#f2f4f8]">
+                      <span className="relative block h-full min-h-[154px] overflow-hidden bg-[#f2f4f8] sm:aspect-[16/9] sm:h-auto sm:min-h-0">
                         <Image
                           src={item.image}
                           alt={item.name}
@@ -590,17 +757,15 @@ function BookingContent() {
                         />
                         <span className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/45 to-transparent" />
                       </span>
-                      <span className="block p-4">
+                      <span className="block min-w-0 p-3 sm:p-4">
                         <span className="block text-[15px] font-black text-[#0e111d]">
                           {item.name}
                         </span>
-                        <span className="mt-2 block text-[12px] font-bold text-[#ff8d28]">
-                          {item.price}
+                        <span className="mt-2 block text-[16px] font-bold text-[#ff8d28]">
+                          {priceLabel ? ` ${priceLabel}` : item.price}
                         </span>
-                        <span className="mt-1 block text-[12px] font-semibold text-[#6b7280]">
-                          {item.duration}
-                        </span>
-                        <span className="mt-4 grid gap-2">
+                        
+                        <span className="mt-3 grid gap-2 sm:mt-4">
                           <span className="text-[11px] font-black uppercase tracking-[0.12em] text-[#8a8fa1]">
                             Quy mô
                           </span>
@@ -632,11 +797,11 @@ function BookingContent() {
               </div>
             </section>
 
-            <section data-reveal data-reveal-delay="300" className="rounded-[18px] border border-[#e8eaf1] bg-white p-5 shadow-[0_16px_42px_rgba(20,21,31,0.045)] sm:p-6">
+            <section data-reveal data-reveal-delay="300" className="booking-panel rounded-[16px] border border-[#e8eaf1] bg-white p-4 shadow-[0_16px_42px_rgba(20,21,31,0.045)] sm:rounded-[18px] sm:p-6">
               <p className="text-[12px] font-black uppercase tracking-[0.16em] text-[#ff8d28]">
                 Bước 2
               </p>
-              <h2 className="mt-2 text-[22px] font-black leading-tight text-[#0e111d]">
+              <h2 className="mt-2 text-[20px] font-black leading-tight text-[#0e111d] sm:text-[22px]">
                 Chọn lịch rảnh
               </h2>
               <p className="mt-2 text-[13px] font-semibold leading-6 text-[#6b7280]">
@@ -655,7 +820,7 @@ function BookingContent() {
                 )}
               </div>
 
-              <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              <div className="mt-5 grid gap-3 sm:grid-cols-2 sm:gap-4">
                 <Field label="Địa điểm chụp">
                   <input value={location} onChange={(event) => setLocation(event.target.value)} placeholder="Ví dụ: Đà Lạt" />
                 </Field>
@@ -733,16 +898,16 @@ function BookingContent() {
               </div>
             </section>
 
-            <section data-reveal data-reveal-delay="380" className="rounded-[18px] border border-[#e8eaf1] bg-white p-5 shadow-[0_16px_42px_rgba(20,21,31,0.045)] sm:p-6">
+            <section data-reveal data-reveal-delay="380" className="booking-panel rounded-[16px] border border-[#e8eaf1] bg-white p-4 shadow-[0_16px_42px_rgba(20,21,31,0.045)] sm:rounded-[18px] sm:p-6">
               <p className="text-[12px] font-black uppercase tracking-[0.16em] text-[#ff8d28]">
                 Bước 3
               </p>
-              <h2 className="mt-2 text-[22px] font-black leading-tight text-[#0e111d]">
+              <h2 className="mt-2 text-[20px] font-black leading-tight text-[#0e111d] sm:text-[22px]">
                 Yêu cầu sáng tạo
               </h2>
 
               <div className="mt-5 grid gap-5">
-                <label data-reveal data-reveal-delay="420" className="group grid cursor-pointer gap-3 rounded-[16px] border border-dashed border-[#ffd2ad] bg-[#fffaf5] px-5 py-6 text-center transition-colors hover:bg-[#fff4eb]">
+                <label data-reveal data-reveal-delay="420" className="group grid cursor-pointer gap-3 rounded-[16px] border border-dashed border-[#ffd2ad] bg-[#fffaf5] px-4 py-5 text-center transition-colors hover:bg-[#fff4eb] sm:px-5 sm:py-6">
                   <input
                     type="file"
                     accept="image/*"
@@ -784,7 +949,7 @@ function BookingContent() {
                           aria-pressed={active}
                           data-reveal
                           data-reveal-delay={`${480 + index * 45}`}
-                          className={`flex items-start gap-3 rounded-[14px] border p-4 text-left transition-all ${
+                          className={`flex items-start gap-3 rounded-[14px] border p-3 text-left transition-all sm:p-4 ${
                             active
                               ? "border-[#ff8d28] bg-[#fff7ef] shadow-[0_10px_24px_rgba(255,141,40,0.1)]"
                               : "border-[#e8eaf1] bg-white hover:border-[#ffcfaa]"
@@ -815,7 +980,7 @@ function BookingContent() {
                               )}
                             </span>
                             <span className="mt-1 block text-[12px] font-semibold leading-5 text-[#6b7280]">
-                              {item.note} · Từ {item.minBudget.toLocaleString("vi-VN")} VND
+                              {item.note} · {item.priceLabel ?? `Từ ${item.minBudget.toLocaleString("vi-VN")} VND`}
                             </span>
                           </span>
                         </button>
@@ -831,15 +996,15 @@ function BookingContent() {
               </div>
             </section>
 
-            <section data-reveal data-reveal-delay="460" className="rounded-[18px] border border-[#e8eaf1] bg-white p-5 shadow-[0_16px_42px_rgba(20,21,31,0.045)] sm:p-6">
+            <section data-reveal data-reveal-delay="460" className="booking-panel rounded-[16px] border border-[#e8eaf1] bg-white p-4 shadow-[0_16px_42px_rgba(20,21,31,0.045)] sm:rounded-[18px] sm:p-6">
               <p className="text-[12px] font-black uppercase tracking-[0.16em] text-[#ff8d28]">
                 Bước 4
               </p>
-              <h2 className="mt-2 text-[22px] font-black leading-tight text-[#0e111d]">
+              <h2 className="mt-2 text-[20px] font-black leading-tight text-[#0e111d] sm:text-[22px]">
                 Thông tin liên hệ
               </h2>
 
-              <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              <div className="mt-5 grid gap-3 sm:grid-cols-2 sm:gap-4">
                 <Field label="Họ và tên">
                   <input value={fullName} onChange={(event) => setFullName(event.target.value)} placeholder="Nguyễn Minh Anh" required />
                 </Field>
@@ -855,7 +1020,7 @@ function BookingContent() {
             </section>
           </div>
 
-          <aside data-reveal data-reveal-delay="300" className="flex rounded-[18px] border border-[#e8eaf1] bg-white p-5 shadow-[0_16px_42px_rgba(20,21,31,0.06)] lg:sticky lg:top-[112px] lg:flex-col">
+          <aside data-reveal data-reveal-delay="300" className="booking-summary flex flex-col rounded-[16px] border border-[#e8eaf1] bg-white p-4 shadow-[0_16px_42px_rgba(20,21,31,0.06)] sm:rounded-[18px] sm:p-5 lg:sticky lg:top-[112px]">
             <div className="flex shrink-0 items-start justify-between gap-4 border-b border-[#f1f3f7] pb-3">
               <div>
                 <p className="text-[12px] font-black uppercase tracking-[0.16em] text-[#ff8d28]">
@@ -873,12 +1038,11 @@ function BookingContent() {
             <div className="grid gap-2.5 py-3">
               <SummaryRow label="Dịch vụ" value={service.name} />
               <SummaryRow label="Photographer" value={photographerProfile.name} />
-              <SummaryRow label="Giá cơ bản" value={formatCurrency(service.basePrice)} />
+              <SummaryRow label="Giá gói" value={selectedPackagePriceLabel ?? formatCurrency(selectedPackagePrice)} />
               <SummaryRow label="Địa điểm" value={location || "Chưa chọn"} />
               <SummaryRow label="Ngày chụp" value={shootDate || "Chưa chọn"} />
               <SummaryRow label="Khung giờ" value={selectedTimeRangeLabel || "Chưa chọn"} />
               <SummaryRow label="Quy mô" value={selectedPeopleScale} />
-              <SummaryRow label="Phụ phí quy mô" value={formatCurrency(selectedPeopleOption.extra)} />
               <SummaryRow label="Tạm tính" value={formatCurrency(estimatedTotal)} />
               <SummaryRow label="Bối cảnh" value={scene || "Chưa chọn"} />
               <SummaryRow label="Ảnh minh họa" value={referenceFileName || "Chưa tải"} />
@@ -980,9 +1144,9 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 
 function SummaryRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-start justify-between gap-4">
-      <span className="text-[12px] font-bold text-[#8a8fa1]">{label}</span>
-      <span className="max-w-[190px] text-right text-[13px] font-extrabold leading-5 text-[#0e111d]">
+    <div className="flex min-w-0 items-start justify-between gap-3">
+      <span className="shrink-0 text-[12px] font-bold text-[#8a8fa1]">{label}</span>
+      <span className="min-w-0 max-w-[60%] break-words text-right text-[13px] font-extrabold leading-5 text-[#0e111d] sm:max-w-[190px]">
         {value}
       </span>
     </div>

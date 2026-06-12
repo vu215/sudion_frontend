@@ -342,17 +342,18 @@ function NextSteps({ booking, onConfirmPayment }: { booking: StoredBooking; onCo
 
           <div className="grid gap-2 rounded-[12px] border border-[#eef0f5] bg-[#fbfcfe] px-3.5 py-3">
             <PaymentRow label="Giá gói chụp" value={formatCurrency(packagePrice)} />
-            <PaymentRow
-              label={`Phụ thu quy mô (${booking.peopleScale})`}
-              value={booking.peopleExtra ? formatCurrency(booking.peopleExtra) : "Không có"}
-              muted={!booking.peopleExtra}
-            />
+            {booking.peopleExtra ? (
+              <PaymentRow
+                label={`Phụ thu quy mô (${booking.peopleScale})`}
+                value={formatCurrency(booking.peopleExtra)}
+              />
+            ) : null}
             {addOnRows.length ? (
               addOnRows.map((addOn) => (
                 <PaymentRow
                   key={addOn.id}
                   label={`Dịch vụ kèm: ${addOn.name}`}
-                  value={formatCurrency(addOn.price)}
+                  value={addOn.priceLabel || formatCurrency(addOn.price)}
                 />
               ))
             ) : (

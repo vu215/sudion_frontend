@@ -21,7 +21,7 @@ export type StoredBooking = {
   budget: string;
   estimatedTotal: number;
   addOnTotal: number;
-  addOns: Array<{ id: string; name: string; price: number }>;
+  addOns: Array<{ id: string; name: string; price: number; priceLabel?: string }>;
   referenceFileName: string;
   paymentMethod: string;
   customer: {
@@ -76,6 +76,7 @@ function normalizeBooking(value: unknown): StoredBooking | null {
         id: String((item as { id?: unknown }).id ?? ""),
         name: String((item as { name?: unknown }).name ?? ""),
         price: typeof (item as { price?: unknown }).price === "number" ? (item as { price: number }).price : 0,
+        priceLabel: String((item as { priceLabel?: unknown }).priceLabel ?? ""),
       };
     }),
     referenceFileName: String(booking.referenceFileName ?? ""),

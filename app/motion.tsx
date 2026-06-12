@@ -4,9 +4,6 @@ import { useEffect, useLayoutEffect } from "react";
 import { usePathname } from "next/navigation";
 
 function showRevealNodeImmediately(node: HTMLElement) {
-  node.style.transitionDelay = "";
-  node.style.opacity = "1";
-  node.style.transform = "translate3d(0, 0, 0) scale(1)";
   node.classList.add("is-visible", "reveal-complete");
 }
 
@@ -87,8 +84,6 @@ export function MotionEffects() {
       requestAnimationFrame(() => {
         node.getBoundingClientRect();
         requestAnimationFrame(() => {
-          node.style.opacity = "1";
-          node.style.transform = "translate3d(0, 0, 0) scale(1)";
           node.classList.add("is-visible");
         });
       });
@@ -104,23 +99,10 @@ export function MotionEffects() {
       }
 
       node.classList.remove("is-visible", "reveal-complete");
-      const customDelay = node.getAttribute("data-reveal-delay");
-      if (customDelay) {
-        node.style.transitionDelay = `${customDelay}ms`;
-      }
-
-      const revealY = node.style.getPropertyValue("--reveal-y") || "64px";
-      node.style.opacity = "0";
-      node.style.transform = `translate3d(0, ${revealY}, 0) scale(0.96)`;
-      node.style.transitionProperty = "opacity, transform";
-      node.style.transitionDuration = "1100ms";
-      node.style.transitionTimingFunction = "cubic-bezier(0.16, 1, 0.3, 1)";
-      node.style.willChange = "opacity, transform";
 
       node.addEventListener(
         "transitionend",
         () => {
-          node.style.willChange = "";
           node.classList.add("reveal-complete");
         },
         { once: true },
