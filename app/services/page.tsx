@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { serviceCategories, servicePackages } from "./service-data";
+import { serviceCategories, servicePackages } from "./service-data-fresh";
 
 const containerClass = "mx-auto w-full max-w-[1440px] px-6 md:px-12 lg:px-20";
 
@@ -20,6 +20,7 @@ function fadeUpStyle(isReady: boolean, delay = 0): CSSProperties {
 
 export default function ServicesPage() {
   const [isReady, setIsReady] = useState(false);
+  const serviceCount = serviceCategories.length;
 
   useEffect(() => {
     const timer = window.setTimeout(() => setIsReady(true), 80);
@@ -63,14 +64,17 @@ export default function ServicesPage() {
             </div>
             <div className="mt-10 flex flex-wrap items-start gap-10" style={fadeUpStyle(isReady, 480)}>
               <div className="grid gap-1 border-l-4 border-[#ff8d28] pl-4">
-                <strong className="text-[32px] font-black leading-none text-[#0e111d]">3</strong>
-                <span className="text-[12px] font-bold uppercase tracking-[0.12em] text-[#6b7280]">Dịch vụ chính</span>
+                <strong className="text-[32px] font-black leading-none text-[#0e111d]">{serviceCount}</strong>
+                <span className="text-[12px] font-bold uppercase tracking-[0.12em] text-[#6b7280]">Danh mục dịch vụ</span>
               </div>
               <div className="grid gap-1 border-l-4 border-[#ff8d28] pl-4">
                 <strong className="text-[32px] font-black leading-none text-[#0e111d]">2K+</strong>
                 <span className="text-[12px] font-bold uppercase tracking-[0.12em] text-[#6b7280]">Photographer</span>
               </div>
             </div>
+            <p className="mt-4 text-[13px] text-[#667085]" style={fadeUpStyle(isReady, 520)}>
+              Debug slugs: {serviceCategories.map((service) => service.slug).join(", ")}
+            </p>
           </div>
 
           <div className="relative min-h-[430px] lg:min-h-[520px]" style={fadeUpStyle(isReady, 320)}>
@@ -113,6 +117,11 @@ export default function ServicesPage() {
 
       <section className={`${containerClass} py-14 lg:py-18`}>
         
+
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <h2 className="text-[28px] font-black text-[#0e111d]">Tất cả dịch vụ</h2>
+          <p className="text-[14px] font-bold text-[#667085]">{serviceCount} danh mục dịch vụ hiện có</p>
+        </div>
 
         <div className="mt-8 grid gap-5 lg:grid-cols-3">
           {serviceCategories.map((service, index) => {

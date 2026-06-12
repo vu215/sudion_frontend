@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
-import { allAddOns, formatVnd, getServiceBySlug, servicePackages, type ServicePackage, type ServiceSlug } from "../service-data";
+import { allAddOns, formatVnd, getServiceBySlug, servicePackages, type ServicePackage, type ServiceSlug } from "../service-data-fresh";
 
 const containerClass = "mx-auto w-full max-w-[1440px] px-6 md:px-12 lg:px-20";
 const pageSize = 2;
@@ -424,7 +424,7 @@ function ServiceListingPage({
   const [sortMode, setSortMode] = useState("Phổ biến");
   const [page, setPage] = useState(1);
   const [isReady, setIsReady] = useState(false);
-  const portraitPageSize = 3;
+  const portraitPageSize = 4;
 
   useEffect(() => {
     setIsReady(false);
@@ -467,7 +467,15 @@ function ServiceListingPage({
       ? ["Tất cả", "Sài Gòn", "Hà Nội", "Đà Nẵng", "Đà Lạt", "Makeup", "Album", "Flycam"]
       : serviceSlug === "couple"
         ? ["Tất cả", "Sài Gòn", "Hà Nội", "Đà Nẵng", "Đà Lạt", "Ngoại cảnh", "Studio"]
-        : ["Tất cả", "Sài Gòn", "Hà Nội", "Đà Nẵng", "Ngoại cảnh", "Studio"];
+        : serviceSlug === "portrait"
+          ? ["Tất cả", "Sài Gòn", "Hà Nội", "Đà Nẵng", "Đà Lạt", "Tạo dáng", "Studio"]
+          : serviceSlug === "event"
+            ? ["Tất cả", "Sài Gòn", "Hà Nội", "Đà Nẵng", "Đà Lạt", "Video", "Flycam", "Phóng sự"]
+            : serviceSlug === "yearbook"
+              ? ["Tất cả", "Sài Gòn", "Hà Nội", "Đà Nẵng", "Đà Lạt", "Concept", "Studio", "Tốt nghiệp"]
+              : serviceSlug === "travel"
+                ? ["Tất cả", "Sài Gòn", "Hà Nội", "Đà Nẵng", "Đà Lạt", "Ngoại cảnh", "Lifestyle", "Phiêu lưu"]
+                : ["Tất cả", "Sài Gòn", "Hà Nội", "Đà Nẵng", "Đà Lạt", "Studio", "Retouch", "Food"];
   const heroMeta =
     serviceSlug === "wedding"
       ? {
@@ -481,20 +489,54 @@ function ServiceListingPage({
             description:
               "Ghi lại câu chuyện của hai bạn qua những khung hình tự nhiên, gần gũi và giàu cảm xúc.",
           }
-        : {
-            image: "https://i.pinimg.com/736x/35/5e/45/355e4567ee65e77e43be0d243510572b.jpg",
-            description:
-              "Ghi lại những khoảnh khắc chân thật và tôn vinh cá tính của bạn với những bức ảnh chuyên nghiệp và đầy cảm xúc.",
-          };
+        : serviceSlug === "portrait"
+          ? {
+              image: "https://i.pinimg.com/736x/35/5e/45/355e4567ee65e77e43be0d243510572b.jpg",
+              description:
+                "Ghi lại những khoảnh khắc chân thật và tôn vinh cá tính của bạn với những bức ảnh chuyên nghiệp và đầy cảm xúc.",
+            }
+          : serviceSlug === "event"
+            ? {
+                image: "https://i.pinimg.com/736x/15/22/8e/15228e2e02b9b54d2d43b36b978e7c6f.jpg",
+                description:
+                  "Ghi lại mọi diễn biến của sự kiện với phong cách reportage, ánh sáng chuyên nghiệp và cảm xúc tự nhiên.",
+              }
+            : serviceSlug === "yearbook"
+              ? {
+                  image: "https://i.pinimg.com/736x/5c/82/6b/5c826b21c75a6f577065a52be5b7f103.jpg",
+                  description:
+                    "Tạo album kỷ yếu đa dạng và tràn đầy thanh xuân với những bức ảnh cá tính cho bạn và nhóm bạn.",
+                }
+              : serviceSlug === "travel"
+                ? {
+                    image: "https://i.pinimg.com/736x/b8/b7/75/b8b7756b9c6b2f19024f9f7ec3de540a.jpg",
+                    description:
+                      "Đồng hành cùng bạn trong chuyến đi để ghi lại cảnh đẹp và khoảnh khắc du lịch thật tự nhiên.",
+                  }
+                : {
+                    image: "https://i.pinimg.com/736x/bf/2f/5d/bf2f5d6c8c2d0477c3ae6b0135360d6c.jpg",
+                    description:
+                      "Tôn vinh món ăn qua ánh sáng, bố cục và bố cục chi tiết, phù hợp cho menu và thương hiệu ẩm thực.",
+                  };
 
   const handleQuickFilter = (filter: string) => {
     setActiveRegion(filter === "Sài Gòn" ? "TP. Hồ Chí Minh" : ["Hà Nội", "Đà Nẵng", "Đà Lạt"].includes(filter) ? filter : "Tất cả");
     setActiveStyle(
       filter === "Ngoại cảnh"
         ? "Tự nhiên"
-        : ["Studio", "Makeup", "Album", "Flycam"].includes(filter)
-          ? filter
-          : "Tất cả",
+        : filter === "Phóng sự"
+          ? "Video"
+          : filter === "Tốt nghiệp"
+            ? "Concept"
+            : filter === "Lifestyle"
+              ? "Tự nhiên"
+              : filter === "Phiêu lưu"
+                ? "Tự nhiên"
+                : filter === "Food"
+                  ? "Studio"
+                  : ["Studio", "Makeup", "Album", "Flycam", "Tạo dáng"].includes(filter)
+                    ? filter
+                    : "Tất cả",
     );
     setPage(1);
   };
