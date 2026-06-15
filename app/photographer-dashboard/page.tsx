@@ -2,16 +2,20 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-
+import { useAuth } from "@/app/auth-context";
+import { useToast } from "@/app/toast-context";
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
+const AUTO_REFRESH_MS = 8000;
+
 type BookingStatus =
   | "awaiting_payment"
-  | "confirmed"
   | "accepted"
-  | "rejected"
+  | "confirmed"
   | "completed"
+  | "fully_paid"
+  | "rejected"
   | "cancelled"
   | string;
 
@@ -73,9 +77,11 @@ type ApiResponse<T> = {
 
 const statusTabs = [
   { id: "all", label: "Tất cả" },
-  { id: "confirmed", label: "Chờ nhận" },
-  { id: "accepted", label: "Đã nhận" },
-  { id: "completed", label: "Hoàn thành" },
+  { id: "awaiting_payment", label: "Chờ xác nhận" },
+  { id: "accepted", label: "Chờ khách cọc" },
+  { id: "confirmed", label: "Đã cọc" },
+  { id: "completed", label: "Chờ khách trả còn lại" },
+  { id: "fully_paid", label: "Đã thanh toán đủ" },
   { id: "rejected", label: "Từ chối" },
   { id: "cancelled", label: "Đã hủy" },
 ];
@@ -84,37 +90,50 @@ const statusMap: Record<
   string,
   {
     label: string;
+    note: string;
     className: string;
     dot: string;
   }
 > = {
   awaiting_payment: {
-    label: "Chờ thanh toán",
+    label: "Chờ xác nhận lịch",
+    note: "Khách vừa gửi yêu cầu. Bạn cần xác nhận hoặc từ chối.",
     className: "border-[#fed7aa] bg-[#fff7ed] text-[#ea580c]",
     dot: "bg-[#f97316]",
   },
-  confirmed: {
-    label: "Khách đã thanh toán",
-    className: "border-[#bbf7d0] bg-[#ecfdf5] text-[#047857]",
-    dot: "bg-[#10b981]",
-  },
   accepted: {
-    label: "Đã nhận lịch",
+    label: "Đã xác nhận, chờ khách cọc",
+    note: "Bạn đã xác nhận lịch. Đang chờ khách thanh toán cọc 50%.",
     className: "border-[#bfdbfe] bg-[#eff6ff] text-[#1d4ed8]",
     dot: "bg-[#3b82f6]",
   },
-  rejected: {
-    label: "Đã từ chối",
-    className: "border-[#fecdd3] bg-[#fff1f2] text-[#be123c]",
-    dot: "bg-[#e11d48]",
+  confirmed: {
+    label: "Khách đã thanh toán cọc",
+    note: "Lịch đã được giữ. Sau khi chụp xong, bấm Hoàn thành.",
+    className: "border-[#bbf7d0] bg-[#ecfdf5] text-[#047857]",
+    dot: "bg-[#10b981]",
   },
   completed: {
-    label: "Đã hoàn thành",
+    label: "Đã hoàn thành, chờ khách thanh toán còn lại",
+    note: "Bạn đã hoàn thành buổi chụp. Đang chờ khách thanh toán phần còn lại.",
+    className: "border-[#fde68a] bg-[#fefce8] text-[#a16207]",
+    dot: "bg-[#eab308]",
+  },
+  fully_paid: {
+    label: "Khách đã thanh toán đủ",
+    note: "Booking đã hoàn tất. Khách có thể đánh giá và chat.",
     className: "border-[#bbf7d0] bg-[#f0fdf4] text-[#15803d]",
     dot: "bg-[#22c55e]",
   },
+  rejected: {
+    label: "Đã từ chối",
+    note: "Bạn đã từ chối yêu cầu này.",
+    className: "border-[#fecdd3] bg-[#fff1f2] text-[#be123c]",
+    dot: "bg-[#e11d48]",
+  },
   cancelled: {
     label: "Đã hủy",
+    note: "Booking này đã bị hủy.",
     className: "border-[#e2e8f0] bg-[#f8fafc] text-[#64748b]",
     dot: "bg-[#94a3b8]",
   },
@@ -124,6 +143,7 @@ function getStatusInfo(status: string) {
   return (
     statusMap[status] || {
       label: status,
+      note: "Trạng thái booking.",
       className: "border-[#e2e8f0] bg-[#f8fafc] text-[#475569]",
       dot: "bg-[#64748b]",
     }
@@ -144,6 +164,11 @@ function formatDate(value: string | null) {
   }
 
   return date.toLocaleDateString("vi-VN");
+}
+
+function formatTime(value: string | null) {
+  if (!value) return "Chưa chọn";
+  return String(value).slice(0, 5);
 }
 
 async function getBookingsByPhotographer(photographerId: string) {
@@ -183,6 +208,8 @@ async function updateBookingStatus(bookingCode: string, status: string) {
 }
 
 export default function PhotographerDashboardPage() {
+  const { session, isPhotographer } = useAuth();
+  const toast = useToast();
   const [photographerId, setPhotographerId] = useState("");
   const [bookings, setBookings] = useState<BackendBooking[]>([]);
   const [activeStatus, setActiveStatus] = useState("all");
@@ -193,22 +220,39 @@ export default function PhotographerDashboardPage() {
   const [successMessage, setSuccessMessage] = useState("");
 
   useEffect(() => {
-    const savedId = window.localStorage.getItem("sudion_photographer_id");
+    const sessionPhotographerId =
+      isPhotographer && session?.photographerId ? session.photographerId : "";
 
-    if (savedId) {
-      setPhotographerId(savedId);
-      void handleLoadBookings(savedId);
-    }
-  }, []);
+    const savedId = window.localStorage.getItem("sudion_photographer_id") || "";
+    const finalId = sessionPhotographerId || savedId;
+
+    if (!finalId) return;
+
+    setPhotographerId(finalId);
+    void handleLoadBookings(finalId);
+
+    const timer = window.setInterval(async () => {
+      try {
+        const data = await getBookingsByPhotographer(finalId);
+        setBookings(data);
+        window.localStorage.setItem("sudion_photographer_id", finalId);
+      } catch (error) {
+        console.error("Auto refresh photographer dashboard failed:", error);
+      }
+    }, AUTO_REFRESH_MS);
+
+    return () => window.clearInterval(timer);
+  }, [isPhotographer, session?.photographerId]);
 
   const stats = useMemo(() => {
     return {
       total: bookings.length,
-      confirmed: bookings.filter((item) => item.status === "confirmed").length,
+      awaiting: bookings.filter((item) => item.status === "awaiting_payment")
+        .length,
       accepted: bookings.filter((item) => item.status === "accepted").length,
+      confirmed: bookings.filter((item) => item.status === "confirmed").length,
       completed: bookings.filter((item) => item.status === "completed").length,
-      rejected: bookings.filter((item) => item.status === "rejected").length,
-      cancelled: bookings.filter((item) => item.status === "cancelled").length,
+      fullyPaid: bookings.filter((item) => item.status === "fully_paid").length,
     };
   }, [bookings]);
 
@@ -256,39 +300,47 @@ export default function PhotographerDashboardPage() {
     await handleLoadBookings();
   }
 
-  async function handleUpdateStatus(bookingCode: string, status: string) {
-    try {
-      setUpdatingCode(bookingCode);
-      setPageError("");
-      setSuccessMessage("");
+ async function handleUpdateStatus(bookingCode: string, status: string) {
+  try {
+    setUpdatingCode(bookingCode);
+    setPageError("");
+    setSuccessMessage("");
 
-      const updatedBooking = await updateBookingStatus(bookingCode, status);
+    const updatedBooking = await updateBookingStatus(bookingCode, status);
 
-      setBookings((current) =>
-        current.map((item) =>
-          item.booking_code === updatedBooking.booking_code
-            ? updatedBooking
-            : item
-        )
-      );
+    setBookings((current) =>
+      current.map((item) =>
+        item.booking_code === updatedBooking.booking_code
+          ? updatedBooking
+          : item
+      )
+    );
 
-      setSuccessMessage(
-        `Đã cập nhật booking ${updatedBooking.booking_code} thành ${getStatusInfo(
-          updatedBooking.status
-        ).label}.`
-      );
-    } catch (error) {
-      console.error("Lỗi cập nhật trạng thái:", error);
+    const statusLabel = getStatusInfo(updatedBooking.status).label;
 
-      setPageError(
-        error instanceof Error
-          ? error.message
-          : "Không thể cập nhật trạng thái."
-      );
-    } finally {
-      setUpdatingCode("");
-    }
+    setSuccessMessage(
+      `Đã cập nhật booking ${updatedBooking.booking_code}: ${statusLabel}.`
+    );
+
+    toast.success(
+      "Cập nhật booking thành công",
+      `Booking ${updatedBooking.booking_code}: ${statusLabel}.`
+    );
+  } catch (error) {
+    console.error("Lỗi cập nhật trạng thái:", error);
+
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Không thể cập nhật trạng thái.";
+
+    setPageError(message);
+
+    toast.error("Cập nhật thất bại", message);
+  } finally {
+    setUpdatingCode("");
   }
+}
 
   return (
     <main className="min-h-screen bg-[#f8fafc] text-[#0f172a]">
@@ -308,9 +360,9 @@ export default function PhotographerDashboardPage() {
                   Quản lý đơn booking của photographer
                 </h1>
 
-                <p className="mt-4 max-w-[680px] text-[14px] font-medium leading-7 text-white/70">
-                  Xem lịch khách đã đặt, nhận lịch, từ chối hoặc đánh dấu hoàn
-                  thành sau khi buổi chụp kết thúc.
+                <p className="mt-4 max-w-[720px] text-[14px] font-medium leading-7 text-white/70">
+                  Xác nhận lịch, từ chối lịch, đánh dấu hoàn thành sau khi khách
+                  đã cọc, và theo dõi thanh toán còn lại.
                 </p>
               </div>
 
@@ -327,7 +379,7 @@ export default function PhotographerDashboardPage() {
                     <input
                       value={photographerId}
                       onChange={(event) => setPhotographerId(event.target.value)}
-                      placeholder="Ví dụ: 1"
+                      placeholder="Ví dụ: 79"
                       className="min-h-[44px] flex-1 border-0 bg-transparent px-3 text-[14px] font-bold text-[#111827] outline-none placeholder:text-[#9ca3af]"
                     />
 
@@ -346,11 +398,11 @@ export default function PhotographerDashboardPage() {
 
           <div className="grid gap-4 border-b border-[#eef2f7] bg-[#fbfcff] px-6 py-5 sm:grid-cols-2 lg:grid-cols-6 lg:px-8">
             <StatCard label="Tổng đơn" value={stats.total} />
-            <StatCard label="Chờ nhận" value={stats.confirmed} />
-            <StatCard label="Đã nhận" value={stats.accepted} />
-            <StatCard label="Hoàn thành" value={stats.completed} />
-            <StatCard label="Từ chối" value={stats.rejected} />
-            <StatCard label="Đã hủy" value={stats.cancelled} />
+            <StatCard label="Chờ xác nhận" value={stats.awaiting} />
+            <StatCard label="Chờ khách cọc" value={stats.accepted} />
+            <StatCard label="Đã cọc" value={stats.confirmed} />
+            <StatCard label="Chờ trả còn lại" value={stats.completed} />
+            <StatCard label="Đã thanh toán đủ" value={stats.fullyPaid} />
           </div>
 
           <div className="px-6 py-6 lg:px-8">
@@ -361,7 +413,7 @@ export default function PhotographerDashboardPage() {
                 </h2>
 
                 <p className="mt-1 text-[13px] font-semibold text-[#64748b]">
-                  Dữ liệu lấy trực tiếp từ bảng booking_requests.
+                  Trang này tự cập nhật sau mỗi 8 giây.
                 </p>
               </div>
 
@@ -450,129 +502,176 @@ function DashboardBookingCard({
 }: {
   booking: BackendBooking;
   updatingCode: string;
-  onUpdateStatus: (bookingCode: string, status: string) => void;
+  onUpdateStatus: (bookingCode: string, status: string) => Promise<void>;
 }) {
   const statusInfo = getStatusInfo(booking.status);
   const isUpdating = updatingCode === booking.booking_code;
 
-  const canAccept =
-    booking.status === "confirmed" || booking.status === "awaiting_payment";
-
-  const canReject =
-    booking.status !== "rejected" &&
-    booking.status !== "cancelled" &&
-    booking.status !== "completed";
-
-  const canComplete = booking.status === "accepted";
+  const canAccept = booking.status === "awaiting_payment";
+  const canReject = booking.status === "awaiting_payment";
+  const canComplete = booking.status === "confirmed";
 
   return (
-    <article className="overflow-hidden rounded-[24px] border border-[#e2e8f0] bg-white shadow-[0_14px_36px_rgba(15,23,42,0.045)] transition-all hover:-translate-y-0.5 hover:shadow-[0_18px_46px_rgba(15,23,42,0.075)]">
-      <div className="grid gap-4 p-5 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <span
-              className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-black ${statusInfo.className}`}
-            >
-              <span className={`h-2 w-2 rounded-full ${statusInfo.dot}`} />
-              {statusInfo.label}
-            </span>
+    <article className="overflow-hidden rounded-[22px] border border-[#e2e8f0] bg-white shadow-[0_16px_40px_rgba(15,23,42,0.045)]">
+      <div className="flex flex-col gap-4 border-b border-[#eef2f7] bg-[#fbfcff] px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <p className="text-[12px] font-black uppercase tracking-[0.14em] text-[#ff8d28]">
+            {booking.booking_code}
+          </p>
 
-            <span className="rounded-full bg-[#f8fafc] px-3 py-1.5 text-[11px] font-black text-[#64748b]">
-              {booking.booking_code}
-            </span>
-          </div>
-
-          <h3 className="mt-4 text-[22px] font-black leading-tight tracking-[-0.03em] text-[#0f172a]">
+          <h3 className="mt-1 text-[20px] font-black tracking-[-0.03em] text-[#0f172a]">
             {booking.service_name}
           </h3>
 
-          <p className="mt-2 text-[14px] font-bold text-[#475569]">
+          <p className="mt-1 text-[13px] font-semibold text-[#64748b]">
             Khách hàng:{" "}
-            <span className="text-[#0f172a]">
+            <span className="font-black text-[#111827]">
               {booking.customer_full_name}
             </span>
           </p>
-
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <InfoItem label="Ngày chụp" value={formatDate(booking.shoot_date)} />
-            <InfoItem label="Khung giờ" value={booking.shoot_time || "Chưa chọn"} />
-            <InfoItem label="Địa điểm" value={booking.location || "Chưa chọn"} />
-            <InfoItem label="Liên hệ" value={booking.customer_phone || "Chưa có"} />
-          </div>
-
-          <div className="mt-4 rounded-[16px] border border-[#eef2f7] bg-[#fbfcff] p-4">
-            <p className="text-[11px] font-black uppercase tracking-[0.12em] text-[#94a3b8]">
-              Ghi chú / concept
-            </p>
-
-            <p className="mt-2 text-[13px] font-semibold leading-6 text-[#475569]">
-              {booking.concept || "Khách chưa nhập ghi chú."}
-            </p>
-          </div>
         </div>
 
-        <div className="rounded-[20px] border border-[#eef2f7] bg-[#fbfcff] p-4">
-          <p className="text-[11px] font-black uppercase tracking-[0.12em] text-[#94a3b8]">
-            Tổng quan thanh toán
-          </p>
+        <span
+          className={`inline-flex w-fit items-center gap-2 rounded-full border px-3 py-2 text-[12px] font-black ${statusInfo.className}`}
+        >
+          <span className={`h-2 w-2 rounded-full ${statusInfo.dot}`} />
+          {statusInfo.label}
+        </span>
+      </div>
 
-          <div className="mt-3 grid gap-2">
-            <MoneyRow label="Tổng tiền" value={booking.estimated_total} strong />
-            <MoneyRow label="Tiền cọc" value={booking.deposit_amount} />
-            <MoneyRow label="Còn lại" value={booking.remaining_amount} />
+      <div className="grid gap-5 p-5 lg:grid-cols-[minmax(0,1fr)_300px]">
+        <div className="grid gap-4">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <InfoItem label="Ngày chụp" value={formatDate(booking.shoot_date)} />
+            <InfoItem label="Giờ chụp" value={formatTime(booking.shoot_time)} />
+            <InfoItem
+              label="Địa điểm"
+              value={booking.location || "Chưa chọn"}
+            />
+            <InfoItem
+              label="Quy mô"
+              value={booking.people_scale || "Chưa chọn"}
+            />
           </div>
 
-          <div className="mt-4 grid gap-2">
-            <Link
-              href={`/messages?booking=${encodeURIComponent(
-                booking.booking_code
-              )}`}
-              className="rounded-[12px] border border-[#e2e8f0] bg-white px-4 py-3 text-center text-[13px] font-black text-[#334155] transition-all hover:border-[#ffcfaa] hover:text-[#ff8d28]"
-            >
-              Nhắn tin với khách
-            </Link>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <InfoItem
+              label="Email khách"
+              value={booking.customer_email || "Chưa có"}
+            />
+            <InfoItem
+              label="Số điện thoại"
+              value={booking.customer_phone || "Chưa có"}
+            />
+          </div>
 
+          <div className="rounded-[16px] border border-[#eef2f7] bg-[#fafbfc] px-4 py-3">
+            <p className="text-[12px] font-black uppercase tracking-[0.14em] text-[#94a3b8]">
+              Ghi chú trạng thái
+            </p>
+
+            <p className="mt-2 text-[14px] font-semibold leading-6 text-[#475569]">
+              {statusInfo.note}
+            </p>
+          </div>
+
+          {booking.concept ? (
+            <div className="rounded-[16px] border border-[#eef2f7] bg-white px-4 py-3">
+              <p className="text-[12px] font-black uppercase tracking-[0.14em] text-[#94a3b8]">
+                Concept / ghi chú
+              </p>
+
+              <p className="mt-2 whitespace-pre-line text-[14px] font-semibold leading-6 text-[#475569]">
+                {booking.concept}
+              </p>
+            </div>
+          ) : null}
+        </div>
+
+        <div className="grid gap-3 rounded-[18px] border border-[#eef2f7] bg-[#fbfcff] p-4">
+          <MoneyRow label="Tổng tiền" value={booking.estimated_total} />
+          <MoneyRow
+            label="Tiền cọc"
+            value={booking.deposit_amount}
+            highlight={booking.status === "confirmed"}
+          />
+          <MoneyRow
+            label="Còn lại"
+            value={booking.remaining_amount}
+            highlight={booking.status === "completed"}
+          />
+
+          <div className="my-1 h-px bg-[#e2e8f0]" />
+
+          <div className="grid gap-2">
             {canAccept ? (
               <button
                 type="button"
-                disabled={isUpdating}
                 onClick={() =>
                   onUpdateStatus(booking.booking_code, "accepted")
                 }
-                className="rounded-[12px] bg-[#2563eb] px-4 py-3 text-[13px] font-black text-white transition-all hover:bg-[#1d4ed8] disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isUpdating ? "Đang xử lý..." : "Nhận lịch"}
-              </button>
-            ) : null}
-
-            {canComplete ? (
-              <button
-                type="button"
                 disabled={isUpdating}
-                onClick={() =>
-                  onUpdateStatus(booking.booking_code, "completed")
-                }
-                className="rounded-[12px] bg-[#16a34a] px-4 py-3 text-[13px] font-black text-white transition-all hover:bg-[#15803d] disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-[12px] bg-[#ff8d28] px-4 py-3 text-center text-[13px] font-black text-white shadow-[0_10px_24px_rgba(255,141,40,0.18)] transition-all hover:bg-[#e0751b] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {isUpdating ? "Đang xử lý..." : "Hoàn thành"}
+                {isUpdating ? "Đang xử lý..." : "Xác nhận lịch"}
               </button>
             ) : null}
 
             {canReject ? (
               <button
                 type="button"
+                onClick={() =>
+                  onUpdateStatus(booking.booking_code, "rejected")
+                }
                 disabled={isUpdating}
-                onClick={() => {
-                  if (!window.confirm("Bạn chắc chắn muốn từ chối lịch này?")) {
-                    return;
-                  }
-
-                  onUpdateStatus(booking.booking_code, "rejected");
-                }}
-                className="rounded-[12px] border border-red-200 bg-white px-4 py-3 text-[13px] font-black text-red-600 transition-all hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-[12px] border border-red-200 bg-white px-4 py-3 text-center text-[13px] font-black text-red-600 transition-all hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Từ chối lịch
               </button>
+            ) : null}
+
+            {booking.status === "accepted" ? (
+              <button
+                type="button"
+                disabled
+                className="rounded-[12px] bg-[#eff6ff] px-4 py-3 text-center text-[13px] font-black text-[#1d4ed8]"
+              >
+                Đang chờ khách thanh toán cọc
+              </button>
+            ) : null}
+
+            {canComplete ? (
+              <button
+                type="button"
+                onClick={() =>
+                  onUpdateStatus(booking.booking_code, "completed")
+                }
+                disabled={isUpdating}
+                className="rounded-[12px] bg-[#16a34a] px-4 py-3 text-center text-[13px] font-black text-white shadow-[0_10px_24px_rgba(22,163,74,0.18)] transition-all hover:bg-[#15803d] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isUpdating ? "Đang xử lý..." : "Hoàn thành buổi chụp"}
+              </button>
+            ) : null}
+
+            {booking.status === "completed" ? (
+              <button
+                type="button"
+                disabled
+                className="rounded-[12px] bg-[#fefce8] px-4 py-3 text-center text-[13px] font-black text-[#a16207]"
+              >
+                Chờ khách thanh toán còn lại
+              </button>
+            ) : null}
+
+            {booking.status === "fully_paid" ? (
+              <Link
+                href={`/messages?booking=${encodeURIComponent(
+                  booking.booking_code
+                )}`}
+                className="rounded-[12px] bg-[#ff8d28] px-4 py-3 text-center text-[13px] font-black text-white shadow-[0_10px_24px_rgba(255,141,40,0.18)] transition-all hover:bg-[#e0751b]"
+              >
+                Chat với khách
+              </Link>
             ) : null}
           </div>
         </div>
@@ -583,12 +682,12 @@ function DashboardBookingCard({
 
 function InfoItem({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-[14px] border border-[#eef2f7] bg-[#fbfcff] px-4 py-3">
+    <div className="rounded-[14px] border border-[#eef2f7] bg-white px-4 py-3">
       <p className="text-[11px] font-black uppercase tracking-[0.12em] text-[#94a3b8]">
         {label}
       </p>
 
-      <p className="mt-1 truncate text-[13px] font-black text-[#0f172a]">
+      <p className="mt-1 break-words text-[13px] font-black text-[#111827]">
         {value}
       </p>
     </div>
@@ -598,18 +697,18 @@ function InfoItem({ label, value }: { label: string; value: string }) {
 function MoneyRow({
   label,
   value,
-  strong,
+  highlight,
 }: {
   label: string;
-  value: number;
-  strong?: boolean;
+  value: number | string | null | undefined;
+  highlight?: boolean;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 text-[13px]">
-      <span className="font-bold text-[#64748b]">{label}</span>
+    <div className="flex items-center justify-between gap-4">
+      <span className="text-[13px] font-bold text-[#64748b]">{label}</span>
       <span
-        className={`font-black ${
-          strong ? "text-[16px] text-[#ff8d28]" : "text-[#0f172a]"
+        className={`text-[14px] font-black ${
+          highlight ? "text-[#ff8d28]" : "text-[#0f172a]"
         }`}
       >
         {formatCurrency(value)}
@@ -618,23 +717,17 @@ function MoneyRow({
   );
 }
 
-function EmptyState({
-  hasPhotographerId,
-}: {
-  hasPhotographerId: boolean;
-}) {
+function EmptyState({ hasPhotographerId }: { hasPhotographerId: boolean }) {
   return (
-    <div className="mt-5 rounded-[24px] border border-dashed border-[#cbd5e1] bg-[#fbfcff] px-6 py-12 text-center">
-      <h3 className="text-[22px] font-black tracking-[-0.03em] text-[#0f172a]">
-        {hasPhotographerId
-          ? "Chưa có đơn booking nào"
-          : "Nhập photographer ID để xem đơn"}
-      </h3>
+    <div className="mt-5 rounded-[22px] border border-dashed border-[#dbe1ea] bg-[#fbfcff] px-6 py-12 text-center">
+      <p className="text-[18px] font-black text-[#0f172a]">
+        {hasPhotographerId ? "Chưa có booking nào" : "Nhập photographer ID"}
+      </p>
 
-      <p className="mx-auto mt-2 max-w-[440px] text-[14px] font-semibold leading-6 text-[#64748b]">
+      <p className="mx-auto mt-2 max-w-[560px] text-[14px] font-semibold leading-6 text-[#64748b]">
         {hasPhotographerId
-          ? "Photographer này chưa có khách đặt lịch hoặc bộ lọc hiện tại không có kết quả."
-          : "Sau này khi nối đăng nhập, trang này sẽ tự lấy photographer ID từ tài khoản hiện tại."}
+          ? "Khi khách gửi yêu cầu đặt lịch, đơn sẽ xuất hiện tại đây."
+          : "Sau khi đăng nhập bằng tài khoản photographer, hệ thống sẽ tự lấy ID nếu bạn đã liên kết khi đăng ký."}
       </p>
     </div>
   );
@@ -646,15 +739,8 @@ function DashboardSkeleton() {
       {[1, 2, 3].map((item) => (
         <div
           key={item}
-          className="animate-pulse rounded-[24px] border border-[#e2e8f0] bg-white p-5"
-        >
-          <div className="h-6 w-[220px] rounded-full bg-[#eef2f7]" />
-          <div className="mt-5 h-7 w-[60%] rounded-full bg-[#eef2f7]" />
-          <div className="mt-5 grid gap-3 sm:grid-cols-2">
-            <div className="h-16 rounded-[14px] bg-[#eef2f7]" />
-            <div className="h-16 rounded-[14px] bg-[#eef2f7]" />
-          </div>
-        </div>
+          className="h-[240px] animate-pulse rounded-[22px] bg-[#f1f5f9]"
+        />
       ))}
     </div>
   );

@@ -4,6 +4,7 @@ import "./globals.css";
 import { AppShell } from "./components/app-shell";
 import { MotionEffects } from "./motion";
 import { AuthProvider } from "./auth-context";
+import { ToastProvider } from "./toast-context";
 
 const plusJakartaSans = Plus_Jakarta_Sans({
   subsets: ["latin", "vietnamese"],
@@ -25,8 +26,11 @@ export default function RootLayout({
     <html lang="vi" className="h-full antialiased">
       <body className={`${plusJakartaSans.className} min-h-full flex flex-col`}>
         <MotionEffects />
+
         <AuthProvider>
-          <AppShell>{children}</AppShell>
+          <ToastProvider>
+            <AppShell>{children}</AppShell>
+          </ToastProvider>
         </AuthProvider>
       </body>
     </html>

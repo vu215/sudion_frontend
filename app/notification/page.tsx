@@ -2,9 +2,12 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useAuth } from "@/app/auth-context";
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+
+const AUTO_REFRESH_MS = 8000;
 
 type NotificationItem = {
   id: number;
@@ -71,7 +74,31 @@ async function markNotificationRead(id: number) {
   }
 }
 
+async function getPhotographerEmail(photographerId: string) {
+  const response = await fetch(
+    `${API_URL}/photographers/${encodeURIComponent(photographerId)}`,
+    {
+      method: "GET",
+      cache: "no-store",
+    }
+  );
+
+  const json: ApiResponse<{
+    id: number;
+    email: string;
+    full_name: string;
+  }> = await response.json();
+
+  if (!response.ok || !json.success) {
+    throw new Error(json.message || "Không thể lấy email photographer.");
+  }
+
+  return json.data.email;
+}
+
 export default function NotificationPage() {
+  const { session } = useAuth();
+
   const [email, setEmail] = useState("");
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [activeTab, setActiveTab] = useState("all");
@@ -81,13 +108,50 @@ export default function NotificationPage() {
   const [successMessage, setSuccessMessage] = useState("");
 
   useEffect(() => {
-    const savedEmail = window.localStorage.getItem("sudion_booking_email");
+    let ignore = false;
+    let timer: number | undefined;
 
-    if (savedEmail) {
-      setEmail(savedEmail);
-      void handleLoadNotifications(savedEmail);
+    async function startAutoRefresh() {
+      try {
+        let finalEmail = session?.email || "";
+
+        if (session?.role === "photographer" && session.photographerId) {
+          finalEmail = await getPhotographerEmail(session.photographerId);
+        }
+
+        if (!finalEmail) {
+          finalEmail = window.localStorage.getItem("sudion_booking_email") || "";
+        }
+
+        if (!finalEmail || ignore) return;
+
+        setEmail(finalEmail);
+        void handleLoadNotifications(finalEmail);
+
+        timer = window.setInterval(async () => {
+          try {
+            const data = await getNotifications(finalEmail);
+            setNotifications(data);
+            window.localStorage.setItem("sudion_booking_email", finalEmail);
+          } catch (error) {
+            console.error("Auto refresh notifications failed:", error);
+          }
+        }, AUTO_REFRESH_MS);
+      } catch (error) {
+        console.error("Không thể bật auto refresh notification:", error);
+      }
     }
-  }, []);
+
+    void startAutoRefresh();
+
+    return () => {
+      ignore = true;
+
+      if (timer) {
+        window.clearInterval(timer);
+      }
+    };
+  }, [session?.email, session?.role, session?.photographerId]);
 
   const stats = useMemo(() => {
     return {
@@ -128,6 +192,7 @@ export default function NotificationPage() {
       window.localStorage.setItem("sudion_booking_email", finalEmail);
     } catch (error) {
       console.error("Lỗi lấy thông báo:", error);
+
       setNotifications([]);
       setPageError(
         error instanceof Error ? error.message : "Không thể lấy thông báo."
@@ -160,6 +225,7 @@ export default function NotificationPage() {
       setSuccessMessage("Đã đánh dấu thông báo là đã đọc.");
     } catch (error) {
       console.error("Lỗi đánh dấu thông báo:", error);
+
       setPageError(
         error instanceof Error
           ? error.message
@@ -169,7 +235,9 @@ export default function NotificationPage() {
   }
 
   async function handleMarkAllRead() {
-    const unreadItems = notifications.filter((item) => Number(item.is_read) === 0);
+    const unreadItems = notifications.filter(
+      (item) => Number(item.is_read) === 0
+    );
 
     if (unreadItems.length === 0) {
       return;

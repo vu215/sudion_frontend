@@ -5,8 +5,9 @@ import type { FormEvent, ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useAuth } from "@/app/auth-context";
 import { saveBooking } from "../booking-store";
-
+import { useToast } from "@/app/toast-context";
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
@@ -417,7 +418,8 @@ export default function BookingPage() {
 function BookingContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-
+  const { session } = useAuth();
+  const toast = useToast();
   const photographerId = searchParams.get("photographer") || "";
   const serviceQuery = searchParams.get("service")?.trim() || "";
   const datesQuery = searchParams.get("dates")?.trim() || "";
@@ -454,6 +456,13 @@ function BookingContent() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
+
+  useEffect(() => {
+    if (!session) return;
+
+    setFullName((current) => current || session.fullName);
+    setEmail((current) => current || session.email);
+  }, [session]);
 
   const availableServices = useMemo(
     () => packages.map(mapPackageToService),
@@ -640,125 +649,131 @@ function BookingContent() {
   const depositAmount = Math.round(estimatedTotal * 0.5);
   const remainingAmount = estimatedTotal - depositAmount;
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+  event.preventDefault();
 
-    if (!photographer || !service) {
-      setSubmitError("Vui lòng chọn photographer và dịch vụ hợp lệ.");
-      return;
+  if (!photographer || !service) {
+    setSubmitError("Vui lòng chọn photographer và dịch vụ hợp lệ.");
+    return;
+  }
+
+  if (isSlotBookedByList(bookedSlots, shootDate, shootTime)) {
+    setSubmitError("Khung giờ này đã được book. Vui lòng chọn lịch khác.");
+    return;
+  }
+
+  try {
+    setIsSubmitting(true);
+    setSubmitError("");
+
+    const payload = {
+      photographerId: photographer.id,
+      packageId: service.packageId,
+
+      availabilitySlotId: selectedSlot.id,
+      availabilitySlotLabel: selectedSlot.label,
+
+      location,
+      shootDate,
+      shootTime,
+
+      peopleScale: selectedPeopleScale,
+      peopleExtra: selectedPeopleOption.extra,
+
+      scene,
+      concept,
+      budget,
+
+      addOnTotal,
+      addOns: selectedAddOnsDetails,
+
+      referenceFileName,
+      paymentMethod,
+
+      customer: {
+        fullName,
+        phone,
+        email,
+        contactChannel,
+      },
+    };
+
+    const response = await fetch(`${API_URL}/bookings`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const json = await response.json();
+
+    if (!response.ok || !json.success) {
+      throw new Error(json.message || "Không thể tạo booking.");
     }
 
-    if (isSlotBookedByList(bookedSlots, shootDate, shootTime)) {
-      setSubmitError("Khung giờ này đã được book. Vui lòng chọn lịch khác.");
-      return;
-    }
+    const bookingCode = json.data.booking_code;
 
-    try {
-      setIsSubmitting(true);
-      setSubmitError("");
+    saveBooking({
+      id: bookingCode,
+      status: "awaiting_payment",
+      createdAt: json.data.created_at || new Date().toISOString(),
 
-      const payload = {
-        photographerId: photographer.id,
-        packageId: service.packageId,
+      serviceId: String(service.packageId),
+      serviceName: json.data.service_name || service.name,
+      basePrice: Number(json.data.base_price || service.basePrice),
 
-        availabilitySlotId: selectedSlot.id,
-        availabilitySlotLabel: selectedSlot.label,
+      photographerId: String(photographer.id),
+      photographerName: json.data.photographer_name || photographer.full_name,
 
-        location,
-        shootDate,
-        shootTime,
+      availabilitySlotId: selectedSlot.id,
+      availabilitySlotLabel: selectedSlot.label,
 
-        peopleScale: selectedPeopleScale,
-        peopleExtra: selectedPeopleOption.extra,
+      location,
+      shootDate,
+      shootTime,
 
-        scene,
-        concept,
-        budget,
+      peopleScale: selectedPeopleScale,
+      peopleExtra: selectedPeopleOption.extra,
 
-        addOnTotal,
-        addOns: selectedAddOnsDetails,
+      scene,
+      concept,
+      budget,
 
-        referenceFileName,
-        paymentMethod,
+      estimatedTotal: Number(json.data.estimated_total || estimatedTotal),
+      addOnTotal,
+      addOns: selectedAddOnsDetails,
 
-        customer: {
-          fullName,
-          phone,
-          email,
-          contactChannel,
-        },
-      };
+      referenceFileName,
+      paymentMethod,
 
-      const response = await fetch(`${API_URL}/bookings`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
+      customer: {
+        fullName,
+        phone,
+        email,
+        contactChannel,
+      },
+    });
 
-      const json = await response.json();
+    toast.redirect({
+      type: "success",
+      title: "Đã gửi yêu cầu đặt lịch",
+      message: "Booking đã được gửi tới photographer. Vui lòng chờ xác nhận.",
+    });
 
-      if (!response.ok || !json.success) {
-        throw new Error(json.message || "Không thể tạo booking.");
-      }
+router.push(`/booking-request-success?id=${encodeURIComponent(bookingCode)}`);
+  } catch (error) {
+    console.error("Lỗi gửi booking:", error);
 
-      const bookingCode = json.data.booking_code;
-
-      saveBooking({
-        id: bookingCode,
-        status: "awaiting_payment",
-        createdAt: json.data.created_at || new Date().toISOString(),
-
-        serviceId: String(service.packageId),
-        serviceName: json.data.service_name || service.name,
-        basePrice: Number(json.data.base_price || service.basePrice),
-
-        photographerId: String(photographer.id),
-        photographerName: json.data.photographer_name || photographer.full_name,
-
-        availabilitySlotId: selectedSlot.id,
-        availabilitySlotLabel: selectedSlot.label,
-
-        location,
-        shootDate,
-        shootTime,
-
-        peopleScale: selectedPeopleScale,
-        peopleExtra: selectedPeopleOption.extra,
-
-        scene,
-        concept,
-        budget,
-
-        estimatedTotal: Number(json.data.estimated_total || estimatedTotal),
-        addOnTotal,
-        addOns: selectedAddOnsDetails,
-
-        referenceFileName,
-        paymentMethod,
-
-        customer: {
-          fullName,
-          phone,
-          email,
-          contactChannel,
-        },
-      });
-
-      router.push(`/booking-success?id=${encodeURIComponent(bookingCode)}`);
-    } catch (error) {
-      console.error("Lỗi gửi booking:", error);
-
-      setSubmitError(
-        error instanceof Error
-          ? error.message
-          : "Có lỗi xảy ra khi gửi yêu cầu đặt lịch."
-      );
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+    setSubmitError(
+      error instanceof Error
+        ? error.message
+        : "Có lỗi xảy ra khi gửi yêu cầu đặt lịch."
+    );
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   const paymentMethods = [
     { id: "momo", name: "MoMo", mark: "M" },

@@ -1,72 +1,140 @@
-export type UserRole = "client" | "photographer";
+export type UserRole = "customer" | "photographer" | "admin";
 
-export type User = {
+export type AuthUser = {
   id: string;
   fullName: string;
   email: string;
   password: string;
   role: UserRole;
-  createdAt: string;
+  photographerId?: string;
 };
 
 export type AuthSession = {
   userId: string;
-  email: string;
   fullName: string;
+  email: string;
   role: UserRole;
+  photographerId?: string;
 };
 
-const USERS_KEY = "studion-users";
-const SESSION_KEY = "studion-session";
+const USERS_KEY = "sudion_users";
+const SESSION_KEY = "sudion_session";
 
-function canUseStorage() {
-  return typeof window !== "undefined" && Boolean(window.localStorage);
+function readUsers(): AuthUser[] {
+  if (typeof window === "undefined") return [];
+
+  try {
+    const raw = window.localStorage.getItem(USERS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
 }
 
-export function getUsers(): User[] {
-  if (!canUseStorage()) return [];
-  try { return JSON.parse(localStorage.getItem(USERS_KEY) || "[]"); }
-  catch { return []; }
-}
-
-export function findUserByEmail(email: string): User | undefined {
-  return getUsers().find((u) => u.email.toLowerCase() === email.toLowerCase());
+function writeUsers(users: AuthUser[]) {
+  window.localStorage.setItem(USERS_KEY, JSON.stringify(users));
 }
 
 export function getSession(): AuthSession | null {
-  if (!canUseStorage()) return null;
-  try { return JSON.parse(localStorage.getItem(SESSION_KEY) || "null"); }
-  catch { return null; }
+  if (typeof window === "undefined") return null;
+
+  try {
+    const raw = window.localStorage.getItem(SESSION_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
 }
 
-export function setSession(session: AuthSession): void {
-  if (!canUseStorage()) return;
-  localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+export function setSession(session: AuthSession) {
+  window.localStorage.setItem(SESSION_KEY, JSON.stringify(session));
 }
 
-export function clearSession(): void {
-  if (!canUseStorage()) return;
-  localStorage.removeItem(SESSION_KEY);
+export function clearSession() {
+  window.localStorage.removeItem(SESSION_KEY);
 }
 
-export function registerUser(
-  fullName: string, email: string, password: string, role: UserRole
-): { ok: true; user: User } | { ok: false; error: string } {
-  if (findUserByEmail(email)) return { ok: false, error: "Email đã được sử dụng." };
-  const user: User = { id: crypto.randomUUID(), fullName, email, password, role, createdAt: new Date().toISOString() };
-  const users = getUsers();
-  users.push(user);
-  if (canUseStorage()) localStorage.setItem(USERS_KEY, JSON.stringify(users));
-  return { ok: true, user };
+export function registerUser(params: {
+  fullName: string;
+  email: string;
+  password: string;
+  role: UserRole;
+  photographerId?: string;
+}) {
+  const fullName = params.fullName.trim();
+  const email = params.email.trim().toLowerCase();
+  const password = params.password;
+  const role = params.role;
+  const photographerId = params.photographerId?.trim();
+
+  const users = readUsers();
+
+  const existed = users.some((item) => item.email.toLowerCase() === email);
+
+  if (existed) {
+    return {
+      ok: false as const,
+      error: "Email này đã được đăng ký.",
+    };
+  }
+
+  if (role === "photographer" && !photographerId) {
+    return {
+      ok: false as const,
+      error: "Photographer cần nhập Photographer ID để liên kết dashboard.",
+    };
+  }
+
+  const user: AuthUser = {
+    id: `USER_${Date.now()}`,
+    fullName,
+    email,
+    password,
+    role,
+    photographerId: role === "photographer" ? photographerId : undefined,
+  };
+
+  writeUsers([...users, user]);
+
+  return {
+    ok: true as const,
+    user,
+  };
 }
 
-export function loginUser(
-  email: string, password: string
-): { ok: true; session: AuthSession } | { ok: false; error: string } {
-  const user = findUserByEmail(email);
-  if (!user) return { ok: false, error: "Email không tồn tại." };
-  if (user.password !== password) return { ok: false, error: "Mật khẩu không đúng." };
-  const session: AuthSession = { userId: user.id, email: user.email, fullName: user.fullName, role: user.role };
+export function loginUser(emailInput: string, password: string) {
+  const email = emailInput.trim().toLowerCase();
+  const users = readUsers();
+
+  const user = users.find((item) => item.email.toLowerCase() === email);
+
+  if (!user) {
+    return {
+      ok: false as const,
+      error: "Email chưa được đăng ký.",
+    };
+  }
+
+  if (user.password !== password) {
+    return {
+      ok: false as const,
+      error: "Mật khẩu không đúng.",
+    };
+  }
+
+  const session: AuthSession = {
+    userId: user.id,
+    fullName: user.fullName,
+    email: user.email,
+    role: user.role,
+    photographerId: user.photographerId,
+  };
+
   setSession(session);
-  return { ok: true, session };
+
+  return {
+    ok: true as const,
+    user,
+    session,
+  };
 }
