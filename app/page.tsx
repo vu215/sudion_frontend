@@ -5,32 +5,19 @@ import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 
 import Link from "next/link";
 
 const assets = {
-  photographer:
-    "https://www.figma.com/api/mcp/asset/6a309021-faab-470e-8eb4-00d9dec71444",
-  wedding:
-    "https://www.figma.com/api/mcp/asset/562009e6-7e75-4a98-a6fe-5d9cb1e9ea76",
-  weddingDetail:
-    "https://www.figma.com/api/mcp/asset/56419ca9-6a90-4558-83df-77cfb96a3ab2",
-  couple:
-    "https://www.figma.com/api/mcp/asset/97d3fb14-57d8-472d-9e23-491baaa81cbb",
-  coupleDetail:
-    "https://www.figma.com/api/mcp/asset/8c7adf63-8b00-40ae-a559-a0b0872dd59c",
-  yearbook:
-    "https://www.figma.com/api/mcp/asset/76215340-f546-4dc3-bb6b-f965fcc87ad6",
-  yearbookDetail:
-    "https://www.figma.com/api/mcp/asset/36357a06-4f37-443e-b109-61c302dc87e1",
-  event:
-    "https://www.figma.com/api/mcp/asset/7f5bd5c1-8308-4597-9a3a-79305d826ee2",
-  eventDetail:
-    "https://www.figma.com/api/mcp/asset/508abb71-d2fc-4449-bc0e-1608e56cf008",
-  food:
-    "https://www.figma.com/api/mcp/asset/1a8e5f75-e03c-4262-8add-185cc8e0e005",
-  foodDetail:
-    "https://www.figma.com/api/mcp/asset/e243406d-d9c8-49cd-8c3e-c77fdce79dc8",
-  travel:
-    "https://www.figma.com/api/mcp/asset/bcd9a754-1bf3-47a9-bde6-2270fed16d80",
-  travelDetail:
-    "https://www.figma.com/api/mcp/asset/7ab40b42-ec98-40f7-8976-ad31e168ddbc",
+  photographer: "https://i.pinimg.com/1200x/94/93/63/94936335f2639081d5ab76217e01159e.jpg",
+  wedding: "https://i.pinimg.com/1200x/f2/a5/5a/f2a55a5b607de167875d9e3b85668f1a.jpg",
+  weddingDetail: "https://i.pinimg.com/736x/c1/1e/62/c11e625dff2d6c16556d4bf313b15bbb.jpg",
+  couple: "https://i.pinimg.com/736x/a4/ff/df/a4ffdf7dce679f05f8b0636aef47d43c.jpg",
+  coupleDetail: "https://i.pinimg.com/736x/87/28/56/87285639f8ddd169b2e0914c2d09d131.jpg",
+  yearbook: "https://i.pinimg.com/1200x/7b/6c/7b/7b6c7b1537a916718a498bc29bbfa2e2.jpg",
+  yearbookDetail: "https://i.pinimg.com/736x/35/83/91/358391171213dd117b586f3e948c05fc.jpg",
+  event: "https://i.pinimg.com/1200x/7b/c0/52/7bc0529f686c1f7b26f364cf57c57be6.jpg",
+  eventDetail: "https://i.pinimg.com/736x/2b/ee/41/2bee41386778a3c1d532ec3e9e3a8829.jpg",
+  food: "https://i.pinimg.com/736x/86/20/43/862043dfe5e28d68633eb4290a90d8e1.jpg",
+  foodDetail: "https://i.pinimg.com/1200x/3b/a2/c5/3ba2c5ae61f152bde93c84c22cabb7ea.jpg",
+  travel: "https://i.pinimg.com/1200x/fb/e6/02/fbe6028082c2a58f3381eceea2b92bc1.jpg",
+  travelDetail: "https://i.pinimg.com/1200x/c4/68/6d/c4686d3523a99172767d64f8177e62bd.jpg",
 };
 
 const serviceSections = [
