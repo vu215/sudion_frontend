@@ -2,15 +2,26 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { serviceCategories, servicePackages } from "./service-data-fresh";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
+import {
+  getServicesPageData,
+  type UiServiceCategory,
+} from "./service-api";
 
 const containerClass = "mx-auto w-full max-w-[1440px] px-6 md:px-12 lg:px-20";
 
 function fadeUpStyle(isReady: boolean, delay = 0): CSSProperties {
   return {
     opacity: isReady ? 1 : 0,
-    transform: isReady ? "translate3d(0, 0, 0)" : "translate3d(0, 56px, 0) scale(0.96)",
+    transform: isReady
+      ? "translate3d(0, 0, 0)"
+      : "translate3d(0, 56px, 0) scale(0.96)",
     transition:
       "opacity 1000ms cubic-bezier(0.16, 1, 0.3, 1), transform 1000ms cubic-bezier(0.16, 1, 0.3, 1)",
     transitionDelay: `${delay}ms`,
@@ -20,6 +31,13 @@ function fadeUpStyle(isReady: boolean, delay = 0): CSSProperties {
 
 export default function ServicesPage() {
   const [isReady, setIsReady] = useState(false);
+  const [serviceCategories, setServiceCategories] = useState<
+    UiServiceCategory[]
+  >([]);
+  const [totalPhotographers, setTotalPhotographers] = useState(0);
+  const [isLoadingData, setIsLoadingData] = useState(true);
+  const [dataError, setDataError] = useState("");
+
   const serviceCount = serviceCategories.length;
 
   useEffect(() => {
@@ -27,10 +45,38 @@ export default function ServicesPage() {
     return () => window.clearTimeout(timer);
   }, []);
 
+  useEffect(() => {
+    async function loadServices() {
+      try {
+        setIsLoadingData(true);
+        setDataError("");
+
+        const data = await getServicesPageData();
+
+        setServiceCategories(data.categories);
+        setTotalPhotographers(data.totalPhotographers);
+      } catch (error) {
+        console.error("Lỗi fetch services:", error);
+
+        setDataError(
+          error instanceof Error
+            ? error.message
+            : "Không thể lấy dữ liệu dịch vụ từ database."
+        );
+      } finally {
+        setIsLoadingData(false);
+      }
+    }
+
+    loadServices();
+  }, []);
+
   return (
     <main className="min-h-screen bg-[#fafbfc] text-[#0e111d]">
       <section className="w-full overflow-hidden bg-white">
-        <div className={`${containerClass} grid gap-10 py-14 lg:grid-cols-[1.05fr_0.85fr] lg:items-center lg:gap-14 lg:py-16`}>
+        <div
+          className={`${containerClass} grid gap-10 py-14 lg:grid-cols-[1.05fr_0.85fr] lg:items-center lg:gap-14 lg:py-16`}
+        >
           <div className="pt-2">
             <div
               className="inline-flex items-center gap-1.5 rounded-full bg-[#fcf2e9] px-4 py-1.5 text-[12px] font-extrabold text-[#ff8d28]"
@@ -39,41 +85,80 @@ export default function ServicesPage() {
               <span className="grid h-4 w-4 place-items-center">✦</span>
               Dịch vụ nhiếp ảnh
             </div>
+
             <h1
               className="mt-5 max-w-[18ch] text-[40px] font-black leading-[1.16] tracking-normal text-[#0e111d] sm:text-[38px] md:text-[44px] lg:text-[48px] xl:text-[52px]"
               style={fadeUpStyle(isReady, 120)}
             >
-              Chọn dịch vụ trước, <br></br>
+              Chọn dịch vụ trước, <br />
               rồi tìm gói chụp gần bạn
             </h1>
-            
-            <div className="mt-7 flex flex-wrap gap-3" style={fadeUpStyle(isReady, 360)}>
-              {serviceCategories.map((service) => (
-                <Link
-                  key={service.slug}
-                  href={`/services/${service.slug}`}
-                  className="rounded-full border border-[#e8eaf1] bg-white px-5 py-2.5 text-[14px] font-extrabold text-[#0e111d] shadow-[0_8px_18px_rgba(14,17,29,0.04)] transition hover:border-[#ff8d28] hover:bg-[#fff7ef] hover:text-[#ff8d28]"
-                >
-                  {service.title}
-                </Link>
-              ))}
+
+            <div
+              className="mt-7 flex flex-wrap gap-3"
+              style={fadeUpStyle(isReady, 360)}
+            >
+              {isLoadingData ? (
+                <span className="rounded-full border border-[#e8eaf1] bg-white px-5 py-2.5 text-[14px] font-extrabold text-[#667085] shadow-[0_8px_18px_rgba(14,17,29,0.04)]">
+                  Đang tải dịch vụ...
+                </span>
+              ) : dataError ? (
+                <span className="rounded-full border border-red-200 bg-red-50 px-5 py-2.5 text-[14px] font-extrabold text-red-600">
+                  Lỗi tải dữ liệu
+                </span>
+              ) : (
+                serviceCategories.map((service) => (
+                  <Link
+                    key={service.slug}
+                    href={`/services/${service.slug}`}
+                    className="rounded-full border border-[#e8eaf1] bg-white px-5 py-2.5 text-[14px] font-extrabold text-[#0e111d] shadow-[0_8px_18px_rgba(14,17,29,0.04)] transition hover:border-[#ff8d28] hover:bg-[#fff7ef] hover:text-[#ff8d28]"
+                  >
+                    {service.title}
+                  </Link>
+                ))
+              )}
             </div>
-            <div className="mt-10 flex flex-wrap items-start gap-10" style={fadeUpStyle(isReady, 480)}>
+
+            <div
+              className="mt-10 flex flex-wrap items-start gap-10"
+              style={fadeUpStyle(isReady, 480)}
+            >
               <div className="grid gap-1 border-l-4 border-[#ff8d28] pl-4">
-                <strong className="text-[32px] font-black leading-none text-[#0e111d]">{serviceCount}</strong>
-                <span className="text-[12px] font-bold uppercase tracking-[0.12em] text-[#6b7280]">Danh mục dịch vụ</span>
+                <strong className="text-[32px] font-black leading-none text-[#0e111d]">
+                  {isLoadingData ? "..." : serviceCount}
+                </strong>
+
+                <span className="text-[12px] font-bold uppercase tracking-[0.12em] text-[#6b7280]">
+                  Danh mục dịch vụ
+                </span>
               </div>
+
               <div className="grid gap-1 border-l-4 border-[#ff8d28] pl-4">
-                <strong className="text-[32px] font-black leading-none text-[#0e111d]">2K+</strong>
-                <span className="text-[12px] font-bold uppercase tracking-[0.12em] text-[#6b7280]">Photographer</span>
+                <strong className="text-[32px] font-black leading-none text-[#0e111d]">
+                  {isLoadingData ? "..." : `${totalPhotographers}+`}
+                </strong>
+
+                <span className="text-[12px] font-bold uppercase tracking-[0.12em] text-[#6b7280]">
+                  Photographer
+                </span>
               </div>
             </div>
-            <p className="mt-4 text-[13px] text-[#667085]" style={fadeUpStyle(isReady, 520)}>
-              Debug slugs: {serviceCategories.map((service) => service.slug).join(", ")}
+
+            <p
+              className="mt-4 text-[13px] text-[#667085]"
+              style={fadeUpStyle(isReady, 520)}
+            >
+              Debug slugs:{" "}
+              {isLoadingData
+                ? "đang tải..."
+                : serviceCategories.map((service) => service.slug).join(", ")}
             </p>
           </div>
 
-          <div className="relative min-h-[430px] lg:min-h-[520px]" style={fadeUpStyle(isReady, 320)}>
+          <div
+            className="relative min-h-[430px] lg:min-h-[520px]"
+            style={fadeUpStyle(isReady, 320)}
+          >
             <div className="absolute right-0 top-0 h-[82%] w-[86%] overflow-hidden rounded-[24px] bg-[#eef1f7] shadow-[0_24px_56px_rgba(14,17,29,0.12)] ring-1 ring-black/5">
               <Image
                 src="https://i.pinimg.com/736x/ca/71/ce/ca71ce56cb9dae9a65d13a823f3c66fa.jpg"
@@ -83,19 +168,27 @@ export default function ServicesPage() {
                 sizes="(max-width: 1023px) 100vw, 560px"
                 className="object-cover"
               />
+
               <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black/50 to-transparent" />
             </div>
+
             <div className="absolute bottom-[10%] left-0 z-10 flex w-[min(320px,78%)] items-center gap-3 rounded-2xl border border-[#e8eaf1] bg-white p-4 shadow-[0_18px_42px_rgba(14,17,29,0.12)] lg:-left-10 xl:-left-14">
               <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-[#fcf2e9] text-[#ff8d28]">
                 ✦
               </div>
+
               <div className="min-w-0">
-                <p className="text-[15px] font-black text-[#0e111d]">Listing theo gói</p>
+                <p className="text-[15px] font-black text-[#0e111d]">
+                  Listing theo gói
+                </p>
+
                 <p className="mt-1 text-[13px] font-semibold leading-5 text-[#667085]">
-                  Cùng dịch vụ, mỗi photographer có giá, add-on và khoảng cách khác nhau.
+                  Cùng dịch vụ, mỗi photographer có giá, add-on và khoảng cách
+                  khác nhau.
                 </p>
               </div>
             </div>
+
             <div className="absolute bottom-0 right-[8%] w-[42%] overflow-hidden rounded-[18px] border-4 border-white bg-[#eef1f7] shadow-[0_18px_42px_rgba(14,17,29,0.14)]">
               <div className="relative aspect-square">
                 <Image
@@ -111,19 +204,50 @@ export default function ServicesPage() {
         </div>
       </section>
 
-      <section className={`${containerClass} py-14 lg:py-18`}>
-        
-
+      <section className={`${containerClass} py-14 lg:py-20`}>
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <h2 className="text-[28px] font-black text-[#0e111d]">Tất cả dịch vụ</h2>
-          <p className="text-[14px] font-bold text-[#667085]">{serviceCount} danh mục dịch vụ hiện có</p>
+          <h2 className="text-[28px] font-black text-[#0e111d]">
+            Tất cả dịch vụ
+          </h2>
+
+          <p className="text-[14px] font-bold text-[#667085]">
+            {isLoadingData
+              ? "Đang tải danh mục..."
+              : `${serviceCount} danh mục dịch vụ hiện có`}
+          </p>
         </div>
 
-        <div className="mt-8 grid gap-5 lg:grid-cols-3">
-          {serviceCategories.map((service, index) => {
-            const packageCount = servicePackages.filter((item) => item.serviceSlug === service.slug).length;
+        {dataError ? (
+          <div className="mt-8 rounded-2xl border border-red-200 bg-red-50 px-6 py-5">
+            <p className="text-[15px] font-black text-red-600">
+              Không lấy được dữ liệu dịch vụ
+            </p>
 
-            return (
+            <p className="mt-2 text-[13px] font-semibold leading-6 text-red-500">
+              {dataError}
+            </p>
+
+            <p className="mt-3 text-[13px] font-semibold text-[#667085]">
+              Kiểm tra backend có đang chạy ở localhost:5000 không, rồi mở thử
+              /api/categories.
+            </p>
+          </div>
+        ) : null}
+
+        {isLoadingData ? (
+          <div className="mt-8 grid gap-5 lg:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <div
+                key={index}
+                className="h-[390px] animate-pulse rounded-2xl bg-[#eef1f7]"
+              />
+            ))}
+          </div>
+        ) : null}
+
+        {!isLoadingData && !dataError ? (
+          <div className="mt-8 grid gap-5 lg:grid-cols-3">
+            {serviceCategories.map((service, index) => (
               <RevealCard key={service.slug} delay={index * 130}>
                 <Link
                   href={`/services/${service.slug}`}
@@ -137,37 +261,48 @@ export default function ServicesPage() {
                       sizes="(max-width: 1023px) 100vw, 420px"
                       className="object-cover transition duration-700 group-hover:scale-105"
                     />
+
                     <div className="absolute left-4 top-4 rounded-full bg-white/95 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.12em] text-[#ff8d28]">
                       {service.shortTitle}
                     </div>
                   </div>
+
                   <div className="p-5">
                     <div className="flex items-start justify-between gap-3">
-                      <h3 className="text-[22px] font-black text-[#0e111d]">{service.title}</h3>
+                      <h3 className="text-[22px] font-black text-[#0e111d]">
+                        {service.title}
+                      </h3>
+
                       <span className="shrink-0 rounded-full bg-[#fff4eb] px-3 py-1 text-[11px] font-extrabold text-[#ff8d28]">
-                        {packageCount} gói mẫu
+                        {service.packageCount} gói
                       </span>
                     </div>
+
                     <p className="mt-3 text-[14px] font-semibold leading-6 text-[#667085]">
                       {service.description}
                     </p>
+
                     <div className="mt-5 flex items-end justify-between gap-4 border-t border-[#f0f2f6] pt-5">
                       <div>
                         <p className="text-[11px] font-black uppercase tracking-[0.12em] text-[#98a2b3]">
                           Giá khởi điểm
                         </p>
-                        <p className="mt-1 text-[18px] font-black text-[#ff8d28]">{service.startingPrice}</p>
+
+                        <p className="mt-1 text-[18px] font-black text-[#ff8d28]">
+                          {service.startingPrice}
+                        </p>
                       </div>
-                      <span className="rounded-lg bg-[#ff8d28] px-4 py-2 text-[12px]  font-black text-white">
+
+                      <span className="rounded-lg bg-[#ff8d28] px-4 py-2 text-[12px] font-black text-white">
                         Xem gói
                       </span>
                     </div>
                   </div>
                 </Link>
               </RevealCard>
-            );
-          })}
-        </div>
+            ))}
+          </div>
+        ) : null}
       </section>
     </main>
   );
@@ -194,10 +329,14 @@ function RevealCard({
           observer.disconnect();
         }
       },
-      { rootMargin: "0px 0px -8% 0px", threshold: 0.16 },
+      {
+        rootMargin: "0px 0px -8% 0px",
+        threshold: 0.16,
+      }
     );
 
     observer.observe(node);
+
     return () => observer.disconnect();
   }, []);
 
