@@ -1,42 +1,73 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, type FormEvent, type MouseEvent } from "react";
 import { useRouter } from "next/navigation";
 import { loginUser } from "@/app/auth-store";
 import { useAuth } from "@/app/auth-context";
 
 const assets = {
-  google: "https://www.figma.com/api/mcp/asset/7799c334-9a5d-4ef7-a51b-c5701a78b252",
-  couple: "https://www.figma.com/api/mcp/asset/97d3fb14-57d8-472d-9e23-491baaa81cbb",
-  coupleDetail: "https://www.figma.com/api/mcp/asset/8c7adf63-8b00-40ae-a559-a0b0872dd59c",
-  wedding: "https://www.figma.com/api/mcp/asset/562009e6-7e75-4a98-a6fe-5d9cb1e9ea76",
+  google:
+    "https://www.figma.com/api/mcp/asset/7799c334-9a5d-4ef7-a51b-c5701a78b252",
+  couple:
+    "https://www.figma.com/api/mcp/asset/97d3fb14-57d8-472d-9e23-491baaa81cbb",
+  coupleDetail:
+    "https://www.figma.com/api/mcp/asset/8c7adf63-8b00-40ae-a559-a0b0872dd59c",
+  wedding:
+    "https://www.figma.com/api/mcp/asset/562009e6-7e75-4a98-a6fe-5d9cb1e9ea76",
 };
 
 export default function LoginPage() {
   const router = useRouter();
   const { refresh } = useAuth();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [isSwitching, setIsSwitching] = useState(false);
 
-  function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError("");
-    if (!email || !password) { setError("Vui lòng nhập đầy đủ thông tin."); return; }
+
+    if (!email || !password) {
+      setError("Vui lòng nhập đầy đủ thông tin.");
+      return;
+    }
+
     setLoading(true);
+
     const result = loginUser(email, password);
+
     setLoading(false);
-    if (result.ok === false) { setError(result.error); return; }
+
+    if (result.ok === false) {
+      setError(result.error);
+      return;
+    }
+
     refresh();
+
+    if (result.user.role === "photographer") {
+      router.push("/photographer-dashboard");
+      return;
+    }
+
+    if (result.user.role === "admin") {
+      router.push("/");
+      return;
+    }
+
     router.push("/");
   }
 
-  function handleRegisterSwitch(e: React.MouseEvent<HTMLAnchorElement>) {
+  function handleRegisterSwitch(e: MouseEvent<HTMLAnchorElement>) {
     e.preventDefault();
+
     if (isSwitching) return;
+
     setIsSwitching(true);
     window.setTimeout(() => router.push("/register"), 420);
   }
@@ -49,20 +80,40 @@ export default function LoginPage() {
         }`}
         aria-hidden="true"
       />
+
       <section className="absolute left-1/2 top-1/2 flex min-h-[1080px] w-[1920px] origin-center -translate-x-1/2 -translate-y-1/2 scale-[0.375] flex-col items-center justify-center px-[410px] py-[126px] min-[640px]:scale-[0.333] min-[768px]:scale-[0.4] min-[1024px]:scale-[0.533] min-[1280px]:scale-[0.667] min-[1366px]:scale-[0.711] min-[1440px]:scale-[0.75] min-[1536px]:scale-[0.8] min-[1728px]:scale-[0.9] min-[1920px]:scale-100">
         <div className="grid h-[736px] w-[1100px] grid-cols-[625px_475px] overflow-hidden rounded-[24px] border border-[#c5c5d8]/20 bg-white shadow-[0_10px_40px_-10px_rgba(0,0,0,0.08)]">
           <div className="relative h-full overflow-hidden">
             <div className="flex h-full flex-col">
-              <img src={assets.couple} alt="" className="h-1/3 w-full object-cover" />
-              <img src={assets.coupleDetail} alt="" className="h-1/3 w-full object-cover" />
-              <img src={assets.wedding} alt="" className="h-1/3 w-full object-cover" />
+              <img
+                src={assets.couple}
+                alt=""
+                className="h-1/3 w-full object-cover"
+              />
+
+              <img
+                src={assets.coupleDetail}
+                alt=""
+                className="h-1/3 w-full object-cover"
+              />
+
+              <img
+                src={assets.wedding}
+                alt=""
+                className="h-1/3 w-full object-cover"
+              />
             </div>
+
             <div className="absolute bottom-12 left-12 right-12 rounded-[16px] border border-white/20 bg-black/25 px-8 py-7 text-white shadow-[0_18px_40px_rgba(0,0,0,0.12)] backdrop-blur-md">
               <h2 className="text-[30px] font-extrabold leading-[1.18] tracking-[-0.02em]">
-                Nâng tầm câu chuyện<br />hình ảnh của bạn.
+                Nâng tầm câu chuyện
+                <br />
+                hình ảnh của bạn.
               </h2>
+
               <p className="mt-5 text-[17px] font-medium leading-[1.6] text-white/80">
-                Tham gia cộng đồng hàng nghìn nhiếp ảnh gia và doanh nghiệp đang thay đổi cách họ làm việc với AI.
+                Đăng nhập để đặt lịch, quản lý booking và theo dõi trạng thái
+                buổi chụp của bạn.
               </p>
             </div>
           </div>
@@ -73,20 +124,21 @@ export default function LoginPage() {
                 <h1 className="text-[40px] font-extrabold leading-[1.12] tracking-[-0.02em] text-[#1a1b24]">
                   Chào mừng trở lại
                 </h1>
+
                 <p className="mt-3 text-[18px] font-medium leading-[1.35] text-[#444655]">
-                  Đăng nhập để tiếp tục khám phá sức mạnh AI.
+                  Đăng nhập để tiếp tục quản lý lịch chụp trên Sudion.
                 </p>
               </div>
 
-              {error && (
-                <div className="mb-5 rounded-[8px] bg-red-50 border border-red-100 px-4 py-3 text-[15px] text-red-600">
+              {error ? (
+                <div className="mb-5 rounded-[8px] border border-red-100 bg-red-50 px-4 py-3 text-[15px] font-semibold text-red-600">
                   {error}
                 </div>
-              )}
+              ) : null}
 
               <form onSubmit={handleSubmit} className="grid gap-5">
                 <label className="grid gap-2 text-[16px] font-bold leading-5 text-[#1a1b24]">
-                  Email hoặc tên đăng nhập
+                  Email
                   <input
                     type="email"
                     value={email}
@@ -99,10 +151,15 @@ export default function LoginPage() {
                 <label className="grid gap-2 text-[16px] font-bold leading-5 text-[#1a1b24]">
                   <span className="flex items-center justify-between gap-3">
                     Mật khẩu
-                    <Link href="/forgot-password" className="text-[14px] font-semibold text-[#ff8d28]">
+
+                    <Link
+                      href="/forgot-password"
+                      className="text-[14px] font-semibold text-[#ff8d28]"
+                    >
                       Quên mật khẩu?
                     </Link>
                   </span>
+
                   <span className="relative block">
                     <input
                       type="password"
@@ -111,6 +168,7 @@ export default function LoginPage() {
                       placeholder="••••••••"
                       className="!h-[55px] !min-h-0 w-full !rounded-[8px] !border !border-[#c5c5d8] !bg-[#f4f2ff] !px-4 !pr-12 text-[16px] font-medium tracking-[0.22em] !text-[#1a1b24] !shadow-none outline-none placeholder:tracking-[0.22em] focus:!border-[#ff8d28] focus:!bg-white focus:!ring-4 focus:!ring-[#ff8d28]/15"
                     />
+
                     <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[#444655]">
                       <EyeIcon />
                     </span>
@@ -118,7 +176,10 @@ export default function LoginPage() {
                 </label>
 
                 <label className="mt-1 flex w-fit cursor-pointer items-center gap-2 text-[16px] font-medium text-[#444655]">
-                  <input type="checkbox" className="!h-4 !min-h-0 !w-4 rounded border-[#c5c5d8] bg-white !p-0" />
+                  <input
+                    type="checkbox"
+                    className="!h-4 !min-h-0 !w-4 rounded border-[#c5c5d8] bg-white !p-0"
+                  />
                   Ghi nhớ đăng nhập
                 </label>
 
@@ -133,21 +194,39 @@ export default function LoginPage() {
 
               <p className="mt-8 text-center text-[16px] font-medium text-[#444655]">
                 Chưa có tài khoản?{" "}
-                <Link href="/register" onClick={handleRegisterSwitch} className="font-bold text-[#ff8d28] transition hover:text-[#e9791d]">
+                <Link
+                  href="/register"
+                  onClick={handleRegisterSwitch}
+                  className="font-bold text-[#ff8d28] transition hover:text-[#e9791d]"
+                >
                   Đăng ký ngay
                 </Link>
               </p>
 
               <div className="my-8 flex items-center gap-4">
                 <span className="h-px flex-1 bg-[#c5c5d8]/50" />
-                <span className="text-[14px] font-semibold text-[#444655]/60">HOẶC EMAIL</span>
+                <span className="text-[14px] font-semibold text-[#444655]/60">
+                  HOẶC
+                </span>
                 <span className="h-px flex-1 bg-[#c5c5d8]/50" />
               </div>
 
-              <button type="button" className="flex h-[50px] w-full items-center justify-center gap-3 rounded-[12px] border border-[#c5c5d8] bg-[#fbf8ff] text-[16px] font-bold text-[#1a1b24] transition hover:border-[#ff8d28]">
+              <button
+                type="button"
+                className="flex h-[50px] w-full items-center justify-center gap-3 rounded-[12px] border border-[#c5c5d8] bg-[#fbf8ff] text-[16px] font-bold text-[#1a1b24] transition hover:border-[#ff8d28]"
+              >
                 <img src={assets.google} alt="" className="h-5 w-5" />
                 Tiếp tục với Google
               </button>
+
+              <div className="mt-5 rounded-[12px] border border-[#ffe0c2] bg-[#fff8f1] px-4 py-3 text-[12px] font-semibold leading-5 text-[#9a5a18]">
+                <p className="font-black text-[#ff8d28]">Luồng demo:</p>
+                <p>
+                  Customer đăng nhập sẽ đi tới trang chủ và xem booking bằng
+                  email tài khoản. Photographer đăng nhập sẽ tự chuyển tới
+                  dashboard để xem đơn của mình.
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -162,9 +241,27 @@ export default function LoginPage() {
 
 function EyeIcon() {
   return (
-    <svg viewBox="0 0 20 20" className="h-5 w-5" fill="none" aria-hidden="true">
-      <path d="M2.75 10s2.4-4.25 7.25-4.25S17.25 10 17.25 10 14.85 14.25 10 14.25 2.75 10 2.75 10Z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx="10" cy="10" r="2.25" stroke="currentColor" strokeWidth="1.8" />
+    <svg
+      viewBox="0 0 20 20"
+      className="h-5 w-5"
+      fill="none"
+      aria-hidden="true"
+    >
+      <path
+        d="M2.75 10s2.4-4.25 7.25-4.25S17.25 10 17.25 10 14.85 14.25 10 14.25 2.75 10 2.75 10Z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+
+      <circle
+        cx="10"
+        cy="10"
+        r="2.25"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      />
     </svg>
   );
 }

@@ -1,43 +1,66 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { type AuthSession, clearSession, getSession } from "./auth-store";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
+import {
+  clearSession,
+  getSession,
+  type AuthSession,
+} from "./auth-store";
 
-type AuthContextType = {
+type AuthContextValue = {
   session: AuthSession | null;
-  loading: boolean;
-  logout: () => void;
+  isLoggedIn: boolean;
+  isCustomer: boolean;
+  isPhotographer: boolean;
   refresh: () => void;
+  logout: () => void;
 };
 
-const AuthContext = createContext<AuthContextType>({
-  session: null, loading: true, logout: () => {}, refresh: () => {},
-});
+const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [session, setSession] = useState<AuthSession | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [session, setSessionState] = useState<AuthSession | null>(null);
 
-  function loadSession() {
-    setSession(getSession());
-    setLoading(false);
+  function refresh() {
+    setSessionState(getSession());
   }
-
-  useEffect(() => { loadSession(); }, []);
 
   function logout() {
     clearSession();
-    setSession(null);
-    window.location.href = "/";
+    setSessionState(null);
   }
 
-  return (
-    <AuthContext.Provider value={{ session, loading, logout, refresh: loadSession }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  useEffect(() => {
+    refresh();
+  }, []);
+
+  const value = useMemo<AuthContextValue>(() => {
+    return {
+      session,
+      isLoggedIn: Boolean(session),
+      isCustomer: session?.role === "customer",
+      isPhotographer: session?.role === "photographer",
+      refresh,
+      logout,
+    };
+  }, [session]);
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
-  return useContext(AuthContext);
+  const value = useContext(AuthContext);
+
+  if (!value) {
+    throw new Error("useAuth phải được dùng bên trong AuthProvider.");
+  }
+
+  return value;
 }

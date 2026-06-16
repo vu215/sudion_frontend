@@ -1,5 +1,7 @@
 "use client";
 
+/* eslint-disable @next/next/no-img-element */
+
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Inter } from "next/font/google";
 import Link from "next/link";
@@ -19,8 +21,35 @@ const styleOptions = [
 ];
 
 const tabs = ["Tất cả", "AI đề xuất", "Photo ở gần bạn", "Được yêu thích", "Mới nhất"];
-const locations = ["Ho Chi Minh City, VN", "Đà Lạt, VN", "Hà Nội, VN", "Đà Nẵng, VN", "Huế, VN"];
+
+const locations = [
+  "Tất cả địa điểm",
+  "Ho Chi Minh City, VN",
+  "Đà Lạt, VN",
+  "Hà Nội, VN",
+  "Đà Nẵng, VN",
+  "Huế, VN",
+  "Vĩnh Long, Việt Nam",
+  "Cần Thơ, Việt Nam",
+];
+
 const tabTextClass = "pb-4 !text-[12px] !font-bold leading-none";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+
+const PHOTOGRAPHERS_PER_PAGE = 12;
+
+const fallbackImages = [
+  "https://images.unsplash.com/photo-1496440737103-cd596325d314?auto=format&fit=crop&w=900&q=85",
+  "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=900&q=85",
+  "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=900&q=85",
+  "https://images.unsplash.com/photo-1595425964071-2c1ec7c88201?auto=format&fit=crop&w=900&q=85",
+];
+
+const fallbackThumbs = [
+  "https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&w=80&q=80",
+  "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=80&q=80",
+];
 
 const shootLocationOptions = [
   {
@@ -59,15 +88,62 @@ type Coordinates = {
   lng: number;
 };
 
+type ApiPhotographer = {
+  id: number;
+  full_name: string;
+  email: string;
+  phone: string | null;
+  avatar_url: string | null;
+  bio: string | null;
+  started_year: number | null;
+  active_area: string | null;
+  work_history: string | null;
+  photographer_type: "freelance" | "studio" | "agency";
+  avg_rating: number;
+  verification_status: "pending" | "verified" | "rejected";
+  min_price: number;
+  package_count: number;
+  categories: string;
+};
+
+type ApiResponse<T> = {
+  success: boolean;
+  message: string;
+  data: T;
+  error?: unknown;
+};
+
+type PhotographerCardData = {
+  id: string;
+  name: string;
+  location: string;
+  city: string;
+  coordinates: Coordinates;
+  rating: string;
+  match: string;
+  price: string;
+  image: string;
+  tags: string[];
+  thumbs: string[];
+  extra: string;
+  verified: boolean;
+  addOns: string[];
+  bio?: string | null;
+};
+
 function getDistanceKm(from: Coordinates, to: Coordinates) {
   const earthRadius = 6371;
   const dLat = ((to.lat - from.lat) * Math.PI) / 180;
   const dLng = ((to.lng - from.lng) * Math.PI) / 180;
   const fromLat = (from.lat * Math.PI) / 180;
   const toLat = (to.lat * Math.PI) / 180;
+
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(fromLat) * Math.cos(toLat) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    Math.cos(fromLat) *
+      Math.cos(toLat) *
+      Math.sin(dLng / 2) *
+      Math.sin(dLng / 2);
 
   return earthRadius * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
@@ -83,143 +159,118 @@ function fadeUpStyle(isReady: boolean, delay = 0): CSSProperties {
   };
 }
 
-const photographers = [
-  {
-    id: "binh-nguyen",
-    name: "Bình Nguyễn",
-    location: "Tp.HCM, Việt Nam",
-    city: "Ho Chi Minh City, VN",
-    coordinates: { lat: 10.7758, lng: 106.7009 },
-    rating: "4.9",
-    match: "98%",
-    price: "2.500.000 VNĐ",
-    image:
-      "https://i.pinimg.com/736x/9c/44/0c/9c440c4652d4e4476a5c61d25efbef1e.jpg",
-    tags: ["Thời trang", "Chân dung", "Biên tập"],
-    thumbs: [
-      "https://i.pinimg.com/736x/a9/60/35/a9603541b3d536cab535250572903e28.jpg",
-      "https://i.pinimg.com/1200x/bf/96/6a/bf966a251881671b7e6e0652665ebae1.jpg",
-    ],
-    extra: "+12",
-    verified: true,
+function getCoordinatesByArea(area: string | null | undefined): Coordinates {
+  const text = (area || "").toLowerCase();
+
+  if (text.includes("đà lạt") || text.includes("da lat")) {
+    return { lat: 11.9404, lng: 108.4583 };
+  }
+
+  if (text.includes("hà nội") || text.includes("ha noi")) {
+    return { lat: 21.0278, lng: 105.8342 };
+  }
+
+  if (text.includes("đà nẵng") || text.includes("da nang")) {
+    return { lat: 16.0544, lng: 108.2022 };
+  }
+
+  if (text.includes("huế") || text.includes("hue")) {
+    return { lat: 16.4637, lng: 107.5909 };
+  }
+
+  if (text.includes("vĩnh long") || text.includes("vinh long")) {
+    return { lat: 10.2537, lng: 105.9722 };
+  }
+
+  if (text.includes("cần thơ") || text.includes("can tho")) {
+    return { lat: 10.0452, lng: 105.7469 };
+  }
+
+  return { lat: 10.7758, lng: 106.7009 };
+}
+
+function formatPrice(price: number) {
+  return `${Number(price || 0).toLocaleString("vi-VN")} VNĐ`;
+}
+
+function buildBookingHref(photographerId: string, category: string) {
+  const params = new URLSearchParams();
+
+  params.set("photographer", photographerId);
+
+  if (category && category !== "all") {
+    params.set("service", category);
+  }
+
+  return `/booking?${params.toString()}`;
+}
+
+function getTagsFromCategories(categories: string | null | undefined) {
+  const text = (categories || "").toLowerCase();
+
+  if (text.includes("cưới") || text.includes("sự kiện")) {
+    return ["Cưới & Sự kiện"];
+  }
+
+  if (text.includes("đôi") || text.includes("couple")) {
+    return ["Chân dung", "Cưới & Sự kiện"];
+  }
+
+  if (text.includes("kỉ yếu") || text.includes("kỷ yếu")) {
+    return ["Chân dung", "Đời thường & Lifestyle"];
+  }
+
+  if (text.includes("food") || text.includes("product") || text.includes("thương mại")) {
+    return ["Sản phẩm & Thương mại"];
+  }
+
+  if (text.includes("travel")) {
+    return ["Đời thường & Lifestyle"];
+  }
+
+  return ["Chân dung"];
+}
+
+function mapApiToCard(item: ApiPhotographer, index: number): PhotographerCardData {
+  const location = item.active_area || "Ho Chi Minh City, VN";
+  const categories = item.categories || "";
+
+  return {
+    id: String(item.id),
+    name: item.full_name,
+    location,
+    city: location,
+    coordinates: getCoordinatesByArea(location),
+    rating: Number(item.avg_rating || 0).toFixed(1),
+    match: index < 2 ? "98%" : "92%",
+    price: formatPrice(item.min_price),
+    image: item.avatar_url || fallbackImages[index % fallbackImages.length],
+    tags: getTagsFromCategories(categories),
+    thumbs: fallbackThumbs,
+    extra: `+${item.package_count || 1}`,
+    verified: item.verification_status === "verified",
     addOns: ["makeup", "video", "album", "retouch"],
-  },
-  {
-    id: "hao-le",
-    name: "Hào Lê",
-    location: "Đà Lạt , Việt Nam",
-    city: "Đà Lạt, VN",
-    coordinates: { lat: 11.9404, lng: 108.4583 },
-    rating: "4.8",
-    match: "92%",
-    price: "5.000.000 VNĐ",
-    image:
-      "https://i.pinimg.com/736x/a0/b0/00/a0b000947356b75df1e4ec794477fc49.jpg",
-    tags: ["Cưới", "Cặp đôi"],
-    thumbs: [
-      "https://i.pinimg.com/736x/d2/27/a2/d227a2a75b3904a201772c24c4c59e88.jpg",
-      "https://i.pinimg.com/736x/4e/4c/5a/4e4c5a0596692b041ad52af1a4c6fec2.jpg",
-    ],
-    extra: "+24",
-    verified: true,
-    addOns: ["makeup", "video", "flycam", "album"],
-  },
-  {
-    id: "studio-k",
-    name: "Studio K",
-    location: "Hà nội, Việt Nam",
-    city: "Hà Nội, VN",
-    coordinates: { lat: 21.0278, lng: 105.8342 },
-    rating: "4.7",
-    match: "88%",
-    price: "1.800.000 VNĐ",
-    image:
-      "https://i.pinimg.com/736x/eb/77/e1/eb77e13b0d770ef3091af4e459f77181.jpg",
-    tags: ["Sản phẩm", "Thương mại"],
-    thumbs: [
-      "https://i.pinimg.com/736x/e2/d4/2c/e2d42cac2f246dd143b7561d7156a1fd.jpg",
-      "https://i.pinimg.com/736x/e2/d4/2c/e2d42cac2f246dd143b7561d7156a1fd.jpg",
-    ],
-    extra: "+8",
-    verified: false,
-    addOns: ["retouch", "stylist"],
-  },
-  {
-    id: "hung-trinh",
-    name: "Hưng Trịnh",
-    location: "Vĩnh Long, Việt Nam",
-    city: "Ho Chi Minh City, VN",
-    coordinates: { lat: 10.2537, lng: 105.9722 },
-    rating: "4.9",
-    match: "98%",
-    price: "2.500.000 VNĐ",
-    image:
-      "https://i.pinimg.com/1200x/e1/25/2c/e1252c8cfb12860877eb7937bafcf47b.jpg",
-    tags: ["Thời trang", "Chân dung", "Biên tập"],
-    thumbs: [
-      "https://i.pinimg.com/736x/d2/27/a2/d227a2a75b3904a201772c24c4c59e88.jpg",
-      "https://i.pinimg.com/736x/4e/4c/5a/4e4c5a0596692b041ad52af1a4c6fec2.jpg",
-    ],
-    extra: "+20",
-    verified: true,
-    addOns: ["makeup", "retouch", "stylist"],
-  },
-  {
-    id: "hoang-anh",
-    name: "Hoàng Anh",
-    location: "Đà Nẵng , Việt Nam",
-    city: "Đà Nẵng, VN",
-    coordinates: { lat: 16.0544, lng: 108.2022 },
-    rating: "4.8",
-    match: "92%",
-    price: "5.000.000 VNĐ",
-    image:
-      "https://i.pinimg.com/736x/55/1c/16/551c16fba1056bd0e5862cb552b66513.jpg",
-    tags: ["Cưới", "Cặp đôi"],
-    thumbs: [
-      "https://i.pinimg.com/736x/d3/16/cf/d316cf2cef71d3a0b9ff9cc2fc778052.jpg",
-      "https://i.pinimg.com/736x/bb/cc/37/bbcc37f0caa97bdff1f08ad8355ac9f4.jpg",
-    ],
-    extra: "+14",
-    verified: true,
-    addOns: ["makeup", "video", "flycam"],
-  },
-  {
-    id: "cong-tuan",
-    name: "Công Tuấn",
-    location: "Huế, Việt Nam",
-    city: "Huế, VN",
-    coordinates: { lat: 16.4637, lng: 107.5909 },
-    rating: "4.7",
-    match: "88%",
-    price: "1.800.000 VNĐ",
-    image:
-      "https://i.pinimg.com/736x/bb/cc/37/bbcc37f0caa97bdff1f08ad8355ac9f4.jpg",
-    tags: ["Sản phẩm", "Thương mại"],
-    thumbs: [
-      "https://i.pinimg.com/736x/44/92/2b/44922b0a2eb2d9614dc9cf075e4b0b76.jpg",
-      "https://i.pinimg.com/736x/d3/16/cf/d316cf2cef71d3a0b9ff9cc2fc778052.jpg",
-    ],
-    extra: "+7",
-    verified: false,
-    addOns: ["retouch", "album"],
-  },
-  
-];
+    bio: item.bio,
+  };
+}
 
 export default function PhotographerPage() {
+  const searchParams = useSearchParams();
+
+  const category = searchParams.get("category") || "all";
+  const searchQuery = searchParams.get("search")?.trim().toLowerCase() ?? "";
+
   const [isReady, setIsReady] = useState(false);
   const [activeTab, setActiveTab] = useState("AI đề xuất");
   const [aiSuggested, setAiSuggested] = useState(true);
-  const searchParams = useSearchParams();
-  const searchQuery = searchParams.get("search")?.trim().toLowerCase() ?? "";
-  const [location, setLocation] = useState("Ho Chi Minh City, VN");
-  const [selectedStyles, setSelectedStyles] = useState<string[]>([
-    "Chân dung",
-    "Cưới & Sự kiện",
-    "Sản phẩm & Thương mại",
-  ]);
-  const [maxPrice, setMaxPrice] = useState(10);
+
+  const [apiPhotographers, setApiPhotographers] = useState<ApiPhotographer[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [apiError, setApiError] = useState("");
+
+  const [location, setLocation] = useState("Tất cả địa điểm");
+  const [selectedStyles, setSelectedStyles] = useState<string[]>([]);
+  const [maxPrice, setMaxPrice] = useState(100);
   const [favorites, setFavorites] = useState<string[]>([]);
   const [userLocation, setUserLocation] = useState<Coordinates | null>(null);
   const [nearbyEnabled, setNearbyEnabled] = useState(false);
@@ -233,9 +284,46 @@ export default function PhotographerPage() {
     return () => window.clearTimeout(timer);
   }, []);
 
+  useEffect(() => {
+    async function fetchPhotographers() {
+      try {
+        setLoading(true);
+        setApiError("");
+
+        const url = `${API_URL}/photographers?category=${category}`;
+
+        console.log("Gọi API Photographer:", url);
+
+        const response = await fetch(url, {
+          method: "GET",
+          cache: "no-store",
+        });
+
+        const json: ApiResponse<ApiPhotographer[]> = await response.json();
+
+        if (!json.success) {
+          throw new Error(json.message || "Không thể lấy danh sách photographer");
+        }
+
+        setApiPhotographers(json.data);
+      } catch (error) {
+        console.error("Lỗi gọi API photographer:", error);
+        setApiError("Không thể kết nối backend hoặc backend chưa trả dữ liệu.");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchPhotographers();
+  }, [category]);
+
+  const photographers = useMemo(() => {
+    return apiPhotographers.map((item, index) => mapApiToCard(item, index));
+  }, [apiPhotographers]);
+
   const visiblePhotographers = useMemo(() => {
     const styleFiltered = photographers.filter((person) => {
-      const cityMatched = person.city === location;
+      const cityMatched = location === "Tất cả địa điểm" || person.city === location;
 
       if (!cityMatched) {
         return false;
@@ -246,7 +334,9 @@ export default function PhotographerPage() {
       }
 
       return person.tags.some((tag) =>
-        selectedStyles.some((style) => style.toLowerCase().includes(tag.toLowerCase())),
+        selectedStyles.some((style) =>
+          style.toLowerCase().includes(tag.toLowerCase()),
+        ),
       );
     });
 
@@ -274,10 +364,13 @@ export default function PhotographerPage() {
     }
 
     return tabFiltered;
-  }, [activeTab, aiSuggested, favorites, location, maxPrice, selectedStyles]);
+  }, [activeTab, aiSuggested, favorites, location, maxPrice, photographers, selectedStyles]);
 
   const nearbyPhotographers = useMemo(() => {
-    const selectedShootLocation = shootLocationOptions.find((item) => item.id === shootLocationId);
+    const selectedShootLocation = shootLocationOptions.find(
+      (item) => item.id === shootLocationId,
+    );
+
     const targetLocation =
       shootLocationId === "custom"
         ? null
@@ -286,7 +379,9 @@ export default function PhotographerPage() {
         : selectedShootLocation?.coordinates || null;
 
     if (!targetLocation) {
-      return photographers.filter((person) => person.city === location);
+      return location === "Tất cả địa điểm"
+        ? photographers
+        : photographers.filter((person) => person.city === location);
     }
 
     return [...photographers]
@@ -296,10 +391,11 @@ export default function PhotographerPage() {
       }))
       .sort((a, b) => a.distanceKm - b.distanceKm)
       .slice(0, 6);
-  }, [location, shootLocationId, userLocation]);
+  }, [location, photographers, shootLocationId, userLocation]);
 
   const displayedPhotographers = useMemo(() => {
-    const baseList = activeTab === "Photo ở gần bạn" ? nearbyPhotographers : visiblePhotographers;
+    const baseList =
+      activeTab === "Photo ở gần bạn" ? nearbyPhotographers : visiblePhotographers;
 
     if (!searchQuery) {
       return baseList;
@@ -309,9 +405,44 @@ export default function PhotographerPage() {
       const text = [person.name, person.location, person.city, person.tags.join(" ")]
         .join(" ")
         .toLowerCase();
+
       return text.includes(searchQuery);
     });
   }, [activeTab, nearbyPhotographers, visiblePhotographers, searchQuery]);
+
+  const totalPages = Math.max(
+    1,
+    Math.ceil(displayedPhotographers.length / PHOTOGRAPHERS_PER_PAGE),
+  );
+
+  const currentPage = Math.min(page, totalPages);
+
+  const paginatedPhotographers = useMemo(() => {
+    const startIndex = (currentPage - 1) * PHOTOGRAPHERS_PER_PAGE;
+    return displayedPhotographers.slice(
+      startIndex,
+      startIndex + PHOTOGRAPHERS_PER_PAGE,
+    );
+  }, [currentPage, displayedPhotographers]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [
+    activeTab,
+    aiSuggested,
+    category,
+    location,
+    maxPrice,
+    searchQuery,
+    selectedStyles,
+    shootLocationId,
+  ]);
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
 
   const getDisplayDistance = (person: (typeof displayedPhotographers)[number]) => {
     if (activeTab !== "Photo ở gần bạn") {
@@ -321,7 +452,7 @@ export default function PhotographerPage() {
     }
 
     return "distanceKm" in person
-      ? (person as (typeof photographers)[number] & { distanceKm: number }).distanceKm
+      ? (person as PhotographerCardData & { distanceKm: number }).distanceKm
       : undefined;
   };
 
@@ -335,8 +466,8 @@ export default function PhotographerPage() {
 
   const clearFilters = () => {
     setSelectedStyles([]);
-    setLocation("Ho Chi Minh City, VN");
-    setMaxPrice(10);
+    setLocation("Tất cả địa điểm");
+    setMaxPrice(100);
     setActiveTab("Tất cả");
     setAiSuggested(false);
     setNearbyEnabled(false);
@@ -361,12 +492,14 @@ export default function PhotographerPage() {
     }
 
     setLocationMessage("Đang lấy vị trí của bạn...");
+
     navigator.geolocation.getCurrentPosition(
       (position) => {
         setUserLocation({
           lat: position.coords.latitude,
           lng: position.coords.longitude,
         });
+
         setNearbyEnabled(true);
         setLocationMessage("Đang ưu tiên photographer và studio gần bạn.");
         setPage(1);
@@ -402,6 +535,7 @@ export default function PhotographerPage() {
                 >
                   Khám phá các photographer
                 </h1>
+
                 <p
                   data-reveal
                   data-reveal-delay="160"
@@ -409,7 +543,12 @@ export default function PhotographerPage() {
                 >
                   Tìm kiếm góc nhìn hoàn hảo cho tầm nhìn của bạn.
                 </p>
+
+                <p className="mt-1 text-[12px] font-bold text-[#ff8d28]">
+                  Category API: {category}
+                </p>
               </div>
+
               <button
                 type="button"
                 onClick={() => setAiSuggested((value) => !value)}
@@ -434,7 +573,7 @@ export default function PhotographerPage() {
               </button>
             </div>
 
-            <div className="flex flex-wrap gap-8  pt-5">
+            <div className="flex flex-wrap gap-8 pt-5">
               {tabs.map((tab, index) => (
                 <button
                   type="button"
@@ -442,9 +581,11 @@ export default function PhotographerPage() {
                   style={fadeUpStyle(isReady, 240 + index * 70)}
                   onClick={() => {
                     setActiveTab(tab);
+
                     if (tab === "Photo ở gần bạn" && !userLocation) {
                       requestNearbyPhotographers();
                     }
+
                     setPage(1);
                   }}
                   className={`${tabTextClass} ${
@@ -463,6 +604,7 @@ export default function PhotographerPage() {
                 isReady={isReady}
                 locationMessage={locationMessage}
                 nearbyPhotographers={nearbyPhotographers}
+                category={category}
                 onScan={requestNearbyPhotographers}
                 customShootLocation={customShootLocation}
                 onCustomShootLocationChange={setCustomShootLocation}
@@ -472,32 +614,54 @@ export default function PhotographerPage() {
               />
             ) : null}
 
-            <div className="mt-8 grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
-              {displayedPhotographers.map((person, index) => (
-                <PhotographerCard
-                  aiSuggested={aiSuggested}
-                  isFavorite={favorites.includes(person.name)}
-                  isReady={isReady}
-                  key={person.name}
-                  onFavoriteToggle={toggleFavorite}
-                  person={person}
-                  distanceKm={getDisplayDistance(person)}
-                  distanceLabel={
-                    activeTab === "Photo ở gần bạn" && shootLocationId !== "current" && shootLocationId !== "custom"
-                      ? "Cách điểm chụp khoảng"
-                      : "Cách bạn khoảng"
-                  }
-                  index={index}
-                />
-              ))}
-            </div>
-            {displayedPhotographers.length === 0 ? (
-              <div className="mt-8 rounded-2xl border border-[#ebe6f1] bg-white px-6 py-10 text-center text-[12px] font-semibold text-[#6b6878]">
-                Không có photographer phù hợp với bộ lọc hiện tại.
+            {loading ? (
+              <div className="mt-8 rounded-2xl border border-[#ebe6f1] bg-white px-6 py-10 text-center text-[13px] font-bold text-[#6b6878]">
+                Đang tải photographer từ backend...
               </div>
-            ) : null}
+            ) : apiError ? (
+              <div className="mt-8 rounded-2xl border border-red-200 bg-white px-6 py-10 text-center text-[13px] font-bold text-red-500">
+                {apiError}
+              </div>
+            ) : (
+              <>
+                <div className="mt-8 grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
+                  {paginatedPhotographers.map((person, index) => (
+                    <PhotographerCard
+                      aiSuggested={aiSuggested}
+                      category={category}
+                      isFavorite={favorites.includes(person.name)}
+                      isReady={isReady}
+                      key={person.id}
+                      onFavoriteToggle={toggleFavorite}
+                      person={person}
+                      distanceKm={getDisplayDistance(person)}
+                      distanceLabel={
+                        activeTab === "Photo ở gần bạn" &&
+                        shootLocationId !== "current" &&
+                        shootLocationId !== "custom"
+                          ? "Cách điểm chụp khoảng"
+                          : "Cách bạn khoảng"
+                      }
+                      index={index}
+                    />
+                  ))}
+                </div>
 
-            <Pagination activePage={page} onPageChange={setPage} />
+                {displayedPhotographers.length === 0 ? (
+                  <div className="mt-8 rounded-2xl border border-[#ebe6f1] bg-white px-6 py-10 text-center text-[12px] font-semibold text-[#6b6878]">
+                    Không có photographer phù hợp với bộ lọc hiện tại hoặc category này chưa có data.
+                  </div>
+                ) : null}
+
+                {displayedPhotographers.length > PHOTOGRAPHERS_PER_PAGE ? (
+                  <Pagination
+                    activePage={currentPage}
+                    totalPages={totalPages}
+                    onPageChange={setPage}
+                  />
+                ) : null}
+              </>
+            )}
           </section>
         </div>
       </main>
@@ -529,18 +693,29 @@ function FilterSidebar({
       className={`${inter.className} rounded-[18px] border border-[#e5deed] bg-white px-5 py-7 shadow-[0_16px_42px_rgba(42,32,62,0.045)] md:sticky md:top-[112px] md:self-start xl:px-6`}
     >
       <div className="flex items-center justify-between">
-        <h2 className="!text-[24px] !font-bold leading-none text-[#24242d]">Bộ lọc</h2>
-        <button type="button" onClick={onClear} className="!text-[14px] !font-normal text-[#858091]">
+        <h2 className="!text-[24px] !font-bold leading-none text-[#24242d]">
+          Bộ lọc
+        </h2>
+
+        <button
+          type="button"
+          onClick={onClear}
+          className="!text-[14px] !font-normal text-[#858091]"
+        >
           Xóa tất cả
         </button>
       </div>
 
       <div className="mt-9 space-y-8">
         <div>
-          <p className="mb-3 !text-[16px] !font-bold leading-none text-[#252631]">Địa điểm</p>
+          <p className="mb-3 !text-[16px] !font-bold leading-none text-[#252631]">
+            Địa điểm
+          </p>
+
           <div className="relative flex h-[42px] w-full items-center rounded-[8px] border border-[#d8d3ea] bg-[#f7f4ff] px-3.5 text-[12px] font-medium text-[#4f4d5c]">
             <span className="flex min-w-0 items-center gap-3">
               <PinIcon className="h-[18px] w-[18px] shrink-0 text-[#b8b1ca]" />
+
               <select
                 aria-label="Địa điểm"
                 className="!h-auto !min-h-0 w-full appearance-none !border-0 !bg-transparent !p-0 !text-[14px] !font-normal text-[#4f4d5c] !shadow-none outline-none"
@@ -554,34 +729,40 @@ function FilterSidebar({
                 ))}
               </select>
             </span>
+
             <ChevronDownIcon className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 shrink-0 -translate-y-1/2 text-[#b8b1ca]" />
           </div>
         </div>
 
         <div>
-          <p className="mb-4 !text-[16px] !font-bold leading-none text-[#252631]">Phong cách chụp</p>
+          <p className="mb-4 !text-[16px] !font-bold leading-none text-[#252631]">
+            Phong cách chụp
+          </p>
+
           <div className="space-y-[13px]">
             {styleOptions.map((option) => {
               const checked = selectedStyles.includes(option);
+
               return (
-              <button
-                key={option}
-                type="button"
-                onClick={() => onStyleToggle(option)}
-                className="flex w-full items-center gap-3 text-left !text-[12px] !font-normal leading-none text-[#5c5b68]"
-                aria-pressed={checked}
-              >
-                <span
-                  className={`grid h-[18px] w-[18px] shrink-0 place-items-center rounded-[4px] border ${
-                    checked
-                      ? "border-[#ff8d28] bg-[#ff8d28] text-white"
-                      : "border-[#d3cee0] bg-white text-transparent"
-                  }`}
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => onStyleToggle(option)}
+                  className="flex w-full items-center gap-3 text-left !text-[12px] !font-normal leading-none text-[#5c5b68]"
+                  aria-pressed={checked}
                 >
-                  <CheckIcon className="h-3.5 w-3.5" />
-                </span>
-                <span>{option}</span>
-              </button>
+                  <span
+                    className={`grid h-[18px] w-[18px] shrink-0 place-items-center rounded-[4px] border ${
+                      checked
+                        ? "border-[#ff8d28] bg-[#ff8d28] text-white"
+                        : "border-[#d3cee0] bg-white text-transparent"
+                    }`}
+                  >
+                    <CheckIcon className="h-3.5 w-3.5" />
+                  </span>
+
+                  <span>{option}</span>
+                </button>
               );
             })}
           </div>
@@ -589,11 +770,15 @@ function FilterSidebar({
 
         <div>
           <div className="mb-2 flex items-center justify-between gap-3">
-            <p className="!text-[16px] !font-bold leading-none text-[#252631]">Khoảng giá</p>
+            <p className="!text-[16px] !font-bold leading-none text-[#252631]">
+              Khoảng giá
+            </p>
+
             <p className="whitespace-nowrap !text-[10px] !font-medium text-[#ff7d1a]">
               1 Triệu - {maxPrice} Triệu
             </p>
           </div>
+
           <input
             aria-label="Khoảng giá tối đa"
             className="h-7 !min-h-0 w-full !border-0 !bg-transparent !p-0 !shadow-none accent-[#ff8d28]"
@@ -604,22 +789,14 @@ function FilterSidebar({
             value={maxPrice}
           />
         </div>
-
       </div>
     </aside>
   );
 }
 
-function CheckIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 20 20" fill="none" aria-hidden="true">
-      <path d="M5 10.4L8.3 13.5L15 6.5" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
 function PhotographerCard({
   aiSuggested,
+  category,
   distanceKm,
   distanceLabel,
   isFavorite,
@@ -629,12 +806,13 @@ function PhotographerCard({
   index,
 }: {
   aiSuggested: boolean;
+  category: string;
   distanceKm?: number;
   distanceLabel?: string;
   isFavorite: boolean;
   isReady: boolean;
   onFavoriteToggle: (name: string) => void;
-  person: (typeof photographers)[number];
+  person: PhotographerCardData;
   index: number;
 }) {
   return (
@@ -644,12 +822,14 @@ function PhotographerCard({
     >
       <div className="relative h-[220px] overflow-hidden bg-[#eeeaf5]">
         <img src={person.image} alt={person.name} className="h-full w-full object-cover" />
+
         {aiSuggested ? (
           <span className="absolute left-4 top-4 inline-flex items-center gap-1.5 rounded-full bg-[#ffb06a] px-3 py-1.5 text-xs font-extrabold text-white">
             <SparkIcon className="h-3.5 w-3.5" />
             AI Match {person.match}
           </span>
         ) : null}
+
         <button
           type="button"
           onClick={() => onFavoriteToggle(person.name)}
@@ -669,16 +849,19 @@ function PhotographerCard({
               {person.name}
               {person.verified ? <VerifyIcon className="h-6 w-6 text-[#1687ff]" /> : null}
             </h3>
+
             <p className="mt-2 flex items-center gap-1 text-[10px] font-medium leading-none text-[#575966]">
               <PinIcon className="h-4 w-4" />
               {person.location}
             </p>
+
             {typeof distanceKm === "number" ? (
               <p className="mt-2 text-[12px] font-extrabold leading-none text-[#ff8d28]">
                 {distanceLabel || "Cách bạn khoảng"} {distanceKm.toFixed(1)} km
               </p>
             ) : null}
           </div>
+
           <div className="mt-1 flex items-center gap-1 text-[13px] font-black leading-none text-[#1f2029]">
             <StarIcon className="h-6 w-6 text-[#c55c11]" />
             {person.rating}
@@ -687,21 +870,30 @@ function PhotographerCard({
 
         <div className="mt-4 flex flex-wrap gap-2">
           {person.tags.map((tag) => (
-            <span key={tag} className="rounded-full bg-[#f0eefb] px-3 py-1 text-[10px] font-bold text-[#747084]">
+            <span
+              key={tag}
+              className="rounded-full bg-[#f0eefb] px-3 py-1 text-[10px] font-bold text-[#747084]"
+            >
               {tag}
             </span>
           ))}
         </div>
 
         <p className="mt-3 text-[11px] font-semibold leading-5 text-[#74737e]">
-          Dịch vụ kèm: {person.addOns.join(", ")}
+          {person.bio || `Dịch vụ kèm: ${person.addOns.join(", ")}`}
         </p>
 
         <div className="mt-4 flex items-end justify-between border-t border-[#eeeaf4] pt-4">
           <div>
-            <p className="text-[11px] font-semibold leading-none text-[#74737e]">Chỉ từ</p>
-            <p className="mt-2 text-[20px] font-black leading-none text-[#ff7518]">{person.price}</p>
+            <p className="text-[11px] font-semibold leading-none text-[#74737e]">
+              Chỉ từ
+            </p>
+
+            <p className="mt-2 text-[20px] font-black leading-none text-[#ff7518]">
+              {person.price}
+            </p>
           </div>
+
           <div className="flex items-center">
             {person.thumbs.map((thumb, thumbIndex) => (
               <img
@@ -711,6 +903,7 @@ function PhotographerCard({
                 className="-ml-2 h-8 w-8 rounded-md border-2 border-white object-cover first:ml-0"
               />
             ))}
+
             <span className="-ml-2 grid h-8 min-w-9 place-items-center rounded-md border-2 border-white bg-[#f0eefb] px-2 text-xs font-black text-[#6d687b]">
               {person.extra}
             </span>
@@ -724,8 +917,9 @@ function PhotographerCard({
           >
             Xem hồ sơ
           </Link>
+
           <Link
-            href={`/booking?photographer=${person.id}`}
+            href={buildBookingHref(person.id, category)}
             className="rounded-lg bg-[#ff8d28] px-3 py-2.5 text-center text-[12px] font-extrabold text-white shadow-[0_8px_18px_rgba(255,141,40,0.14)] transition-all hover:translate-y-[-1px] hover:bg-[#e0751b]"
           >
             Đặt lịch
@@ -738,6 +932,7 @@ function PhotographerCard({
 
 function NearbyMapPanel({
   customShootLocation,
+  category,
   isReady,
   locationMessage,
   nearbyPhotographers,
@@ -748,9 +943,10 @@ function NearbyMapPanel({
   userLocation,
 }: {
   customShootLocation: string;
+  category: string;
   isReady: boolean;
   locationMessage: string;
-  nearbyPhotographers: (typeof photographers)[number][];
+  nearbyPhotographers: PhotographerCardData[];
   onCustomShootLocationChange: (value: string) => void;
   onScan: () => void;
   onShootLocationChange: (value: string) => void;
@@ -760,18 +956,22 @@ function NearbyMapPanel({
   const selectedShootLocation =
     shootLocationOptions.find((item) => item.id === shootLocationId) ||
     shootLocationOptions[0];
+
   const [showLocationSuggestions, setShowLocationSuggestions] = useState(false);
+
   const locationSearchValue =
     shootLocationId === "custom" ? customShootLocation : selectedShootLocation.label;
+
   const locationSuggestions = shootLocationOptions.filter((item) =>
     item.label.toLowerCase().includes(locationSearchValue.toLowerCase()),
   );
+
   const mapCenter =
     selectedShootLocation.coordinates ||
     userLocation ||
     nearbyPhotographers[0]?.coordinates ||
-    photographers.find((person) => person.city === "Ho Chi Minh City, VN")?.coordinates ||
-    photographers[0].coordinates;
+    { lat: 10.7758, lng: 106.7009 };
+
   const mapQuery = encodeURIComponent(
     selectedShootLocation.id === "custom"
       ? `photographer studio near ${customShootLocation || "Da Lat Vietnam"}`
@@ -781,7 +981,10 @@ function NearbyMapPanel({
         : "photographer studio Ho Chi Minh City"
       : selectedShootLocation.query,
   );
-  const mapSrc = `https://www.google.com/maps?q=${mapQuery}&z=${selectedShootLocation.id === "current" ? 13 : 14}&output=embed`;
+
+  const mapSrc = `https://www.google.com/maps?q=${mapQuery}&z=${
+    selectedShootLocation.id === "current" ? 13 : 14
+  }&output=embed`;
 
   return (
     <section
@@ -803,6 +1006,7 @@ function NearbyMapPanel({
             <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#ff8d28]">
               Google Maps
             </p>
+
             <p className="mt-1 text-[13px] font-bold text-[#4a4350]">
               {selectedShootLocation.id === "current"
                 ? userLocation
@@ -826,9 +1030,13 @@ function NearbyMapPanel({
                 className="h-10 min-h-0 w-[280px] rounded-full border border-white/70 bg-white/95 px-4 py-0 text-[12px] font-extrabold text-[#4a4350] shadow-[0_10px_22px_rgba(31,24,43,0.1)] outline-none"
                 aria-label="Nhập nơi sắp chụp"
               />
+
               {showLocationSuggestions ? (
                 <div className="absolute bottom-12 left-0 z-20 grid w-[280px] gap-1 rounded-2xl border border-[#eadff0] bg-white p-2 shadow-[0_16px_32px_rgba(31,24,43,0.14)]">
-                  {(locationSuggestions.length ? locationSuggestions : shootLocationOptions).map((item) => (
+                  {(locationSuggestions.length
+                    ? locationSuggestions
+                    : shootLocationOptions
+                  ).map((item) => (
                     <button
                       key={item.id}
                       type="button"
@@ -842,6 +1050,7 @@ function NearbyMapPanel({
                       {item.label}
                     </button>
                   ))}
+
                   {locationSearchValue && shootLocationId === "custom" ? (
                     <button
                       type="button"
@@ -854,6 +1063,7 @@ function NearbyMapPanel({
                 </div>
               ) : null}
             </label>
+
             {shootLocationId === "current" ? (
               <button
                 type="button"
@@ -872,32 +1082,39 @@ function NearbyMapPanel({
           <p className="text-[12px] font-black uppercase tracking-[0.16em] text-[#ff8d28]">
             Ở gần bạn
           </p>
+
           <h2 className="mt-2 text-[22px] font-black leading-tight text-[#1f2029]">
             Photographer & studio gần nhất
           </h2>
+
           <p className="mt-2 text-[12px] font-semibold leading-5 text-[#6b6878]">
             {selectedShootLocation.id === "current"
-              ? locationMessage || "Cho phép trình duyệt lấy vị trí để quét các lựa chọn gần bạn."
+              ? locationMessage ||
+                "Cho phép trình duyệt lấy vị trí để quét các lựa chọn gần bạn."
               : selectedShootLocation.id === "custom"
-                ? `Google Maps đang tìm photographer/studio quanh ${customShootLocation || "địa chỉ bạn nhập"}.`
-                : `Đang ưu tiên photographer/studio quanh ${selectedShootLocation.label}.`}
+              ? `Google Maps đang tìm photographer/studio quanh ${
+                  customShootLocation || "địa chỉ bạn nhập"
+                }.`
+              : `Đang ưu tiên photographer/studio quanh ${selectedShootLocation.label}.`}
           </p>
 
           <div className="mt-5 grid gap-3">
             {nearbyPhotographers.slice(0, 4).map((person) => (
               <Link
                 key={person.id}
-                href={`/booking?photographer=${person.id}`}
+                href={buildBookingHref(person.id, category)}
                 className="flex items-center justify-between gap-3 rounded-[14px] border border-[#ebe6f1] bg-[#faf8ff] px-3 py-3 transition-colors hover:border-[#ffcfaa] hover:bg-[#fff7ef]"
               >
                 <span className="min-w-0">
                   <span className="block truncate text-[13px] font-black text-[#1f2029]">
                     {person.name}
                   </span>
+
                   <span className="mt-1 block truncate text-[11px] font-semibold text-[#6b6878]">
                     {person.location}
                   </span>
                 </span>
+
                 {userLocation ? (
                   <span className="shrink-0 rounded-full bg-white px-2.5 py-1 text-[11px] font-extrabold text-[#ff8d28]">
                     {getDistanceKm(userLocation, person.coordinates).toFixed(1)} km
@@ -914,40 +1131,84 @@ function NearbyMapPanel({
 
 function Pagination({
   activePage,
+  totalPages,
   onPageChange,
 }: {
   activePage: number;
+  totalPages: number;
   onPageChange: (page: number) => void;
 }) {
+  const pageItems = useMemo(() => {
+    if (totalPages <= 7) {
+      return Array.from({ length: totalPages }, (_, index) => String(index + 1));
+    }
+
+    if (activePage <= 4) {
+      return ["1", "2", "3", "4", "5", "...", String(totalPages)];
+    }
+
+    if (activePage >= totalPages - 3) {
+      return [
+        "1",
+        "...",
+        String(totalPages - 4),
+        String(totalPages - 3),
+        String(totalPages - 2),
+        String(totalPages - 1),
+        String(totalPages),
+      ];
+    }
+
+    return [
+      "1",
+      "...",
+      String(activePage - 1),
+      String(activePage),
+      String(activePage + 1),
+      "...",
+      String(totalPages),
+    ];
+  }, [activePage, totalPages]);
+
   return (
-    <nav data-reveal data-reveal-delay="180" className="mt-24 flex items-center justify-center gap-3" aria-label="Pagination">
+    <nav
+      data-reveal
+      data-reveal-delay="180"
+      className="mt-24 flex items-center justify-center gap-3"
+      aria-label="Pagination"
+    >
       <button
         type="button"
+        disabled={activePage <= 1}
         onClick={() => onPageChange(Math.max(1, activePage - 1))}
-        className="grid h-9 w-9 place-items-center rounded-full border border-[#ddd8e8] bg-white text-[#6c6878]"
+        className="grid h-9 w-9 place-items-center rounded-full border border-[#ddd8e8] bg-white text-[#6c6878] disabled:cursor-not-allowed disabled:opacity-40"
       >
         <ChevronLeftIcon className="h-4 w-4" />
       </button>
-      {["1", "2", "3", "...", "12"].map((item) => (
+
+      {pageItems.map((item, index) => (
         <button
-          key={item}
+          key={`${item}-${index}`}
           type="button"
+          disabled={item === "..."}
           onClick={() => item !== "..." && onPageChange(Number(item))}
           className={`grid h-9 min-w-9 place-items-center rounded-full px-3 text-xs font-black ${
             item === String(activePage)
               ? "bg-[#ff8d28] text-white"
               : item === "..."
-                ? "bg-transparent text-[#6c6878]"
-                : "border border-[#ddd8e8] bg-white text-[#20212b]"
+              ? "cursor-default bg-transparent text-[#6c6878]"
+              : "border border-[#ddd8e8] bg-white text-[#20212b]"
           }`}
         >
           {item}
         </button>
       ))}
+
       <button
         type="button"
-        onClick={() => onPageChange(Math.min(12, activePage + 1))}
-        className="grid h-9 w-9 place-items-center rounded-full border border-[#ddd8e8] bg-white text-[#6c6878]"
+        disabled={activePage >= totalPages}
+        onClick={() => onPageChange(Math.min(totalPages, activePage + 1))}
+        className="grid h-9 w-9 place-items-center rounded-full border border-[#ddd8e8] bg-white text-[#6c6878] disabled:cursor-not-allowed disabled:opacity-40"
       >
         <ChevronRightIcon className="h-4 w-4" />
       </button>
@@ -955,10 +1216,27 @@ function Pagination({
   );
 }
 
+function CheckIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <path
+        d="M5 10.4L8.3 13.5L15 6.5"
+        stroke="currentColor"
+        strokeWidth="2.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 function SparkIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 20 20" fill="none" aria-hidden="true">
-      <path d="M10 2.5L11.7 7.7L17 10L11.7 12.3L10 17.5L8.3 12.3L3 10L8.3 7.7L10 2.5Z" fill="currentColor" />
+      <path
+        d="M10 2.5L11.7 7.7L17 10L11.7 12.3L10 17.5L8.3 12.3L3 10L8.3 7.7L10 2.5Z"
+        fill="currentColor"
+      />
     </svg>
   );
 }
@@ -966,7 +1244,11 @@ function SparkIcon({ className }: { className?: string }) {
 function PinIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 20 20" fill="none" aria-hidden="true">
-      <path d="M15 8.4C15 11.9 10 16.2 10 16.2S5 11.9 5 8.4a5 5 0 1110 0z" stroke="currentColor" strokeWidth="1.7" />
+      <path
+        d="M15 8.4C15 11.9 10 16.2 10 16.2S5 11.9 5 8.4a5 5 0 1110 0z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+      />
       <circle cx="10" cy="8.4" r="1.6" stroke="currentColor" strokeWidth="1.7" />
     </svg>
   );
@@ -975,7 +1257,13 @@ function PinIcon({ className }: { className?: string }) {
 function ChevronDownIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 20 20" fill="none" aria-hidden="true">
-      <path d="M5 7.5L10 12.5L15 7.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M5 7.5L10 12.5L15 7.5"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -983,7 +1271,13 @@ function ChevronDownIcon({ className }: { className?: string }) {
 function ChevronLeftIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 20 20" fill="none" aria-hidden="true">
-      <path d="M12.5 5L7.5 10L12.5 15" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M12.5 5L7.5 10L12.5 15"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -991,15 +1285,34 @@ function ChevronLeftIcon({ className }: { className?: string }) {
 function ChevronRightIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 20 20" fill="none" aria-hidden="true">
-      <path d="M7.5 5L12.5 10L7.5 15" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M7.5 5L12.5 10L7.5 15"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
 
-function HeartIcon({ className, filled }: { className?: string; filled?: boolean }) {
+function HeartIcon({
+  className,
+  filled,
+}: {
+  className?: string;
+  filled?: boolean;
+}) {
   return (
     <svg className={className} viewBox="0 0 20 20" fill="none" aria-hidden="true">
-      <path d="M10 16.5S3.5 12.7 3.5 7.8A3.3 3.3 0 019.2 5.5L10 6.4l.8-.9a3.3 3.3 0 015.7 2.3c0 4.9-6.5 8.7-6.5 8.7z" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M10 16.5S3.5 12.7 3.5 7.8A3.3 3.3 0 019.2 5.5L10 6.4l.8-.9a3.3 3.3 0 015.7 2.3c0 4.9-6.5 8.7-6.5 8.7z"
+        fill={filled ? "currentColor" : "none"}
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -1015,7 +1328,12 @@ function StarIcon({ className }: { className?: string }) {
 function LocateIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 20 20" fill="none" aria-hidden="true">
-      <path d="M10 3V5M10 15V17M17 10H15M5 10H3" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+      <path
+        d="M10 3V5M10 15V17M17 10H15M5 10H3"
+        stroke="currentColor"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+      />
       <circle cx="10" cy="10" r="4.5" stroke="currentColor" strokeWidth="1.9" />
       <circle cx="10" cy="10" r="1.6" fill="currentColor" />
     </svg>
@@ -1026,7 +1344,14 @@ function VerifyIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
       <path d="M10 1.8l2 1.5 2.5-.1.7 2.4 2 1.5-.9 2.4.9 2.4-2 1.5-.7 2.4-2.5-.1-2 1.5-2-1.5-2.5.1-.7-2.4-2-1.5.9-2.4-.9-2.4 2-1.5.7-2.4 2.5.1 2-1.5z" />
-      <path d="M7.3 10.1l1.8 1.8 3.8-4" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+      <path
+        d="M7.3 10.1l1.8 1.8 3.8-4"
+        stroke="white"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
     </svg>
   );
 }
