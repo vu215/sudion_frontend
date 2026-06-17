@@ -2,12 +2,13 @@
 
 import type { MouseEvent } from "react";
 
-export type IconName = "add" | "archive" | "calendar" | "check" | "chevronLeft" | "chevronRight" | "close" | "copy" | "credit" | "database" | "delete" | "download" | "edit" | "eye" | "filter" | "link" | "lock" | "log" | "mail" | "more" | "policy" | "refresh" | "search" | "settings" | "shield" | "user";
+export type IconName = "add" | "archive" | "calendar" | "camera" | "check" | "chevronLeft" | "chevronRight" | "close" | "copy" | "credit" | "database" | "delete" | "download" | "edit" | "eye" | "filter" | "link" | "lock" | "log" | "mail" | "more" | "policy" | "refresh" | "search" | "settings" | "shield" | "user";
 
 const paths: Record<IconName, string[]> = {
   add: ["M12 5v14M5 12h14"],
   archive: ["M4 7h16M6 7v12h12V7M9 11h6"],
   calendar: ["M7 3v3M17 3v3M4 8h16M6 5h12a2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V7a2 2 0 012-2z"],
+  camera: ["M4 8h3l1.5-2h7L17 8h3v10H4z", "M12 16a3.5 3.5 0 100-7 3.5 3.5 0 000 7z"],
   check: ["M5 13l4 4L19 7"],
   chevronLeft: ["M15 18l-6-6 6-6"],
   chevronRight: ["M9 18l6-6-6-6"],
