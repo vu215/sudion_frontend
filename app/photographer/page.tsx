@@ -13,11 +13,13 @@ const inter = Inter({
 });
 
 const styleOptions = [
-  "Chân dung",
-  "Thời trang & Biên tập",
-  "Cưới & Sự kiện",
-  "Sản phẩm & Thương mại",
-  "Đời thường & Lifestyle",
+  "Chân dung cá nhân",
+  "Cặp đôi",
+  "Cưới hỏi",
+  "Kỷ yếu",
+  "Sự kiện",
+  "Food & Product",
+  "Travel",
 ];
 
 const tabs = ["Tất cả", "AI đề xuất", "Photo ở gần bạn", "Được yêu thích", "Mới nhất"];
@@ -128,6 +130,7 @@ type PhotographerCardData = {
   extra: string;
   verified: boolean;
   addOns: string[];
+  serviceLabels: string[];
   bio?: string | null;
 };
 
@@ -205,30 +208,83 @@ function buildBookingHref(photographerId: string, category: string) {
   return `/booking?${params.toString()}`;
 }
 
+function removeVietnameseTone(value: string) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "D");
+}
+
+function toSlugKey(value: string) {
+  return removeVietnameseTone(value)
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function getServiceLabel(value: string) {
+  const key = toSlugKey(value);
+  const labels: Record<string, string> = {
+    wedding: "Cưới hỏi",
+    "chup-anh-cuoi": "Cưới hỏi",
+    "cuoi-hoi": "Cưới hỏi",
+    couple: "Cặp đôi",
+    "chup-anh-doi": "Cặp đôi",
+    portrait: "Chân dung cá nhân",
+    "chup-anh-don": "Chân dung cá nhân",
+    "chan-dung": "Chân dung cá nhân",
+    event: "Sự kiện",
+    "chup-su-kien": "Sự kiện",
+    yearbook: "Kỷ yếu",
+    "ky-yeu": "Kỷ yếu",
+    travel: "Travel",
+    food: "Food & Product",
+    product: "Food & Product",
+    "food-product": "Food & Product",
+  };
+
+  return labels[key] || value.trim();
+}
+
+function getServiceLabelsFromCategories(categories: string | null | undefined) {
+  const rawLabels = String(categories || "")
+    .split(/[,;/|]+/)
+    .map((item) => getServiceLabel(item))
+    .filter(Boolean);
+
+  return Array.from(new Set(rawLabels));
+}
+
 function getTagsFromCategories(categories: string | null | undefined) {
   const text = (categories || "").toLowerCase();
 
-  if (text.includes("cưới") || text.includes("sự kiện")) {
-    return ["Cưới & Sự kiện"];
+  if (text.includes("cưới") || text.includes("wedding")) {
+    return ["Cưới hỏi"];
   }
 
   if (text.includes("đôi") || text.includes("couple")) {
-    return ["Chân dung", "Cưới & Sự kiện"];
+    return ["Cặp đôi"];
   }
 
   if (text.includes("kỉ yếu") || text.includes("kỷ yếu")) {
-    return ["Chân dung", "Đời thường & Lifestyle"];
+    return ["Kỷ yếu"];
+  }
+
+  if (text.includes("sự kiện") || text.includes("event")) {
+    return ["Sự kiện"];
   }
 
   if (text.includes("food") || text.includes("product") || text.includes("thương mại")) {
-    return ["Sản phẩm & Thương mại"];
+    return ["Food & Product"];
   }
 
   if (text.includes("travel")) {
-    return ["Đời thường & Lifestyle"];
+    return ["Travel"];
   }
 
-  return ["Chân dung"];
+  return ["Chân dung cá nhân"];
 }
 
 function mapApiToCard(item: ApiPhotographer, index: number): PhotographerCardData {
@@ -250,6 +306,7 @@ function mapApiToCard(item: ApiPhotographer, index: number): PhotographerCardDat
     extra: `+${item.package_count || 1}`,
     verified: item.verification_status === "verified",
     addOns: ["makeup", "video", "album", "retouch"],
+    serviceLabels: getServiceLabelsFromCategories(categories),
     bio: item.bio,
   };
 }
@@ -333,9 +390,11 @@ export default function PhotographerPage() {
         return true;
       }
 
-      return person.tags.some((tag) =>
+      const labels = [...person.tags, ...person.serviceLabels];
+
+      return labels.some((tag) =>
         selectedStyles.some((style) =>
-          style.toLowerCase().includes(tag.toLowerCase()),
+          style.toLowerCase() === tag.toLowerCase(),
         ),
       );
     });
@@ -402,7 +461,13 @@ export default function PhotographerPage() {
     }
 
     return baseList.filter((person) => {
-      const text = [person.name, person.location, person.city, person.tags.join(" ")]
+      const text = [
+        person.name,
+        person.location,
+        person.city,
+        person.tags.join(" "),
+        person.serviceLabels.join(" "),
+      ]
         .join(" ")
         .toLowerCase();
 
@@ -544,9 +609,11 @@ export default function PhotographerPage() {
                   Tìm kiếm góc nhìn hoàn hảo cho tầm nhìn của bạn.
                 </p>
 
-                <p className="mt-1 text-[12px] font-bold text-[#ff8d28]">
-                  Category API: {category}
-                </p>
+                {category !== "all" ? (
+                  <p className="mt-1 text-[12px] font-bold text-[#ff8d28]">
+                    Đang lọc dịch vụ: {getServiceLabel(category)}
+                  </p>
+                ) : null}
               </div>
 
               <button
@@ -868,7 +935,7 @@ function PhotographerCard({
           </div>
         </div>
 
-        <div className="mt-4 flex flex-wrap gap-2">
+        {/* <div className="mt-4 flex flex-wrap gap-2">
           {person.tags.map((tag) => (
             <span
               key={tag}
@@ -877,11 +944,24 @@ function PhotographerCard({
               {tag}
             </span>
           ))}
-        </div>
+        </div> */}
 
-        <p className="mt-3 text-[11px] font-semibold leading-5 text-[#74737e]">
-          {person.bio || `Dịch vụ kèm: ${person.addOns.join(", ")}`}
-        </p>
+        {/* <div className="mt-3 rounded-xl border border-[#eeeaf4] bg-[#faf8ff] px-3 py-3"> */}
+          
+
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {(person.serviceLabels.length ? person.serviceLabels : person.tags).map(
+              (service) => (
+                <span
+                  key={`${person.id}-${service}`}
+                  className="rounded-full bg-white px-2.5 py-1 text-[10px] font-extrabold text-[#4f4a5f] ring-1 ring-[#e8e0f0]"
+                >
+                  {service}
+                </span>
+              ),
+            )}
+          </div>
+        {/* </div> */}
 
         <div className="mt-4 flex items-end justify-between border-t border-[#eeeaf4] pt-4">
           <div>
