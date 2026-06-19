@@ -107,9 +107,9 @@ export default function ServicesPage() {
                   Lỗi tải dữ liệu
                 </span>
               ) : (
-                serviceCategories.map((service) => (
+                serviceCategories.map((service, index) => (
                   <Link
-                    key={service.slug}
+                    key={`${service.slug}-${index}`}
                     href={`/services/${service.slug}`}
                     className="rounded-full border border-[#e8eaf1] bg-white px-5 py-2.5 text-[14px] font-extrabold text-[#0e111d] shadow-[0_8px_18px_rgba(14,17,29,0.04)] transition hover:border-[#ff8d28] hover:bg-[#fff7ef] hover:text-[#ff8d28]"
                   >
@@ -248,7 +248,7 @@ export default function ServicesPage() {
         {!isLoadingData && !dataError ? (
           <div className="mt-8 grid gap-5 lg:grid-cols-3">
             {serviceCategories.map((service, index) => (
-              <RevealCard key={service.slug} delay={index * 130}>
+              <RevealCard key={`${service.slug}-${index}`} delay={index * 130}>
                 <Link
                   href={`/services/${service.slug}`}
                   className="group block overflow-hidden rounded-2xl border border-[#e5e7ef] bg-white shadow-[0_16px_42px_rgba(14,17,29,0.045)] transition hover:-translate-y-1 hover:border-[#ffcfaa] hover:shadow-[0_22px_54px_rgba(255,141,40,0.12)]"
