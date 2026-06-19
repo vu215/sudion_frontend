@@ -303,6 +303,114 @@ function normalizeText(value: string) {
   return value.toLowerCase().trim();
 }
 
+function removeVietnameseTone(value: string) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "D");
+}
+
+function toSlugKey(value: string) {
+  return removeVietnameseTone(value)
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function normalizeServiceFilter(value: string) {
+  const key = toSlugKey(value);
+
+  const map: Record<string, string> = {
+    wedding: "wedding",
+    "chup-anh-cuoi": "wedding",
+    "chup-cuoi": "wedding",
+    "anh-cuoi": "wedding",
+    "cuoi-hoi": "wedding",
+    cuoi: "wedding",
+
+    couple: "couple",
+    "chup-anh-doi": "couple",
+    "anh-doi": "couple",
+    doi: "couple",
+
+    portrait: "portrait",
+    "chup-anh-don": "portrait",
+    "chup-anh-ca-nhan": "portrait",
+    "chup-anh-chan-dung": "portrait",
+    "anh-don": "portrait",
+    "anh-ca-nhan": "portrait",
+    "chan-dung": "portrait",
+
+    event: "event",
+    "chup-su-kien": "event",
+    "chup-anh-su-kien": "event",
+    "anh-su-kien": "event",
+    "su-kien": "event",
+
+    yearbook: "yearbook",
+    "chup-ky-yeu": "yearbook",
+    "chup-ki-yeu": "yearbook",
+    "chup-anh-ky-yeu": "yearbook",
+    "chup-anh-ki-yeu": "yearbook",
+    "ky-yeu": "yearbook",
+    "ki-yeu": "yearbook",
+
+    travel: "travel",
+    "chup-travel": "travel",
+    "chup-anh-du-lich": "travel",
+    "anh-du-lich": "travel",
+    "du-lich": "travel",
+
+    food: "food",
+    product: "food",
+    "food-product": "food",
+    "chup-food-product": "food",
+    "chup-anh-am-thuc": "food",
+    "chup-anh-do-an": "food",
+    "anh-am-thuc": "food",
+    "do-an": "food",
+    "am-thuc": "food",
+  };
+
+  return map[key] || key;
+}
+
+function isServiceMatched(
+  service: UiService,
+  packages: BookingPackage[],
+  serviceQuery: string
+) {
+  if (!serviceQuery) {
+    return true;
+  }
+
+  const normalizedService = normalizeServiceFilter(serviceQuery);
+  const packageCategory =
+    packages.find((pkg) => pkg.id === service.packageId)?.category || null;
+
+  const values = [
+    service.categorySlug,
+    service.name,
+    service.packageName,
+    packageCategory?.slug || "",
+    packageCategory?.name || "",
+  ];
+
+  return values.some((value) => {
+    const normalizedValue = normalizeServiceFilter(value);
+    const plainValue = normalizeText(value);
+    const plainQuery = normalizeText(serviceQuery);
+
+    return (
+      normalizedValue === normalizedService ||
+      plainValue === plainQuery ||
+      plainValue.includes(plainQuery)
+    );
+  });
+}
+
 function normalizeDate(value: string) {
   return String(value || "").slice(0, 10);
 }
@@ -464,10 +572,24 @@ function BookingContent() {
     setEmail((current) => current || session.email);
   }, [session]);
 
-  const availableServices = useMemo(
+  const allServices = useMemo(
     () => packages.map(mapPackageToService),
     [packages]
   );
+
+  const availableServices = useMemo(() => {
+    if (!serviceQuery) {
+      return allServices;
+    }
+
+    const filteredServices = allServices.filter((item) =>
+      isServiceMatched(item, packages, serviceQuery)
+    );
+
+    return filteredServices.length ? filteredServices : allServices;
+  }, [allServices, packages, serviceQuery]);
+
+  const isServiceScoped = Boolean(serviceQuery && availableServices.length < allServices.length);
 
   const service = useMemo(
     () =>
@@ -519,20 +641,8 @@ function BookingContent() {
         let matchedService: UiService | undefined;
 
         if (serviceQuery) {
-          const normalizedService = normalizeText(serviceQuery);
-
           matchedService = mappedServices.find((item) => {
-            const categoryName =
-              data.packages.find((pkg) => pkg.id === item.packageId)?.category
-                .name || "";
-
-            return (
-              normalizeText(item.categorySlug) === normalizedService ||
-              normalizeText(item.name) === normalizedService ||
-              normalizeText(item.name).includes(normalizedService) ||
-              normalizeText(categoryName) === normalizedService ||
-              normalizeText(categoryName).includes(normalizedService)
-            );
+            return isServiceMatched(item, data.packages, serviceQuery);
           });
         }
 
@@ -850,8 +960,10 @@ router.push(`/booking-request-success?id=${encodeURIComponent(bookingCode)}`);
             <span className="font-black text-[#0e111d]">
               {photographer.full_name}
             </span>
-            . Các dịch vụ bên dưới được lấy trực tiếp từ database theo gói mà
-            photographer này đang cung cấp.
+            .{" "}
+            {isServiceScoped
+              ? "Hệ thống chỉ hiển thị các gói đúng với dịch vụ bạn vừa chọn."
+              : "Các dịch vụ bên dưới được lấy trực tiếp từ database theo gói mà photographer này đang cung cấp."}
           </p>
         </div>
 
@@ -872,15 +984,19 @@ router.push(`/booking-request-success?id=${encodeURIComponent(bookingCode)}`);
                   </p>
 
                   <h2 className="mt-2 text-[22px] font-black leading-tight text-[#0e111d]">
-                    Chọn dịch vụ của photographer này
+                    {isServiceScoped
+                      ? "Chọn gói trong dịch vụ đã chọn"
+                      : "Chọn dịch vụ của photographer này"}
                   </h2>
 
                   <p className="mt-2 text-sm text-[#6b7280]">
-                    {photographer.full_name} hiện có{" "}
+                    {photographer.full_name} hiện hiển thị{" "}
                     <span className="font-black text-[#0e111d]">
                       {availableServices.length}
                     </span>{" "}
-                    gói dịch vụ.
+                    {isServiceScoped
+                      ? `gói phù hợp với "${serviceQuery}".`
+                      : "gói dịch vụ."}
                   </p>
 
                   {preferredServiceLabel ? (

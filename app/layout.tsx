@@ -5,6 +5,7 @@ import { AppShell } from "./components/app-shell";
 import { MotionEffects } from "./motion";
 import { AuthProvider } from "./auth-context";
 import { ToastProvider } from "./toast-context";
+import { ReactTrace } from "./components/react-trace";
 
 const plusJakartaSans = Plus_Jakarta_Sans({
   subsets: ["latin", "vietnamese"],
@@ -30,6 +31,7 @@ export default function RootLayout({
         <AuthProvider>
           <ToastProvider>
             <AppShell>{children}</AppShell>
+            <ReactTrace />
           </ToastProvider>
         </AuthProvider>
       </body>
