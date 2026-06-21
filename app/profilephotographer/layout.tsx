@@ -4,7 +4,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
-const navItems = [
+type NavItem = {
+  href: string;
+  icon: string;
+  label: string;
+};
+
+const navItems: NavItem[] = [
   {
     href: "/profilephotographer/dashboard",
     icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6",
@@ -46,66 +52,74 @@ function isActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export default function ProfilePhotographerLayout({ children }: { children: ReactNode }) {
+type ProfilePhotographerLayoutProps = {
+  children: ReactNode;
+};
+
+export default function ProfilePhotographerLayout({ children }: ProfilePhotographerLayoutProps) {
   const pathname = usePathname();
 
   return (
     <div className="min-h-screen bg-[#1a1a2e] flex">
       <aside className="hidden lg:flex flex-col w-52 bg-[#1e1e32] py-6 px-4 fixed h-full z-20">
-        <div className="flex items-center gap-2 px-2 mb-8">
-          <div className="w-7 h-7 rounded-full bg-[#ff8d28] flex items-center justify-center">
-            <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="currentColor">
+        <div className="mb-8 flex items-center gap-2 px-2">
+          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#ff8d28]">
+            <svg className="h-4 w-4 text-white" viewBox="0 0 24 24" fill="currentColor">
               <circle cx="12" cy="12" r="5" />
               <circle cx="12" cy="12" r="2.5" fill="white" />
             </svg>
           </div>
-          <span className="text-[#ff8d28] font-black text-base tracking-widest uppercase">STUDION</span>
+          <span className="text-[#ff8d28] font-black text-base tracking-widest uppercase">
+            STUDION
+          </span>
         </div>
 
-        <nav className="space-y-1 flex-1">
-          {navItems.map((item) => (
-            <Link
-              key={item.label}
-              href={item.href}
-              className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm transition-colors ${
-                isActive(pathname, item.href)
-                  ? "bg-white/10 text-white"
-                  : "text-gray-400 hover:bg-white/5 hover:text-white"
-              }`}
-            >
-              <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d={item.icon} />
-              </svg>
-              {item.label}
-            </Link>
-          ))}
+        <nav className="flex-1 space-y-1">
+          {navItems.map((item) => {
+            const active = isActive(pathname, item.href);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors ${
+                  active ? "bg-white/10 text-white" : "text-gray-400 hover:bg-white/5 hover:text-white"
+                }`}
+              >
+                <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d={item.icon} />
+                </svg>
+                {item.label}
+              </Link>
+            );
+          })}
         </nav>
 
         <Link
           href="/photographer"
-          className="mt-4 w-full border border-white/10 text-gray-400 text-xs rounded-lg px-3 py-2 hover:bg-white/5 transition-colors flex items-center justify-center gap-2"
+          className="mt-4 flex items-center justify-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-xs text-gray-400 transition-colors hover:bg-white/5"
         >
-          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
           </svg>
           Get Pro Support
         </Link>
       </aside>
 
-      <div className="flex-1 lg:ml-52 bg-[#f5f5fa] min-h-screen">
-        <header className="bg-white border-b border-gray-100 px-6 py-3 flex items-center gap-4 sticky top-0 z-10">
+      <div className="flex-1 lg:ml-52 min-h-screen bg-[#f5f5fa]">
+        <header className="sticky top-0 z-10 flex items-center gap-4 border-b border-gray-100 bg-white px-6 py-3">
           <Link
             href="/photographer"
-            className="flex items-center gap-1.5 text-gray-400 hover:text-orange-500 transition-colors text-xs font-semibold shrink-0"
+            className="flex items-center gap-1.5 shrink-0 text-xs font-semibold text-gray-400 transition-colors hover:text-orange-500"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
             Quay lại
           </Link>
+
           <div className="ml-auto flex items-center gap-3">
-            <button className="text-gray-400 hover:text-gray-600 relative">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <button className="text-gray-400 hover:text-gray-600">
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -115,11 +129,11 @@ export default function ProfilePhotographerLayout({ children }: { children: Reac
               </svg>
             </button>
             <button className="text-gray-400 hover:text-gray-600">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </button>
-            <img src="/logo_sudion_remove.png" alt="avatar" className="w-8 h-8 rounded-full object-cover border-2 border-orange-200" />
+            <img src="/logo_sudion_remove.png" alt="avatar" className="h-8 w-8 rounded-full border-2 border-orange-200 object-cover" />
           </div>
         </header>
 

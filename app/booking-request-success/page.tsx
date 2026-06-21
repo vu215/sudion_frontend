@@ -7,10 +7,9 @@ import { useSearchParams } from "next/navigation";
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
-const AUTO_REFRESH_MS = 8000;
-
 type Booking = {
   booking_code: string;
+  photographer_id?: string | number;
   photographer_name: string;
   service_name: string;
   shoot_date: string | null;
@@ -183,13 +182,8 @@ function BookingRequestSuccessContent() {
 
     void loadBooking(true);
 
-    const timer = window.setInterval(() => {
-      void loadBooking(false);
-    }, AUTO_REFRESH_MS);
-
     return () => {
       ignore = true;
-      window.clearInterval(timer);
     };
   }, [bookingCode]);
 
@@ -231,8 +225,8 @@ function BookingRequestSuccessContent() {
               </h1>
 
               <p className="mt-4 max-w-[720px] text-[14px] font-semibold leading-7 text-white/70">
-                STUDION đã gửi yêu cầu này tới photographer. Trang này sẽ tự cập
-                nhật trạng thái mỗi 8 giây, không cần tải lại.
+                STUDION đã gửi yêu cầu này tới photographer. Trang này sẽ không tự
+                cập nhật nữa.
               </p>
             </div>
           </div>
@@ -249,6 +243,12 @@ function BookingRequestSuccessContent() {
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
+              {booking.photographer_id ? (
+                <InfoCard
+                  label="Photographer ID"
+                  value={String(booking.photographer_id)}
+                />
+              ) : null}
               <InfoCard label="Photographer" value={booking.photographer_name} />
               <InfoCard label="Dịch vụ" value={booking.service_name} />
               <InfoCard label="Ngày chụp" value={formatDate(booking.shoot_date)} />
@@ -329,12 +329,12 @@ function BookingRequestSuccessContent() {
 
           <div className="mt-6 rounded-[22px] border border-[#ffedd5] bg-[#fff7ed] p-5">
             <p className="text-[13px] font-black text-[#ea580c]">
-              Tự cập nhật trạng thái
+              Cập nhật trạng thái
             </p>
 
             <p className="mt-2 text-[13px] font-semibold leading-6 text-[#9a3412]">
-              Khi photographer xác nhận, từ chối hoặc hoàn thành booking, trang
-              này sẽ tự cập nhật sau vài giây.
+              Khi photographer xác nhận, từ chối hoặc hoàn thành booking, bạn cần
+              refresh trang để xem trạng thái mới.
             </p>
           </div>
         </aside>
@@ -344,84 +344,132 @@ function BookingRequestSuccessContent() {
 }
 
 function ActionButtons({ booking }: { booking: Booking }) {
+  const chatHref = `/messages?booking=${encodeURIComponent(
+    booking.booking_code
+  )}`;
+
   if (booking.status === "accepted") {
     return (
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Link
-          href={`/deposit-payment?id=${encodeURIComponent(
-            booking.booking_code
-          )}`}
-          className="rounded-[16px] bg-[#ff8d28] px-5 py-4 text-center text-[14px] font-black text-white shadow-[0_14px_30px_rgba(255,141,40,0.22)] transition-all hover:-translate-y-0.5 hover:bg-[#e0751b]"
-        >
-          Thanh toán cọc
-        </Link>
+      <>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Link
+            href={`/deposit-payment?id=${encodeURIComponent(
+              booking.booking_code
+            )}`}
+            className="rounded-[16px] bg-[#ff8d28] px-5 py-4 text-center text-[14px] font-black text-white shadow-[0_14px_30px_rgba(255,141,40,0.22)] transition-all hover:-translate-y-0.5 hover:bg-[#e0751b]"
+          >
+            Thanh toán cọc
+          </Link>
 
-        <Link
-          href="/bookings"
-          className="rounded-[16px] border border-[#e2e8f0] bg-white px-5 py-4 text-center text-[14px] font-black text-[#334155] transition-all hover:border-[#ffcfaa] hover:text-[#ff8d28]"
-        >
-          Xem booking của tôi
-        </Link>
-      </div>
+          <Link
+            href="/bookings"
+            className="rounded-[16px] border border-[#e2e8f0] bg-white px-5 py-4 text-center text-[14px] font-black text-[#334155] transition-all hover:border-[#ffcfaa] hover:text-[#ff8d28]"
+          >
+            Xem booking của tôi
+          </Link>
+        </div>
+
+        <div className="mt-3">
+          <Link
+            href={chatHref}
+            className="block rounded-[16px] border border-[#ff8d28] bg-white px-5 py-4 text-center text-[14px] font-black text-[#ff8d28] transition-all hover:bg-[#ff8d28] hover:text-white"
+          >
+            Chat với photographer
+          </Link>
+        </div>
+      </>
     );
   }
 
   if (booking.status === "completed") {
     return (
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Link
-          href={`/final-payment?id=${encodeURIComponent(booking.booking_code)}`}
-          className="rounded-[16px] bg-[#ff8d28] px-5 py-4 text-center text-[14px] font-black text-white shadow-[0_14px_30px_rgba(255,141,40,0.22)] transition-all hover:-translate-y-0.5 hover:bg-[#e0751b]"
-        >
-          Thanh toán còn lại
-        </Link>
+      <>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Link
+            href={`/final-payment?id=${encodeURIComponent(booking.booking_code)}`}
+            className="rounded-[16px] bg-[#ff8d28] px-5 py-4 text-center text-[14px] font-black text-white shadow-[0_14px_30px_rgba(255,141,40,0.22)] transition-all hover:-translate-y-0.5 hover:bg-[#e0751b]"
+          >
+            Thanh toán còn lại
+          </Link>
 
-        <Link
-          href="/bookings"
-          className="rounded-[16px] border border-[#e2e8f0] bg-white px-5 py-4 text-center text-[14px] font-black text-[#334155] transition-all hover:border-[#ffcfaa] hover:text-[#ff8d28]"
-        >
-          Xem booking của tôi
-        </Link>
-      </div>
+          <Link
+            href="/bookings"
+            className="rounded-[16px] border border-[#e2e8f0] bg-white px-5 py-4 text-center text-[14px] font-black text-[#334155] transition-all hover:border-[#ffcfaa] hover:text-[#ff8d28]"
+          >
+            Xem booking của tôi
+          </Link>
+        </div>
+
+        <div className="mt-3">
+          <Link
+            href={chatHref}
+            className="block rounded-[16px] border border-[#ff8d28] bg-white px-5 py-4 text-center text-[14px] font-black text-[#ff8d28] transition-all hover:bg-[#ff8d28] hover:text-white"
+          >
+            Chat với photographer
+          </Link>
+        </div>
+      </>
     );
   }
 
   if (booking.status === "fully_paid") {
     return (
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Link
-          href={`/review?booking=${encodeURIComponent(booking.booking_code)}`}
-          className="rounded-[16px] bg-[#ff8d28] px-5 py-4 text-center text-[14px] font-black text-white shadow-[0_14px_30px_rgba(255,141,40,0.22)] transition-all hover:-translate-y-0.5 hover:bg-[#e0751b]"
-        >
-          Đánh giá photographer
-        </Link>
+      <>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Link
+            href={`/review?booking=${encodeURIComponent(booking.booking_code)}`}
+            className="rounded-[16px] bg-[#ff8d28] px-5 py-4 text-center text-[14px] font-black text-white shadow-[0_14px_30px_rgba(255,141,40,0.22)] transition-all hover:-translate-y-0.5 hover:bg-[#e0751b]"
+          >
+            Đánh giá photographer
+          </Link>
 
-        <Link
-          href="/bookings"
-          className="rounded-[16px] border border-[#e2e8f0] bg-white px-5 py-4 text-center text-[14px] font-black text-[#334155] transition-all hover:border-[#ffcfaa] hover:text-[#ff8d28]"
-        >
-          Xem booking của tôi
-        </Link>
-      </div>
+          <Link
+            href="/bookings"
+            className="rounded-[16px] border border-[#e2e8f0] bg-white px-5 py-4 text-center text-[14px] font-black text-[#334155] transition-all hover:border-[#ffcfaa] hover:text-[#ff8d28]"
+          >
+            Xem booking của tôi
+          </Link>
+        </div>
+
+        <div className="mt-3">
+          <Link
+            href={chatHref}
+            className="block rounded-[16px] border border-[#ff8d28] bg-white px-5 py-4 text-center text-[14px] font-black text-[#ff8d28] transition-all hover:bg-[#ff8d28] hover:text-white"
+          >
+            Chat với photographer
+          </Link>
+        </div>
+      </>
     );
   }
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2">
-      <Link
-        href="/bookings"
-        className="rounded-[16px] bg-[#ff8d28] px-5 py-4 text-center text-[14px] font-black text-white shadow-[0_14px_30px_rgba(255,141,40,0.22)] transition-all hover:-translate-y-0.5 hover:bg-[#e0751b]"
-      >
-        Xem booking của tôi
-      </Link>
+    <>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Link
+          href="/bookings"
+          className="rounded-[16px] bg-[#ff8d28] px-5 py-4 text-center text-[14px] font-black text-white shadow-[0_14px_30px_rgba(255,141,40,0.22)] transition-all hover:-translate-y-0.5 hover:bg-[#e0751b]"
+        >
+          Xem booking của tôi
+        </Link>
 
-      <Link
-        href="/photographer"
-        className="rounded-[16px] border border-[#e2e8f0] bg-white px-5 py-4 text-center text-[14px] font-black text-[#334155] transition-all hover:border-[#ffcfaa] hover:text-[#ff8d28]"
-      >
-        Chọn photographer khác
-      </Link>
-    </div>
+        <Link
+          href="/photographer"
+          className="rounded-[16px] border border-[#e2e8f0] bg-white px-5 py-4 text-center text-[14px] font-black text-[#334155] transition-all hover:border-[#ffcfaa] hover:text-[#ff8d28]"
+        >
+          Chọn photographer khác
+        </Link>
+      </div>
+
+      <div className="mt-3">
+        <Link
+          href={chatHref}
+          className="block rounded-[16px] border border-[#ff8d28] bg-white px-5 py-4 text-center text-[14px] font-black text-[#ff8d28] transition-all hover:bg-[#ff8d28] hover:text-white"
+        >
+          Chat với photographer
+        </Link>
+      </div>
+    </>
   );
 }
 

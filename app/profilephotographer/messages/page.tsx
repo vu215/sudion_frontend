@@ -233,14 +233,14 @@ function MessagesContent() {
   const [pageError, setPageError] = useState("");
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
-  const currentRole: "customer" | "photographer" =
-    session?.role === "photographer" ? "photographer" : "photographer";
+  const currentRole: "customer" | "photographer" = "photographer";
 
   const senderName = session?.fullName || "Photographer";
   const senderId =
     session?.photographerId || session?.userId || session?.email || "photographer";
 
-  const canChat = booking?.status === "fully_paid";
+  const canChat =
+    booking?.status === "confirmed" || booking?.status === "fully_paid";
 
   const statusInfo = useMemo(
     () => getStatusInfo(booking?.status || "awaiting_payment"),
@@ -345,10 +345,10 @@ function MessagesContent() {
     }
 
     if (!canChat) {
-      setPageError("Chỉ có thể chat sau khi booking đã thanh toán đủ.");
+      setPageError("Chỉ có thể chat sau khi booking đã cọc.");
       toast.warning(
         "Chat chưa mở",
-        "Booking cần thanh toán đủ trước khi nhắn tin."
+        "Booking cần ở trạng thái confirmed (đã cọc) trước khi nhắn tin."
       );
       return;
     }
@@ -356,6 +356,15 @@ function MessagesContent() {
     const cleanMessage = messageText.trim();
     if (!cleanMessage) {
       setPageError("Vui lòng nhập nội dung tin nhắn.");
+      return;
+    }
+
+    if (!receiverId) {
+      setPageError("Không thể gửi tin nhắn khi chưa có thông tin người nhận.");
+      toast.error(
+        "Thiếu thông tin người nhận",
+        "Vui lòng kiểm tra lại booking và thử lại."
+      );
       return;
     }
 
@@ -502,7 +511,7 @@ function HeaderSearch({
           </h1>
 
           <p className="mt-4 max-w-[680px] text-[14px] font-medium leading-7 text-white/70">
-            Mở chat với khách ngay khi đơn đã thanh toán đủ và theo dõi lịch chụp.
+            Mở chat với khách ngay khi đơn đã cọc (trạng thái confirmed) và theo dõi lịch chụp.
           </p>
         </div>
 
@@ -624,7 +633,11 @@ function ChatComposer({
         <textarea
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          placeholder={canChat ? "Nhập tin nhắn..." : "Chat chỉ mở sau khi booking thanh toán đủ"}
+          placeholder={
+            canChat
+              ? "Nhập tin nhắn..."
+              : "Chat chỉ mở khi booking đã cọc (confirmed)"
+          }
           disabled={!canChat || sending}
           rows={1}
           className="min-h-[50px] flex-1 resize-none rounded-[16px] border border-[#e2e8f0] bg-[#fbfcff] px-4 py-3 text-[14px] font-semibold leading-6 text-[#111827] outline-none transition focus:border-[#ff8d28] focus:bg-white disabled:cursor-not-allowed disabled:opacity-60"
@@ -671,7 +684,7 @@ function ChatSidebar({
         </div>
       ) : (
         <div className="rounded-[18px] border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] font-bold leading-6 text-amber-700">
-          Chat sẽ mở khi booking đã thanh toán đủ.
+          Chat sẽ mở khi booking đã cọc (confirmed).
         </div>
       )}
       <div className="grid gap-2">
@@ -761,7 +774,7 @@ function NoMessageState({ canChat }: { canChat: boolean }) {
         <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-white text-[22px] font-black text-[#ff8d28] shadow-sm">💬</div>
         <p className="mt-4 text-[18px] font-black text-[#0f172a]">Chưa có tin nhắn</p>
         <p className="mt-2 max-w-[430px] text-[13px] font-semibold leading-6 text-[#64748b]">
-          {canChat ? "Bạn có thể bắt đầu cuộc trò chuyện đầu tiên tại đây." : "Sau khi booking thanh toán đủ, khách và photographer có thể trao đổi tại đây."}
+          {canChat ? "Bạn có thể bắt đầu cuộc trò chuyện đầu tiên tại đây." : "Sau khi booking đã cọc, khách và photographer có thể trao đổi tại đây."}
         </p>
       </div>
     </div>

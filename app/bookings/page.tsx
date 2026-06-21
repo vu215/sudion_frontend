@@ -109,7 +109,7 @@ const statusMap: Record<
   },
   confirmed: {
     label: "Đã thanh toán cọc",
-    note: "Lịch đã được giữ. Hủy trước 48 giờ có thể được hoàn cọc.",
+    note: "Lịch đã được giữ. Bạn có thể chat với photographer.",
     className: "bg-[#ecfdf5] text-[#047857] border-[#bbf7d0]",
     dot: "bg-[#10b981]",
   },
@@ -752,13 +752,24 @@ function BookingCard({
             ) : null}
 
             {booking.status === "confirmed" ? (
-              <button
-                type="button"
-                disabled
-                className="rounded-[12px] bg-[#ecfdf5] px-4 py-3 text-center text-[13px] font-black text-[#047857]"
-              >
-                Đã cọc, chờ buổi chụp
-              </button>
+              <div className="grid gap-2">
+                <button
+                  type="button"
+                  disabled
+                  className="rounded-[12px] bg-[#ecfdf5] px-4 py-3 text-center text-[13px] font-black text-[#047857]"
+                >
+                  Đã cọc, chờ buổi chụp
+                </button>
+
+                <Link
+                  href={`/messages?booking=${encodeURIComponent(
+                    booking.booking_code
+                  )}`}
+                  className="rounded-[12px] border border-[#e8eaf1] bg-white px-4 py-3 text-center text-[13px] font-black text-[#334155] transition-all hover:border-[#ffcfaa] hover:text-[#ff8d28]"
+                >
+                  Chat với photographer
+                </Link>
+              </div>
             ) : null}
 
             {booking.status === "completed" ? (

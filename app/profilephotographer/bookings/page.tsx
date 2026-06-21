@@ -7,8 +7,6 @@ import { useToast } from "@/app/toast-context";
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
-const AUTO_REFRESH_MS = 8000;
-
 type BookingStatus =
   | "awaiting_payment"
   | "accepted"
@@ -230,18 +228,6 @@ export default function PhotographerDashboardPage() {
 
     setPhotographerId(finalId);
     void handleLoadBookings(finalId);
-
-    const timer = window.setInterval(async () => {
-      try {
-        const data = await getBookingsByPhotographer(finalId);
-        setBookings(data);
-        window.localStorage.setItem("sudion_photographer_id", finalId);
-      } catch (error) {
-        console.error("Auto refresh photographer dashboard failed:", error);
-      }
-    }, AUTO_REFRESH_MS);
-
-    return () => window.clearInterval(timer);
   }, [isPhotographer, session?.photographerId]);
 
   const stats = useMemo(() => {
@@ -413,7 +399,7 @@ export default function PhotographerDashboardPage() {
                 </h2>
 
                 <p className="mt-1 text-[13px] font-semibold text-[#64748b]">
-                  Trang này tự cập nhật sau mỗi 8 giây.
+                  Trang này chỉ cập nhật khi bạn nhấn Xem đơn.
                 </p>
               </div>
 
