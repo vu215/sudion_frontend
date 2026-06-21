@@ -1,37 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type FormEvent, type MouseEvent } from "react";
-import { useRouter } from "next/navigation";
-import {
-  registerUser,
-  setSession,
-  type UserRole,
-} from "@/app/auth-store";
+import { useState, type FormEvent } from "react";
 import { useAuth } from "@/app/auth-context";
 
 const assets = {
-  dalat:
-    "https://www.figma.com/api/mcp/asset/5b095a9c-ad55-48b1-81b3-784b326613ba",
-  google:
-    "https://www.figma.com/api/mcp/asset/7799c334-9a5d-4ef7-a51b-c5701a78b252",
+  dalat: "https://images.unsplash.com/photo-1542273917363-3b1817f69a2d?auto=format&fit=crop&w=800&q=80",
 };
 
 export default function RegisterPage() {
-  const router = useRouter();
-  const { refresh } = useAuth();
+  const { register, transitionTo } = useAuth();
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
-  const [role, setRole] = useState<UserRole>("customer");
-  const [photographerId, setPhotographerId] = useState("");
-
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [isSwitching, setIsSwitching] = useState(false);
 
   function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -47,248 +33,184 @@ export default function RegisterPage() {
       return;
     }
 
+    const hasUppercase = /[A-Z]/.test(password);
+    const hasLowercase = /[a-z]/.test(password);
+    const hasNumber = /[0-9]/.test(password);
+    const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+
+    if (!hasUppercase || !hasLowercase || !hasNumber || !hasSpecialChar) {
+      setError("Mật khẩu phải chứa ít nhất 1 chữ hoa, 1 chữ thường, 1 số và 1 ký tự đặc biệt.");
+      return;
+    }
+
     if (password !== confirmPassword) {
       setError("Mật khẩu xác nhận không khớp.");
       return;
     }
 
-    if (role === "photographer" && !photographerId.trim()) {
-      setError("Photographer cần nhập Photographer ID.");
-      return;
-    }
-
     setLoading(true);
 
-    const result = registerUser({
+    const result = register({
       fullName,
       email,
       password,
-      role,
-      photographerId,
     });
 
     setLoading(false);
 
     if (result.ok === false) {
-      setError(result.error);
+      setError(result.error || "Đã xảy ra lỗi đăng ký.");
       return;
     }
 
-    setSession({
-      userId: result.user.id,
-      email: result.user.email,
-      fullName: result.user.fullName,
-      role: result.user.role,
-      photographerId: result.user.photographerId,
-    });
-
-    refresh();
-
-    if (result.user.role === "photographer") {
-      router.push("/photographer-dashboard");
-      return;
-    }
-
-    router.push("/");
-  }
-
-  function handleLoginSwitch(e: MouseEvent<HTMLAnchorElement>) {
-    e.preventDefault();
-
-    if (isSwitching) return;
-
-    setIsSwitching(true);
-    window.setTimeout(() => router.push("/login"), 420);
+    transitionTo("/");
   }
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#fbf8ff] text-[#1a1b24]">
-      <div
-        className={`pointer-events-none absolute inset-0 z-50 bg-[#ff8d28] transition-transform duration-500 ease-[cubic-bezier(0.83,0,0.17,1)] ${
-          isSwitching ? "translate-x-0" : "translate-x-full"
-        }`}
-        aria-hidden="true"
-      />
-
-      <section className="absolute left-1/2 top-1/2 flex min-h-[1080px] w-[1920px] origin-center -translate-x-1/2 -translate-y-1/2 scale-[0.375] flex-col items-center justify-center px-[410px] py-[98px] min-[640px]:scale-[0.333] min-[768px]:scale-[0.4] min-[1024px]:scale-[0.533] min-[1280px]:scale-[0.667] min-[1366px]:scale-[0.711] min-[1440px]:scale-[0.75] min-[1536px]:scale-[0.8] min-[1728px]:scale-[0.9] min-[1920px]:scale-100">
-        <div className="grid h-[775px] w-[1100px] grid-cols-[550px_550px] overflow-hidden rounded-[24px] border border-[#c5c5d8]/20 bg-white shadow-[0_10px_40px_-10px_rgba(0,0,0,0.08)]">
-          <div className="flex h-full items-center bg-white px-[74px] py-8">
-            <div className="w-full max-w-[400px]">
-              <div className="mb-6">
-                <h1 className="text-[32px] font-extrabold leading-[1.2] tracking-[-0.01em] text-[#1a1b24]">
-                  Bắt đầu hành trình của bạn
+    <main className="min-h-[calc(100vh-280px)] bg-[#fbf8ff] text-[#1a1b24] py-10 flex items-center justify-center px-4 animate-fade-in">
+      <div className="w-full max-w-[800px] bg-white border border-[#e8eaf1]/80 rounded-[20px] shadow-[0_10px_40px_-10px_rgba(0,0,0,0.06)] overflow-hidden">
+        <div className="grid md:grid-cols-[1.1fr_1fr] items-stretch">
+          
+          {/* Form Column */}
+          <div className="flex flex-col justify-center px-6 py-8 sm:px-10 order-2 md:order-1">
+            <div className="w-full max-w-[360px] mx-auto">
+              <div className="mb-4">
+                <h1 className="text-2xl sm:text-3xl font-extrabold leading-tight text-[#1a1b24] tracking-tight">
+                  Bắt đầu hành trình
                 </h1>
-
-                <p className="mt-2 text-[20px] font-normal leading-[1.2] text-[#444655]">
-                  Tạo tài khoản để đặt lịch hoặc quản lý booking.
+                <p className="mt-1 text-xs font-medium text-[#5f6368]">
+                  Tham gia cộng đồng nhiếp ảnh AI hàng đầu ngay hôm nay.
                 </p>
               </div>
 
               {error ? (
-                <div className="mb-4 rounded-[8px] border border-red-100 bg-red-50 px-4 py-3 text-[14px] font-semibold text-red-600">
+                <div className="mb-3.5 rounded-xl border border-red-100 bg-red-50 px-3.5 py-2 text-xs font-semibold text-red-600">
                   {error}
                 </div>
               ) : null}
 
-              <form onSubmit={handleSubmit} className="grid gap-4">
-                <label className="grid gap-2 text-[16px] font-bold leading-5 text-[#1a1b24]">
-                  Họ và tên
+              <form onSubmit={handleSubmit} className="grid gap-3">
+                <div className="grid gap-1">
+                  <span className="text-[13px] font-bold text-[#1a1b24]">Họ và tên</span>
                   <input
                     type="text"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     placeholder="Nhập họ và tên"
-                    className="!h-[55px] !min-h-0 w-full !rounded-[8px] !border !border-[#c5c5d8] !bg-[#f4f2ff] !px-4 text-[16px] font-medium !text-[#1a1b24] !shadow-none outline-none transition focus:!border-[#ff8d28] focus:!bg-white focus:!ring-4 focus:!ring-[#ff8d28]/15"
+                    className="!h-11 !min-h-0 w-full rounded-xl !border !border-[#e2e8f0] bg-white px-4 !text-sm font-medium text-[#1a1b24] outline-none transition focus:border-[#ff8d28] focus:bg-white focus:ring-2 focus:ring-[#ff8d28]/10"
                   />
-                </label>
+                </div>
 
-                <label className="grid gap-2 text-[16px] font-bold leading-5 text-[#1a1b24]">
-                  Email
+                <div className="grid gap-1">
+                  <span className="text-[13px] font-bold text-[#1a1b24]">Email</span>
                   <input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="example@sudion.vn"
-                    className="!h-[55px] !min-h-0 w-full !rounded-[8px] !border !border-[#c5c5d8] !bg-[#f4f2ff] !px-4 text-[16px] font-medium !text-[#1a1b24] !shadow-none outline-none transition focus:!border-[#ff8d28] focus:!bg-white focus:!ring-4 focus:!ring-[#ff8d28]/15"
+                    placeholder="example@photor.ai"
+                    className="!h-11 !min-h-0 w-full rounded-xl !border !border-[#e2e8f0] bg-white px-4 !text-sm font-medium text-[#1a1b24] outline-none transition focus:border-[#ff8d28] focus:bg-white focus:ring-2 focus:ring-[#ff8d28]/10"
                   />
-                </label>
-
-                <div className="grid gap-2">
-                  <p className="text-[16px] font-bold leading-5 text-[#1a1b24]">
-                    Loại tài khoản
-                  </p>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setRole("customer")}
-                      className={`h-[48px] rounded-[8px] border text-[14px] font-bold transition ${
-                        role === "customer"
-                          ? "border-[#ff8d28] bg-[#fff4eb] text-[#ff8d28]"
-                          : "border-[#c5c5d8] bg-[#f4f2ff] text-[#444655]"
-                      }`}
-                    >
-                      Khách hàng
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setRole("photographer")}
-                      className={`h-[48px] rounded-[8px] border text-[14px] font-bold transition ${
-                        role === "photographer"
-                          ? "border-[#ff8d28] bg-[#fff4eb] text-[#ff8d28]"
-                          : "border-[#c5c5d8] bg-[#f4f2ff] text-[#444655]"
-                      }`}
-                    >
-                      Photographer
-                    </button>
-                  </div>
                 </div>
 
-                {role === "photographer" ? (
-                  <label className="grid gap-2 text-[16px] font-bold leading-5 text-[#1a1b24]">
-                    Photographer ID
-                    <input
-                      type="text"
-                      value={photographerId}
-                      onChange={(e) => setPhotographerId(e.target.value)}
-                      placeholder="Ví dụ: 84"
-                      className="!h-[55px] !min-h-0 w-full !rounded-[8px] !border !border-[#c5c5d8] !bg-[#f4f2ff] !px-4 text-[16px] font-medium !text-[#1a1b24] !shadow-none outline-none transition focus:!border-[#ff8d28] focus:!bg-white focus:!ring-4 focus:!ring-[#ff8d28]/15"
-                    />
-
-                    <span className="text-[12px] font-semibold leading-5 text-[#777a88]">
-                      ID này lấy trong API{" "}
-                      <span className="font-black text-[#ff8d28]">
-                        /api/photographers?category=all
-                      </span>
-                    </span>
-                  </label>
-                ) : null}
-
-                <div className="grid grid-cols-2 gap-4">
-                  <label className="grid gap-2 text-[16px] font-bold leading-5 text-[#1a1b24]">
-                    Mật khẩu
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="grid gap-1">
+                    <span className="text-[13px] font-bold text-[#1a1b24]">Mật khẩu</span>
                     <input
                       type="password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="••••••••"
-                      className="!h-[55px] !min-h-0 w-full !rounded-[8px] !border !border-[#c5c5d8] !bg-[#f4f2ff] !px-4 text-[16px] font-medium tracking-[0.22em] !text-[#1a1b24] !shadow-none outline-none placeholder:tracking-[0.22em] focus:!border-[#ff8d28] focus:!bg-white focus:!ring-4 focus:!ring-[#ff8d28]/15"
+                      className="!h-11 !min-h-0 w-full rounded-xl !border !border-[#e2e8f0] bg-white px-4 !text-sm font-medium tracking-[0.22em] text-[#1a1b24] outline-none placeholder:tracking-[0.22em] focus:border-[#ff8d28] focus:bg-white focus:ring-2 focus:ring-[#ff8d28]/10"
                     />
-                  </label>
+                  </div>
 
-                  <label className="grid gap-2 text-[16px] font-bold leading-5 text-[#1a1b24]">
-                    Xác nhận mật khẩu
+                  <div className="grid gap-1">
+                    <span className="text-[13px] font-bold text-[#1a1b24]">Xác nhận m.khẩu</span>
                     <input
                       type="password"
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       placeholder="••••••••"
-                      className="!h-[55px] !min-h-0 w-full !rounded-[8px] !border !border-[#c5c5d8] !bg-[#f4f2ff] !px-4 text-[16px] font-medium tracking-[0.22em] !text-[#1a1b24] !shadow-none outline-none placeholder:tracking-[0.22em] focus:!border-[#ff8d28] focus:!bg-white focus:!ring-4 focus:!ring-[#ff8d28]/15"
+                      className="!h-11 !min-h-0 w-full rounded-xl !border !border-[#e2e8f0] bg-white px-4 !text-sm font-medium tracking-[0.22em] text-[#1a1b24] outline-none placeholder:tracking-[0.22em] focus:border-[#ff8d28] focus:bg-white focus:ring-2 focus:ring-[#ff8d28]/10"
                     />
-                  </label>
+                  </div>
                 </div>
 
                 <button
                   type="submit"
                   disabled={loading}
-                  className="h-[52px] rounded-[8px] bg-[#ff8d28] px-5 text-[16px] font-bold text-white shadow-[0_10px_15px_-3px_rgba(29,60,221,0.10),0_4px_6px_-4px_rgba(29,60,221,0.10)] transition hover:-translate-y-0.5 hover:bg-[#e9791d] disabled:opacity-60"
+                  className="flex items-center justify-center !h-11 mt-1 rounded-xl bg-[#ff8d28] hover:bg-[#e9791d] text-sm font-bold text-white shadow-sm transition duration-200"
                 >
                   {loading ? "Đang tạo tài khoản..." : "Tạo tài khoản ngay"}
                 </button>
               </form>
 
-              <p className="mt-6 text-center text-[16px] font-medium text-[#444655]">
+              <p className="mt-4 text-center text-xs font-semibold text-[#444655]">
                 Đã có tài khoản?{" "}
                 <Link
                   href="/login"
-                  onClick={handleLoginSwitch}
-                  className="font-bold text-[#ff8d28] transition hover:text-[#e9791d]"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    transitionTo("/login");
+                  }}
+                  className="font-bold text-[#ff8d28] transition hover:text-[#e9791d] hover:underline"
                 >
                   Đăng nhập
                 </Link>
               </p>
 
-              <div className="my-6 flex items-center gap-4">
-                <span className="h-px flex-1 bg-[#c5c5d8]/50" />
-                <span className="text-[14px] font-semibold text-[#444655]/60">
+              <div className="my-4 flex items-center gap-3">
+                <span className="h-px flex-1 bg-gray-200/60" />
+                <span className="text-[10px] font-bold text-gray-400 tracking-wider">
                   HOẶC
                 </span>
-                <span className="h-px flex-1 bg-[#c5c5d8]/50" />
+                <span className="h-px flex-1 bg-gray-200/60" />
               </div>
 
               <button
                 type="button"
-                className="flex h-[50px] w-full items-center justify-center gap-3 rounded-[12px] border border-[#c5c5d8] bg-[#fbf8ff] text-[16px] font-bold text-[#1a1b24] transition hover:border-[#ff8d28]"
+                className="flex !h-11 w-full items-center justify-center gap-2.5 rounded-xl border border-gray-200 bg-white text-sm font-bold text-[#1a1b24] transition hover:bg-gray-50"
               >
-                <img src={assets.google} alt="" className="h-5 w-5" />
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05"/>
+                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335"/>
+                </svg>
                 Tiếp tục với Google
               </button>
             </div>
           </div>
 
-          <div className="relative h-full overflow-hidden">
-            <img src={assets.dalat} alt="" className="h-full w-full object-cover" />
+          {/* Banner Column */}
+          <div className="relative hidden md:block min-h-[480px] overflow-hidden order-1 md:order-2 select-none">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={assets.dalat} alt="" className="absolute inset-0 h-full w-full object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/10 to-transparent pointer-events-none" />
 
-            <div className="absolute bottom-12 left-12 right-12 rounded-[16px] border border-white/20 bg-black/20 px-8 py-7 text-white shadow-[0_18px_40px_rgba(0,0,0,0.12)] backdrop-blur-md">
-              <h2 className="text-[30px] font-extrabold leading-[1.18] tracking-[-0.02em]">
-                Nâng tầm câu chuyện
-                <br />
-                hình ảnh của bạn.
+            {/* Da Lat text overlay */}
+            <div className="absolute top-[15%] left-8 text-white select-none">
+              <h3 className="text-[52px] font-extrabold leading-none tracking-wide text-shadow-sm font-serif">
+                Đà Lạt
+              </h3>
+              <p className="text-[15px] font-medium leading-none tracking-wider mt-2 opacity-90 font-sans italic">
+                đi đâu chụp gì?
+              </p>
+            </div>
+
+            {/* Glassmorphism description box */}
+            <div className="absolute bottom-6 left-6 right-6 rounded-[12px] border border-white/10 bg-black/30 p-4.5 text-white shadow-[0_12px_30px_rgba(0,0,0,0.15)] backdrop-blur-md">
+              <h2 className="text-[14px] font-bold leading-snug">
+                Nâng tầm câu chuyện hình ảnh của bạn.
               </h2>
-
-              <p className="mt-5 text-[17px] font-medium leading-[1.6] text-white/80">
-                Khách hàng đặt lịch nhanh hơn, photographer quản lý đơn chuyên
-                nghiệp hơn.
+              <p className="mt-1 text-[10px] font-medium leading-relaxed text-white/70">
+                Tham gia cộng đồng hàng nghìn nhiếp ảnh gia và doanh nghiệp đang thay đổi cách họ làm việc với AI.
               </p>
             </div>
           </div>
-        </div>
 
-        <p className="border-t border-[#c5c5d8]/10 px-6 py-8 text-center text-[12px] font-medium text-[#444655]/60">
-          © 2026 Sudion. Elevating visual storytelling through intelligence.
-        </p>
-      </section>
+        </div>
+      </div>
     </main>
   );
 }

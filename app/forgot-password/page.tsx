@@ -1,86 +1,157 @@
-import Link from "next/link";
+"use client";
 
-const cityImage = "https://www.figma.com/api/mcp/asset/bcd9a754-1bf3-47a9-bde6-2270fed16d80";
+import Link from "next/link";
+import { useState, type FormEvent } from "react";
+import { useAuth } from "@/app/auth-context";
 
 export default function ForgotPasswordPage() {
+  const { transitionTo } = useAuth();
+  const [email, setEmail] = useState("");
+  const [success, setSuccess] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  function handleSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!email) return;
+
+    setLoading(true);
+    // Giả lập gửi yêu cầu đặt lại mật khẩu
+    setTimeout(() => {
+      setLoading(false);
+      setSuccess(true);
+    }, 1000);
+  }
+
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#fbf8ff] text-[#1a1b24]">
-      <section className="absolute left-1/2 top-1/2 grid min-h-[1080px] w-[1920px] origin-center -translate-x-1/2 -translate-y-1/2 scale-[0.375] grid-cols-[480px_514px] items-center justify-center gap-[94px] px-[410px] py-[122px] min-[640px]:scale-[0.333] min-[768px]:scale-[0.4] min-[1024px]:scale-[0.533] min-[1280px]:scale-[0.667] min-[1366px]:scale-[0.711] min-[1440px]:scale-[0.75] min-[1536px]:scale-[0.8] min-[1728px]:scale-[0.9] min-[1920px]:scale-100">
-        <div className="w-[480px]">
-          <Link href="/" className="mb-12 inline-flex items-center gap-2 text-[30px] font-extrabold text-[#ff8d28]">
-            <span className="grid h-6 w-6 place-items-center rounded-full bg-[#ff8d28] text-white">
-              <SparkIcon />
-            </span>
-            Sudion
-          </Link>
+    <main className="min-h-[calc(100vh-280px)] bg-[#fbf8ff] text-[#1a1b24] py-10 flex items-center justify-center px-4 animate-fade-in">
+      <div className="w-full max-w-[800px] bg-white border border-[#e8eaf1]/80 rounded-[20px] shadow-[0_10px_40px_-10px_rgba(0,0,0,0.06)] overflow-hidden">
+        <div className="grid md:grid-cols-[1.1fr_1fr] items-stretch">
 
-          <div className="mb-10">
-            <h1 className="text-[40px] font-extrabold leading-[1.12] tracking-[-0.02em] text-[#1a1b24]">
-              Quên mật khẩu?
-            </h1>
-            <p className="mt-3 text-[20px] font-medium leading-[1.2] text-[#444655]">
-              Đừng lo lắng, hãy nhập email của bạn và chúng tôi sẽ gửi hướng dẫn đặt lại mật khẩu.
-            </p>
+          {/* Form Column */}
+          <div className="flex flex-col justify-center px-6 py-10 sm:px-12">
+            <div className="w-full max-w-[360px] mx-auto">
+
+
+
+              <div className="mb-6">
+                <h1 className="text-3xl font-extrabold leading-tight text-[#1a1b24] tracking-tight">
+                  Quên mật khẩu?
+                </h1>
+                <p className="mt-2 text-sm font-medium text-[#5f6368] leading-relaxed">
+                  Đừng lo lắng, hãy nhập email của bạn và chúng tôi sẽ gửi hướng dẫn đặt lại mật khẩu.
+                </p>
+              </div>
+
+              {success ? (
+                <div className="mb-4 rounded-xl border border-green-100 bg-green-50 px-3.5 py-3 text-xs font-semibold text-green-600">
+                  Hướng dẫn đặt lại mật khẩu đã được gửi đến email của bạn. Vui lòng kiểm tra hộp thư.
+                </div>
+              ) : (
+                <form onSubmit={handleSubmit} className="grid gap-4.5">
+                  <div className="grid gap-1.5">
+                    <span className="text-[13px] font-bold text-[#1a1b24]">Email</span>
+                    <span className="relative block">
+                      <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#9ca3af]">
+                        <EmailIcon />
+                      </span>
+                      <input
+                        type="email"
+                        required
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="name@example.com"
+                        className="!h-11 !min-h-0 w-full rounded-xl !border !border-[#e2e8f0] bg-white px-4 pl-11 !text-sm font-medium text-[#1a1b24] outline-none transition focus:border-[#ff8d28] focus:bg-white focus:ring-2 focus:ring-[#ff8d28]/10"
+                      />
+                    </span>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="flex items-center justify-center gap-1.5 !h-11 w-full rounded-xl bg-[#ff8d28] hover:bg-[#e9791d] text-sm font-bold text-white shadow-sm transition duration-200"
+                  >
+                    {loading ? "Đang gửi..." : "Gửi hướng dẫn"}
+                    {!loading && (
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                        <polyline points="12 5 19 12 12 19"></polyline>
+                      </svg>
+                    )}
+                  </button>
+                </form>
+              )}
+
+              <div className="mt-6 text-center">
+                <Link
+                  href="/login"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    transitionTo("/login");
+                  }}
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-[#ff8d28] hover:underline"
+                >
+                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="19" y1="12" x2="5" y2="12"></line>
+                    <polyline points="12 19 5 12 12 5"></polyline>
+                  </svg>
+                  Quay lại đăng nhập
+                </Link>
+              </div>
+
+            </div>
           </div>
 
-          <form className="grid gap-5">
-            <label className="grid gap-2 text-[16px] font-bold leading-5 text-[#1a1b24]">
-              Email
-              <span className="relative block">
-                <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#6b7280]">
-                  <EmailIcon />
-                </span>
-                <input
-                  type="email"
-                  placeholder="name@example.com"
-                  className="!h-[60px] !min-h-0 w-full !rounded-[8px] !border !border-[#c5c5d8] !bg-[#f4f2ff] !px-4 !pl-12 text-[16px] font-medium !text-[#1a1b24] !shadow-none outline-none transition focus:!border-[#ff8d28] focus:!bg-white focus:!ring-4 focus:!ring-[#ff8d28]/15"
-                />
-              </span>
-            </label>
+          {/* Banner Column */}
+          <div className="relative hidden md:block min-h-[480px] overflow-hidden select-none">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="https://images.unsplash.com/photo-1508962914676-134849a727f0?auto=format&fit=crop&w=800&q=80"
+              alt=""
+              className="absolute inset-0 h-full w-full object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/10 to-transparent pointer-events-none" />
 
-            <button
-              type="submit"
-              className="h-[50px] rounded-[8px] bg-[#ff8d28] px-5 text-[16px] font-bold text-white shadow-[0_10px_15px_-3px_rgba(29,60,221,0.10),0_4px_6px_-4px_rgba(29,60,221,0.10)] transition hover:-translate-y-0.5 hover:bg-[#e9791d]"
-            >
-              Gửi hướng dẫn →
-            </button>
-          </form>
-
-          <div className="mt-8 text-center">
-            <Link href="/login" className="inline-flex items-center gap-2 text-[16px] font-bold text-[#ff8d28]">
-              ← Quay lại đăng nhập
-            </Link>
+            {/* Glassmorphism description box */}
+            <div className="absolute bottom-6 left-6 right-6 rounded-[12px] border border-white/10 bg-black/30 p-4.5 text-white shadow-[0_12px_30px_rgba(0,0,0,0.15)] backdrop-blur-md">
+              <h2 className="text-[14px] font-bold leading-snug">
+                Nâng tầm câu chuyện hình ảnh của bạn.
+              </h2>
+            </div>
           </div>
+
         </div>
-
-        <div className="relative h-[634px] w-[514px] overflow-hidden rounded-[24px] shadow-[0_18px_40px_rgba(20,24,36,0.08)]">
-          <img src={cityImage} alt="" className="h-full w-full object-cover" />
-          <div className="absolute bottom-12 left-12 right-12 rounded-[16px] border border-white/20 bg-black/20 px-8 py-7 text-white shadow-[0_18px_40px_rgba(0,0,0,0.12)] backdrop-blur-md">
-            <h2 className="text-[30px] font-extrabold leading-[1.18] tracking-[-0.02em]">
-              Nâng tầm câu chuyện
-              <br />
-              hình ảnh của bạn.
-            </h2>
-          </div>
-        </div>
-      </section>
+      </div>
     </main>
+  );
+}
+
+function ApertureIcon() {
+  return (
+    <svg
+      className="h-6 w-6 text-[#ff8d28]"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="12" cy="12" r="10" />
+      <line x1="14.31" y1="8" x2="20.05" y2="17.94" />
+      <line x1="9.69" y1="8" x2="21.17" y2="8" />
+      <line x1="7.38" y1="12" x2="13.12" y2="2.06" />
+      <line x1="9.69" y1="16" x2="3.95" y2="6.06" />
+      <line x1="14.31" y1="16" x2="2.83" y2="16" />
+      <line x1="16.62" y1="12" x2="10.88" y2="21.94" />
+    </svg>
   );
 }
 
 function EmailIcon() {
   return (
-    <svg viewBox="0 0 20 20" className="h-5 w-5" fill="none" aria-hidden="true">
-      <path d="M3.25 5.75h13.5v8.5H3.25v-8.5Z" stroke="currentColor" strokeWidth="1.8" />
-      <path d="m4 6.5 6 4.25 6-4.25" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function SparkIcon() {
-  return (
-    <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true">
-      <path d="M10 2.5 12 8l5.5 2-5.5 2-2 5.5L8 12l-5.5-2L8 8l2-5.5Z" fill="currentColor" />
+    <svg viewBox="0 0 20 20" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="4" width="14" height="12" rx="2" />
+      <path d="m4 6 6 4 6-4" />
     </svg>
   );
 }

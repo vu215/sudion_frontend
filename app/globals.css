@@ -1408,3 +1408,46 @@ textarea:focus {
     padding-right: 32px;
   }
 }
+
+/* ── Booking date/time picker animations ── */
+@keyframes fadeSlideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── Page Transition Slide animation ── */
+@keyframes slideThrough {
+  0% {
+    transform: translateX(100%);
+  }
+  40%, 60% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}
+
+.animate-slide-through {
+  animation: slideThrough 1000ms cubic-bezier(0.85, 0, 0.15, 1) forwards;
+}
+
+/* ── Page Fade In animation ── */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 600ms ease-out forwards;
+}

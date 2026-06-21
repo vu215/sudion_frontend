@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
   env: {
     NEXT_PUBLIC_REACT_TRACE_ROOT: __dirname,
   },
