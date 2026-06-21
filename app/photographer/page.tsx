@@ -18,7 +18,7 @@ const styleOptions = [
   "Cưới hỏi",
   "Kỷ yếu",
   "Sự kiện",
-  "Food & Product",
+  "Food",
   "Travel",
 ];
 
@@ -224,6 +224,17 @@ function toSlugKey(value: string) {
     .replace(/^-+|-+$/g, "");
 }
 
+function isStyleTagMatch(style: string, tag: string) {
+  const styleKey = toSlugKey(style);
+  const tagKey = toSlugKey(tag);
+
+  return (
+    styleKey === tagKey ||
+    tagKey.includes(styleKey) ||
+    styleKey.includes(tagKey)
+  );
+}
+
 function getServiceLabel(value: string) {
   const key = toSlugKey(value);
   const labels: Record<string, string> = {
@@ -405,9 +416,7 @@ function PhotographerContent() {
       const labels = [...person.tags, ...person.serviceLabels];
 
       return labels.some((tag) =>
-        selectedStyles.some((style) =>
-          style.toLowerCase() === tag.toLowerCase(),
-        ),
+        selectedStyles.some((style) => isStyleTagMatch(style, tag)),
       );
     });
 
