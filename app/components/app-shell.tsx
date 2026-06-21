@@ -23,11 +23,9 @@ const footerColumns = [
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const standalonePaths = ["/login", "/register", "/forgot-password", "/reset-password"];
   const isStandalonePage =
     pathname.startsWith("/profilephotographer") ||
-    pathname.startsWith("/admin") ||
-    standalonePaths.includes(pathname);
+    pathname.startsWith("/admin");
 
   if (isStandalonePage) {
     return <>{children}</>;
@@ -44,7 +42,12 @@ export function AppShell({ children }: { children: ReactNode }) {
 
 function Header({ pathname }: { pathname: string }) {
   const router = useRouter();
-  const { session, logout, loading } = useAuth();
+  const { session, logout } = useAuth();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -99,11 +102,10 @@ function Header({ pathname }: { pathname: string }) {
               <Link
                 key={link.label}
                 href={link.href}
-                className={`border-b-2 pb-1 transition-all ${
-                  active
+                className={`border-b-2 pb-1 transition-all ${active
                     ? "border-[#ff8d28] text-[#ff8d28]"
                     : "border-transparent hover:text-[#0e111d]"
-                }`}
+                  }`}
               >
                 {link.label}
               </Link>
@@ -121,11 +123,10 @@ function Header({ pathname }: { pathname: string }) {
                 setSearchOpen(false);
                 setSearchQuery("");
               }}
-              className={`flex items-center overflow-hidden rounded-xl border bg-white shadow-sm transition-all duration-300 ${
-                searchOpen
+              className={`flex items-center overflow-hidden rounded-xl border bg-white shadow-sm transition-all duration-300 ${searchOpen
                   ? "w-[280px] border-[#ff8d28] ring-2 ring-[#ff8d28]/10"
                   : "w-10 border-[#e8eaf1]"
-              }`}
+                }`}
             >
               <button
                 type="button"
@@ -142,22 +143,21 @@ function Header({ pathname }: { pathname: string }) {
                 onChange={(event) => setSearchQuery(event.target.value)}
                 type="search"
                 placeholder="Tìm kiếm photographer..."
-                className={`h-10 flex-1 bg-transparent pr-3 text-sm text-[#0e111d] outline-none placeholder:text-[#9ca3af] transition-all duration-300 ${
-                  searchOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none w-0"
-                }`}
+                className={`h-10 flex-1 bg-transparent pr-3 text-sm text-[#0e111d] outline-none placeholder:text-[#9ca3af] transition-all duration-300 ${searchOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none w-0"
+                  }`}
               />
             </form>
           </div>
 
-          {!loading && !session ? (
+          {mounted && !session ? (
             <Link
-              href="/register"
+              href="/login"
               className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#e8eaf1] text-[#4b5563] hover:border-[#ff8d28] hover:text-[#ff8d28] transition-colors"
               aria-label="Đăng ký"
             >
               <ProfileGlyph className="h-5 w-5" />
             </Link>
-          ) : !loading && session ? (
+          ) : mounted && session ? (
             <div className="relative" ref={dropdownRef}>
               <button
                 type="button"

@@ -243,16 +243,16 @@ function getShortTitle(title: string) {
 
 function titleFromSlug(slug: string) {
   const map: Record<string, string> = {
-    wedding: "Chụp ảnh cưới",
-    couple: "Chụp ảnh đôi",
-    portrait: "Chụp ảnh đơn",
-    event: "Chụp ảnh sự kiện",
-    yearbook: "Chụp ảnh kỷ yếu",
-    travel: "Chụp ảnh du lịch",
-    food: "Chụp ảnh ẩm thực",
-    family: "Chụp ảnh gia đình",
-    fashion: "Chụp ảnh thời trang",
-    commercial: "Chụp ảnh thương mại",
+    wedding: "Cưới hỏi",
+    couple: "Cặp đôi",
+    portrait: "Chân dung cá nhân",
+    event: "Sự kiện",
+    yearbook: "Kỷ yếu",
+    travel: "Travel",
+    food: "Food & Product",
+    family: "Gia đình",
+    fashion: "Thời trang",
+    commercial: "Thương mại",
   };
 
   return map[slug] || slug;

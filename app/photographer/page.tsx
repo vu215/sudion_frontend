@@ -2,7 +2,7 @@
 
 /* eslint-disable @next/next/no-img-element */
 
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { Suspense, useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Inter } from "next/font/google";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -312,6 +312,18 @@ function mapApiToCard(item: ApiPhotographer, index: number): PhotographerCardDat
 }
 
 export default function PhotographerPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#faf7ff] text-[#171821] flex items-center justify-center font-bold">
+        Đang tải danh sách photographer...
+      </div>
+    }>
+      <PhotographerContent />
+    </Suspense>
+  );
+}
+
+function PhotographerContent() {
   const searchParams = useSearchParams();
 
   const category = searchParams.get("category") || "all";
@@ -935,33 +947,23 @@ function PhotographerCard({
           </div>
         </div>
 
-        {/* <div className="mt-4 flex flex-wrap gap-2">
-          {person.tags.map((tag) => (
-            <span
-              key={tag}
-              className="rounded-full bg-[#f0eefb] px-3 py-1 text-[10px] font-bold text-[#747084]"
-            >
-              {tag}
-            </span>
-          ))}
-        </div> */}
-
-        {/* <div className="mt-3 rounded-xl border border-[#eeeaf4] bg-[#faf8ff] px-3 py-3"> */}
-          
-
-          <div className="mt-2 flex flex-wrap gap-1.5">
+        <div className="mt-3 border-t border-dashed border-[#e5deed] pt-3">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-[#9f9ba9] mb-1.5">
+            Dịch vụ cung cấp:
+          </p>
+          <div className="flex flex-wrap gap-1">
             {(person.serviceLabels.length ? person.serviceLabels : person.tags).map(
               (service) => (
                 <span
                   key={`${person.id}-${service}`}
-                  className="rounded-full bg-white px-2.5 py-1 text-[10px] font-extrabold text-[#4f4a5f] ring-1 ring-[#e8e0f0]"
+                  className="rounded-full bg-[#faf8ff] px-2.5 py-1 text-[10px] font-extrabold text-[#4f4a5f] ring-1 ring-[#e8e0f0]"
                 >
                   {service}
                 </span>
               ),
             )}
           </div>
-        {/* </div> */}
+        </div>
 
         <div className="mt-4 flex items-end justify-between border-t border-[#eeeaf4] pt-4">
           <div>
