@@ -1,11 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/app/auth-context";
 
 export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={<main className="min-h-[calc(100vh-280px)] bg-[#fbf8ff]" />}>
+      <ResetPasswordContent />
+    </Suspense>
+  );
+}
+
+function ResetPasswordContent() {
   const { transitionTo } = useAuth();
+  const searchParams = useSearchParams();
+  const token = searchParams.get("token") || "";
+
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -18,7 +30,7 @@ export default function ResetPasswordPage() {
   const hasUpperAndLower = /[a-z]/.test(password) && /[A-Z]/.test(password);
   const hasNumber = /[0-9]/.test(password);
 
-  function handleSubmit(e: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError("");
 
@@ -37,11 +49,28 @@ export default function ResetPasswordPage() {
       return;
     }
 
+    if (!token) {
+      setError("Mã token không hợp lệ hoặc đã hết hạn.");
+      return;
+    }
+
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"}/auth/reset-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, newPassword: password }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || "Đặt lại mật khẩu thất bại.");
+      }
       setSuccess(true);
-    }, 1000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Có lỗi xảy ra.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
