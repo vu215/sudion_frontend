@@ -635,7 +635,7 @@ function BookingContent() {
       });
 
       toast.redirect({ type: "success", title: "Đã gửi yêu cầu đặt lịch", message: "Booking đã được gửi. Vui lòng chờ xác nhận." });
-      router.push(`/booking-request-success?id=${encodeURIComponent(bookingCode)}`);
+      router.push(`/booking-request-success/${encodeURIComponent(bookingCode)}`);
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : "Có lỗi xảy ra.");
     } finally {
@@ -722,7 +722,7 @@ function BookingContent() {
                     ))}
                   </div>
                 </div>
-                <Link href={`/photographer-profile?id=${photographer.id}`} className="shrink-0 rounded-lg border border-[#e8eaf1] px-3 py-2 text-xs font-bold text-[#4b5563] transition hover:bg-[#f3f4f6] whitespace-nowrap">
+                <Link href={`/photographer-profile/${photographer.id}`} className="shrink-0 rounded-lg border border-[#e8eaf1] px-3 py-2 text-xs font-bold text-[#4b5563] transition hover:bg-[#f3f4f6] whitespace-nowrap">
                   Xem profile →
                 </Link>
               </div>

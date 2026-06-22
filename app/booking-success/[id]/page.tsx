@@ -1,8 +1,8 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import {
   confirmBookingPayment,
   getBookingFromBackend,
@@ -44,17 +44,13 @@ function formatTimeRange(value: string | null) {
   return `${cleanValue} - ${String(endHour).padStart(2, "0")}:${minute}`;
 }
 
-export default function BookingSuccessPage() {
-  return (
-    <Suspense fallback={<main className="min-h-screen bg-[#fafbfc]" />}>
-      <BookingSuccessContent />
-    </Suspense>
-  );
-}
-
-function BookingSuccessContent() {
-  const searchParams = useSearchParams();
-  const bookingCode = searchParams.get("id") || "";
+export default function BookingSuccessPage({
+  params,
+}: {
+  params: { id: string };
+}) {
+  const router = useRouter();
+  const bookingCode = params.id;
 
   const [booking, setBooking] = useState<BackendBooking | null>(null);
   const [hasLoaded, setHasLoaded] = useState(false);
@@ -398,7 +394,7 @@ function NextSteps({
       onConfirmPayment(updatedBooking);
 
       router.push(
-        `/booking-success/confirmed?id=${encodeURIComponent(
+        `/booking-success/confirmed/${encodeURIComponent(
           updatedBooking.booking_code
         )}`
       );

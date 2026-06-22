@@ -1,22 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type FormEvent, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useState, type FormEvent } from "react";
 import { useAuth } from "@/app/auth-context";
 
-export default function ResetPasswordPage() {
-  return (
-    <Suspense fallback={<main className="min-h-[calc(100vh-280px)] bg-[#fbf8ff]" />}>
-      <ResetPasswordContent />
-    </Suspense>
-  );
-}
-
-function ResetPasswordContent() {
+export default function ResetPasswordPage({
+  params,
+}: {
+  params: { token: string };
+}) {
   const { transitionTo } = useAuth();
-  const searchParams = useSearchParams();
-  const token = searchParams.get("token") || "";
+  const token = params.token;
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");

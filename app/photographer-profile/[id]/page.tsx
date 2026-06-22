@@ -1,7 +1,6 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 
 const photographers = [
@@ -580,17 +579,11 @@ const sideNavItems = [
 
 const tabs = ["Tổng quan", "Portfolio", "Gói dịch vụ", "Đánh giá"];
 
-export default function PhotographerProfilePage() {
-  return (
-    <Suspense fallback={<div className="min-h-screen bg-white" />}>
-      <PhotographerProfileContent />
-    </Suspense>
-  );
+export default function PhotographerProfilePage({ params }: { params: { id: string } }) {
+  return <PhotographerProfileContent id={params.id} />;
 }
 
-function PhotographerProfileContent() {
-  const searchParams = useSearchParams();
-  const id = searchParams.get("id");
+function PhotographerProfileContent({ id }: { id: string }) {
   const person = photographers.find((p) => p.id === id) || photographers[0];
   const [activeTab, setActiveTab] = useState("Tổng quan");
   const today = new Date();

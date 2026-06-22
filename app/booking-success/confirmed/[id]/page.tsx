@@ -1,8 +1,7 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import {
   getBookingFromBackend,
   type BackendBooking,
@@ -39,17 +38,12 @@ function formatTimeRange(value: string | null) {
   return `${cleanValue} - ${String(endHour).padStart(2, "0")}:${minute}`;
 }
 
-export default function BookingSuccessConfirmedPage() {
-  return (
-    <Suspense fallback={<main className="min-h-screen bg-[#fafbfc]" />}>
-      <BookingSuccessConfirmedContent />
-    </Suspense>
-  );
-}
-
-function BookingSuccessConfirmedContent() {
-  const searchParams = useSearchParams();
-  const bookingCode = searchParams.get("id") || "";
+export default function BookingSuccessConfirmedPage({
+  params,
+}: {
+  params: { id: string };
+}) {
+  const bookingCode = params.id;
 
   const [booking, setBooking] = useState<BackendBooking | null>(null);
   const [hasLoaded, setHasLoaded] = useState(false);

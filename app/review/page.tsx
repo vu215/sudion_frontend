@@ -371,7 +371,7 @@ function ReviewContent() {
                   </p>
 
                   <Link
-                    href={`/booking-success/confirmed?id=${encodeURIComponent(
+                    href={`/booking-success/confirmed/${encodeURIComponent(
                       booking.booking_code
                     )}`}
                     className="mt-6 rounded-[14px] bg-[#111827] px-5 py-3 text-[13px] font-black text-white transition-all hover:bg-[#0f172a]"

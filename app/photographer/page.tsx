@@ -994,7 +994,7 @@ function PhotographerCard({
 
         <div className="mt-4 grid grid-cols-2 gap-2">
           <Link
-            href={`/photographer-profile?id=${person.id}`}
+            href={`/photographer-profile/${person.id}`}
             className="rounded-lg border border-[#e1dceb] bg-white px-3 py-2.5 text-center text-[12px] font-extrabold text-[#4a4350] transition-colors hover:border-[#ffcfaa] hover:text-[#ff7d1a]"
           >
             Xem hồ sơ

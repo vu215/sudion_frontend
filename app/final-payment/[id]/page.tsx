@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Suspense, useEffect, useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useToast } from "@/app/toast-context";
 
 const API_URL =
@@ -147,20 +147,15 @@ async function payFinal(bookingCode: string, paymentMethod: string) {
   return json.data;
 }
 
-export default function FinalPaymentPage() {
-  return (
-    <Suspense fallback={<LoadingScreen />}>
-      <FinalPaymentContent />
-    </Suspense>
-  );
-}
-
-function FinalPaymentContent() {
+export default function FinalPaymentPage({
+  params,
+}: {
+  params: { id: string };
+}) {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const toast = useToast();
 
-  const bookingCode = searchParams.get("id") || "";
+  const bookingCode = params.id;
 
   const [booking, setBooking] = useState<Booking | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("momo");

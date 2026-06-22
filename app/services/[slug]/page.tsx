@@ -711,7 +711,7 @@ function PortraitResultCard({
 
         <div className="mt-4 grid grid-cols-2 gap-3">
           <Link
-            href={`/photographer-profile?id=${item.photographerId}`}
+            href={`/photographer-profile/${item.photographerId}`}
             className="rounded-lg border border-[#d0d5dd] bg-white px-3 py-2.5 text-center text-[12px] font-black text-[#344054] transition hover:border-[#ff8d28] hover:text-[#ff8d28]"
           >
             Xem hồ sơ
