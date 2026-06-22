@@ -9,17 +9,30 @@ export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  function handleSubmit(e: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!email) return;
 
     setLoading(true);
-    // Giả lập gửi yêu cầu đặt lại mật khẩu
-    setTimeout(() => {
-      setLoading(false);
+    setError("");
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"}/auth/forgot-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || "Gửi yêu cầu thất bại.");
+      }
       setSuccess(true);
-    }, 1000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Có lỗi xảy ra.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -41,6 +54,12 @@ export default function ForgotPasswordPage() {
                   Đừng lo lắng, hãy nhập email của bạn và chúng tôi sẽ gửi hướng dẫn đặt lại mật khẩu.
                 </p>
               </div>
+
+              {error ? (
+                <div className="mb-4 rounded-xl border border-red-100 bg-red-50 px-3.5 py-2.5 text-xs font-semibold text-red-600">
+                  {error}
+                </div>
+              ) : null}
 
               {success ? (
                 <div className="mb-4 rounded-xl border border-green-100 bg-green-50 px-3.5 py-3 text-xs font-semibold text-green-600">

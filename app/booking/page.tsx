@@ -46,7 +46,11 @@ type BookedSlot = {
 };
 
 type ApiResponse<T> = { success: boolean; message: string; data: T; error?: unknown };
-type BookingOptionsData = { photographer: BookingPhotographer; packages: BookingPackage[] };
+type BookingOptionsData = {
+  photographer: BookingPhotographer;
+  packages: BookingPackage[];
+  addOns?: Array<{ id: string; name: string; price: number; note?: string }>;
+};
 
 type PackageTier = {
   tier: "basic" | "standard" | "premium";
@@ -65,37 +69,37 @@ type AddonCard = { id: string; name: string; price: number; image: string; note?
 const CATEGORY_INFO: Record<string, { label: string; icon: string; image: string }> = {
   wedding: {
     label: "Cưới hỏi",
-    icon: "💒",
+    icon: "",
     image: "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=400&q=80",
   },
   couple: {
     label: "Cặp đôi",
-    icon: "💑",
+    icon: "",
     image: "https://images.unsplash.com/photo-1523438885200-e635ba2c371e?auto=format&fit=crop&w=400&q=80",
   },
   portrait: {
     label: "Chân dung",
-    icon: "📸",
+    icon: "",
     image: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=400&q=80",
   },
   event: {
     label: "Sự kiện",
-    icon: "🎪",
+    icon: "",
     image: "https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=400&q=80",
   },
   yearbook: {
     label: "Kỷ yếu",
-    icon: "🎓",
+    icon: "",
     image: "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&w=400&q=80",
   },
   travel: {
     label: "Travel",
-    icon: "✈️",
+    icon: "",
     image: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=400&q=80",
   },
   food: {
     label: "Food & Product",
-    icon: "🍽️",
+    icon: "",
     image: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=400&q=80",
   },
 };
@@ -176,7 +180,7 @@ const TIME_SLOTS = [
   "13:00 - 17:00",
   "14:00 - 18:00",
   "16:00 - 20:00",
-  "Cả ngày (8h)",
+  "08:00 - 16:00 (Cả ngày)",
 ];
 
 const MONTH_NAMES = [
@@ -221,10 +225,45 @@ function normalizeServiceFilter(value: string) {
 function normalizeDate(v: string) { return String(v || "").slice(0, 10); }
 function normalizeTime(v: string) { return String(v || "").slice(0, 5); }
 
-function isSlotBooked(bookedSlots: BookedSlot[], date: string, time: string) {
-  return bookedSlots.some(
-    (s) => normalizeDate(s.shoot_date) === normalizeDate(date) && normalizeTime(s.shoot_time) === normalizeTime(time)
-  );
+function parseTimeToMinutes(timeStr: string): number {
+  const parts = timeStr.split(":");
+  const hours = parseInt(parts[0], 10);
+  const minutes = parseInt(parts[1] || "0", 10);
+  return hours * 60 + minutes;
+}
+
+function isSlotBooked(bookedSlots: BookedSlot[], date: string, timeSlot: string) {
+  // 1. Normalize dates
+  const targetDate = normalizeDate(date);
+  
+  // 2. Parse time slot start and end
+  let slotStartMin = 0;
+  let slotEndMin = 24 * 60; // default whole day
+
+  const rangeMatch = timeSlot.match(/(\d{1,2}:\d{2})\s*(?:-|–|—|đến|to)\s*(\d{1,2}:\d{2})/i);
+  if (rangeMatch) {
+    slotStartMin = parseTimeToMinutes(rangeMatch[1]);
+    slotEndMin = parseTimeToMinutes(rangeMatch[2]);
+  } else {
+    const singleMatch = timeSlot.match(/(\d{1,2}:\d{2})/);
+    if (singleMatch) {
+      slotStartMin = parseTimeToMinutes(singleMatch[0]);
+      slotEndMin = slotStartMin + 240; // assume 4 hours default
+    }
+  }
+
+  return bookedSlots.some((s) => {
+    if (normalizeDate(s.shoot_date) !== targetDate) return false;
+    
+    // Parse booked slot start
+    const bookedTime = normalizeTime(s.shoot_time); // "HH:MM"
+    const bookedStartMin = parseTimeToMinutes(bookedTime);
+    // Assume booked duration is 4 hours (240 minutes)
+    const bookedEndMin = bookedStartMin + 240;
+
+    // Check overlap: slotStart < bookedEnd && slotEnd > bookedStart
+    return slotStartMin < bookedEndMin && slotEndMin > bookedStartMin;
+  });
 }
 
 function getCalendarDays(year: number, month: number): (number | null)[] {
@@ -237,10 +276,37 @@ function getCalendarDays(year: number, month: number): (number | null)[] {
   return days;
 }
 
+function getAddonImage(id: string, category: string): string {
+  const cleanId = id.toLowerCase();
+  if (cleanId.includes("flycam") || cleanId.includes("drone")) {
+    return "https://images.unsplash.com/photo-1473968512647-3e447244af8f?w=400&q=80&fit=crop";
+  }
+  if (cleanId.includes("album") || cleanId.includes("book")) {
+    return "https://images.unsplash.com/photo-1544946503-58e2bae0d82d?w=400&q=80&fit=crop";
+  }
+  if (cleanId.includes("gate") || cleanId.includes("photo") || cleanId.includes("print") || cleanId.includes("frame")) {
+    return "https://images.unsplash.com/photo-1513519245088-0e12902e35ca?w=400&q=80&fit=crop";
+  }
+  if (cleanId.includes("makeup")) {
+    return "https://images.unsplash.com/photo-1487412912498-0447578fcca8?w=400&q=80&fit=crop";
+  }
+  if (cleanId.includes("video")) {
+    return "https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?w=400&q=80&fit=crop";
+  }
+  if (cleanId.includes("retouch") || cleanId.includes("edit")) {
+    return "https://images.unsplash.com/photo-1542744094-24638eff58bb?w=400&q=80&fit=crop";
+  }
+  if (cleanId.includes("raw")) {
+    return "https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=400&q=80&fit=crop";
+  }
+  return CATEGORY_INFO[category]?.image || "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=400&q=80&fit=crop";
+}
+
 /* ───────── API ───────── */
 
-async function getBookingOptions(photographerId: string) {
-  const res = await fetch(`${API_URL}/photographers/${photographerId}/booking-options`, { cache: "no-store" });
+async function getBookingOptions(photographerId: string, categorySlug?: string | null) {
+  const catParam = categorySlug ? `?category=${encodeURIComponent(categorySlug)}` : "";
+  const res = await fetch(`${API_URL}/photographers/${photographerId}/booking-options${catParam}`, { cache: "no-store" });
   const json: ApiResponse<BookingOptionsData> = await res.json();
   if (!res.ok || !json.success) throw new Error(json.message || "Không thể lấy dịch vụ.");
   return json.data;
@@ -284,18 +350,26 @@ function BookingContent() {
   const [submitError, setSubmitError] = useState("");
 
   // ── Selection state ──
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(() => {
+    if (typeof window !== "undefined") {
+      const search = new URLSearchParams(window.location.search);
+      const service = search.get("service")?.trim();
+      return service ? normalizeServiceFilter(service) : null;
+    }
+    return null;
+  });
   const [selectedSubType, setSelectedSubType] = useState<string>("pre-wedding");
   const [selectedTier, setSelectedTier] = useState<"basic" | "standard" | "premium">("standard");
   const [selectedPeopleScale, setSelectedPeopleScale] = useState("");
   const [selectedAddOns, setSelectedAddOns] = useState<string[]>([]);
+  const [apiAddOns, setApiAddOns] = useState<Array<{ id: string; name: string; price: number; note?: string }>>([]);
   const [showMoreAddons, setShowMoreAddons] = useState(false);
   const [showMoreSubTypes, setShowMoreSubTypes] = useState(false);
 
   // ── Booking info state ──
   const [location, setLocation] = useState("Hồ Chí Minh");
   const [shootDate, setShootDate] = useState("");
-  const [shootTime, setShootTime] = useState("09:00");
+  const [shootTime, setShootTime] = useState("09:00 - 13:00");
   const [phone, setPhone] = useState("");
   const [specialRequest, setSpecialRequest] = useState("");
   const [fullName, setFullName] = useState("");
@@ -379,8 +453,8 @@ function BookingContent() {
   }, [resolvedCategory, currentSubType, selectedPeopleOption]);
 
   const addOnTotal = useMemo(() => {
-    return ADDON_CARDS.filter((a) => selectedAddOns.includes(a.id)).reduce((sum, a) => sum + a.price, 0);
-  }, [selectedAddOns]);
+    return apiAddOns.filter((a) => selectedAddOns.includes(a.id)).reduce((sum, a) => sum + a.price, 0);
+  }, [selectedAddOns, apiAddOns]);
 
   const estimatedTotal = useMemo(() => {
     return basePrice + subTypeExtra + addOnTotal;
@@ -395,8 +469,8 @@ function BookingContent() {
   }, [finalTotal]);
 
   const selectedAddOnsDetails = useMemo(
-    () => ADDON_CARDS.filter((a) => selectedAddOns.includes(a.id)).map((a) => ({ id: a.id, name: a.name, price: a.price })),
-    [selectedAddOns]
+    () => apiAddOns.filter((a) => selectedAddOns.includes(a.id)).map((a) => ({ id: a.id, name: a.name, price: a.price })),
+    [selectedAddOns, apiAddOns]
   );
 
   // ── Effects ──
@@ -406,46 +480,70 @@ function BookingContent() {
     setEmail((c) => c || session.email);
   }, [session]);
 
+  // Load booked slots
   useEffect(() => {
+    if (!photographerId) return;
     (async () => {
       try {
-        setIsLoading(true);
+        const slots = await getBookedSlots(photographerId);
+        setBookedSlots(slots);
+      } catch (err) {
+        console.error("Lỗi lấy lịch bận:", err);
+      }
+    })();
+  }, [photographerId]);
+
+  // Load packages & add-ons when selected category changes
+  useEffect(() => {
+    if (!photographerId) return;
+    
+    let active = true;
+    (async () => {
+      try {
         setError("");
-        if (!photographerId) throw new Error("Thiếu photographer. Vui lòng chọn photographer trước.");
-        const [data, booked] = await Promise.all([getBookingOptions(photographerId), getBookedSlots(photographerId)]);
+        const data = await getBookingOptions(photographerId, selectedCategory);
+        
+        if (!active) return;
         setPhotographer(data.photographer);
         setPackages(data.packages);
-        setBookedSlots(booked);
-        if (!data.packages.length) throw new Error("Photographer này chưa có gói dịch vụ.");
+        setApiAddOns(data.addOns || []);
+        
+        if (!data.packages.length) {
+          throw new Error("Photographer này chưa có gói dịch vụ.");
+        }
 
-        // Auto-select
-        let cat = null;
-        if (serviceQuery) {
-          cat = normalizeServiceFilter(serviceQuery);
-          setSelectedCategory(cat);
-        } else if (data.packages.length > 0) {
-          cat = data.packages[0].category.slug;
+        // Auto-select category if not selected yet
+        let cat = selectedCategory;
+        if (!cat) {
+          if (serviceQuery) {
+            cat = normalizeServiceFilter(serviceQuery);
+          } else if (data.packages.length > 0) {
+            cat = data.packages[0].category.slug;
+          }
           setSelectedCategory(cat);
         }
 
         // Set default scale for non-wedding
         if (cat && cat !== "wedding") {
           const opts = PEOPLE_OPTIONS_MAP[cat] || PEOPLE_OPTIONS_MAP._default;
-          setSelectedPeopleScale(opts[0]?.label || "");
+          setSelectedPeopleScale((curr) => curr || opts[0]?.label || "");
         }
 
         // Set initial date to today
         const today = new Date();
-        setShootDate(`${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`);
+        setShootDate((curr) => curr || `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`);
       } catch (err) {
+        if (!active) return;
         setError(err instanceof Error ? err.message : "Không thể tải dữ liệu.");
-        setPhotographer(null);
-        setPackages([]);
       } finally {
-        setIsLoading(false);
+        if (active) setIsLoading(false);
       }
     })();
-  }, [photographerId, serviceQuery]);
+
+    return () => {
+      active = false;
+    };
+  }, [photographerId, selectedCategory, serviceQuery]);
 
   // Handle changing category
   const handleSelectCategory = useCallback((slug: string) => {
@@ -637,9 +735,8 @@ function BookingContent() {
                       const active = resolvedCategory === cat.slug;
                       return (
                         <button key={cat.slug} type="button" onClick={() => handleSelectCategory(cat.slug)}
-                          className={`group flex flex-col items-center rounded-xl border p-2.5 text-center transition-all ${
-                            active ? "border-[#ff8d28] bg-[#fff4eb] shadow-sm" : "border-[#e8eaf1] bg-white hover:border-[#ffb970]"
-                          }`}>
+                          className={`group flex flex-col items-center rounded-xl border p-2.5 text-center transition-all ${active ? "border-[#ff8d28] bg-[#fff4eb] shadow-sm" : "border-[#e8eaf1] bg-white hover:border-[#ffb970]"
+                            }`}>
                           <span className="relative aspect-square w-full overflow-hidden rounded-lg bg-[#f3f4f6]">
                             <Image src={cat.image} alt={cat.label} fill className="object-cover" sizes="160px" />
                           </span>
@@ -663,7 +760,7 @@ function BookingContent() {
                       return (
                         <button key={sub.id} type="button" onClick={() => setSelectedSubType(sub.id)}
                           className={`group flex items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left transition-all ${active ? "border-[#ff8d28] bg-[#fff4eb]" : "border-[#e8eaf1] bg-white hover:border-[#ffb970]"
-                          }`}>
+                            }`}>
                           {/* Radio */}
                           <span className={`h-4 w-4 shrink-0 rounded-full border-2 flex items-center justify-center transition-all ${active ? "border-[#ff8d28]" : "border-[#d1d5db]"}`}>
                             {active && <span className="h-2 w-2 rounded-full bg-[#ff8d28]" />}
@@ -733,9 +830,8 @@ function BookingContent() {
                       const active = selectedTier === tier.tier;
                       return (
                         <div key={tier.tier}
-                          className={`relative rounded-xl border transition-all flex flex-col ${
-                            active ? "border-[#ff8d28] bg-[#fff4eb] shadow-[0_8px_20px_rgba(255,141,40,0.08)]" : "border-[#e8eaf1] bg-white hover:border-[#ffb970]"
-                          }`}>
+                          className={`relative rounded-xl border transition-all flex flex-col ${active ? "border-[#ff8d28] bg-[#fff4eb] shadow-[0_8px_20px_rgba(255,141,40,0.08)]" : "border-[#e8eaf1] bg-white hover:border-[#ffb970]"
+                            }`}>
                           {tier.recommended && (
                             <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 rounded-full bg-[#ff8d28] px-3 py-0.5 text-[9px] font-black text-white whitespace-nowrap uppercase tracking-wider">
                               Popular
@@ -757,11 +853,10 @@ function BookingContent() {
                           </div>
                           <div className="p-4 pt-0">
                             <button type="button" onClick={() => setSelectedTier(tier.tier)}
-                              className={`w-full rounded-lg py-2.5 text-xs font-bold transition-all ${
-                                active
+                              className={`w-full rounded-lg py-2.5 text-xs font-bold transition-all ${active
                                   ? "bg-[#ff8d28] text-white shadow"
                                   : "border border-[#e8eaf1] bg-white text-[#4b5563] hover:border-[#ff8d28] hover:text-[#ff8d28]"
-                              }`}>
+                                }`}>
                               {active ? "Đã chọn" : "Chọn gói"}
                             </button>
                           </div>
@@ -781,21 +876,20 @@ function BookingContent() {
                   <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
                     {visibleAddons.map((addon) => {
                       const active = selectedAddOns.includes(addon.id);
+                      const addonImage = getAddonImage(addon.id, resolvedCategory || "all");
                       return (
                         <button key={addon.id} type="button" onClick={() => toggleAddon(addon.id)}
-                          className={`group flex items-center gap-3 rounded-xl border p-3 text-left transition-all ${
-                            active ? "border-[#ff8d28] bg-[#fff4eb]" : "border-[#e8eaf1] bg-white hover:border-[#ffb970]"
-                          }`}>
+                          className={`group flex items-center gap-3 rounded-xl border p-3 text-left transition-all ${active ? "border-[#ff8d28] bg-[#fff4eb]" : "border-[#e8eaf1] bg-white hover:border-[#ffb970]"
+                            }`}>
                           <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-[#f3f4f6]">
-                            <Image src={addon.image} alt={addon.name} fill className="object-cover" sizes="40px" />
+                            <Image src={addonImage} alt={addon.name} fill className="object-cover" sizes="40px" />
                           </span>
                           <div className="min-w-0 flex-1">
                             <span className={`block text-[12px] font-bold ${active ? "text-[#ff8d28]" : "text-[#0e111d]"}`}>{addon.name}</span>
                             <span className="block text-[10px] font-semibold text-[#ff8d28]">+{formatCurrency(addon.price)}</span>
                           </div>
-                          <span className={`h-4 w-4 shrink-0 rounded border flex items-center justify-center transition-all ${
-                            active ? "border-[#ff8d28] bg-[#ff8d28] text-white" : "border-[#d1d5db] bg-white"
-                          }`}>
+                          <span className={`h-4 w-4 shrink-0 rounded border flex items-center justify-center transition-all ${active ? "border-[#ff8d28] bg-[#ff8d28] text-white" : "border-[#d1d5db] bg-white"
+                            }`}>
                             {active && (
                               <svg className="h-2.5 w-2.5" fill="none" stroke="currentColor" strokeWidth="3.5" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
@@ -806,7 +900,7 @@ function BookingContent() {
                       );
                     })}
                   </div>
-                  {ADDON_CARDS.length > 4 && (
+                  {apiAddOns.length > 4 && (
                     <button type="button" onClick={() => setShowMoreAddons(!showMoreAddons)}
                       className="mt-2 flex items-center justify-center gap-2 rounded-xl border border-dashed border-[#d1d5db] bg-white py-2.5 w-full transition hover:border-[#ff8d28]">
                       <svg className={`h-3 w-3 text-[#ff8d28] transition-transform duration-200 ${showMoreAddons ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
@@ -861,15 +955,14 @@ function BookingContent() {
                       return (
                         <button key={dateStr} type="button" disabled={isPast}
                           onClick={() => setShootDate(dateStr)}
-                          className={`grid h-8 w-full place-items-center rounded-lg text-xs font-bold transition-all ${
-                            isSelected
+                          className={`grid h-8 w-full place-items-center rounded-lg text-xs font-bold transition-all ${isSelected
                               ? "bg-[#ff8d28] text-white shadow"
                               : isToday
                                 ? "border border-[#ff8d28] bg-white text-[#ff8d28]"
                                 : isPast
                                   ? "cursor-not-allowed text-[#d1d5db]"
                                   : "text-[#374151] hover:bg-[#fff4eb]"
-                          }`}>
+                            }`}>
                           {day}
                         </button>
                       );
@@ -883,18 +976,16 @@ function BookingContent() {
                   <div className="grid grid-cols-2 gap-2">
                     {TIME_SLOTS.map((time) => {
                       const active = shootTime === time;
-                      const startHour = time.split(" ")[0];
-                      const booked = isSlotBooked(bookedSlots, shootDate, startHour);
+                      const booked = isSlotBooked(bookedSlots, shootDate, time);
                       return (
                         <button key={time} type="button" disabled={booked}
                           onClick={() => { setShootTime(time); setSubmitError(""); }}
-                          className={`rounded-xl border py-2.5 text-center text-xs font-bold transition-all ${
-                            booked
+                          className={`rounded-xl border py-2.5 text-center text-xs font-bold transition-all ${booked
                               ? "cursor-not-allowed border-red-200 bg-red-50 text-red-300 line-through"
                               : active
                                 ? "border-[#ff8d28] bg-[#ff8d28] text-white shadow-sm"
                                 : "border-[#e8eaf1] bg-white text-[#374151] hover:border-[#ffb970]"
-                          }`}>
+                            }`}>
                           {time}
                         </button>
                       );
