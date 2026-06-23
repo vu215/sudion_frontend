@@ -29,6 +29,7 @@ function ResetPasswordContent() {
   const hasMinLength = password.length >= 8;
   const hasUpperAndLower = /[a-z]/.test(password) && /[A-Z]/.test(password);
   const hasNumber = /[0-9]/.test(password);
+  const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>_\-+=~`\[\]\\;/' ]/.test(password);
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -39,8 +40,8 @@ function ResetPasswordContent() {
       return;
     }
 
-    if (!hasMinLength || !hasUpperAndLower || !hasNumber) {
-      setError("Mật khẩu chưa đáp ứng đủ điều kiện bảo mật.");
+    if (!hasMinLength || !hasUpperAndLower || !hasNumber || !hasSpecialChar) {
+      setError("Mật khẩu phải có ít nhất 8 ký tự, 1 chữ hoa, 1 chữ thường, 1 số và 1 ký tự đặc biệt.");
       return;
     }
 
@@ -202,6 +203,12 @@ function ResetPasswordContent() {
                       <CheckCircleIcon active={hasNumber} />
                       <span className={hasNumber ? "text-green-600" : "text-[#5f6368]"}>
                         Bao gồm ít nhất một số
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <CheckCircleIcon active={hasSpecialChar} />
+                      <span className={hasSpecialChar ? "text-green-600" : "text-[#5f6368]"}>
+                        Bao gồm ít nhất một ký tự đặc biệt
                       </span>
                     </div>
                   </div>

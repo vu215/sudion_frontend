@@ -19,6 +19,13 @@ import {
   setSession,
 } from "./auth-store";
 
+type AuthResult = {
+  ok: boolean;
+  error?: string;
+  user?: AuthUser;
+  session?: AuthSession;
+};
+
 type AuthContextValue = {
   session: AuthSession | null;
   isLoggedIn: boolean;
@@ -26,8 +33,13 @@ type AuthContextValue = {
   isPhotographer: boolean;
   refresh: () => void;
   logout: () => void;
-  login: (emailInput: string, passwordInput: string) => { ok: boolean; error?: string; user?: AuthUser; session?: AuthSession };
-  register: (params: { fullName: string; email: string; password: string }) => { ok: boolean; error?: string; user?: AuthUser };
+  login: (emailInput: string, passwordInput: string) => Promise<AuthResult>;
+  register: (params: {
+    fullName: string;
+    email: string;
+    password: string;
+    phone?: string;
+  }) => Promise<AuthResult>;
   isTransitioning: boolean;
   transitionTo: (targetUrl: string) => void;
 };
@@ -48,38 +60,55 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSessionState(null);
   }
 
-  function login(emailInput: string, passwordInput: string) {
-    const result = loginUser(emailInput, passwordInput);
-    if (result.ok) {
+  async function login(emailInput: string, passwordInput: string) {
+    const result = await loginUser(emailInput, passwordInput);
+
+    if (result.ok && result.session) {
       setSessionState(result.session);
     }
+
     return result;
   }
 
-  function register(params: { fullName: string; email: string; password: string }) {
-    const result = registerUser({
+  async function register(params: {
+    fullName: string;
+    email: string;
+    password: string;
+    phone?: string;
+  }) {
+    const result = await registerUser({
       ...params,
       role: "customer",
     });
-    if (result.ok) {
-      const sessionData = {
-        userId: result.user.id,
+
+    if (result.ok && result.user) {
+      const sessionData: AuthSession = {
+        userId: String(result.user.userId || result.user.id),
         email: result.user.email,
         fullName: result.user.fullName,
         role: result.user.role,
         photographerId: result.user.photographerId,
       };
+
       setSession(sessionData);
       setSessionState(sessionData);
+
+      return {
+        ...result,
+        session: sessionData,
+      };
     }
+
     return result;
   }
 
   function transitionTo(targetUrl: string) {
     setIsTransitioning(true);
+
     setTimeout(() => {
       router.push(targetUrl);
     }, 450);
+
     setTimeout(() => {
       setIsTransitioning(false);
     }, 1000);
