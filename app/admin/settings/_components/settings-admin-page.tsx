@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { ChangeEvent, DragEvent } from "react";
 import AdminLayout from "../../_components/admin-layout";
 import { AdminIcon, IconButton, type IconName } from "../../_components/admin-icons";
@@ -13,7 +13,29 @@ export function SettingsAdminPageContent({ active }: { active: Section }) {
   const [settingsCollapsed, setSettingsCollapsed] = useState(false);
   const [toast, setToast] = useState("");
   const [system, setSystem] = useState({ name: "Studion", email: "support@studion.vn", phone: "1900 1234", address: "123 Nguyễn Huệ, Quận 1, TP. Hồ Chí Minh", description: "Nền tảng kết nối khách hàng với photographer chuyên nghiệp, hỗ trợ gợi ý và tối ưu trải nghiệm đặt lịch.", timezone: "(GMT+07:00) Asia/Ho Chi Minh", language: "Tiếng Việt", currency: "VND (đ)", dateFormat: "dd/mm/yyyy", timeFormat: "24 giờ (14:30)", pageSize: "10", logoUrl: "/logo_sudion.jpg", faviconUrl: "/logo_sudion_remove.png" });
-  const [api, setApi] = useState({ provider: "OpenAI", model: "gpt-4.1-mini", key: "sk_live_************************", endpoint: "https://api.openai.com/v1/moderations", show: false });
+  const [api, setApi] = useState({
+    provider: "Google Gemini",
+    model: "gemini-1.5-flash",
+    key: "",
+    endpoint: "https://generativelanguage.googleapis.com/v1beta/models",
+    show: false,
+    systemPrompt: "Bạn là trợ lý tư vấn chụp ảnh thông minh của Sudion. Hãy tư vấn và gợi ý những nhiếp ảnh gia phù hợp nhất dựa trên thể loại chụp, khu vực hoạt động và ngân sách của khách hàng."
+  });
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("studion-ai-settings");
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          setApi((prev) => ({ ...prev, ...parsed }));
+        } catch (e) {
+          console.error("Failed to load AI settings from localStorage", e);
+        }
+      }
+    }
+  }, []);
+
   function notify(message: string) { setToast(message); window.setTimeout(() => setToast(""), 1800); }
 
   return (
@@ -118,11 +140,167 @@ function ApiSummary({ notify }: { notify: (message: string) => void }) {
   return <Panel><h2 className="!text-[15px] !font-medium">Tích hợp & API</h2><div className="mt-5 grid gap-3 !text-[13px]"><div className="flex items-center justify-between"><span className="!text-[13px] !font-normal text-[#536078]">Trạng thái API</span><span className="rounded-full bg-emerald-50 px-3 py-1 !text-[13px] !font-normal text-emerald-700">Hoạt động</span></div><CopyRow label="API Key" value="pk_live_************************" onCopy={() => notify("Đã copy API key.")} /><CopyRow label="Webhook Secret" value="whsec_************************" onCopy={() => notify("Đã copy webhook secret.")} /><div className="ml-auto"><IconButton label="Quản lý API" icon="settings" onClick={() => notify("Đã mở quản lý API.")} /></div></div></Panel>;
 }
 
-function AiSettings({ api, setApi, notify }: { api: { provider: string; model: string; key: string; endpoint: string; show: boolean }; setApi: (value: { provider: string; model: string; key: string; endpoint: string; show: boolean }) => void; notify: (message: string) => void }) {
+function AiSettings({ api, setApi, notify }: {
+  api: { provider: string; model: string; key: string; endpoint: string; show: boolean; systemPrompt: string };
+  setApi: (value: any) => void;
+  notify: (message: string) => void;
+}) {
+  const handleSave = () => {
+    localStorage.setItem("studion-ai-settings", JSON.stringify({
+      provider: api.provider,
+      model: api.model,
+      key: api.key,
+      endpoint: api.endpoint,
+      systemPrompt: api.systemPrompt
+    }));
+    notify("Đã lưu cấu hình AI thành công.");
+  };
+
+  const handleTestConnect = () => {
+    if (api.provider === "Mock Simulator") {
+      notify("Test kết nối: Giả lập hoạt động bình thường!");
+      return;
+    }
+    if (!api.key) {
+      notify("Lỗi kết nối: Vui lòng nhập API Key.");
+      return;
+    }
+    notify(`Kết nối ${api.provider} (${api.model}) thành công.`);
+  };
+
   return (
     <>
-      <Panel><SectionHeader title="AI & Moderation" onClick={() => notify("Đã lưu cấu hình kiểm duyệt AI.")} /><p className="mt-2 !text-[13px] !font-normal text-[#697086]">Cấu hình ngưỡng kiểm duyệt tự động và hành động xử lý nội dung.</p><div className="mt-5 grid gap-4 md:grid-cols-2"><Input label="Ngưỡng cảnh báo AI" value="75%" onChange={() => undefined} /><Input label="Ngưỡng tự động ẩn" value="92%" onChange={() => undefined} /><Input label="Loại nội dung quét" value="Ảnh, tin nhắn, đánh giá" onChange={() => undefined} /><Input label="Chế độ xử lý" value="Chờ admin duyệt" onChange={() => undefined} /></div></Panel>
-      <Panel><SectionHeader title="API kiểm duyệt AI" onClick={() => notify("Đã lưu API kiểm duyệt AI.")} /><div className="mt-5 grid gap-4 md:grid-cols-2"><Input label="AI Provider" value={api.provider} onChange={(value) => setApi({ ...api, provider: value })} /><Input label="Model kiểm duyệt" value={api.model} onChange={(value) => setApi({ ...api, model: value })} /><label className="!block !text-[13px] !font-normal text-[#536078] md:col-span-2">API Key<div className="mt-2 flex items-center gap-2"><input type={api.show ? "text" : "password"} value={api.key} onChange={(event) => setApi({ ...api, key: event.target.value })} className="h-10 min-w-0 flex-1 rounded-xl !border !border-[#dfe3ec] px-3 !text-[13px] !font-normal text-[#111827] !shadow-none outline-none focus:!border-[#ff8d28] focus:!shadow-none focus:ring-2 focus:ring-[#ff8d28]/10" /><IconButton label={api.show ? "Ẩn key" : "Hiện key"} icon="eye" onClick={() => setApi({ ...api, show: !api.show })} /><IconButton label="Copy key" icon="copy" onClick={() => notify("Đã copy API key.")} /></div></label><Input label="Endpoint moderation" value={api.endpoint} onChange={(value) => setApi({ ...api, endpoint: value })} /><div className="flex items-end gap-2"><button onClick={() => notify(`Kết nối ${api.provider} thành công.`)} className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#ff8d28] px-4 !text-[13px] !font-normal text-white"><AdminIcon name="check" /> Test kết nối</button><IconButton label="Reset key" icon="refresh" onClick={() => setApi({ ...api, key: "" })} /></div></div></Panel>
+      <Panel>
+        <SectionHeader title="Cài đặt Model AI Tư vấn" onClick={handleSave} />
+        <p className="mt-2 !text-[13px] !font-normal text-[#697086]">
+          Cấu hình nhà cung cấp và model AI hỗ trợ tư vấn chụp ảnh ở widget chat bên ngoài.
+        </p>
+        
+        <div className="mt-5 grid gap-4 md:grid-cols-2">
+          {/* AI Provider Select */}
+          <label className="!block !text-[13px] !font-normal text-[#536078]">
+            AI Provider
+            <select
+              value={api.provider}
+              onChange={(e) => {
+                const prov = e.target.value;
+                let defaultModel = "gemini-1.5-flash";
+                let defaultEndpoint = "https://generativelanguage.googleapis.com/v1beta/models";
+                if (prov === "OpenAI") {
+                  defaultModel = "gpt-4o-mini";
+                  defaultEndpoint = "https://api.openai.com/v1/chat/completions";
+                } else if (prov === "Mock Simulator") {
+                  defaultModel = "local-sim-v1";
+                  defaultEndpoint = "local";
+                }
+                setApi({ ...api, provider: prov, model: defaultModel, endpoint: defaultEndpoint });
+              }}
+              className="mt-2 h-10 w-full rounded-xl !border !border-[#dfe3ec] bg-white px-3 !text-[13px] !font-normal text-[#111827] outline-none focus:!border-[#ff8d28] focus:ring-2 focus:ring-[#ff8d28]/10"
+            >
+              <option value="Google Gemini">Google Gemini</option>
+              <option value="OpenAI">OpenAI</option>
+              <option value="Mock Simulator">Giả lập (Mock Simulator)</option>
+            </select>
+          </label>
+
+          {/* AI Model */}
+          <label className="!block !text-[13px] !font-normal text-[#536078]">
+            Model AI Tư vấn
+            <select
+              value={api.model}
+              onChange={(e) => setApi({ ...api, model: e.target.value })}
+              className="mt-2 h-10 w-full rounded-xl !border !border-[#dfe3ec] bg-white px-3 !text-[13px] !font-normal text-[#111827] outline-none focus:!border-[#ff8d28] focus:ring-2 focus:ring-[#ff8d28]/10"
+            >
+              {api.provider === "Google Gemini" && (
+                <>
+                  <option value="gemini-1.5-flash">gemini-1.5-flash (Nhanh & Tối ưu)</option>
+                  <option value="gemini-1.5-pro">gemini-1.5-pro (Thông minh nhất)</option>
+                </>
+              )}
+              {api.provider === "OpenAI" && (
+                <>
+                  <option value="gpt-4o-mini">gpt-4o-mini (Khuyên dùng)</option>
+                  <option value="gpt-4o">gpt-4o (Chất lượng cao)</option>
+                </>
+              )}
+              {api.provider === "Mock Simulator" && (
+                <option value="local-sim-v1">local-sim-v1 (Mô phỏng cục bộ)</option>
+              )}
+            </select>
+          </label>
+
+          {/* Endpoint API */}
+          <div className="md:col-span-2">
+            <Input
+              label="Endpoint API"
+              value={api.endpoint}
+              onChange={(value) => setApi({ ...api, endpoint: value })}
+            />
+          </div>
+
+          {/* API Key */}
+          <div className="md:col-span-2">
+            <label className="!block !text-[13px] !font-normal text-[#536078] md:col-span-2">
+              API Key / Khóa kết nối
+              <div className="mt-2 flex items-center gap-2">
+                <input
+                  type={api.show ? "text" : "password"}
+                  value={api.key}
+                  onChange={(event) => setApi({ ...api, key: event.target.value })}
+                  placeholder={api.provider === "Mock Simulator" ? "Không yêu cầu API Key" : "Nhập API Key..."}
+                  disabled={api.provider === "Mock Simulator"}
+                  className="h-10 min-w-0 flex-1 rounded-xl !border !border-[#dfe3ec] px-3 !text-[13px] !font-normal text-[#111827] !shadow-none outline-none focus:!border-[#ff8d28] focus:!shadow-none focus:ring-2 focus:ring-[#ff8d28]/10 disabled:bg-gray-50 disabled:text-gray-400"
+                />
+                <IconButton
+                  label={api.show ? "Ẩn key" : "Hiện key"}
+                  icon="eye"
+                  onClick={() => setApi({ ...api, show: !api.show })}
+                />
+              </div>
+            </label>
+          </div>
+
+          {/* System Prompt */}
+          <div className="md:col-span-2">
+            <label className="!block !text-[13px] !font-normal text-[#536078]">
+              System Prompt (Vai trò Chatbot)
+              <textarea
+                value={api.systemPrompt}
+                onChange={(event) => setApi({ ...api, systemPrompt: event.target.value })}
+                className="mt-2 !min-h-[92px] w-full rounded-xl !border !border-[#dfe3ec] bg-white p-3 !text-[13px] !font-normal leading-5 text-[#111827] !shadow-none outline-none focus:!border-[#ff8d28] focus:!shadow-none focus:ring-2 focus:ring-[#ff8d28]/10"
+                placeholder="Định nghĩa vai trò, cá tính của trợ lý AI..."
+              />
+            </label>
+          </div>
+
+          <div className="flex items-end gap-2 md:col-span-2 mt-2">
+            <button
+              onClick={handleTestConnect}
+              className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#ff8d28] px-4 !text-[13px] !font-normal text-white shadow-[0_10px_20px_rgba(255,141,40,0.18)]"
+            >
+              <AdminIcon name="check" /> Test kết nối
+            </button>
+            <IconButton
+              label="Reset key"
+              icon="refresh"
+              onClick={() => setApi({ ...api, key: "" })}
+            />
+          </div>
+        </div>
+      </Panel>
+
+      <Panel>
+        <SectionHeader title="Kiểm duyệt nội dung tự động" onClick={() => notify("Đã lưu cấu hình kiểm duyệt AI.")} />
+        <p className="mt-2 !text-[13px] !font-normal text-[#697086]">
+          Cấu hình ngưỡng kiểm duyệt tự động bằng AI và hành động xử lý nội dung.
+        </p>
+        <div className="mt-5 grid gap-4 md:grid-cols-2">
+          <Input label="Ngưỡng cảnh báo AI" value="75%" onChange={() => undefined} />
+          <Input label="Ngưỡng tự động ẩn" value="92%" onChange={() => undefined} />
+          <Input label="Loại nội dung quét" value="Ảnh, tin nhắn, đánh giá" onChange={() => undefined} />
+          <Input label="Chế độ xử lý" value="Chờ admin duyệt" onChange={() => undefined} />
+        </div>
+      </Panel>
     </>
   );
 }

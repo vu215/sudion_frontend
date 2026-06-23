@@ -280,7 +280,7 @@ summary:focus-visible {
 
 .ai-chip span,
 .search-button span,
-.match-card > span,
+.match-card>span,
 .floating-badge span {
   display: inline-grid;
   width: 20px;
@@ -291,7 +291,7 @@ summary:focus-visible {
 }
 
 .ai-chip span::before,
-.match-card > span::before,
+.match-card>span::before,
 .floating-badge span::before {
   color: var(--secondary);
   content: "*";
@@ -315,9 +315,9 @@ summary:focus-visible {
   line-height: 1.05;
 }
 
-.photor-hero-copy > p,
+.photor-hero-copy>p,
 .feature-copy p,
-.section-intro > p:not(.mono),
+.section-intro>p:not(.mono),
 .auth-copy p,
 .profile-hero p {
   max-width: 600px;
@@ -433,8 +433,7 @@ summary:focus-visible {
   background: var(--surface);
   box-shadow: 12px 12px 0 rgba(17, 17, 17, 0.16);
   transform:
-    translate3d(calc(var(--mx) * 12px), calc(var(--my) * 10px), 0)
-    rotate(1deg);
+    translate3d(calc(var(--mx) * 12px), calc(var(--my) * 10px), 0) rotate(1deg);
   transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -488,7 +487,7 @@ summary:focus-visible {
   transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.match-card > span {
+.match-card>span {
   width: 44px;
   height: 44px;
   flex: 0 0 auto;
@@ -624,8 +623,7 @@ summary:focus-visible {
   width: 85%;
   height: 85%;
   transform:
-    translate3d(calc(var(--mx) * 10px), calc(var(--my) * 8px), 0)
-    rotate(1deg);
+    translate3d(calc(var(--mx) * 10px), calc(var(--my) * 8px), 0) rotate(1deg);
   transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -633,8 +631,7 @@ summary:focus-visible {
   right: auto;
   left: 0;
   transform:
-    translate3d(calc(var(--mx) * 10px), calc(var(--my) * 8px), 0)
-    rotate(-1deg);
+    translate3d(calc(var(--mx) * 10px), calc(var(--my) * 8px), 0) rotate(-1deg);
 }
 
 .feature-main-image img,
@@ -655,8 +652,7 @@ summary:focus-visible {
   width: 45%;
   height: 45%;
   transform:
-    translate3d(calc(var(--mx) * -18px), calc(var(--my) * -14px), 0)
-    rotate(-2deg);
+    translate3d(calc(var(--mx) * -18px), calc(var(--my) * -14px), 0) rotate(-2deg);
   transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -664,8 +660,7 @@ summary:focus-visible {
   right: 0;
   left: auto;
   transform:
-    translate3d(calc(var(--mx) * -18px), calc(var(--my) * -14px), 0)
-    rotate(2deg);
+    translate3d(calc(var(--mx) * -18px), calc(var(--my) * -14px), 0) rotate(2deg);
 }
 
 .floating-badge {
@@ -827,7 +822,7 @@ summary:focus-visible {
   object-fit: cover;
 }
 
-.photographer-card > div {
+.photographer-card>div {
   display: grid;
   gap: 12px;
   padding: 20px;
@@ -908,7 +903,7 @@ summary:focus-visible {
 }
 
 .auth-copy,
-.profile-hero > div:first-child {
+.profile-hero>div:first-child {
   display: grid;
   gap: 16px;
 }
@@ -927,7 +922,6 @@ select,
 textarea {
   min-height: 48px;
   width: 100%;
-  border: 2px solid var(--primary);
   background: var(--surface);
   color: var(--primary);
   padding: 10px 12px;
@@ -944,7 +938,20 @@ textarea {
 input:focus,
 select:focus,
 textarea:focus {
-  box-shadow: 4px 4px 0 rgba(139, 92, 246, 0.32);
+  box-shadow: none;
+}
+
+input[type="search"] {
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+input[type="search"]:focus,
+input[type="search"]:focus-visible {
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
 }
 
 ::placeholder {
@@ -1061,6 +1068,7 @@ textarea:focus {
 }
 
 @media (prefers-reduced-motion: reduce) {
+
   [data-reveal],
   [data-reveal].is-visible,
   .mockup-photo,
@@ -1096,7 +1104,7 @@ textarea:focus {
 .photor-search,
 .mockup-caption,
 .match-card,
-.match-card > span,
+.match-card>span,
 .feature-metrics div,
 .feature-tags span,
 .card-meta span,
@@ -1196,6 +1204,7 @@ textarea:focus {
 }
 
 @media (max-width: 1023px) {
+
   .desktop-nav,
   .header-actions {
     display: none;
@@ -1391,6 +1400,7 @@ textarea:focus {
 }
 
 @media (max-width: 639px) {
+
   .booking-panel,
   .booking-summary {
     scroll-margin-top: 84px;
@@ -1415,6 +1425,7 @@ textarea:focus {
     opacity: 0;
     transform: translateY(-8px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -1426,9 +1437,12 @@ textarea:focus {
   0% {
     transform: translateX(100%);
   }
-  40%, 60% {
+
+  40%,
+  60% {
     transform: translateX(0%);
   }
+
   100% {
     transform: translateX(-100%);
   }
@@ -1443,6 +1457,7 @@ textarea:focus {
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
