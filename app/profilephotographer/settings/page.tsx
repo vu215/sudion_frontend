@@ -2,27 +2,73 @@
 
 import { useMemo, useState } from "react";
 
-const serviceOptions = [
-  "Chân dung cá nhân",
-  "Cặp đôi",
-  "Cưới hỏi",
-  "Kỷ yếu",
-  "Sự kiện",
-  "Food & Product",
-  "Travel",
-];
+const SERVICE_OPTIONS = ["Chân dung cá nhân","Cặp đôi","Cưới hỏi","Kỷ yếu","Sự kiện","Food & Product","Travel"];
+const PAYMENT_OPTIONS = ["Chuyển khoản","Momo","VNPay","Tiền mặt"];
 
-const paymentOptions = ["Chuyển khoản", "Momo", "VNPay", "Tiền mặt"];
+type ProfileState = {
+  displayName: string;
+  title: string;
+  location: string;
+  email: string;
+  phone: string;
+  bio: string;
+  services: string[];
+  isProfileActive: boolean;
+  acceptMessages: boolean;
+  noticeBeforeBooking: string;
+  maxBookingsPerDay: number;
+  bufferMinutes: number;
+  priceFrom: number;
+  priceTo: number;
+  payoutAccount: string;
+  payoutName: string;
+  password: string;
+  newPassword: string;
+  confirmPassword: string;
+  notifications: { bookingRequests: boolean; messages: boolean; reviews: boolean; promotions: boolean };
+};
+
+const NOTIFY_LABELS: Record<string, string> = {
+  bookingRequests: "Yêu cầu booking",
+  messages: "Tin nhắn",
+  reviews: "Đánh giá",
+  promotions: "Khuyến mãi",
+};
+
+function Toggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
+  return (
+    <button type="button" onClick={onToggle}
+      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${on ? "bg-orange-500" : "bg-slate-200"}`}>
+      <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform ${on ? "translate-x-4" : "translate-x-1"}`} />
+    </button>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-1.5">
+      <label className="block text-xs font-bold text-slate-500">{label}</label>
+      {children}
+    </div>
+  );
+}
+
+function Input({ value, onChange, placeholder, type = "text" }: { value: string; onChange: (v: string) => void; placeholder?: string; type?: string }) {
+  return (
+    <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
+      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-orange-400 focus:bg-white transition" />
+  );
+}
 
 export default function PhotographerSettingsPage() {
-  const [profile, setProfile] = useState({
+  const [profile, setProfile] = useState<ProfileState>({
     displayName: "Nguyễn Văn A",
     title: "Nhiếp ảnh gia sự kiện & lifestyle",
     location: "TP.HCM",
     email: "nguyenvana@example.com",
     phone: "0909 123 456",
-    bio: "Chuyên chụp ảnh cưới, sự kiện và food styling. Luôn giữ phong cách sáng tạo, tinh tế và kể chuyện bằng hình ảnh.",
-    services: ["Cưới hỏi", "Food & Product"],
+    bio: "Chuyên chụp ảnh cưới, sự kiện và food styling.",
+    services: ["Cưới hỏi","Food & Product"],
     isProfileActive: true,
     acceptMessages: true,
     noticeBeforeBooking: "24 giờ",
@@ -35,345 +81,220 @@ export default function PhotographerSettingsPage() {
     password: "",
     newPassword: "",
     confirmPassword: "",
-    notifications: {
-      bookingRequests: true,
-      messages: true,
-      reviews: false,
-      promotions: false,
-    },
+    notifications: { bookingRequests: true, messages: true, reviews: false, promotions: false },
   });
 
-  const selectedServices = useMemo(
-    () => profile.services.join(" · "),
-    [profile.services],
-  );
+  const [saved, setSaved] = useState(false);
+  const [activeTab, setActiveTab] = useState<"profile"|"booking"|"payment"|"security">("profile");
 
-  const handleChange = (field: string, value: string | boolean | number) => {
-    setProfile((current) => ({ ...current, [field]: value }));
-  };
+  const set = (field: string, value: unknown) => setProfile((p) => ({ ...p, [field]: value }));
+  const toggleService = (s: string) => setProfile((p) => ({
+    ...p,
+    services: p.services.includes(s) ? p.services.filter((x) => x !== s) : [...p.services, s],
+  }));
+  const toggleNotify = (k: keyof ProfileState["notifications"]) =>
+    setProfile((p) => ({ ...p, notifications: { ...p.notifications, [k]: !p.notifications[k] } }));
 
-  const handleToggleService = (option: string) => {
-    setProfile((current) => {
-      const services = current.services.includes(option)
-        ? current.services.filter((item) => item !== option)
-        : [...current.services, option];
-      return { ...current, services };
-    });
-  };
+  const selectedServices = useMemo(() => profile.services.join(" · "), [profile.services]);
 
-  const handleNotifyToggle = (field: keyof typeof profile.notifications) => {
-    setProfile((current) => ({
-      ...current,
-      notifications: {
-        ...current.notifications,
-        [field]: !current.notifications[field],
-      },
-    }));
-  };
+  function handleSave() {
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2500);
+  }
+
+  const TABS = [
+    { id: "profile", label: "Hồ sơ" },
+    { id: "booking", label: "Booking" },
+    { id: "payment", label: "Thanh toán" },
+    { id: "security", label: "Bảo mật" },
+  ] as const;
 
   return (
-    <main className="min-h-screen bg-[#f7f6ff] px-4 py-6 sm:px-6 lg:px-8">
-      <div className="mx-auto flex min-h-[calc(100vh-3rem)] max-w-[1200px] flex-col gap-6 lg:grid lg:grid-cols-[320px_minmax(0,1fr)] lg:items-start">
-        <aside className="rounded-[32px] border border-[#e8e3f5] bg-white p-6 shadow-sm">
-          <div className="flex flex-col items-center text-center">
-            <div className="mb-4 grid h-28 w-28 place-items-center rounded-3xl bg-[#f7e1cc] text-4xl font-black text-[#ff8d28]">NV</div>
-            <h1 className="text-xl font-semibold text-[#191b24]">{profile.displayName}</h1>
-            <p className="mt-1 text-sm text-[#6b6b7d]">{profile.title}</p>
+    <div className="px-5 py-6 lg:px-8">
+      <div className="mx-auto max-w-[1100px] pb-10">
+        {/* Header */}
+        <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-widest text-orange-500">Cài đặt</p>
+            <h1 className="mt-1 text-2xl font-bold text-slate-800">Quản lý hồ sơ</h1>
+            <p className="mt-1 text-sm text-slate-400">Cập nhật thông tin, lịch chụp và bảo mật tài khoản.</p>
           </div>
+          <div className="flex gap-2">
+            <button onClick={() => setProfile((p) => ({ ...p, password: "", newPassword: "", confirmPassword: "" }))}
+              className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-50 transition">
+              Đặt lại
+            </button>
+            <button onClick={handleSave}
+              className="rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-bold text-white hover:bg-orange-600 transition">
+              {saved ? "✓ Đã lưu" : "Lưu thay đổi"}
+            </button>
+          </div>
+        </div>
 
-          <div className="mt-8 space-y-5">
-            <div className="rounded-3xl bg-[#fbf6ff] px-5 py-4">
-              <p className="text-[11px] uppercase tracking-[0.24em] text-[#8d8aa3]">Trạng thái hồ sơ</p>
-              <div className="mt-3 flex items-center justify-between gap-3">
-                <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800">{profile.isProfileActive ? "Hoạt động" : "Tạm ẩn"}</span>
-                <button
-                  type="button"
-                  onClick={() => handleChange("isProfileActive", !profile.isProfileActive)}
-                  className="rounded-full border border-[#d7d2ec] bg-white px-3 py-1.5 text-xs font-semibold text-[#4d4a63] hover:bg-[#f7f3ff] transition"
-                >
-                  {profile.isProfileActive ? "Ẩn" : "Hiển thị"}
-                </button>
+        <div className="grid gap-5 lg:grid-cols-[220px_1fr]">
+          {/* Sidebar profile card */}
+          <aside className="space-y-4">
+            <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm text-center">
+              <div className="mx-auto mb-3 flex h-20 w-20 items-center justify-center rounded-2xl bg-orange-100 text-3xl font-bold text-orange-500">
+                {profile.displayName.charAt(0)}
+              </div>
+              <p className="text-sm font-bold text-slate-800">{profile.displayName}</p>
+              <p className="text-xs text-slate-400">{profile.title}</p>
+              <div className="mt-3 flex items-center justify-center gap-2">
+                <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${profile.isProfileActive ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
+                  {profile.isProfileActive ? "Đang hoạt động" : "Tạm ẩn"}
+                </span>
+                <Toggle on={profile.isProfileActive} onToggle={() => set("isProfileActive", !profile.isProfileActive)} />
               </div>
             </div>
 
-            <div className="rounded-3xl bg-[#fbf6ff] px-5 py-4">
-              <p className="text-[11px] uppercase tracking-[0.24em] text-[#8d8aa3]">Dịch vụ nổi bật</p>
-              <p className="mt-3 text-sm font-semibold text-[#24253a]">{selectedServices || "Chưa chọn dịch vụ"}</p>
+            <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+              <p className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-400">Dịch vụ nổi bật</p>
+              <p className="text-xs text-slate-600">{selectedServices || "Chưa chọn"}</p>
             </div>
 
-            <div className="rounded-3xl bg-[#fbf6ff] px-5 py-4">
-              <p className="text-[11px] uppercase tracking-[0.24em] text-[#8d8aa3]">Thông báo</p>
-              <div className="mt-3 space-y-3">
-                {Object.entries(profile.notifications).map(([key, value]) => (
-                  <div key={key} className="flex items-center justify-between gap-3 rounded-2xl bg-white px-4 py-3 text-sm text-[#4c4b60] shadow-sm">
-                    <span>{key === "bookingRequests" ? "Yêu cầu booking" : key === "messages" ? "Tin nhắn" : key === "reviews" ? "Đánh giá" : "Khuyến mãi"}</span>
-                    <button
-                      type="button"
-                      onClick={() => handleNotifyToggle(key as keyof typeof profile.notifications)}
-                      className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${value ? "bg-[#fdf0e2] text-[#d97706]" : "bg-[#eff0f7] text-[#6b6b7f]"}`}
-                    >
-                      {value ? "Bật" : "Tắt"}
-                    </button>
+            <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+              <p className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400">Thông báo</p>
+              <div className="space-y-2.5">
+                {(Object.entries(profile.notifications) as [keyof ProfileState["notifications"], boolean][]).map(([k, v]) => (
+                  <div key={k} className="flex items-center justify-between">
+                    <span className="text-xs text-slate-500">{NOTIFY_LABELS[k]}</span>
+                    <Toggle on={v} onToggle={() => toggleNotify(k)} />
                   </div>
                 ))}
               </div>
             </div>
+          </aside>
 
-            <div className="rounded-3xl border border-[#eef0fb] bg-[#fff] p-5">
-              <p className="text-sm font-semibold text-[#1c1e29]">Tiêu điểm</p>
-              <p className="mt-2 text-sm leading-6 text-[#676782]">Giữ hồ sơ chuyên nghiệp và cập nhật danh mục dịch vụ thường xuyên để tăng cường sự tin cậy với khách hàng.</p>
+          {/* Main content */}
+          <div className="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden">
+            {/* Tabs */}
+            <div className="flex border-b border-slate-100">
+              {TABS.map((t) => (
+                <button key={t.id} onClick={() => setActiveTab(t.id)}
+                  className={`flex-1 py-3 text-sm font-bold transition ${activeTab === t.id ? "border-b-2 border-orange-500 text-orange-500" : "text-slate-500 hover:text-slate-700"}`}>
+                  {t.label}
+                </button>
+              ))}
             </div>
-          </div>
-        </aside>
 
-        <section className="rounded-[32px] border border-[#e8e3f5] bg-white p-6 shadow-sm">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <p className="text-sm uppercase tracking-[0.25em] text-[#8d8aa3]">Cài đặt photographer</p>
-              <h2 className="text-3xl font-semibold text-[#151724]">Quản lý hồ sơ & lịch chụp</h2>
-            </div>
-            <div className="flex flex-wrap gap-3">
-              <button
-                type="button"
-                onClick={() => setProfile((current) => ({
-                  ...current,
-                  password: "",
-                  newPassword: "",
-                  confirmPassword: "",
-                }))}
-                className="rounded-2xl border border-[#d7d2ec] bg-white px-5 py-3 text-sm font-semibold text-[#4b4a62] transition hover:bg-[#f8f5ff]"
-              >
-                Đặt lại
-              </button>
-              <button
-                type="button"
-                className="rounded-2xl bg-[#ff8d28] px-5 py-3 text-sm font-semibold text-white shadow-sm shadow-[#ff8d2870] transition hover:bg-[#ff7a00]"
-              >
-                Lưu thay đổi
-              </button>
-            </div>
-          </div>
+            <div className="p-5 space-y-4">
+              {/* TAB: Hồ sơ */}
+              {activeTab === "profile" && (
+                <>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Field label="Tên hiển thị"><Input value={profile.displayName} onChange={(v) => set("displayName", v)} /></Field>
+                    <Field label="Tiêu đề nghề nghiệp"><Input value={profile.title} onChange={(v) => set("title", v)} /></Field>
+                    <Field label="Địa điểm làm việc"><Input value={profile.location} onChange={(v) => set("location", v)} placeholder="TP.HCM" /></Field>
+                    <Field label="Email liên hệ"><Input value={profile.email} onChange={(v) => set("email", v)} type="email" /></Field>
+                    <Field label="Số điện thoại"><Input value={profile.phone} onChange={(v) => set("phone", v)} /></Field>
+                  </div>
+                  <Field label="Tiểu sử">
+                    <textarea value={profile.bio} onChange={(e) => set("bio", e.target.value)} rows={4}
+                      placeholder="Mô tả phong cách và kinh nghiệm của bạn..."
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-orange-400 focus:bg-white resize-none transition" />
+                  </Field>
+                  <Field label="Chấp nhận tin nhắn trực tiếp">
+                    <div className="flex items-center gap-2">
+                      <Toggle on={profile.acceptMessages} onToggle={() => set("acceptMessages", !profile.acceptMessages)} />
+                      <span className="text-xs text-slate-500">{profile.acceptMessages ? "Khách có thể nhắn tin" : "Tắt tin nhắn"}</span>
+                    </div>
+                  </Field>
+                </>
+              )}
 
-          <div className="mt-10 space-y-10">
-            <Section title="Thông tin hồ sơ">
-              <div className="grid gap-4 xl:grid-cols-[1fr_1fr]">
-                <Input
-                  label="Tên hiển thị"
-                  value={profile.displayName}
-                  onChange={(value) => handleChange("displayName", value)}
-                />
-                <Input
-                  label="Tiêu đề nghề nghiệp"
-                  value={profile.title}
-                  onChange={(value) => handleChange("title", value)}
-                />
-                <Input
-                  label="Địa điểm làm việc"
-                  value={profile.location}
-                  onChange={(value) => handleChange("location", value)}
-                />
-                <Input
-                  label="Email liên hệ"
-                  value={profile.email}
-                  onChange={(value) => handleChange("email", value)}
-                />
-                <Input
-                  label="Số điện thoại"
-                  value={profile.phone}
-                  onChange={(value) => handleChange("phone", value)}
-                />
-                <label className="space-y-3 text-sm text-[#3b3d55]">
-                  <span className="font-semibold text-slate-600">Tiểu sử</span>
-                  <textarea
-                    value={profile.bio}
-                    onChange={(event) => handleChange("bio", event.target.value)}
-                    className="min-h-[140px] w-full rounded-[24px] border border-[#e7e4f3] bg-[#f9f7ff] px-4 py-4 text-sm text-[#2c2d3b] outline-none transition focus:border-[#ff8d28] focus:ring-2 focus:ring-[#ff8d28]/10"
-                    placeholder="Mô tả phong cách, kinh nghiệm và các dịch vụ bạn cung cấp."
-                  />
-                </label>
-              </div>
-            </Section>
+              {/* TAB: Booking */}
+              {activeTab === "booking" && (
+                <>
+                  <div>
+                    <p className="mb-3 text-sm font-bold text-slate-700">Danh mục dịch vụ</p>
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+                      {SERVICE_OPTIONS.map((s) => (
+                        <button key={s} type="button" onClick={() => toggleService(s)}
+                          className={`rounded-xl border px-3 py-2.5 text-xs font-semibold transition ${profile.services.includes(s) ? "border-orange-300 bg-orange-50 text-orange-600" : "border-slate-200 bg-slate-50 text-slate-500 hover:border-orange-200"}`}>
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Field label="Thông báo trước khi booking">
+                      <Input value={profile.noticeBeforeBooking} onChange={(v) => set("noticeBeforeBooking", v)} placeholder="24 giờ" />
+                    </Field>
+                    <Field label="Số booking tối đa / ngày">
+                      <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                        <button type="button" onClick={() => set("maxBookingsPerDay", Math.max(1, profile.maxBookingsPerDay - 1))}
+                          className="flex h-7 w-7 items-center justify-center rounded-lg bg-white text-sm font-bold text-slate-600 shadow-sm hover:bg-orange-50">−</button>
+                        <span className="flex-1 text-center text-sm font-bold text-slate-700">{profile.maxBookingsPerDay}</span>
+                        <button type="button" onClick={() => set("maxBookingsPerDay", Math.min(10, profile.maxBookingsPerDay + 1))}
+                          className="flex h-7 w-7 items-center justify-center rounded-lg bg-white text-sm font-bold text-slate-600 shadow-sm hover:bg-orange-50">+</button>
+                      </div>
+                    </Field>
+                    <Field label="Khoảng đệm mỗi booking (phút)">
+                      <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                        <button type="button" onClick={() => set("bufferMinutes", Math.max(30, profile.bufferMinutes - 30))}
+                          className="flex h-7 w-7 items-center justify-center rounded-lg bg-white text-sm font-bold text-slate-600 shadow-sm hover:bg-orange-50">−</button>
+                        <span className="flex-1 text-center text-sm font-bold text-slate-700">{profile.bufferMinutes} phút</span>
+                        <button type="button" onClick={() => set("bufferMinutes", Math.min(240, profile.bufferMinutes + 30))}
+                          className="flex h-7 w-7 items-center justify-center rounded-lg bg-white text-sm font-bold text-slate-600 shadow-sm hover:bg-orange-50">+</button>
+                      </div>
+                    </Field>
+                  </div>
+                </>
+              )}
 
-            <Section title="Dịch vụ & booking">
-              <div className="grid gap-4 xl:grid-cols-[1fr_0.95fr]">
-                <div className="space-y-5 rounded-[24px] border border-[#e7e4f3] bg-[#fbf6ff] p-5">
-                  <p className="text-sm font-semibold text-[#232540]">Chọn dịch vụ</p>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {serviceOptions.map((option) => (
-                      <button
-                        key={option}
-                        type="button"
-                        onClick={() => handleToggleService(option)}
-                        className={`rounded-2xl border px-4 py-3 text-left text-sm transition ${profile.services.includes(option) ? "border-[#ff8d28] bg-[#fff1e4] text-[#b24505]" : "border-[#e7e4f3] bg-white text-[#4d4b67] hover:border-[#d3c9f0]"}`}
-                      >
-                        {option}
-                      </button>
-                    ))}
+              {/* TAB: Thanh toán */}
+              {activeTab === "payment" && (
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label="Giá từ (VNĐ)">
+                    <input type="number" min={0} value={profile.priceFrom}
+                      onChange={(e) => set("priceFrom", Number(e.target.value))}
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-orange-400 focus:bg-white transition" />
+                  </Field>
+                  <Field label="Giá đến (VNĐ)">
+                    <input type="number" min={0} value={profile.priceTo}
+                      onChange={(e) => set("priceTo", Number(e.target.value))}
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-orange-400 focus:bg-white transition" />
+                  </Field>
+                  <Field label="Phương thức thanh toán">
+                    <select className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-orange-400 focus:bg-white transition">
+                      {PAYMENT_OPTIONS.map((p) => <option key={p}>{p}</option>)}
+                    </select>
+                  </Field>
+                  <Field label="Số tài khoản nhận tiền">
+                    <Input value={profile.payoutAccount} onChange={(v) => set("payoutAccount", v)} />
+                  </Field>
+                  <Field label="Tên chủ tài khoản">
+                    <Input value={profile.payoutName} onChange={(v) => set("payoutName", v)} />
+                  </Field>
+                </div>
+              )}
+
+              {/* TAB: Bảo mật */}
+              {activeTab === "security" && (
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label="Mật khẩu hiện tại">
+                    <Input type="password" value={profile.password} onChange={(v) => set("password", v)} placeholder="••••••••" />
+                  </Field>
+                  <Field label="Mật khẩu mới">
+                    <Input type="password" value={profile.newPassword} onChange={(v) => set("newPassword", v)} placeholder="Nhập mật khẩu mới" />
+                  </Field>
+                  <Field label="Xác nhận mật khẩu mới">
+                    <Input type="password" value={profile.confirmPassword} onChange={(v) => set("confirmPassword", v)} placeholder="Nhập lại mật khẩu mới" />
+                  </Field>
+                  <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
+                    <p className="text-sm font-bold text-slate-700">Xác thực hai lớp (2FA)</p>
+                    <p className="mt-1 text-xs text-slate-400">Bật thêm bảo mật đăng nhập để bảo vệ tài khoản.</p>
+                    <button className="mt-3 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-orange-50 hover:text-orange-500 transition">
+                      Kích hoạt 2FA
+                    </button>
                   </div>
                 </div>
-
-                <div className="grid gap-4 rounded-[24px] border border-[#e7e4f3] bg-white p-5">
-                  <Input
-                    label="Thông báo trước khi booking"
-                    value={profile.noticeBeforeBooking}
-                    onChange={(value) => handleChange("noticeBeforeBooking", value)}
-                  />
-                  <StepInput
-                    label="Số booking tối đa / ngày"
-                    value={profile.maxBookingsPerDay}
-                    onChange={(value) => handleChange("maxBookingsPerDay", Number(value))}
-                    min={1}
-                    max={10}
-                  />
-                  <StepInput
-                    label="Khoảng đệm mỗi booking (phút)"
-                    value={profile.bufferMinutes}
-                    onChange={(value) => handleChange("bufferMinutes", Number(value))}
-                    min={30}
-                    max={240}
-                  />
-                </div>
-              </div>
-            </Section>
-
-            <Section title="Định giá & thanh toán">
-              <div className="grid gap-4 xl:grid-cols-2">
-                <Input
-                  label="Giá từ"
-                  prefix="VNĐ"
-                  value={profile.priceFrom.toString()}
-                  onChange={(value) => handleChange("priceFrom", Number(value))}
-                />
-                <Input
-                  label="Giá đến"
-                  prefix="VNĐ"
-                  value={profile.priceTo.toString()}
-                  onChange={(value) => handleChange("priceTo", Number(value))}
-                />
-                <label className="space-y-3 text-sm text-[#3b3d55]">
-                  <span className="font-semibold text-slate-600">Phương thức thanh toán ưu tiên</span>
-                  <select
-                    value={profile.payoutAccount}
-                    onChange={(event) => handleChange("payoutAccount", event.target.value)}
-                    className="w-full rounded-[24px] border border-[#e7e4f3] bg-[#f9f7ff] px-4 py-3 text-sm text-[#2c2d3b] outline-none transition focus:border-[#ff8d28] focus:ring-2 focus:ring-[#ff8d28]/10"
-                  >
-                    {paymentOptions.map((method) => (
-                      <option key={method} value={method === "Tiền mặt" ? "Tiền mặt" : `${method} - ${profile.payoutName}`}> {method} </option>
-                    ))}
-                  </select>
-                </label>
-                <Input
-                  label="Tài khoản nhận tiền"
-                  value={profile.payoutAccount}
-                  onChange={(value) => handleChange("payoutAccount", value)}
-                />
-              </div>
-            </Section>
-
-            <Section title="Bảo mật & đăng nhập">
-              <div className="grid gap-4 xl:grid-cols-2">
-                <label className="space-y-3 text-sm text-[#3b3d55]">
-                  <span className="font-semibold text-slate-600">Mật khẩu hiện tại</span>
-                  <input
-                    type="password"
-                    value={profile.password}
-                    onChange={(event) => handleChange("password", event.target.value)}
-                    className="w-full rounded-[24px] border border-[#e7e4f3] bg-[#f9f7ff] px-4 py-3 text-sm text-[#2c2d3b] outline-none transition focus:border-[#ff8d28] focus:ring-2 focus:ring-[#ff8d28]/10"
-                    placeholder="********"
-                  />
-                </label>
-                <label className="space-y-3 text-sm text-[#3b3d55]">
-                  <span className="font-semibold text-slate-600">Mật khẩu mới</span>
-                  <input
-                    type="password"
-                    value={profile.newPassword}
-                    onChange={(event) => handleChange("newPassword", event.target.value)}
-                    className="w-full rounded-[24px] border border-[#e7e4f3] bg-[#f9f7ff] px-4 py-3 text-sm text-[#2c2d3b] outline-none transition focus:border-[#ff8d28] focus:ring-2 focus:ring-[#ff8d28]/10"
-                    placeholder="Nhập mật khẩu mới"
-                  />
-                </label>
-                <label className="space-y-3 text-sm text-[#3b3d55]">
-                  <span className="font-semibold text-slate-600">Xác nhận mật khẩu mới</span>
-                  <input
-                    type="password"
-                    value={profile.confirmPassword}
-                    onChange={(event) => handleChange("confirmPassword", event.target.value)}
-                    className="w-full rounded-[24px] border border-[#e7e4f3] bg-[#f9f7ff] px-4 py-3 text-sm text-[#2c2d3b] outline-none transition focus:border-[#ff8d28] focus:ring-2 focus:ring-[#ff8d28]/10"
-                    placeholder="Nhập lại mật khẩu mới"
-                  />
-                </label>
-                <div className="rounded-[24px] border border-[#e7e4f3] bg-[#fbf6ff] p-5">
-                  <p className="text-sm font-semibold text-[#24253a]">Xác thực hai lớp</p>
-                  <p className="mt-2 text-sm text-[#6f7088]">Bật thêm bảo mật đăng nhập để bảo vệ tài khoản của bạn.</p>
-                  <button
-                    type="button"
-                    className="mt-4 inline-flex rounded-full border border-[#d7d2ec] bg-white px-4 py-2 text-sm font-semibold text-[#4d4b67] hover:bg-[#f8f5ff] transition"
-                  >
-                    Kích hoạt 2FA
-                  </button>
-                </div>
-              </div>
-            </Section>
+              )}
+            </div>
           </div>
-        </section>
-      </div>
-    </main>
-  );
-}
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="rounded-[28px] border border-[#f0edf9] bg-[#fbf8ff] p-6">
-      <div className="mb-6 flex items-center justify-between gap-4">
-        <div>
-          <h3 className="text-xl font-semibold text-[#151724]">{title}</h3>
-          <p className="mt-1 text-sm text-[#6f7088]">Cập nhật thông tin chi tiết cho mục này.</p>
         </div>
       </div>
-      <div className="space-y-5">{children}</div>
     </div>
-  );
-}
-
-function Input({ label, value, onChange, prefix }: { label: string; value: string; onChange: (value: string) => void; prefix?: string }) {
-  return (
-    <label className="space-y-3 text-sm text-[#3b3d55]">
-      <span className="font-semibold text-slate-600">{label}</span>
-      <div className="relative">
-        {prefix ? (
-          <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm text-[#7c7a95]">{prefix}</span>
-        ) : null}
-        <input
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          className={`w-full rounded-[24px] border border-[#e7e4f3] bg-[#f9f7ff] px-4 py-3 text-sm text-[#2c2d3b] outline-none transition focus:border-[#ff8d28] focus:ring-2 focus:ring-[#ff8d28]/10 ${prefix ? "pl-14" : ""}`}
-        />
-      </div>
-    </label>
-  );
-}
-
-function StepInput({ label, value, onChange, min, max }: { label: string; value: number; onChange: (value: string) => void; min: number; max: number }) {
-  return (
-    <label className="space-y-3 text-sm text-[#3b3d55]">
-      <span className="font-semibold text-slate-600">{label}</span>
-      <div className="flex items-center gap-3 rounded-[24px] border border-[#e7e4f3] bg-[#f9f7ff] px-4 py-3">
-        <button
-          type="button"
-          onClick={() => onChange(String(Math.max(min, value - 1)))}
-          className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white text-sm font-semibold text-[#4d4b67] transition hover:bg-[#fff3e1]"
-        >
-          -
-        </button>
-        <span className="min-w-[72px] text-center text-sm font-semibold text-[#2c2d3b]">{value}</span>
-        <button
-          type="button"
-          onClick={() => onChange(String(Math.min(max, value + 1)))}
-          className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white text-sm font-semibold text-[#4d4b67] transition hover:bg-[#fff3e1]"
-        >
-          +
-        </button>
-      </div>
-    </label>
   );
 }

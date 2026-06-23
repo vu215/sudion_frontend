@@ -396,9 +396,15 @@ function MessagesContent() {
   }
 
   return (
-    <main className="min-h-screen bg-[#f8fafc] text-[#0f172a]">
-      <section className="mx-auto w-full max-w-[1240px] px-5 py-10 sm:px-6 lg:px-8 lg:py-14">
-        <div className="overflow-hidden rounded-[32px] border border-[#e2e8f0] bg-white shadow-[0_24px_80px_rgba(15,23,42,0.07)]">
+    <div className="px-5 py-6 lg:px-8">
+      <div className="mx-auto max-w-[1200px] pb-10">
+        {/* Header */}
+        <div className="mb-5">
+          <p className="text-xs font-bold uppercase tracking-widest text-orange-500">Tin nhắn</p>
+          <h1 className="mt-1 text-2xl font-bold text-slate-800">Chat với khách hàng</h1>
+          <p className="mt-1 text-sm text-slate-400">Chat mở khi booking đã cọc (confirmed) hoặc đã thanh toán đủ.</p>
+        </div>
+        <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
           <HeaderSearch
             bookingCode={bookingCode}
             loading={loading}
@@ -479,8 +485,8 @@ function MessagesContent() {
             )}
           </div>
         </div>
-      </section>
-    </main>
+      </div>
+    </div>
   );
 }
 
@@ -496,53 +502,26 @@ function HeaderSearch({
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }) {
   return (
-    <div className="relative overflow-hidden bg-[#111827] px-6 py-8 text-white sm:px-8 lg:px-10">
-      <div className="absolute right-[-110px] top-[-110px] h-[300px] w-[300px] rounded-full bg-[#ff8d28]/25 blur-3xl" />
-      <div className="absolute bottom-[-140px] left-[25%] h-[280px] w-[280px] rounded-full bg-white/10 blur-3xl" />
-
-      <div className="relative grid gap-6 lg:grid-cols-[minmax(0,1fr)_400px] lg:items-end">
-        <div>
-          <p className="text-[12px] font-black uppercase tracking-[0.18em] text-[#ffb267]">
-            Booking chat
-          </p>
-
-          <h1 className="mt-3 max-w-[760px] text-[34px] font-black leading-[1.05] tracking-[-0.04em] sm:text-[46px]">
-            Chat giữa khách và photographer
-          </h1>
-
-          <p className="mt-4 max-w-[680px] text-[14px] font-medium leading-7 text-white/70">
-            Mở chat với khách ngay khi đơn đã cọc (trạng thái confirmed) và theo dõi lịch chụp.
-          </p>
-        </div>
-
-        <form
-          onSubmit={onSubmit}
-          className="rounded-[22px] border border-white/10 bg-white/10 p-3 backdrop-blur-md"
-        >
-          <label className="grid gap-2">
-            <span className="px-1 text-[12px] font-extrabold text-white/80">
-              Mã booking
-            </span>
-
-            <span className="flex gap-2 rounded-[16px] bg-white p-2">
-              <input
-                value={bookingCode}
-                onChange={(event) => onBookingCodeChange(event.target.value)}
-                placeholder="Nhập mã BK..."
-                className="min-h-[46px] flex-1 border-0 bg-transparent px-3 text-[14px] font-bold text-[#111827] outline-none placeholder:text-[#9ca3af]"
-              />
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="rounded-[13px] bg-[#ff8d28] px-4 text-[13px] font-black text-white shadow-[0_10px_24px_rgba(255,141,40,0.3)] transition-all hover:bg-[#e0751b] disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {loading ? "Đang tải" : "Mở chat"}
-              </button>
-            </span>
-          </label>
-        </form>
+    <div className="flex flex-col gap-3 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <p className="text-sm font-bold text-slate-700">Nhập mã booking để mở phòng chat</p>
+        <p className="text-xs text-slate-400">Chat khả dụng khi booking ở trạng thái đã cọc (confirmed) hoặc đã thanh toán đủ.</p>
       </div>
+      <form onSubmit={onSubmit} className="flex gap-2">
+        <input
+          value={bookingCode}
+          onChange={(event) => onBookingCodeChange(event.target.value)}
+          placeholder="Nhập mã BK..."
+          className="h-10 w-48 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-700 outline-none focus:border-orange-400 focus:bg-white transition"
+        />
+        <button
+          type="submit"
+          disabled={loading}
+          className="h-10 rounded-xl bg-orange-500 px-4 text-sm font-bold text-white shadow-sm hover:bg-orange-600 disabled:opacity-60 transition"
+        >
+          {loading ? "Đang tải" : "Mở chat"}
+        </button>
+      </form>
     </div>
   );
 }
@@ -783,37 +762,32 @@ function NoMessageState({ canChat }: { canChat: boolean }) {
 
 function EmptyChatState() {
   return (
-    <div className="rounded-[24px] border border-dashed border-[#dbe1ea] bg-[#fbfcff] px-6 py-16 text-center">
-      <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-white text-[22px] font-black text-[#ff8d28] shadow-sm">BK</div>
-      <p className="mt-4 text-[18px] font-black text-[#0f172a]">Nhập mã booking để mở phòng chat</p>
-      <p className="mx-auto mt-2 max-w-[520px] text-[14px] font-semibold leading-6 text-[#64748b]">
-        Bạn có thể mở chat từ nút Chat trong trang booking hoặc dashboard photographer.
-      </p>
+    <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50 py-16 text-center mx-1 my-4">
+      <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-orange-100">
+        <svg className="h-7 w-7 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+            d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+        </svg>
+      </div>
+      <p className="text-base font-bold text-slate-700">Nhập mã booking để mở phòng chat</p>
+      <p className="mt-1 max-w-xs text-sm text-slate-400">Bạn có thể mở chat từ nút Chat trong trang booking hoặc nhập mã booking ở trên.</p>
     </div>
   );
 }
 
 function LoadingScreen() {
   return (
-    <main className="min-h-screen bg-[#f8fafc] px-5 py-12">
-      <section className="mx-auto max-w-[1240px]">
-        <div className="overflow-hidden rounded-[32px] border border-[#e2e8f0] bg-white shadow-[0_24px_80px_rgba(15,23,42,0.07)]">
-          <div className="h-[250px] animate-pulse bg-[#111827]" />
-          <div className="grid gap-5 p-6 sm:p-8">
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <div className="h-[90px] animate-pulse rounded-[18px] bg-[#eef2f7]" />
-              <div className="h-[90px] animate-pulse rounded-[18px] bg-[#eef2f7]" />
-              <div className="h-[90px] animate-pulse rounded-[18px] bg-[#eef2f7]" />
-              <div className="h-[90px] animate-pulse rounded-[18px] bg-[#eef2f7]" />
-            </div>
-            <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_330px]">
-              <div className="h-[620px] animate-pulse rounded-[26px] bg-[#eef2f7]" />
-              <div className="h-[420px] animate-pulse rounded-[26px] bg-[#eef2f7]" />
-            </div>
+    <div className="px-5 py-6 lg:px-8">
+      <div className="mx-auto max-w-[1200px] pb-10">
+        <div className="space-y-3 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+          <div className="h-14 animate-pulse rounded-xl bg-slate-100" />
+          <div className="grid gap-5 lg:grid-cols-[1fr_330px]">
+            <div className="h-[500px] animate-pulse rounded-2xl bg-slate-100" />
+            <div className="h-[400px] animate-pulse rounded-2xl bg-slate-100" />
           </div>
         </div>
-      </section>
-    </main>
+      </div>
+    </div>
   );
 }
 
