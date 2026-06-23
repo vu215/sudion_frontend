@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useRef, useEffect, type ReactNode } from "react";
 import { useAuth } from "@/app/auth-context";
+import { AiConsultantWidget } from "./ai-consultant-widget";
 
 const containerClass = "w-full max-w-[1440px] mx-auto px-6 md:px-12 lg:px-20";
 
@@ -23,6 +24,12 @@ const footerColumns = [
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const isStandalonePage =
     pathname.startsWith("/profilephotographer") ||
     pathname.startsWith("/admin");
@@ -36,6 +43,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <Header pathname={pathname} />
       <div className="pt-[76px] lg:pt-[88px]">{children}</div>
       <Footer />
+      {mounted && <AiConsultantWidget />}
     </>
   );
 }
@@ -48,6 +56,7 @@ function Header({ pathname }: { pathname: string }) {
   useEffect(() => {
     setMounted(true);
   }, []);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -78,6 +87,7 @@ function Header({ pathname }: { pathname: string }) {
     ? session.fullName.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2)
     : "";
   return (
+    <>
     <header className="fixed top-0 left-0 right-0 z-50 w-full border-b border-[#e8eaf1]/80 bg-white/95 backdrop-blur-md shadow-sm">
       <div
         className={`${containerClass} flex min-h-[76px] items-center justify-between gap-4 lg:min-h-[88px]`}
@@ -217,13 +227,136 @@ function Header({ pathname }: { pathname: string }) {
           <button
             type="button"
             aria-label="Open menu"
+            onClick={() => setMobileOpen((v) => !v)}
             className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#e8eaf1] text-[#6a7082] md:hidden"
           >
-            <MenuGlyph />
+            {mobileOpen ? <CloseGlyph /> : <MenuGlyph />}
           </button>
         </div>
       </div>
     </header>
+
+      {/* Mobile Menu Overlay */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 z-[9998] bg-black/40 backdrop-blur-sm md:hidden"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      {/* Mobile Menu Drawer */}
+      <div
+        className={`fixed top-0 right-0 z-[9999] h-full w-[280px] overflow-y-auto bg-white shadow-2xl transition-transform duration-300 ease-in-out md:hidden ${
+          mobileOpen ? "translate-x-0" : "translate-x-full"
+        }`}
+      >
+        <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+          <span className="text-[16px] font-black uppercase tracking-wider text-[#0e111d]">Menu</span>
+          <button
+            type="button"
+            aria-label="Đóng menu"
+            onClick={() => setMobileOpen(false)}
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors"
+          >
+            <CloseGlyph />
+          </button>
+        </div>
+
+        {/* Mobile Search */}
+        <div className="px-5 py-3 border-b border-gray-100">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              const target = `/photographer${searchQuery.trim() ? `?search=${encodeURIComponent(searchQuery.trim())}` : ""}`;
+              router.push(target);
+              setMobileOpen(false);
+              setSearchQuery("");
+            }}
+            className="flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2"
+          >
+            <SearchGlyph className="h-4 w-4 text-gray-400 shrink-0" />
+            <input
+              type="search"
+              placeholder="Tìm photographer..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="flex-1 bg-transparent text-sm text-gray-800 outline-none placeholder:text-gray-400"
+            />
+          </form>
+        </div>
+
+        {/* Mobile Nav Links */}
+        <nav className="flex flex-col px-3 py-3">
+          {headerLinks.map((link) => {
+            const active =
+              link.href === "/" ? pathname === "/" : !link.href.includes("#") && pathname.startsWith(link.href);
+            return (
+              <Link
+                key={link.label}
+                href={link.href}
+                onClick={() => setMobileOpen(false)}
+                className={`flex items-center gap-3 rounded-xl px-4 py-3 text-[15px] font-bold transition-colors ${
+                  active
+                    ? "bg-orange-50 text-[#ff8d28]"
+                    : "text-gray-700 hover:bg-gray-50"
+                }`}
+              >
+                {link.label}
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* Mobile User Section */}
+        <div className="border-t border-gray-100 px-5 py-4">
+          {mounted && !session ? (
+            <Link
+              href="/login"
+              onClick={() => setMobileOpen(false)}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#ff8d28] px-4 py-3 text-sm font-bold text-white shadow-md hover:bg-[#e67d1e] transition-colors"
+            >
+              <ProfileGlyph className="h-4 w-4" />
+              Đăng nhập / Đăng ký
+            </Link>
+          ) : mounted && session ? (
+            <div className="space-y-2">
+              <div className="flex items-center gap-3 rounded-xl bg-gray-50 px-4 py-3">
+                <div className="w-9 h-9 rounded-full bg-[#ff8d28] flex items-center justify-center text-white text-xs font-black">
+                  {initials}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-gray-900 truncate">{session.fullName}</p>
+                  <p className="text-xs text-gray-400 truncate">{session.email}</p>
+                </div>
+              </div>
+              {session.role === "photographer" && (
+                <Link
+                  href="/profilephotographer"
+                  onClick={() => setMobileOpen(false)}
+                  className="flex items-center gap-2.5 rounded-xl px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  Dashboard nhiếp ảnh gia
+                </Link>
+              )}
+              <Link
+                href="/bookings"
+                onClick={() => setMobileOpen(false)}
+                className="flex items-center gap-2.5 rounded-xl px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                Lịch đặt của tôi
+              </Link>
+              <button
+                type="button"
+                onClick={() => { setMobileOpen(false); logout(); }}
+                className="flex w-full items-center gap-2.5 rounded-xl px-4 py-2.5 text-sm font-semibold text-red-500 hover:bg-red-50 transition-colors"
+              >
+                Đăng xuất
+              </button>
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </>
   );
 }
 
@@ -296,6 +429,14 @@ function MenuGlyph() {
   return (
     <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true">
       <path d="M4 6H16M4 10H16M4 14H16" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function CloseGlyph() {
+  return (
+    <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true">
+      <path d="M6 6L14 14M14 6L6 14" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
     </svg>
   );
 }
