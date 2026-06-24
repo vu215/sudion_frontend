@@ -313,7 +313,7 @@ async function getAllPackages() {
   try {
     return await fetchApi<RawServicePackage[]>("/service-packages?category=all");
   } catch (error) {
-    console.warn("Lấy service-packages từ API thất bại, sử dụng fallback:", error);
+    console.warn("Không lấy được service packages, dùng mảng rỗng:", error);
     return [];
   }
 }
@@ -410,11 +410,9 @@ export function getOtherServiceMetas(slugValue: string) {
 }
 
 export async function getServicesPageData(): Promise<ServicesPageData> {
-  const [categoriesFromDb, photographers, packages] = await Promise.all([
-    getCategoriesFromDb(),
-    getPhotographers(),
-    getAllPackages(),
-  ]);
+  const categoriesFromDb = await getCategoriesFromDb();
+  const photographers = await getPhotographers();
+  const packages = await getAllPackages();
 
   const categories = categoriesFromDb.map((category) => {
     const slug = normalizeServiceSlug(
