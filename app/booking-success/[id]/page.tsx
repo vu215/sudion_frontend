@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, use } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   confirmBookingPayment,
   getBookingFromBackend,
   type BackendBooking,
-} from "../services/booking-api";
+} from "../../services/booking-api";
 
 function formatCurrency(value: number) {
   return `${Number(value || 0).toLocaleString("vi-VN")} VND`;
@@ -47,10 +47,11 @@ function formatTimeRange(value: string | null) {
 export default function BookingSuccessPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
   const router = useRouter();
-  const bookingCode = params.id;
+  const unwrappedParams = use(params);
+  const bookingCode = unwrappedParams.id;
 
   const [booking, setBooking] = useState<BackendBooking | null>(null);
   const [hasLoaded, setHasLoaded] = useState(false);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, use } from "react";
 import Link from "next/link";
 
 const photographers = [
@@ -579,8 +579,9 @@ const sideNavItems = [
 
 const tabs = ["Tổng quan", "Portfolio", "Gói dịch vụ", "Đánh giá"];
 
-export default function PhotographerProfilePage({ params }: { params: { id: string } }) {
-  return <PhotographerProfileContent id={params.id} />;
+export default function PhotographerProfilePage({ params }: { params: Promise<{ id: string }> }) {
+  const unwrappedParams = use(params);
+  return <PhotographerProfileContent id={unwrappedParams.id} />;
 }
 
 function PhotographerProfileContent({ id }: { id: string }) {

@@ -1,16 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, use } from "react";
 import { useAuth } from "@/app/auth-context";
 
 export default function ResetPasswordPage({
   params,
 }: {
-  params: { token: string };
+  params: Promise<{ token: string }>;
 }) {
   const { transitionTo } = useAuth();
-  const token = params.token;
+  const unwrappedParams = use(params);
+  const token = unwrappedParams.token;
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");

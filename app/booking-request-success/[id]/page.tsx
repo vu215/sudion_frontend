@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, use } from "react";
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
@@ -134,9 +134,10 @@ async function getBooking(bookingCode: string) {
 export default function BookingRequestSuccessPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
-  const bookingCode = params.id;
+  const unwrappedParams = use(params);
+  const bookingCode = unwrappedParams.id;
 
   const [booking, setBooking] = useState<Booking | null>(null);
   const [loading, setLoading] = useState(true);
@@ -337,200 +338,7 @@ export default function BookingRequestSuccessPage({
   );
 }
 
-  useEffect(() => {
-    let ignore = false;
 
-    async function loadBooking(showLoading = true) {
-      try {
-        if (!bookingCode) {
-          throw new Error("Thiếu mã booking.");
-        }
-
-        if (showLoading) {
-          setLoading(true);
-        }
-
-        setPageError("");
-
-        const data = await getBooking(bookingCode);
-
-        if (!ignore) {
-          setBooking(data);
-        }
-      } catch (error) {
-        if (!ignore) {
-          setPageError(
-            error instanceof Error ? error.message : "Không thể lấy booking."
-          );
-        }
-      } finally {
-        if (!ignore && showLoading) {
-          setLoading(false);
-        }
-      }
-    }
-
-    void loadBooking(true);
-
-    const timer = window.setInterval(() => {
-      void loadBooking(false);
-    }, AUTO_REFRESH_MS);
-
-    return () => {
-      ignore = true;
-      window.clearInterval(timer);
-    };
-  }, [bookingCode]);
-
-  const statusInfo = useMemo(() => {
-    return getStatusInfo(booking?.status || "awaiting_payment");
-  }, [booking?.status]);
-
-  if (loading) {
-    return <LoadingScreen />;
-  }
-
-  if (pageError || !booking) {
-    return <ErrorState message={pageError || "Không tìm thấy booking."} />;
-  }
-
-  return (
-    <main className="min-h-screen bg-[#f8fafc] px-5 py-10 text-[#0f172a] sm:py-14">
-      <section className="mx-auto grid w-full max-w-[1180px] gap-6 lg:grid-cols-[minmax(0,1fr)_390px] lg:items-start">
-        <div className="overflow-hidden rounded-[30px] border border-[#e2e8f0] bg-white shadow-[0_24px_80px_rgba(15,23,42,0.08)]">
-          <div className="relative overflow-hidden bg-[#111827] px-6 py-8 text-white sm:px-8 lg:px-10">
-            <div className="absolute right-[-110px] top-[-110px] h-[300px] w-[300px] rounded-full bg-[#ff8d28]/25 blur-3xl" />
-            <div className="absolute bottom-[-130px] left-[20%] h-[280px] w-[280px] rounded-full bg-white/10 blur-3xl" />
-
-            <div className="relative">
-              <div className="flex flex-wrap items-center gap-3">
-                <p className="text-[12px] font-black uppercase tracking-[0.18em] text-[#ffb267]">
-                  Booking request sent
-                </p>
-
-                <StatusBadge
-                  label={statusInfo.label}
-                  className={statusInfo.className}
-                  dot={statusInfo.dot}
-                />
-              </div>
-
-              <h1 className="mt-4 max-w-[760px] text-[34px] font-black leading-[1.05] tracking-[-0.04em] sm:text-[46px]">
-                Đã gửi yêu cầu đặt lịch
-              </h1>
-
-              <p className="mt-4 max-w-[720px] text-[14px] font-semibold leading-7 text-white/70">
-                STUDION đã gửi yêu cầu này tới photographer. Trang này sẽ tự cập
-                nhật trạng thái mỗi 8 giây, không cần tải lại.
-              </p>
-            </div>
-          </div>
-
-          <div className="grid gap-5 p-6 sm:p-8">
-            <div className="rounded-[24px] border border-[#eef2f7] bg-[#fbfcff] p-5">
-              <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#94a3b8]">
-                Mã booking
-              </p>
-
-              <p className="mt-2 break-all text-[28px] font-black tracking-[-0.04em] text-[#111827]">
-                {booking.booking_code}
-              </p>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <InfoCard label="Photographer" value={booking.photographer_name} />
-              <InfoCard label="Dịch vụ" value={booking.service_name} />
-              <InfoCard label="Ngày chụp" value={formatDate(booking.shoot_date)} />
-              <InfoCard label="Giờ chụp" value={formatTime(booking.shoot_time)} />
-            </div>
-
-            <div className={`rounded-[22px] border p-5 ${statusInfo.className}`}>
-              <p className="text-[13px] font-black">{statusInfo.label}</p>
-
-              <p className="mt-2 text-[14px] font-semibold leading-6 opacity-90">
-                {statusInfo.description}
-              </p>
-            </div>
-
-            <div className="grid gap-3 md:grid-cols-3">
-              <MoneyCard label="Tổng tiền" value={booking.estimated_total} />
-              <MoneyCard label="Tiền cọc 50%" value={booking.deposit_amount} />
-              <MoneyCard label="Còn lại" value={booking.remaining_amount} />
-            </div>
-
-            <ActionButtons booking={booking} />
-          </div>
-        </div>
-
-        <aside className="rounded-[30px] border border-[#e2e8f0] bg-white p-6 shadow-[0_24px_80px_rgba(15,23,42,0.06)] lg:sticky lg:top-[100px]">
-          <p className="text-[12px] font-black uppercase tracking-[0.18em] text-[#ff8d28]">
-            Booking progress
-          </p>
-
-          <h2 className="mt-3 text-[26px] font-black tracking-[-0.04em] text-[#0f172a]">
-            Quy trình booking
-          </h2>
-
-          <div className="mt-6 grid gap-4">
-            <ProgressItem
-              active
-              done
-              title="Gửi yêu cầu"
-              description="Bạn đã gửi yêu cầu đặt lịch tới photographer."
-            />
-
-            <ProgressItem
-              active={["accepted", "confirmed", "completed", "fully_paid"].includes(
-                booking.status
-              )}
-              done={["accepted", "confirmed", "completed", "fully_paid"].includes(
-                booking.status
-              )}
-              title="Photographer xác nhận"
-              description="Photographer kiểm tra lịch và xác nhận yêu cầu."
-            />
-
-            <ProgressItem
-              active={["confirmed", "completed", "fully_paid"].includes(
-                booking.status
-              )}
-              done={["confirmed", "completed", "fully_paid"].includes(
-                booking.status
-              )}
-              title="Thanh toán cọc"
-              description="Bạn thanh toán cọc để giữ lịch chụp."
-            />
-
-            <ProgressItem
-              active={["completed", "fully_paid"].includes(booking.status)}
-              done={["completed", "fully_paid"].includes(booking.status)}
-              title="Hoàn thành buổi chụp"
-              description="Photographer đánh dấu hoàn thành sau buổi chụp."
-            />
-
-            <ProgressItem
-              active={booking.status === "fully_paid"}
-              done={booking.status === "fully_paid"}
-              title="Thanh toán đủ"
-              description="Bạn thanh toán phần còn lại và có thể đánh giá."
-            />
-          </div>
-
-          <div className="mt-6 rounded-[22px] border border-[#ffedd5] bg-[#fff7ed] p-5">
-            <p className="text-[13px] font-black text-[#ea580c]">
-              Tự cập nhật trạng thái
-            </p>
-
-            <p className="mt-2 text-[13px] font-semibold leading-6 text-[#9a3412]">
-              Khi photographer xác nhận, từ chối hoặc hoàn thành booking, trang
-              này sẽ tự cập nhật sau vài giây.
-            </p>
-          </div>
-        </aside>
-      </section>
-    </main>
-  );
-}
 
 function ActionButtons({ booking }: { booking: Booking }) {
   if (booking.status === "accepted") {
