@@ -571,36 +571,61 @@ function PaymentPreview({
   bookingCode: string;
   amount: number;
 }) {
+  const bankId = "TCB"; // Techcombank
+  const accountNo = "0762682989";
+  const accountName = "TRAN THIEN VU";
+  
+  // URL to generate VietQR image dynamically
+  const qrUrl = `https://img.vietqr.io/image/${bankId}-${accountNo}-compact.png?amount=${amount}&addInfo=${encodeURIComponent(bookingCode)}&accountName=${encodeURIComponent(accountName)}`;
+
   return (
     <div className="rounded-[22px] border border-[#eef2f7] bg-[#fbfcff] p-5">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-        <div className="grid h-[120px] w-[120px] shrink-0 place-items-center rounded-[22px] border border-[#e2e8f0] bg-white">
-          <div className="grid h-[88px] w-[88px] place-items-center rounded-[18px] bg-[#111827] text-center text-[12px] font-black leading-4 text-white">
-            QR
-            <br />
-            DEMO
+      <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
+        {/* QR Code Container */}
+        <div className="flex flex-col items-center justify-center shrink-0">
+          <div className="relative overflow-hidden rounded-[22px] border-2 border-[#ff8d28]/20 bg-white p-2 shadow-sm transition hover:border-[#ff8d28]/60">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={qrUrl}
+              alt="Mã QR Thanh Toán VietQR"
+              className="h-[140px] w-[140px] object-contain rounded-lg"
+              title="Quét mã QR để thanh toán"
+            />
           </div>
+          <span className="mt-2 block text-[10px] font-black uppercase tracking-wider text-slate-400">
+            Quét mã VietQR
+          </span>
         </div>
 
-        <div className="min-w-0">
-          <p className="text-[13px] font-black text-[#0f172a]">
-            Thanh toán qua {method}
+        <div className="min-w-0 flex-1">
+          <p className="text-[14px] font-black text-[#0f172a] flex items-center gap-2">
+            <span className="inline-block h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            Thanh toán qua {method === "momo" ? "ví MoMo (QR Chuyển khoản)" : method === "vnpay" ? "cổng VNPay / Ngân hàng" : "Chuyển khoản Techcombank"}
           </p>
 
-          <p className="mt-2 text-[13px] font-semibold leading-6 text-[#64748b]">
-            Nội dung chuyển khoản:
-          </p>
-
-          <p className="mt-1 rounded-[12px] bg-white px-3 py-2 text-[13px] font-black text-[#ff8d28]">
-            {bookingCode}
-          </p>
-
-          <p className="mt-2 text-[13px] font-semibold text-[#64748b]">
-            Số tiền:{" "}
-            <span className="font-black text-[#0f172a]">
-              {formatCurrency(amount)}
-            </span>
-          </p>
+          <div className="mt-3 grid gap-2 text-[12px] leading-5 text-[#64748b]">
+            <p>
+              Tên ngân hàng: <strong className="text-[#0f172a]">Techcombank (Ngân hàng Kỹ thương)</strong>
+            </p>
+            <p>
+              Số tài khoản: <strong className="text-[#0f172a] select-all">0762682989</strong>
+            </p>
+            <p>
+              Chủ tài khoản: <strong className="text-[#0f172a]">TRAN THIEN VU</strong>
+            </p>
+            <div className="mt-1">
+              <span className="block text-[11px] font-semibold text-[#64748b]">Nội dung chuyển khoản (bắt buộc chính xác):</span>
+              <span className="mt-1 inline-block rounded-[8px] border border-orange-100 bg-[#fff7ed] px-3 py-1.5 text-[13px] font-black text-[#ff8d28] select-all">
+                {bookingCode}
+              </span>
+            </div>
+            <p className="mt-2 text-slate-900 font-semibold">
+              Số tiền:{" "}
+              <span className="font-black text-[#ff8d28] text-sm">
+                {formatCurrency(amount)}
+              </span>
+            </p>
+          </div>
         </div>
       </div>
     </div>

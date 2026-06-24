@@ -42,6 +42,8 @@ type BookedSlot = {
   photographer_id: string;
   shoot_date: string;
   shoot_time: string;
+  shoot_end_time?: string | null;
+  availability_slot_label?: string | null;
   status: string;
 };
 
@@ -232,36 +234,47 @@ function parseTimeToMinutes(timeStr: string): number {
   return hours * 60 + minutes;
 }
 
-function isSlotBooked(bookedSlots: BookedSlot[], date: string, timeSlot: string) {
-  // 1. Normalize dates
-  const targetDate = normalizeDate(date);
-  
-  // 2. Parse time slot start and end
+function parseSlotRangeToMinutes(timeSlot: string) {
   let slotStartMin = 0;
-  let slotEndMin = 24 * 60; // default whole day
+  let slotEndMin = 24 * 60;
 
   const rangeMatch = timeSlot.match(/(\d{1,2}:\d{2})\s*(?:-|–|—|đến|to)\s*(\d{1,2}:\d{2})/i);
+
   if (rangeMatch) {
     slotStartMin = parseTimeToMinutes(rangeMatch[1]);
     slotEndMin = parseTimeToMinutes(rangeMatch[2]);
-  } else {
-    const singleMatch = timeSlot.match(/(\d{1,2}:\d{2})/);
-    if (singleMatch) {
-      slotStartMin = parseTimeToMinutes(singleMatch[0]);
-      slotEndMin = slotStartMin + 240; // assume 4 hours default
-    }
+    return { slotStartMin, slotEndMin };
   }
+
+  const singleMatch = timeSlot.match(/(\d{1,2}:\d{2})/);
+
+  if (singleMatch) {
+    slotStartMin = parseTimeToMinutes(singleMatch[1]);
+    slotEndMin = slotStartMin + 240;
+  }
+
+  return { slotStartMin, slotEndMin };
+}
+
+function isSlotBooked(bookedSlots: BookedSlot[], date: string, timeSlot: string) {
+  const targetDate = normalizeDate(date);
+  const { slotStartMin, slotEndMin } = parseSlotRangeToMinutes(timeSlot);
 
   return bookedSlots.some((s) => {
     if (normalizeDate(s.shoot_date) !== targetDate) return false;
-    
-    // Parse booked slot start
-    const bookedTime = normalizeTime(s.shoot_time); // "HH:MM"
-    const bookedStartMin = parseTimeToMinutes(bookedTime);
-    // Assume booked duration is 4 hours (240 minutes)
-    const bookedEndMin = bookedStartMin + 240;
 
-    // Check overlap: slotStart < bookedEnd && slotEnd > bookedStart
+    const bookedStartText = normalizeTime(s.shoot_time);
+    const bookedEndText = s.shoot_end_time
+      ? normalizeTime(s.shoot_end_time)
+      : s.availability_slot_label
+      ? normalizeTime(s.availability_slot_label.split("-")[1] || "")
+      : "";
+
+    const bookedStartMin = parseTimeToMinutes(bookedStartText);
+    const bookedEndMin = bookedEndText
+      ? parseTimeToMinutes(bookedEndText)
+      : bookedStartMin + 240;
+
     return slotStartMin < bookedEndMin && slotEndMin > bookedStartMin;
   });
 }
@@ -582,6 +595,8 @@ function BookingContent() {
       const payload = {
         photographerId: photographer.id,
         packageId: matchedPackageId,
+        categorySlug: resolvedCategory,
+        availabilitySlotLabel: shootTime,
         location, shootDate, shootTime,
         peopleScale: resolvedCategory === "wedding" ? (currentSubType?.label || "Chụp pre-wedding") : (selectedPeopleOption?.label || "Mặc định"),
         peopleExtra: subTypeExtra,
