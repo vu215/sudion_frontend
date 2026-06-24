@@ -1,36 +1,193 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import AdminLayout from "../_components/admin-layout";
 import { AdminIcon, IconButton } from "../_components/admin-icons";
+import { api } from "@/lib/api";
 
 type BookingStatus = "Chờ xác nhận" | "Đã xác nhận" | "Đang thực hiện" | "Hoàn thành" | "Đã hủy";
 type PaymentStatus = "Chưa thanh toán" | "Đã thanh toán cọc" | "Đã thanh toán đủ" | "Đã hoàn tiền";
 type Booking = { id: string; customer: string; phone: string; email: string; customerAvatar: string; photographer: string; photographerAvatar: string; service: string; shootDate: string; createdAt: string; amount: number; status: BookingStatus; payment: PaymentStatus; place: string; time: string; packageName: string; note: string; history: string[] };
 
-const seed: Booking[] = [
-  { id: "#BK20241125", customer: "Nguyễn Thị Mai", phone: "0901 234 567", email: "mainguyen@gmail.com", customerAvatar: "/logo_sudion.jpg", photographer: "Minh Tuấn Studio", photographerAvatar: "/Overlay+Shadow.png", service: "Chụp ảnh cưới", shootDate: "15/12/2024", createdAt: "25/11/2024 10:30", amount: 12500000, status: "Chờ xác nhận", payment: "Đã thanh toán cọc", place: "TP. Hồ Chí Minh", time: "08:00 - 12:00 (4 giờ)", packageName: "Gói Premium", note: "Khách muốn chụp ở Landmark 81, Nhà thờ Đức Bà.", history: ["25/11/2024 10:30 · Tạo booking", "25/11/2024 10:31 · Thanh toán cọc thành công", "25/11/2024 10:32 · Chờ xác nhận"] },
-  { id: "#BK20241124", customer: "Trần Văn Phong", phone: "0932 111 222", email: "phongtran@gmail.com", customerAvatar: "/screen%201.png", photographer: "Elena Studio", photographerAvatar: "/logo_sudion.jpg", service: "Chụp ảnh đôi", shootDate: "10/12/2024", createdAt: "24/11/2024 16:20", amount: 3200000, status: "Đã xác nhận", payment: "Đã thanh toán đủ", place: "Hà Nội", time: "14:00 - 17:00", packageName: "Gói Standard", note: "Chụp trong studio.", history: ["24/11/2024 · Tạo booking", "24/11/2024 · Đã xác nhận"] },
-  { id: "#BK20241123", customer: "Phạm Hồng Ngọc", phone: "0899 888 999", email: "ngocpham@gmail.com", customerAvatar: "/Overlay+Border+Shadow.png", photographer: "Khang Pham", photographerAvatar: "/screen%201.png", service: "Kỷ yếu", shootDate: "05/12/2024", createdAt: "23/11/2024 14:15", amount: 4800000, status: "Đang thực hiện", payment: "Đã thanh toán cọc", place: "Đà Lạt", time: "07:00 - 11:00", packageName: "Gói lớp", note: "Chụp nhóm lớp.", history: ["23/11/2024 · Tạo booking", "24/11/2024 · Đang thực hiện"] },
-  { id: "#BK20241122", customer: "Lê Quang Huy", phone: "0777 666 555", email: "huy.le@gmail.com", customerAvatar: "/logo_sudion_remove.png", photographer: "May Studio", photographerAvatar: "/Overlay+Border+Shadow.png", service: "Sự kiện", shootDate: "20/12/2024", createdAt: "22/11/2024 11:05", amount: 8000000, status: "Hoàn thành", payment: "Đã thanh toán đủ", place: "Đà Nẵng", time: "18:00 - 22:00", packageName: "Event Pro", note: "Sự kiện khai trương.", history: ["22/11/2024 · Tạo booking", "20/12/2024 · Hoàn thành"] },
-  { id: "#BK20241121", customer: "Vũ Minh Anh", phone: "0988 765 432", email: "minhanh@gmail.com", customerAvatar: "/Overlay+Shadow.png", photographer: "David Lee", photographerAvatar: "/logo_sudion_remove.png", service: "Chụp sản phẩm", shootDate: "28/11/2024", createdAt: "21/11/2024 09:45", amount: 2500000, status: "Đã hủy", payment: "Đã hoàn tiền", place: "Nha Trang", time: "09:00 - 11:00", packageName: "Product", note: "Khách đổi lịch.", history: ["21/11/2024 · Tạo booking", "21/11/2024 · Đã hủy"] },
-];
-
 export default function BookingPage() {
-  const [items, setItems] = useState(seed);
+  const [items, setItems] = useState<Booking[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<any>(null);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<BookingStatus | "Tất cả">("Tất cả");
   const [service, setService] = useState("Tất cả");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [toast, setToast] = useState("");
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState<any>(null);
+  const [addModalOpen, setAddModalOpen] = useState(false);
+  const [formData, setFormData] = useState({
+    customer_id: "",
+    photographer_id: "",
+    package_id: "",
+    shoot_date: "",
+    shoot_time: "",
+    location: "",
+    concept: "",
+    num_people: 1,
+  });
+
   const services = useMemo(() => ["Tất cả", ...Array.from(new Set(items.map((i) => i.service)))], [items]);
   const tabs: Array<BookingStatus | "Tất cả"> = ["Tất cả", "Chờ xác nhận", "Đã xác nhận", "Đang thực hiện", "Hoàn thành", "Đã hủy"];
   const filtered = useMemo(() => items.filter((i) => [i.id, i.customer, i.phone, i.email, i.photographer, i.service, i.status].join(" ").toLowerCase().includes(query.toLowerCase()) && (status === "Tất cả" || i.status === status) && (service === "Tất cả" || i.service === service)), [items, query, service, status]);
   const selected = items.find((i) => i.id === selectedId) ?? filtered[0] ?? items[0];
 
+  // Map backend status to frontend status
+  const mapStatus = (backendStatus: string): BookingStatus => {
+    const statusMap: Record<string, BookingStatus> = {
+      "awaiting_payment": "Chờ xác nhận",
+      "accepted": "Đã xác nhận",
+      "confirmed": "Đang thực hiện",
+      "completed": "Hoàn thành",
+      "fully_paid": "Hoàn thành",
+      "cancelled": "Đã hủy",
+      "rejected": "Đã hủy",
+    };
+    return statusMap[backendStatus] || "Chờ xác nhận";
+  };
+
+  // Map backend payment status to frontend
+  const mapPayment = (backendStatus: string): PaymentStatus => {
+    const paymentMap: Record<string, PaymentStatus> = {
+      "awaiting_payment": "Chưa thanh toán",
+      "accepted": "Chưa thanh toán",
+      "confirmed": "Đã thanh toán cọc",
+      "completed": "Đã thanh toán cọc",
+      "fully_paid": "Đã thanh toán đủ",
+      "cancelled": "Đã hoàn tiền",
+    };
+    return paymentMap[backendStatus] || "Chưa thanh toán";
+  };
+
+  // Load bookings from API
+  useEffect(() => {
+    async function loadBookings() {
+      setLoading(true);
+      const result = await api.bookings.getAll({ page, pageSize: 10 });
+      
+      if (result.success && result.data) {
+        // Transform backend data to frontend format
+        const transformedData = result.data.map((booking: any) => ({
+          id: booking.booking_code,
+          customer: booking.customer_full_name,
+          phone: booking.customer_phone,
+          email: booking.customer_email,
+          customerAvatar: "/logo_sudion.jpg",
+          photographer: booking.photographer_name,
+          photographerAvatar: "/Overlay+Shadow.png",
+          service: booking.service_name,
+          shootDate: booking.shoot_date,
+          createdAt: new Date(booking.created_at).toLocaleString("vi-VN"),
+          amount: booking.estimated_total || 0,
+          status: mapStatus(booking.status),
+          payment: mapPayment(booking.status),
+          place: booking.location || "N/A",
+          time: `${booking.shoot_time || "N/A"}`,
+          packageName: booking.service_name,
+          note: booking.concept || "",
+          history: [`${new Date(booking.created_at).toLocaleDateString("vi-VN")} · Tạo booking`],
+        }));
+        
+        setItems(transformedData);
+        setPagination(result.pagination);
+      }
+      setLoading(false);
+    }
+
+    loadBookings();
+  }, [page]);
+
+  // Load stats
+  useEffect(() => {
+    async function loadStats() {
+      const result = await api.bookings.getStats();
+      if (result.success) {
+        setStats(result.data);
+      }
+    }
+    loadStats();
+  }, []);
+
   function notify(text: string) { setToast(text); setTimeout(() => setToast(""), 1800); }
-  function patch(id: string, value: Partial<Booking>) { setItems((list) => list.map((item) => item.id === id ? { ...item, ...value } : item)); }
-  function createBooking() { const next = { ...seed[0], id: `#BK${Date.now().toString().slice(-8)}`, customer: "Khách hàng mới", status: "Chờ xác nhận" as BookingStatus }; setItems([next, ...items]); setSelectedId(next.id); notify("Đã tạo booking mẫu."); }
+  
+  function patch(id: string, value: Partial<Booking>) { 
+    setItems((list) => list.map((item) => item.id === id ? { ...item, ...value } : item)); 
+  }
+  
+  async function handleUpdateStatus(bookingCode: string, newStatus: BookingStatus) {
+    // Map frontend status back to backend
+    const backendStatusMap: Record<BookingStatus, string> = {
+      "Chờ xác nhận": "awaiting_payment",
+      "Đã xác nhận": "accepted",
+      "Đang thực hiện": "confirmed",
+      "Hoàn thành": "completed",
+      "Đã hủy": "cancelled",
+    };
+
+    const result = await api.bookings.updateStatus(bookingCode, backendStatusMap[newStatus]);
+    
+    if (result.success) {
+      patch(bookingCode, { status: newStatus });
+      notify(`Đã cập nhật trạng thái booking.`);
+    } else {
+      notify(`Lỗi: ${result.error || "Không thể cập nhật"}`);
+    }
+  }
+  
+  function createBooking() { 
+    setFormData({
+      customer_id: "",
+      photographer_id: "",
+      package_id: "",
+      shoot_date: "",
+      shoot_time: "",
+      location: "",
+      concept: "",
+      num_people: 1,
+    });
+    setAddModalOpen(true);
+  }
+
+  async function handleCreateBooking() {
+    // Validate required fields
+    if (!formData.customer_id || !formData.photographer_id || !formData.package_id || !formData.shoot_date) {
+      notify("Vui lòng nhập đầy đủ thông tin bắt buộc!");
+      return;
+    }
+
+    try {
+      const result = await api.bookings.create(formData);
+      
+      if (result.success) {
+        notify("Đã tạo booking thành công!");
+        setAddModalOpen(false);
+        window.location.reload();
+      } else {
+        notify(`Lỗi: ${result.message || result.error || "Không thể tạo"}`);
+      }
+    } catch (error) {
+      notify("Lỗi khi tạo booking");
+      console.error(error);
+    }
+  }
+
+  if (loading && items.length === 0) {
+    return (
+      <AdminLayout active="Booking" search={query} onSearch={setQuery}>
+        <div className="flex min-h-[400px] items-center justify-center">
+          <div className="text-center">
+            <div className="mb-4 text-2xl">🔄</div>
+            <p className="text-gray-600">Đang tải dữ liệu...</p>
+          </div>
+        </div>
+      </AdminLayout>
+    );
+  }
 
   return (
     <AdminLayout active="Booking" search={query} onSearch={setQuery}>
@@ -39,7 +196,12 @@ export default function BookingPage() {
         <div className="min-w-0">
           <PageHead title="Quản lý Booking" action="Tạo booking" onAction={createBooking} />
           <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-6">
-            <Stat title="Tổng booking" value="3.782" /><Stat title="Chờ xác nhận" value="892" /><Stat title="Đã xác nhận" value="1.652" /><Stat title="Đang thực hiện" value="726" /><Stat title="Hoàn thành" value="412" /><Stat title="Đã hủy" value="100" />
+            <Stat title="Tổng booking" value={stats?.total?.toString() || "0"} />
+            <Stat title="Chờ xác nhận" value={stats?.pending?.toString() || "0"} />
+            <Stat title="Đã xác nhận" value={stats?.confirmed?.toString() || "0"} />
+            <Stat title="Đang thực hiện" value={stats?.inProgress?.toString() || "0"} />
+            <Stat title="Hoàn thành" value={stats?.completed?.toString() || "0"} />
+            <Stat title="Đã hủy" value={stats?.cancelled?.toString() || "0"} />
           </div>
           <Panel className="mt-4">
             <div className="mb-3 grid gap-2 md:grid-cols-[minmax(0,1fr)_150px_150px_150px_40px]">
@@ -53,15 +215,34 @@ export default function BookingPage() {
               <IconButton label="Đặt lại bộ lọc" icon="filter" size="md" onClick={() => { setQuery(""); setStatus("Tất cả"); setService("Tất cả"); }} />
             </div>
             <div className="mb-3 flex gap-4 overflow-x-auto border-b border-[#edf0f5]">
-              {tabs.map((tab) => <button key={tab} onClick={() => setStatus(tab)} className={`shrink-0 border-b-2 px-3 py-2 text-[12px] font-medium ${status === tab ? "border-[#ff8d28] text-[#ff8d28]" : "border-transparent text-[#536078]"}`}>{tab} <span className="rounded-full bg-[#eef1f7] px-2 py-0.5 text-[10px]">{tab === "Tất cả" ? "3.782" : items.filter((i) => i.status === tab).length}</span></button>)}
+              {tabs.map((tab) => <button key={tab} onClick={() => setStatus(tab)} className={`shrink-0 border-b-2 px-3 py-2 text-[12px] font-medium ${status === tab ? "border-[#ff8d28] text-[#ff8d28]" : "border-transparent text-[#536078]"}`}>{tab} <span className="rounded-full bg-[#eef1f7] px-2 py-0.5 text-[10px]">{tab === "Tất cả" ? (stats?.total || items.length) : items.filter((i) => i.status === tab).length}</span></button>)}
             </div>
             <div className="overflow-x-auto rounded-xl border border-[#e6e9f1]">
               <table className="w-full min-w-[1040px] text-left text-[12px]">
                 <thead className="bg-[#fbfcfe] text-[#536078]"><tr>{["Booking ID", "Khách hàng", "Photographer", "Dịch vụ", "Ngày chụp", "Tổng tiền", "Trạng thái", "Thanh toán", "Thao tác"].map((h) => <th key={h} className="px-3 py-3 font-semibold">{h}</th>)}</tr></thead>
-                <tbody className="divide-y divide-[#edf0f5]">{filtered.map((item) => <tr key={item.id} onClick={() => setSelectedId(item.id)} className={`cursor-pointer hover:bg-[#fff8f1] ${selectedId === item.id ? "bg-[#fff3e8]" : "bg-white"}`}><td className="px-3 py-3 font-medium text-[#ff8d28]">{item.id}<p className="text-[#697086]">{item.createdAt}</p></td><td className="px-3 py-3"><b>{item.customer}</b><p className="text-[#697086]">{item.phone}</p></td><td className="px-3 py-3"><div className="flex items-center gap-2"><img src={item.photographerAvatar} alt="" className="h-8 w-8 rounded-full object-cover" />{item.photographer}</div></td><td className="px-3 py-3">{item.service}</td><td className="px-3 py-3">{item.shootDate}</td><td className="px-3 py-3 font-semibold">{money(item.amount)}</td><td className="px-3 py-3"><Badge text={item.status} /></td><td className="px-3 py-3"><Badge text={item.payment} /></td><td className="px-3 py-3"><div className="flex gap-2"><IconButton label="Xem chi tiết" icon="eye" onClick={(e) => { e.stopPropagation(); setSelectedId(item.id); }} /><IconButton label="Xác nhận" icon="check" onClick={(e) => { e.stopPropagation(); patch(item.id, { status: "Đã xác nhận" }); setSelectedId(item.id); notify("Đã xác nhận booking."); }} /></div></td></tr>)}</tbody>
+                <tbody className="divide-y divide-[#edf0f5]">
+                  {filtered.length === 0 ? (
+                    <tr><td colSpan={9} className="px-3 py-8 text-center text-gray-500">Không có booking nào</td></tr>
+                  ) : (
+                    filtered.map((item) => <tr key={item.id} onClick={() => setSelectedId(item.id)} className={`cursor-pointer hover:bg-[#fff8f1] ${selectedId === item.id ? "bg-[#fff3e8]" : "bg-white"}`}><td className="px-3 py-3 font-medium text-[#ff8d28]">{item.id}<p className="text-[#697086]">{item.createdAt}</p></td><td className="px-3 py-3"><b>{item.customer}</b><p className="text-[#697086]">{item.phone}</p></td><td className="px-3 py-3"><div className="flex items-center gap-2"><img src={item.photographerAvatar} alt="" className="h-8 w-8 rounded-full object-cover" />{item.photographer}</div></td><td className="px-3 py-3">{item.service}</td><td className="px-3 py-3">{item.shootDate}</td><td className="px-3 py-3 font-semibold">{money(item.amount)}</td><td className="px-3 py-3"><Badge text={item.status} /></td><td className="px-3 py-3"><Badge text={item.payment} /></td><td className="px-3 py-3"><div className="flex gap-2"><IconButton label="Xem chi tiết" icon="eye" onClick={(e) => { e.stopPropagation(); setSelectedId(item.id); }} /><IconButton label="Xác nhận" icon="check" onClick={(e) => { e.stopPropagation(); handleUpdateStatus(item.id, "Đã xác nhận"); setSelectedId(item.id); }} /></div></td></tr>)
+                  )}
+                </tbody>
               </table>
             </div>
-            <div className="mt-4 flex items-center justify-between text-[12px] text-[#697086]"><span>Hiển thị 1 - {filtered.length} của 3.782 booking</span><span className="rounded-xl border px-3 py-2">10 / trang</span></div>
+            <div className="mt-4 flex items-center justify-between text-[12px] text-[#697086]">
+              <span>Hiển thị {filtered.length} của {pagination?.total || items.length} booking</span>
+              <div className="flex gap-2">
+                {pagination && pagination.page > 1 && (
+                  <button onClick={() => setPage(page - 1)} className="rounded-xl border px-3 py-2 hover:bg-gray-50">Trước</button>
+                )}
+                <span className="rounded-xl border px-3 py-2">
+                  Trang {pagination?.page || 1} / {pagination?.totalPages || 1}
+                </span>
+                {pagination && pagination.page < pagination.totalPages && (
+                  <button onClick={() => setPage(page + 1)} className="rounded-xl border px-3 py-2 hover:bg-gray-50">Sau</button>
+                )}
+              </div>
+            </div>
           </Panel>
         </div>
         {selectedId !== null ? <div className="fixed inset-0 z-50 bg-[#0f172a]/35 backdrop-blur-[2px]" onClick={() => setSelectedId(null)}>
@@ -72,9 +253,175 @@ export default function BookingPage() {
           <InfoBlock title="Thông tin booking" rows={[["Photographer", selected.photographer], ["Dịch vụ", selected.service], ["Ngày chụp", selected.shootDate], ["Địa điểm", selected.place], ["Thời gian", selected.time], ["Gói dịch vụ", selected.packageName], ["Ghi chú", selected.note]]} />
           <InfoBlock title="Thanh toán" rows={[["Tổng tiền", money(selected.amount)], ["Đã thanh toán (cọc)", money(selected.amount * 0.3)], ["Còn lại", money(selected.amount * 0.7)], ["Phương thức", "MoMo"], ["Trạng thái thanh toán", selected.payment]]} />
           <SectionTitle>Lịch sử trạng thái</SectionTitle><div className="mt-3 space-y-2 text-[12px] text-[#536078]">{selected.history.map((h) => <p key={h}>○ {h}</p>)}</div>
-          <div className="mt-6 flex justify-end gap-2"><IconButton label="Xác nhận" icon="check" onClick={() => { patch(selected.id, { status: "Đã xác nhận" }); notify("Đã xác nhận booking."); }} /><IconButton label="Từ chối" icon="close" tone="danger" onClick={() => { patch(selected.id, { status: "Đã hủy" }); notify("Đã từ chối booking."); }} /><IconButton label="Liên hệ" icon="mail" onClick={() => notify("Đã mở liên hệ khách.")} /></div>
+          <div className="mt-6 flex justify-end gap-2"><IconButton label="Xác nhận" icon="check" onClick={() => { handleUpdateStatus(selected.id, "Đã xác nhận"); }} /><IconButton label="Từ chối" icon="close" tone="danger" onClick={() => { handleUpdateStatus(selected.id, "Đã hủy"); }} /><IconButton label="Liên hệ" icon="mail" onClick={() => notify("Đã mở liên hệ khách.")} /></div>
         </aside>
         </div> : null}
+
+        {/* Add Booking Modal */}
+        {addModalOpen && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-[#0f172a]/45 backdrop-blur-[3px]"
+            onClick={() => setAddModalOpen(false)}
+          >
+            <div
+              className="relative w-full max-w-2xl rounded-2xl border border-[#e6e9f1] bg-white p-6 shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-[18px] font-semibold">Tạo Booking Mới</h2>
+                <IconButton
+                  label="Đóng"
+                  icon="close"
+                  onClick={() => setAddModalOpen(false)}
+                />
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                {/* Customer ID */}
+                <div>
+                  <label className="mb-1.5 block text-[12px] font-medium text-[#536078]">
+                    Customer ID <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.customer_id}
+                    onChange={(e) =>
+                      setFormData({ ...formData, customer_id: e.target.value })
+                    }
+                    className="w-full rounded-xl border border-[#dfe3ec] bg-white px-3 py-2 text-[13px] outline-none focus:border-[#ff8d28] focus:ring-2 focus:ring-[#ff8d28]/10"
+                    placeholder="ID khách hàng"
+                  />
+                </div>
+
+                {/* Photographer ID */}
+                <div>
+                  <label className="mb-1.5 block text-[12px] font-medium text-[#536078]">
+                    Photographer ID <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.photographer_id}
+                    onChange={(e) =>
+                      setFormData({ ...formData, photographer_id: e.target.value })
+                    }
+                    className="w-full rounded-xl border border-[#dfe3ec] bg-white px-3 py-2 text-[13px] outline-none focus:border-[#ff8d28] focus:ring-2 focus:ring-[#ff8d28]/10"
+                    placeholder="ID photographer"
+                  />
+                </div>
+
+                {/* Package ID */}
+                <div>
+                  <label className="mb-1.5 block text-[12px] font-medium text-[#536078]">
+                    Package ID <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.package_id}
+                    onChange={(e) =>
+                      setFormData({ ...formData, package_id: e.target.value })
+                    }
+                    className="w-full rounded-xl border border-[#dfe3ec] bg-white px-3 py-2 text-[13px] outline-none focus:border-[#ff8d28] focus:ring-2 focus:ring-[#ff8d28]/10"
+                    placeholder="ID gói dịch vụ"
+                  />
+                </div>
+
+                {/* Shoot Date */}
+                <div>
+                  <label className="mb-1.5 block text-[12px] font-medium text-[#536078]">
+                    Ngày chụp <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={formData.shoot_date}
+                    onChange={(e) =>
+                      setFormData({ ...formData, shoot_date: e.target.value })
+                    }
+                    className="w-full rounded-xl border border-[#dfe3ec] bg-white px-3 py-2 text-[13px] outline-none focus:border-[#ff8d28] focus:ring-2 focus:ring-[#ff8d28]/10"
+                  />
+                </div>
+
+                {/* Shoot Time */}
+                <div>
+                  <label className="mb-1.5 block text-[12px] font-medium text-[#536078]">
+                    Giờ chụp
+                  </label>
+                  <input
+                    type="time"
+                    value={formData.shoot_time}
+                    onChange={(e) =>
+                      setFormData({ ...formData, shoot_time: e.target.value })
+                    }
+                    className="w-full rounded-xl border border-[#dfe3ec] bg-white px-3 py-2 text-[13px] outline-none focus:border-[#ff8d28] focus:ring-2 focus:ring-[#ff8d28]/10"
+                  />
+                </div>
+
+                {/* Location */}
+                <div>
+                  <label className="mb-1.5 block text-[12px] font-medium text-[#536078]">
+                    Địa điểm
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.location}
+                    onChange={(e) =>
+                      setFormData({ ...formData, location: e.target.value })
+                    }
+                    className="w-full rounded-xl border border-[#dfe3ec] bg-white px-3 py-2 text-[13px] outline-none focus:border-[#ff8d28] focus:ring-2 focus:ring-[#ff8d28]/10"
+                    placeholder="Địa điểm chụp"
+                  />
+                </div>
+
+                {/* Number of People */}
+                <div>
+                  <label className="mb-1.5 block text-[12px] font-medium text-[#536078]">
+                    Số người
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={formData.num_people}
+                    onChange={(e) =>
+                      setFormData({ ...formData, num_people: parseInt(e.target.value) || 1 })
+                    }
+                    className="w-full rounded-xl border border-[#dfe3ec] bg-white px-3 py-2 text-[13px] outline-none focus:border-[#ff8d28] focus:ring-2 focus:ring-[#ff8d28]/10"
+                  />
+                </div>
+
+                {/* Concept */}
+                <div className="md:col-span-2">
+                  <label className="mb-1.5 block text-[12px] font-medium text-[#536078]">
+                    Concept / Ghi chú
+                  </label>
+                  <textarea
+                    value={formData.concept}
+                    onChange={(e) =>
+                      setFormData({ ...formData, concept: e.target.value })
+                    }
+                    className="w-full rounded-xl border border-[#dfe3ec] bg-white px-3 py-2 text-[13px] outline-none focus:border-[#ff8d28] focus:ring-2 focus:ring-[#ff8d28]/10"
+                    placeholder="Mô tả concept, yêu cầu đặc biệt..."
+                    rows={3}
+                  />
+                </div>
+              </div>
+
+              {/* Buttons */}
+              <div className="mt-6 flex justify-end gap-2">
+                <button
+                  onClick={() => setAddModalOpen(false)}
+                  className="rounded-xl border border-[#dfe3ec] bg-white px-4 py-2 text-[13px] font-medium text-[#536078] hover:bg-gray-50"
+                >
+                  Hủy
+                </button>
+                <button
+                  onClick={handleCreateBooking}
+                  className="rounded-xl bg-[#ff8d28] px-4 py-2 text-[13px] font-medium text-white hover:bg-[#f47f16]"
+                >
+                  Tạo Booking
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </AdminLayout>
   );

@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import AdminLayout from "../_components/admin-layout";
 import { AdminIcon, IconButton } from "../_components/admin-icons";
+import { api } from "@/lib/api";
 
 type LogLevel = "INFO" | "WARNING" | "ERROR" | "DEBUG";
 type LogCategory = "Auth" | "Booking" | "Payment" | "User" | "System" | "API" | "AI";
@@ -22,21 +23,6 @@ type Log = {
   trace: string[];
 };
 
-const seed: Log[] = [
-  { id: "LOG_001", level: "ERROR", category: "Payment", message: "Payment gateway timeout - MoMo", detail: "Giao dịch #TXN_20241130_001 bị timeout sau 30s. Khách hàng Nguyễn Thị Mai không nhận được xác nhận.", ip: "103.1.148.22", user: "Nguyễn Thị Mai", userId: "USR_2291", time: "30/11/2024 10:32:15", duration: 30412, statusCode: 504, trace: ["10:32:15 · Request sent to MoMo gateway", "10:32:45 · Timeout after 30s", "10:32:45 · Rollback transaction initiated"] },
-  { id: "LOG_002", level: "WARNING", category: "Auth", message: "Multiple failed login attempts", detail: "IP 203.113.132.44 đã thử đăng nhập thất bại 5 lần liên tiếp trong vòng 2 phút.", ip: "203.113.132.44", user: "Unknown", userId: "—", time: "30/11/2024 09:15:02", duration: 120, statusCode: 401, trace: ["09:13:02 · Login attempt 1 - failed", "09:14:10 · Login attempt 2 - failed", "09:15:02 · Login attempt 5 - account temporarily locked"] },
-  { id: "LOG_003", level: "INFO", category: "Booking", message: "Booking #BK20241130 created successfully", detail: "Booking mới được tạo bởi khách hàng Trần Văn Phong. Dịch vụ: Chụp ảnh cưới. Photographer: Minh Tuấn Studio.", ip: "27.72.105.88", user: "Trần Văn Phong", userId: "USR_3345", time: "30/11/2024 08:45:33", duration: 342, statusCode: 201, trace: ["08:45:33 · Booking created", "08:45:33 · Email notification sent", "08:45:34 · Photographer notified"] },
-  { id: "LOG_004", level: "ERROR", category: "API", message: "Database connection pool exhausted", detail: "Số lượng kết nối DB đạt giới hạn 100/100. Các request mới đang bị xếp hàng chờ.", ip: "10.0.0.1", user: "SYSTEM", userId: "SYS", time: "30/11/2024 08:30:00", duration: 0, statusCode: 500, trace: ["08:30:00 · Connection pool at 100/100", "08:30:00 · New requests queued", "08:30:05 · Alert sent to admin"] },
-  { id: "LOG_005", level: "INFO", category: "AI", message: "AI moderation scan completed", detail: "Quét tự động hoàn tất: 48 nội dung mới. Phát hiện 3 vi phạm mức Cao, 7 Trung bình.", ip: "10.0.0.2", user: "AI_BOT", userId: "BOT_001", time: "29/11/2024 23:00:00", duration: 8420, statusCode: 200, trace: ["23:00:00 · Scan started (48 items)", "23:01:20 · 3 HIGH violations flagged", "23:02:10 · Scan completed"] },
-  { id: "LOG_006", level: "WARNING", category: "System", message: "High CPU usage detected", detail: "CPU usage đạt 87% trong 5 phút liên tục. Server instance i-0abc123def đang bị quá tải.", ip: "10.0.0.1", user: "SYSTEM", userId: "SYS", time: "29/11/2024 20:15:44", duration: 300000, statusCode: 200, trace: ["20:10:44 · CPU spike detected (87%)", "20:15:44 · Alert triggered", "20:16:00 · Auto-scaling initiated"] },
-  { id: "LOG_007", level: "DEBUG", category: "User", message: "User profile updated - avatar", detail: "Người dùng Lê Quang Huy cập nhật ảnh đại diện mới. File: avatar_USR_4412.jpg (256KB).", ip: "171.225.183.12", user: "Lê Quang Huy", userId: "USR_4412", time: "29/11/2024 19:30:22", duration: 512, statusCode: 200, trace: ["19:30:22 · Upload request received", "19:30:22 · Image validated and resized", "19:30:22 · Profile updated"] },
-  { id: "LOG_008", level: "INFO", category: "Payment", message: "Refund processed - BK20241118", detail: "Hoàn tiền 6.300.000đ cho booking #BK20241118. Khách hàng: Đặng Quốc Bảo. Phương thức: VNPAY.", ip: "10.0.0.3", user: "Admin Phương", userId: "ADM_001", time: "29/11/2024 17:22:10", duration: 1240, statusCode: 200, trace: ["17:22:10 · Refund initiated by admin", "17:22:11 · VNPAY refund request sent", "17:22:12 · Refund confirmed"] },
-  { id: "LOG_009", level: "ERROR", category: "Auth", message: "JWT token validation failed", detail: "Token hết hạn hoặc không hợp lệ từ IP 14.177.244.88. User bị đăng xuất tự động.", ip: "14.177.244.88", user: "Unknown", userId: "—", time: "29/11/2024 14:55:37", duration: 12, statusCode: 403, trace: ["14:55:37 · Token validation failed", "14:55:37 · Session terminated", "14:55:37 · Client redirected to login"] },
-  { id: "LOG_010", level: "INFO", category: "System", message: "Scheduled backup completed", detail: "Backup database hàng ngày hoàn tất. Size: 2.4GB. Lưu tại S3 bucket sudion-backup-prod.", ip: "10.0.0.1", user: "SYSTEM", userId: "SYS", time: "29/11/2024 03:00:15", duration: 45200, statusCode: 200, trace: ["03:00:00 · Backup started", "03:00:15 · 2.4GB exported to S3", "03:00:15 · Backup verified OK"] },
-  { id: "LOG_011", level: "WARNING", category: "API", message: "Rate limit approaching - /api/search", detail: "Endpoint /api/search nhận 480/500 req/min từ IP 103.200.22.11. Sắp đạt rate limit.", ip: "103.200.22.11", user: "Unknown", userId: "—", time: "28/11/2024 15:12:08", duration: 0, statusCode: 429, trace: ["15:12:08 · 480/500 req/min threshold reached", "15:12:08 · Warning logged"] },
-  { id: "LOG_012", level: "DEBUG", category: "Booking", message: "Booking status transition: Confirmed → In Progress", detail: "Booking #BK20241123 chuyển trạng thái. Photographer: Khang Pham bắt đầu buổi chụp.", ip: "27.79.45.101", user: "Khang Pham", userId: "PHO_1122", time: "28/11/2024 07:05:19", duration: 88, statusCode: 200, trace: ["07:05:19 · Status updated", "07:05:19 · Customer notified via SMS"] },
-];
-
 const levelColors: Record<LogLevel, string> = {
   ERROR: "bg-red-50 text-red-600",
   WARNING: "bg-amber-50 text-amber-600",
@@ -52,29 +38,56 @@ const levelDotColors: Record<LogLevel, string> = {
 };
 
 export default function SystemLogPage() {
-  const [items] = useState(seed);
+  const [items, setItems] = useState<Log[]>([]);
+  const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [level, setLevel] = useState<LogLevel | "Tất cả">("Tất cả");
   const [category, setCategory] = useState<LogCategory | "Tất cả">("Tất cả");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [toast, setToast] = useState("");
+  const [stats, setStats] = useState({ total: 0, error: 0, warning: 0, info: 0 });
+
+  useEffect(() => {
+    loadLogs();
+    loadStats();
+  }, [level, category]);
+
+  async function loadLogs() {
+    setLoading(true);
+    try {
+      const params: Record<string, any> = { page: 1, pageSize: 100 };
+      if (level !== "Tất cả") params.level = level;
+      if (category !== "Tất cả") params.category = category;
+      
+      const result = await api.logs.getAll(params);
+      if (result.success && result.data) {
+        setItems(result.data);
+      }
+    } catch (error) {
+      console.error("Failed to load logs:", error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function loadStats() {
+    try {
+      const result = await api.logs.getStats();
+      if (result.success && result.data) {
+        setStats(result.data);
+      }
+    } catch (error) {
+      console.error("Failed to load stats:", error);
+    }
+  }
 
   const selected = items.find((item) => item.id === selectedId) ?? items[0];
 
   const filtered = useMemo(() => items.filter((item) => {
     const text = [item.id, item.level, item.category, item.message, item.user, item.ip, item.userId].join(" ").toLowerCase();
-    return text.includes(query.toLowerCase())
-      && (level === "Tất cả" || item.level === level)
-      && (category === "Tất cả" || item.category === category);
-  }), [items, query, level, category]);
-
-  const stats = {
-    total: items.length,
-    error: items.filter((item) => item.level === "ERROR").length,
-    warning: items.filter((item) => item.level === "WARNING").length,
-    info: items.filter((item) => item.level === "INFO").length,
-  };
+    return text.includes(query.toLowerCase());
+  }), [items, query]);
 
   function notify(text: string) {
     setToast(text);
@@ -106,6 +119,19 @@ export default function SystemLogPage() {
     notify("Đã xuất log thành công.");
   }
 
+  async function deleteOldLogs() {
+    try {
+      const result = await api.logs.deleteOld(30);
+      if (result.success) {
+        notify(result.message || "Đã xóa log cũ hơn 30 ngày.");
+        loadLogs();
+        loadStats();
+      }
+    } catch (error) {
+      notify("Lỗi khi xóa log.");
+    }
+  }
+
   return (
     <AdminLayout active="System Log" search={query} onSearch={setQuery}>
       {toast ? <Toast text={toast} /> : null}
@@ -119,14 +145,14 @@ export default function SystemLogPage() {
             <button onClick={exportLogs} className="inline-flex h-10 items-center gap-2 rounded-xl border border-[#ffd2ad] bg-white px-4 text-[13px] text-[#ff8d28] hover:bg-[#fff8f1]">
               <AdminIcon name="download" /> Xuất Log
             </button>
-            <button onClick={() => notify("Đã xóa log cũ hơn 30 ngày.")} className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#ff8d28] px-4 text-[13px] font-medium text-white shadow-[0_10px_20px_rgba(255,141,40,0.22)] hover:bg-[#f47f16]">
+            <button onClick={deleteOldLogs} className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#ff8d28] px-4 text-[13px] font-medium text-white shadow-[0_10px_20px_rgba(255,141,40,0.22)] hover:bg-[#f47f16]">
               <AdminIcon name="delete" /> Xóa log cũ
             </button>
           </div>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <StatCard title="Tổng log hôm nay" value={String(stats.total)} note="↑ 12.4% so với hôm qua" tone="blue" icon="log" />
+          <StatCard title="Tổng log hôm nay" value={String(stats.total)} note="Hoạt động hệ thống" tone="blue" icon="log" />
           <StatCard title="Lỗi (ERROR)" value={String(stats.error)} note="Cần xử lý ngay" tone="red" icon="close" />
           <StatCard title="Cảnh báo (WARNING)" value={String(stats.warning)} note="Theo dõi thêm" tone="amber" icon="filter" />
           <StatCard title="Thông tin (INFO)" value={String(stats.info)} note="Hoạt động bình thường" tone="green" icon="check" />
@@ -141,7 +167,7 @@ export default function SystemLogPage() {
             <Select value={level} options={["Tất cả", "ERROR", "WARNING", "INFO", "DEBUG"]} onChange={(v) => setLevel(v as LogLevel | "Tất cả")} prefix="Level:" />
             <Select value={category} options={["Tất cả", "Auth", "Booking", "Payment", "User", "System", "API", "AI"]} onChange={(v) => setCategory(v as LogCategory | "Tất cả")} prefix="Module:" />
             <button className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-[#ffd2ad] bg-white px-3 !text-[12px] !font-normal text-[#ff8d28] hover:bg-[#fff8f1]">
-              <AdminIcon name="calendar" className="h-3.5 w-3.5 shrink-0" /> 01/11 - 30/11
+              <AdminIcon name="calendar" className="h-3.5 w-3.5 shrink-0" /> Hôm nay
             </button>
             <IconButton label="Đặt lại bộ lọc" icon="filter" size="md" onClick={() => { setQuery(""); setLevel("Tất cả"); setCategory("Tất cả"); }} />
           </div>
@@ -154,56 +180,62 @@ export default function SystemLogPage() {
             ))}
           </div>
 
-          <div className="overflow-x-auto rounded-xl border border-[#e6e9f1]">
-            <table className="w-full min-w-[1080px] text-left text-[12px]">
-              <thead className="bg-[#fbfcfe] text-[#536078]">
-                <tr>
-                  {["Level", "Module", "Message", "User / IP", "Status", "Duration", "Thời gian", ""].map((h) => (
-                    <th key={h} className="px-3 py-3 font-semibold">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#edf0f5]">
-                {filtered.map((item) => (
-                  <tr key={item.id} onClick={() => openDetail(item.id)} className={`cursor-pointer hover:bg-[#fff8f1] ${selectedId === item.id ? "bg-[#fff3e8]" : "bg-white"}`}>
-                    <td className="px-3 py-3">
-                      <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ${levelColors[item.level]}`}>
-                        <span className={`h-1.5 w-1.5 rounded-full ${levelDotColors[item.level]}`} />
-                        {item.level}
-                      </span>
-                    </td>
-                    <td className="px-3 py-3">
-                      <span className="rounded-lg bg-[#f0f2f8] px-2.5 py-1 text-[11px] font-medium text-[#536078]">{item.category}</span>
-                    </td>
-                    <td className="px-3 py-3">
-                      <b className="block font-medium">{item.message}</b>
-                      <p className="mt-0.5 max-w-[280px] truncate text-[#697086]">{item.detail}</p>
-                    </td>
-                    <td className="px-3 py-3">
-                      <span className="font-medium">{item.user}</span>
-                      <p className="text-[#697086]">{item.ip}</p>
-                    </td>
-                    <td className="px-3 py-3">
-                      <span className={`font-semibold ${item.statusCode >= 500 ? "text-red-500" : item.statusCode >= 400 ? "text-amber-500" : "text-emerald-600"}`}>{item.statusCode}</span>
-                    </td>
-                    <td className="px-3 py-3 text-[#697086]">{item.duration > 1000 ? `${(item.duration / 1000).toFixed(1)}s` : `${item.duration}ms`}</td>
-                    <td className="px-3 py-3 text-[#697086]">{item.time}</td>
-                    <td className="px-3 py-3">
-                      <IconButton label="Xem chi tiết" icon="eye" onClick={(e) => { e.stopPropagation(); openDetail(item.id); }} />
-                    </td>
+          {loading ? (
+            <div className="py-12 text-center text-[#697086]">Đang tải...</div>
+          ) : filtered.length === 0 ? (
+            <div className="py-12 text-center text-[#697086]">Không có log nào</div>
+          ) : (
+            <div className="overflow-x-auto rounded-xl border border-[#e6e9f1]">
+              <table className="w-full min-w-[1080px] text-left text-[12px]">
+                <thead className="bg-[#fbfcfe] text-[#536078]">
+                  <tr>
+                    {["Level", "Module", "Message", "User / IP", "Status", "Duration", "Thời gian", ""].map((h) => (
+                      <th key={h} className="px-3 py-3 font-semibold">{h}</th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-[#edf0f5]">
+                  {filtered.map((item) => (
+                    <tr key={item.id} onClick={() => openDetail(item.id)} className={`cursor-pointer hover:bg-[#fff8f1] ${selectedId === item.id ? "bg-[#fff3e8]" : "bg-white"}`}>
+                      <td className="px-3 py-3">
+                        <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ${levelColors[item.level]}`}>
+                          <span className={`h-1.5 w-1.5 rounded-full ${levelDotColors[item.level]}`} />
+                          {item.level}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3">
+                        <span className="rounded-lg bg-[#f0f2f8] px-2.5 py-1 text-[11px] font-medium text-[#536078]">{item.category}</span>
+                      </td>
+                      <td className="px-3 py-3">
+                        <b className="block font-medium">{item.message}</b>
+                        <p className="mt-0.5 max-w-[280px] truncate text-[#697086]">{item.detail}</p>
+                      </td>
+                      <td className="px-3 py-3">
+                        <span className="font-medium">{item.user}</span>
+                        <p className="text-[#697086]">{item.ip}</p>
+                      </td>
+                      <td className="px-3 py-3">
+                        <span className={`font-semibold ${item.statusCode >= 500 ? "text-red-500" : item.statusCode >= 400 ? "text-amber-500" : "text-emerald-600"}`}>{item.statusCode}</span>
+                      </td>
+                      <td className="px-3 py-3 text-[#697086]">{item.duration > 1000 ? `${(item.duration / 1000).toFixed(1)}s` : `${item.duration}ms`}</td>
+                      <td className="px-3 py-3 text-[#697086]">{item.time}</td>
+                      <td className="px-3 py-3">
+                        <IconButton label="Xem chi tiết" icon="eye" onClick={(e) => { e.stopPropagation(); openDetail(item.id); }} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
           <div className="mt-4 flex items-center justify-between text-[12px] text-[#697086]">
             <span>Hiển thị 1 - {filtered.length} của {items.length} log</span>
-            <span className="rounded-xl border border-[#dfe3ec] px-3 py-2">20 / trang</span>
+            <span className="rounded-xl border border-[#dfe3ec] px-3 py-2">100 / trang</span>
           </div>
         </Panel>
       </div>
 
-      {selectedId !== null ? (
+      {selectedId !== null && selected ? (
         <div className={`fixed inset-0 z-50 bg-[#0f172a]/45 backdrop-blur-[3px] transition-opacity duration-200 ${detailOpen ? "opacity-100" : "opacity-0"}`} onClick={closeDetail}>
           <aside className={`absolute right-0 top-0 h-full w-full min-w-0 overflow-y-auto border-l border-[#e6e9f1] bg-white px-5 py-5 shadow-[-24px_0_48px_rgba(12,18,32,0.2)] transition-transform duration-300 ease-out sm:w-[460px] ${detailOpen ? "translate-x-0" : "translate-x-full"}`} onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between">
@@ -231,17 +263,18 @@ export default function SystemLogPage() {
                 <InfoRow label="Duration" value={selected.duration > 1000 ? `${(selected.duration / 1000).toFixed(1)}s` : `${selected.duration}ms`} />
               </div>
             </div>
-            <div className="mt-5 border-t border-[#edf0f5] pt-5">
-              <h3 className="text-[14px] font-semibold">Stack Trace</h3>
-              <div className="mt-3 rounded-xl bg-[#f7f8fb] p-3">
-                {selected.trace.map((line) => (
-                  <p key={line} className="font-mono text-[11px] leading-6 text-[#536078]">&gt; {line}</p>
-                ))}
+            {selected.trace && selected.trace.length > 0 && (
+              <div className="mt-5 border-t border-[#edf0f5] pt-5">
+                <h3 className="text-[14px] font-semibold">Device Info</h3>
+                <div className="mt-3 rounded-xl bg-[#f7f8fb] p-3">
+                  {selected.trace.map((line, i) => (
+                    <p key={i} className="font-mono text-[11px] leading-6 text-[#536078]">&gt; {line}</p>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
             <div className="mt-6 flex justify-end gap-2 border-t border-[#edf0f5] pt-5">
               <IconButton label="Copy log" icon="copy" onClick={() => notify("Đã copy log.")} />
-              <IconButton label="Đánh dấu đã xử lý" icon="check" onClick={() => notify("Đã đánh dấu xử lý.")} />
             </div>
           </aside>
         </div>

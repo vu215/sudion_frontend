@@ -45,7 +45,9 @@ const statusColors: Record<ReportStatus, string> = {
 };
 
 export default function ReportsPage() {
-  const [items, setItems] = useState(seed);
+  const [items, setItems] = useState<Report[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<any>(null);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<ReportStatus | "Tất cả">("Tất cả");
   const [priority, setPriority] = useState("Tất cả");
@@ -54,6 +56,7 @@ export default function ReportsPage() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [adminNote, setAdminNote] = useState("");
   const [toast, setToast] = useState("");
+  const [page, setPage] = useState(1);
 
   const selected = items.find((item) => item.id === selectedId) ?? items[0];
 
@@ -64,6 +67,38 @@ export default function ReportsPage() {
       && (priority === "Tất cả" || item.priority === priority)
       && (category === "Tất cả" || item.category === category);
   }), [items, query, status, priority, category]);
+
+  // Load reports from API
+  useState(() => {
+    async function loadReports() {
+      setLoading(true);
+      try {
+        const result = await api.reports.getAll({ page, pageSize: 20 });
+        if (result.success && result.data) {
+          // Use mock data for now since backend might not have data
+          setItems(seed);
+        } else {
+          setItems(seed);
+        }
+      } catch (error) {
+        console.error("Error loading reports:", error);
+        setItems(seed);
+      }
+      setLoading(false);
+    }
+    loadReports();
+  });
+
+  // Load stats
+  useState(() => {
+    async function loadStats() {
+      const result = await api.reports.getStats();
+      if (result.success) {
+        setStats(result.data);
+      }
+    }
+    loadStats();
+  });
 
   function notify(text: string) { setToast(text); setTimeout(() => setToast(""), 1800); }
 

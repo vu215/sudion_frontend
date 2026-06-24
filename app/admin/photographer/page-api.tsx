@@ -39,36 +39,12 @@ export default function PhotographerPage() {
   const [toast, setToast] = useState("");
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState<any>(null);
-  const [addModalOpen, setAddModalOpen] = useState(false);
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    active_area: "",
-    bio: "",
-    photographer_type: "freelance" as "freelance" | "studio" | "agency"
-  });
 
   const regions = useMemo(() => ["Tất cả", ...Array.from(new Set(items.map((i) => i.region)))], [items]);
-  const filtered = useMemo(() => {
-    if (!items || items.length === 0) return [];
-    
-    return items.filter((i) => {
-      // Search filter
-      if (query) {
-        const text = [i.name, i.studio, i.email, i.phone, i.region, i.status, ...(i.services || [])].join(" ").toLowerCase();
-        if (!text.includes(query.toLowerCase())) return false;
-      }
-      
-      // Status filter
-      if (status !== "Tất cả" && i.status !== status) return false;
-      
-      // Region filter
-      if (region !== "Tất cả" && i.region !== region) return false;
-      
-      return true;
-    });
-  }, [items, query, region, status]);
+  const filtered = useMemo(() => items.filter((i) => {
+    const text = [i.name, i.studio, i.email, i.phone, i.region, i.status, ...i.services].join(" ").toLowerCase();
+    return text.includes(query.toLowerCase()) && (status === "Tất cả" || i.status === status) && (region === "Tất cả" || i.region === region);
+  }), [items, query, region, status]);
   const selected = items.find((i) => i.id === selectedId) ?? filtered[0] ?? items[0];
 
   // Map backend status to frontend
@@ -86,53 +62,37 @@ export default function PhotographerPage() {
   useEffect(() => {
     async function loadPhotographers() {
       setLoading(true);
-      try {
-        const params: any = { 
-          page: 1, 
-          pageSize: 10,
-        };
+      const result = await api.photographers.getAll({ page, pageSize: 10 });
+      
+      if (result.success && result.data) {
+        const transformedData = result.data.map((p: any) => ({
+          id: p.id,
+          studio: p.studio || p.studio_name || p.name,
+          name: p.name,
+          email: p.email,
+          phone: p.phone,
+          region: p.region || "N/A",
+          avatar: p.avatar || "/logo_sudion.jpg",
+          services: Array.isArray(p.services) ? p.services : (typeof p.services === 'string' ? JSON.parse(p.services || '[]') : []),
+          rating: p.rating || 0,
+          reviews: p.reviews || 0,
+          bookings: p.bookings || 0,
+          status: mapStatus(p.status),
+          joined: new Date(p.joined).toLocaleDateString("vi-VN"),
+          birthday: "N/A",
+          gender: "N/A",
+          bio: p.bio || "",
+          documents: [],
+        }));
         
-        console.log('Requesting with params:', params); // Debug
-        
-        const result = await api.photographers.getAll(params);
-        
-        console.log('API Response:', result); // Debug
-        
-        if (result.success && result.data) {
-          const transformedData = result.data.map((p: any) => ({
-            id: p.id,
-            studio: p.name || "N/A", // Use name as studio
-            name: p.name,
-            email: p.email,
-            phone: p.phone || "N/A",
-            region: p.region || p.active_area || "N/A",
-            avatar: p.avatar_url || "/logo_sudion.jpg",
-            services: [], // Empty array for now
-            rating: parseFloat(p.rating) || 0,
-            reviews: 0, // Not available
-            bookings: parseInt(p.bookings) || 0,
-            status: mapStatus(p.status || "pending"),
-            joined: p.joined ? new Date(p.joined).toLocaleDateString("vi-VN") : "N/A",
-            birthday: "N/A",
-            gender: "N/A",
-            bio: p.bio || "",
-            documents: [],
-          }));
-          
-          console.log('Transformed photographers:', transformedData.length, transformedData);
-          setItems(transformedData);
-          setPagination(result.pagination);
-        } else {
-          console.error('API returned no data or failed:', result);
-        }
-      } catch (error) {
-        console.error('Error loading photographers:', error);
+        setItems(transformedData);
+        setPagination(result.pagination);
       }
       setLoading(false);
     }
 
     loadPhotographers();
-  }, [page, query, status, region]); // Add all dependencies
+  }, [page]);
 
   // Load stats
   useEffect(() => {
@@ -173,39 +133,7 @@ export default function PhotographerPage() {
   }
 
   function addPhotographer() {
-    setAddModalOpen(true);
-  }
-
-  async function handleCreatePhotographer() {
-    // Validate
-    if (!formData.name || !formData.email) {
-      notify("Vui lòng nhập đầy đủ thông tin!");
-      return;
-    }
-
-    try {
-      const result = await api.photographers.create(formData);
-      
-      if (result.success) {
-        notify("Đã tạo photographer thành công!");
-        setAddModalOpen(false);
-        setFormData({
-          name: "",
-          email: "",
-          phone: "",
-          active_area: "",
-          bio: "",
-          photographer_type: "freelance"
-        });
-        // Reload list
-        window.location.reload();
-      } else {
-        notify(`Lỗi: ${result.message || result.error || "Không thể tạo"}`);
-      }
-    } catch (error) {
-      notify("Lỗi khi tạo photographer");
-      console.error(error);
-    }
+    notify("Tính năng thêm photographer sẽ được implement sau.");
   }
 
   function openDetail(id: number) {
@@ -319,114 +247,6 @@ export default function PhotographerPage() {
           </div>
         </aside>
         </div> : null}
-
-        {/* Add Photographer Modal */}
-        {addModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0f172a]/45 backdrop-blur-[3px]" onClick={() => setAddModalOpen(false)}>
-            <div className="relative w-full max-w-md rounded-2xl border border-[#e6e9f1] bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-[18px] font-semibold">Thêm Photographer Mới</h2>
-                <IconButton label="Đóng" icon="close" onClick={() => setAddModalOpen(false)} />
-              </div>
-              
-              <div className="space-y-4">
-                {/* Name */}
-                <div>
-                  <label className="mb-1.5 block text-[12px] font-medium text-[#536078]">
-                    Họ và tên <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full rounded-xl border border-[#dfe3ec] bg-white px-3 py-2 text-[13px] outline-none focus:border-[#ff8d28] focus:ring-2 focus:ring-[#ff8d28]/10"
-                    placeholder="Nhập họ và tên"
-                  />
-                </div>
-
-                {/* Email */}
-                <div>
-                  <label className="mb-1.5 block text-[12px] font-medium text-[#536078]">
-                    Email <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full rounded-xl border border-[#dfe3ec] bg-white px-3 py-2 text-[13px] outline-none focus:border-[#ff8d28] focus:ring-2 focus:ring-[#ff8d28]/10"
-                    placeholder="Nhập email"
-                  />
-                </div>
-
-                {/* Phone */}
-                <div>
-                  <label className="mb-1.5 block text-[12px] font-medium text-[#536078]">Số điện thoại</label>
-                  <input
-                    type="text"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full rounded-xl border border-[#dfe3ec] bg-white px-3 py-2 text-[13px] outline-none focus:border-[#ff8d28] focus:ring-2 focus:ring-[#ff8d28]/10"
-                    placeholder="Nhập số điện thoại"
-                  />
-                </div>
-
-                {/* Active Area / Region */}
-                <div>
-                  <label className="mb-1.5 block text-[12px] font-medium text-[#536078]">Khu vực hoạt động</label>
-                  <input
-                    type="text"
-                    value={formData.active_area}
-                    onChange={(e) => setFormData({ ...formData, active_area: e.target.value })}
-                    className="w-full rounded-xl border border-[#dfe3ec] bg-white px-3 py-2 text-[13px] outline-none focus:border-[#ff8d28] focus:ring-2 focus:ring-[#ff8d28]/10"
-                    placeholder="VD: Hà Nội, TP.HCM"
-                  />
-                </div>
-
-                {/* Photographer Type */}
-                <div>
-                  <label className="mb-1.5 block text-[12px] font-medium text-[#536078]">Loại photographer</label>
-                  <select
-                    value={formData.photographer_type}
-                    onChange={(e) => setFormData({ ...formData, photographer_type: e.target.value as "freelance" | "studio" | "agency" })}
-                    className="w-full rounded-xl border border-[#dfe3ec] bg-white px-3 py-2 text-[13px] outline-none focus:border-[#ff8d28] focus:ring-2 focus:ring-[#ff8d28]/10"
-                  >
-                    <option value="freelance">Freelance</option>
-                    <option value="studio">Studio</option>
-                    <option value="agency">Agency</option>
-                  </select>
-                </div>
-
-                {/* Bio */}
-                <div>
-                  <label className="mb-1.5 block text-[12px] font-medium text-[#536078]">Tiểu sử</label>
-                  <textarea
-                    value={formData.bio}
-                    onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
-                    className="w-full rounded-xl border border-[#dfe3ec] bg-white px-3 py-2 text-[13px] outline-none focus:border-[#ff8d28] focus:ring-2 focus:ring-[#ff8d28]/10"
-                    placeholder="Giới thiệu ngắn gọn về photographer"
-                    rows={3}
-                  />
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="mt-6 flex justify-end gap-2">
-                <button
-                  onClick={() => setAddModalOpen(false)}
-                  className="rounded-xl border border-[#dfe3ec] bg-white px-4 py-2 text-[13px] font-medium text-[#536078] hover:bg-gray-50"
-                >
-                  Hủy
-                </button>
-                <button
-                  onClick={handleCreatePhotographer}
-                  className="rounded-xl bg-[#ff8d28] px-4 py-2 text-[13px] font-medium text-white hover:bg-[#f47f16]"
-                >
-                  Tạo Photographer
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </AdminLayout>
   );

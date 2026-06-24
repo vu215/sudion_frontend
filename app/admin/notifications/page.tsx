@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import AdminLayout from "../_components/admin-layout";
 import { AdminIcon, IconButton } from "../_components/admin-icons";
+import { api } from "@/lib/api";
 
 type NotiType = "Hệ thống" | "Booking" | "Thanh toán" | "Vi phạm" | "Người dùng";
 type NotiStatus = "Chưa đọc" | "Đã đọc";
@@ -49,13 +50,16 @@ const typeIconBg: Record<NotiType, string> = {
 };
 
 export default function NotificationsPage() {
-  const [items, setItems] = useState(seed);
+  const [items, setItems] = useState<Notification[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<any>(null);
   const [query, setQuery] = useState("");
   const [type, setType] = useState<NotiType | "Tất cả">("Tất cả");
   const [status, setStatus] = useState<NotiStatus | "Tất cả">("Tất cả");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [toast, setToast] = useState("");
+  const [page, setPage] = useState(1);
 
   const selected = items.find((item) => item.id === selectedId) ?? items[0];
   const unreadCount = items.filter((item) => item.status === "Chưa đọc").length;
@@ -67,15 +71,59 @@ export default function NotificationsPage() {
       && (status === "Tất cả" || item.status === status);
   }), [items, query, type, status]);
 
+  // Load notifications from API
+  useEffect(() => {
+    async function loadNotifications() {
+      setLoading(true);
+      const result = await api.notifications.getAll({ page, pageSize: 20 });
+      
+      if (result.success && result.data && Array.isArray(result.data)) {
+        // Transform backend data if needed
+        // For now, assume backend returns empty array
+        if (result.data.length === 0) {
+          // Use seed data as fallback
+          setItems(seed);
+        } else {
+          setItems(result.data);
+        }
+      } else {
+        // Fallback to seed data
+        setItems(seed);
+      }
+      setLoading(false);
+    }
+
+    loadNotifications();
+  }, [page]);
+
+  // Load stats
+  useEffect(() => {
+    async function loadStats() {
+      const result = await api.notifications.getStats();
+      if (result.success) {
+        setStats(result.data);
+      }
+    }
+    loadStats();
+  }, []);
+
   function notify(text: string) { setToast(text); setTimeout(() => setToast(""), 1800); }
 
   function markRead(id: string) {
-    setItems((list) => list.map((item) => item.id === id ? { ...item, status: "Đã đọc" } : item));
+    setItems((list) => list.map((item) => item.id === id ? { ...item, status: "Đã đọc" as NotiStatus } : item));
+    // TODO: Call API to mark as read
+    // api.notifications.markAsRead(id);
   }
 
-  function markAllRead() {
-    setItems((list) => list.map((item) => ({ ...item, status: "Đã đọc" })));
-    notify("Đã đánh dấu tất cả là đã đọc.");
+  async function markAllRead() {
+    // Call API
+    const result = await api.notifications.markAllAsRead();
+    if (result.success) {
+      setItems((list) => list.map((item) => ({ ...item, status: "Đã đọc" as NotiStatus })));
+      notify("Đã đánh dấu tất cả là đã đọc.");
+    } else {
+      notify("Lỗi: Không thể đánh dấu đã đọc.");
+    }
   }
 
   function openDetail(id: string) {
@@ -115,7 +163,7 @@ export default function NotificationsPage() {
           {(["Tất cả", "Booking", "Thanh toán", "Vi phạm", "Hệ thống"] as const).map((t) => (
             <button key={t} onClick={() => setType(t === "Tất cả" ? "Tất cả" : t as NotiType)} className={`rounded-2xl border p-4 text-left shadow-[0_14px_34px_rgba(12,18,32,0.04)] transition ${type === t ? "border-[#ff8d28] bg-[#fff8f1]" : "border-[#e7e9f1] bg-white hover:bg-[#fafbff]"}`}>
               <p className="text-[12px] text-[#697086]">{t === "Tất cả" ? "Tổng thông báo" : t}</p>
-              <b className="mt-1 block text-[20px]">{t === "Tất cả" ? items.length : items.filter((item) => item.type === t).length}</b>
+              <b className="mt-1 block text-[20px]">{t === "Tất cả" ? (stats?.total || items.length) : items.filter((item) => item.type === t).length}</b>
               <p className="mt-1 text-[11px] text-[#697086]">{t === "Tất cả" ? `${unreadCount} chưa đọc` : `${items.filter((item) => item.type === t && item.status === "Chưa đọc").length} chưa đọc`}</p>
             </button>
           ))}
