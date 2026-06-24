@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, use } from "react";
 import Link from "next/link";
 import {
   getBookingFromBackend,
   type BackendBooking,
-} from "../../services/booking-api";
+} from "../../../services/booking-api";
 
 function formatDate(value: string | null) {
   if (!value) {
@@ -41,9 +41,10 @@ function formatTimeRange(value: string | null) {
 export default function BookingSuccessConfirmedPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
-  const bookingCode = params.id;
+  const unwrappedParams = use(params);
+  const bookingCode = unwrappedParams.id;
 
   const [booking, setBooking] = useState<BackendBooking | null>(null);
   const [hasLoaded, setHasLoaded] = useState(false);

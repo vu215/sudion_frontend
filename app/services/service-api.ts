@@ -288,11 +288,25 @@ async function fetchApi<T>(path: string): Promise<T> {
 }
 
 async function getCategoriesFromDb() {
-  return fetchApi<RawCategory[]>("/categories");
+  try {
+    return await fetchApi<RawCategory[]>("/categories");
+  } catch (error) {
+    console.warn("Lấy categories từ API thất bại, sử dụng fallback:", error);
+    return fallbackCategories.map((item) => ({
+      name: item.title,
+      slug: item.slug,
+      description: item.description,
+    }));
+  }
 }
 
 async function getPhotographers() {
-  return fetchApi<RawPhotographer[]>("/photographers");
+  try {
+    return await fetchApi<RawPhotographer[]>("/photographers");
+  } catch (error) {
+    console.warn("Lấy photographers từ API thất bại, sử dụng fallback:", error);
+    return [];
+  }
 }
 
 async function getAllPackages() {
@@ -493,14 +507,22 @@ function mapPackageToUi(item: RawServicePackage): ServicePackage {
 export async function getPackagesByServiceSlug(slugValue: string) {
   const slug = normalizeServiceSlug(slugValue);
 
-  const query = new URLSearchParams({
-    category: slug,
-    sort: "popular",
-  });
+  try {
+    const query = new URLSearchParams({
+      category: slug,
+      sort: "popular",
+    });
 
-  const packages = await fetchApi<RawServicePackage[]>(
-    `/service-packages?${query.toString()}`
-  );
+    const packages = await fetchApi<RawServicePackage[]>(
+      `/service-packages?${query.toString()}`
+    );
 
-  return packages.map(mapPackageToUi);
+    return packages.map(mapPackageToUi);
+  } catch (error) {
+    console.warn(`Lấy gói chụp cho ${slug} từ API thất bại, sử dụng fallback:`, error);
+    return getFallbackPackages(slug).map((item) => ({
+      ...item,
+      packageId: Number(item.id) || 0,
+    }));
+  }
 }

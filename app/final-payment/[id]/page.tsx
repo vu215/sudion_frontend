@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/app/toast-context";
 
@@ -150,12 +150,13 @@ async function payFinal(bookingCode: string, paymentMethod: string) {
 export default function FinalPaymentPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
   const router = useRouter();
   const toast = useToast();
 
-  const bookingCode = params.id;
+  const unwrappedParams = use(params);
+  const bookingCode = unwrappedParams.id;
 
   const [booking, setBooking] = useState<Booking | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("momo");
