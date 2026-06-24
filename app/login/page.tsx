@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type FormEvent } from "react";
+import { useState, Suspense, type FormEvent } from "react";
+import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/app/auth-context";
 
 const assets = {
@@ -10,7 +11,16 @@ const assets = {
 };
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={<main className="min-h-[calc(100vh-280px)] bg-[#fbf8ff] flex items-center justify-center font-bold">Đang tải...</main>}>
+      <LoginContent />
+    </Suspense>
+  );
+}
+
+function LoginContent() {
   const { login, transitionTo } = useAuth();
+  const searchParams = useSearchParams();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -43,7 +53,12 @@ export default function LoginPage() {
       return;
     }
 
-    transitionTo("/");
+    const redirect = searchParams.get("redirect") || "";
+    if (redirect) {
+      transitionTo(redirect);
+    } else {
+      transitionTo("/");
+    }
   }
 
   return (

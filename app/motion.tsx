@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 
 function showRevealNodeImmediately(node: HTMLElement) {
@@ -9,8 +9,15 @@ function showRevealNodeImmediately(node: HTMLElement) {
 
 export function MotionEffects() {
   const pathname = usePathname();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useLayoutEffect(() => {
+    if (!mounted) return;
+
     const root = document.documentElement;
     const previousScrollBehavior = root.style.scrollBehavior;
     const previousScrollRestoration = history.scrollRestoration;
@@ -62,9 +69,11 @@ export function MotionEffects() {
       history.scrollRestoration = previousScrollRestoration;
       root.style.scrollBehavior = previousScrollBehavior;
     };
-  }, []);
+  }, [mounted]);
 
   useEffect(() => {
+    if (!mounted) return;
+
     // --- Scroll Reveal Observer ---
     const fallbackTimers: number[] = [];
     const observedRevealNodes = new Set<HTMLElement>();
@@ -137,12 +146,16 @@ export function MotionEffects() {
       fallbackTimers.push(window.setTimeout(syncRevealNodes, 80));
     };
 
-    syncRevealNodes();
-    requestAnimationFrame(syncRevealNodes);
+    const handleSyncReveal = () => {
+      syncRevealNodes();
+    };
+    window.addEventListener("sync-reveal", handleSyncReveal);
+
+    // Defer initial synchronization to prevent hydration mismatches
     fallbackTimers.push(
-      window.setTimeout(syncRevealNodes, 80),
-      window.setTimeout(syncRevealNodes, 240),
-      window.setTimeout(syncRevealNodes, 600),
+      window.setTimeout(syncRevealNodes, 150),
+      window.setTimeout(syncRevealNodes, 400),
+      window.setTimeout(syncRevealNodes, 800),
     );
     window.addEventListener("pageshow", onPageShow);
     window.addEventListener("resize", revealVisibleNodes);
@@ -184,8 +197,9 @@ export function MotionEffects() {
       fallbackTimers.forEach((timer) => window.clearTimeout(timer));
       window.removeEventListener("pageshow", onPageShow);
       window.removeEventListener("resize", revealVisibleNodes);
+      window.removeEventListener("sync-reveal", handleSyncReveal);
     };
-  }, [pathname]);
+  }, [mounted, pathname]);
 
   return null;
 }

@@ -34,7 +34,7 @@ type BookingPackage = {
   duration: string | number | null;
   worker_count: number | null;
   max_customer_count: number | null;
-  category: { id: number; name: string; slug: string; description: string | null };
+  category: { id: number; name: string; slug: string; originalSlug?: string; description: string | null };
 };
 
 type BookedSlot = {
@@ -212,14 +212,23 @@ function toSlugKey(value: string) {
 
 function normalizeServiceFilter(value: string) {
   const key = toSlugKey(value);
+
+  if (key.includes("wedding") || key.includes("cuoi")) return "wedding";
+  if (key.includes("couple") || key.includes("doi")) return "couple";
+  if (key.includes("portrait") || key.includes("chan-dung") || key.includes("don") || key.includes("ca-nhan") || key.includes("fashion") || key.includes("thoi-trang")) return "portrait";
+  if (key.includes("event") || key.includes("su-kien")) return "event";
+  if (key.includes("yearbook") || key.includes("ky-yeu") || key.includes("ki-yeu") || key.includes("graduation")) return "yearbook";
+  if (key.includes("travel") || key.includes("du-lich")) return "travel";
+  if (key.includes("food") || key.includes("product") || key.includes("am-thuc") || key.includes("do-an") || key.includes("commercial") || key.includes("thuong-mai")) return "food";
+
   const map: Record<string, string> = {
     wedding: "wedding", "chup-anh-cuoi": "wedding", "chup-cuoi": "wedding", "anh-cuoi": "wedding", "cuoi-hoi": "wedding", cuoi: "wedding",
     couple: "couple", "chup-anh-doi": "couple", "anh-doi": "couple", doi: "couple",
     portrait: "portrait", "chup-anh-don": "portrait", "chup-anh-ca-nhan": "portrait", "chup-anh-chan-dung": "portrait", "chan-dung": "portrait",
     event: "event", "chup-su-kien": "event", "chup-anh-su-kien": "event", "su-kien": "event",
-    yearbook: "yearbook", "chup-ky-yeu": "yearbook", "chup-ki-yeu": "yearbook", "ky-yeu": "yearbook",
+    yearbook: "yearbook", "chup-ky-yeu": "yearbook", "chup-ki-yeu": "yearbook", "ky-yeu": "yearbook", graduation: "yearbook",
     travel: "travel", "chup-travel": "travel", "chup-anh-du-lich": "travel", "du-lich": "travel",
-    food: "food", product: "food", "food-product": "food", "chup-anh-am-thuc": "food", "am-thuc": "food",
+    food: "food", product: "food", "food-product": "food", "chup-anh-am-thuc": "food", "am-thuc": "food", commercial: "food", "thuong-mai": "food",
   };
   return map[key] || key;
 }
@@ -267,8 +276,8 @@ function isSlotBooked(bookedSlots: BookedSlot[], date: string, timeSlot: string)
     const bookedEndText = s.shoot_end_time
       ? normalizeTime(s.shoot_end_time)
       : s.availability_slot_label
-      ? normalizeTime(s.availability_slot_label.split("-")[1] || "")
-      : "";
+        ? normalizeTime(s.availability_slot_label.split("-")[1] || "")
+        : "";
 
     const bookedStartMin = parseTimeToMinutes(bookedStartText);
     const bookedEndMin = bookedEndText
@@ -354,8 +363,10 @@ function BookingContent() {
   const serviceQuery = searchParams.get("service")?.trim() || "";
 
   // ── Core state ──
+  const [showLoginModal, setShowLoginModal] = useState(false);
   const [photographer, setPhotographer] = useState<BookingPhotographer | null>(null);
   const [packages, setPackages] = useState<BookingPackage[]>([]);
+  const [allPackages, setAllPackages] = useState<BookingPackage[]>([]);
   const [bookedSlots, setBookedSlots] = useState<BookedSlot[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -395,15 +406,18 @@ function BookingContent() {
 
   // ── Derived data ──
   const availableCategories = useMemo(() => {
-    const slugs = new Set(packages.map((p) => p.category.slug));
+    const slugs = new Set(allPackages.map((p) => p.category.slug));
     return Object.entries(CATEGORY_INFO)
       .filter(([slug]) => slugs.has(slug))
       .map(([slug, info]) => ({ slug, ...info }));
-  }, [packages]);
+  }, [allPackages]);
 
   const photographerTags = useMemo(() => availableCategories.map((c) => c.label), [availableCategories]);
 
-  const isServiceScoped = Boolean(serviceQuery);
+  const isServiceScoped = useMemo(() => {
+    const VALID_CATEGORIES = ["wedding", "couple", "portrait", "event", "yearbook", "travel", "food"];
+    return Boolean(serviceQuery && VALID_CATEGORIES.includes(serviceQuery.toLowerCase()));
+  }, [serviceQuery]);
 
   // auto-select category from URL
   const resolvedCategory = useMemo(() => {
@@ -487,6 +501,34 @@ function BookingContent() {
   );
 
   // ── Effects ──
+  // Load draft if it exists on mount
+  useEffect(() => {
+    try {
+      const draftStr = localStorage.getItem("sudion_booking_draft");
+      if (draftStr) {
+        const draft = JSON.parse(draftStr);
+        if (draft.photographerId === photographerId) {
+          if (draft.selectedCategory) setSelectedCategory(draft.selectedCategory);
+          if (draft.selectedSubType) setSelectedSubType(draft.selectedSubType);
+          if (draft.selectedTier) setSelectedTier(draft.selectedTier);
+          if (draft.selectedPeopleScale) setSelectedPeopleScale(draft.selectedPeopleScale);
+          if (draft.selectedAddOns) setSelectedAddOns(draft.selectedAddOns);
+          if (draft.location) setLocation(draft.location);
+          if (draft.shootDate) setShootDate(draft.shootDate);
+          if (draft.shootTime) setShootTime(draft.shootTime);
+          if (draft.specialRequest) setSpecialRequest(draft.specialRequest);
+          if (draft.fullName) setFullName(draft.fullName);
+          if (draft.email) setEmail(draft.email);
+          if (draft.phone) setPhone(draft.phone);
+          if (draft.paymentMethod) setPaymentMethod(draft.paymentMethod);
+        }
+        localStorage.removeItem("sudion_booking_draft");
+      }
+    } catch (e) {
+      console.error("Lỗi khôi phục draft đặt lịch:", e);
+    }
+  }, [photographerId]);
+
   useEffect(() => {
     if (!session) return;
     setFullName((c) => c || session.fullName);
@@ -506,45 +548,66 @@ function BookingContent() {
     })();
   }, [photographerId]);
 
-  // Load packages & add-ons when selected category changes
+  // Load photographer and ALL packages on mount
   useEffect(() => {
     if (!photographerId) return;
-    
+
     let active = true;
     (async () => {
       try {
+        setIsLoading(true);
         setError("");
-        const data = await getBookingOptions(photographerId, selectedCategory);
-        
+        // Fetch with null category to get ALL packages
+        const data = await getBookingOptions(photographerId, null);
+
         if (!active) return;
         setPhotographer(data.photographer);
-        setPackages(data.packages);
-        setApiAddOns(data.addOns || []);
-        
-        if (!data.packages.length) {
+
+        if (!data.packages || !data.packages.length) {
           throw new Error("Photographer này chưa có gói dịch vụ.");
         }
 
-        // Auto-select category if not selected yet
-        let cat = selectedCategory;
-        if (!cat) {
+        // Normalize package category slugs and save original ones
+        const normalizedPackages = data.packages.map((p) => ({
+          ...p,
+          category: {
+            ...p.category,
+            originalSlug: p.category.slug,
+            slug: normalizeServiceFilter(p.category.slug),
+          },
+        }));
+
+        setAllPackages(normalizedPackages);
+
+        // Determine initial category
+        let initialCat = selectedCategory;
+        if (!initialCat) {
           if (serviceQuery) {
-            cat = normalizeServiceFilter(serviceQuery);
-          } else if (data.packages.length > 0) {
-            cat = data.packages[0].category.slug;
+            initialCat = normalizeServiceFilter(serviceQuery);
+          } else if (normalizedPackages.length > 0) {
+            initialCat = normalizedPackages[0].category.slug;
           }
-          setSelectedCategory(cat);
         }
 
-        // Set default scale for non-wedding
-        if (cat && cat !== "wedding") {
-          const opts = PEOPLE_OPTIONS_MAP[cat] || PEOPLE_OPTIONS_MAP._default;
-          setSelectedPeopleScale((curr) => curr || opts[0]?.label || "");
+        // Ensure the initial category is valid
+        if (initialCat && !normalizedPackages.some(p => p.category.slug === initialCat)) {
+          initialCat = normalizedPackages[0].category.slug;
+        }
+
+        if (initialCat) {
+          setSelectedCategory(initialCat);
+
+          // Set default scale for non-wedding
+          if (initialCat !== "wedding") {
+            const opts = PEOPLE_OPTIONS_MAP[initialCat] || PEOPLE_OPTIONS_MAP._default;
+            setSelectedPeopleScale((curr) => curr || opts[0]?.label || "");
+          }
         }
 
         // Set initial date to today
         const today = new Date();
         setShootDate((curr) => curr || `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`);
+
       } catch (err) {
         if (!active) return;
         setError(err instanceof Error ? err.message : "Không thể tải dữ liệu.");
@@ -556,7 +619,32 @@ function BookingContent() {
     return () => {
       active = false;
     };
-  }, [photographerId, selectedCategory, serviceQuery]);
+  }, [photographerId]);
+
+  // Filter packages locally and load add-ons when selected category changes
+  useEffect(() => {
+    if (!photographerId || !selectedCategory || !allPackages.length) return;
+
+    // Filter packages locally
+    const filtered = allPackages.filter((p) => p.category.slug === selectedCategory);
+    setPackages(filtered);
+
+    // Fetch add-ons for the selected category
+    let active = true;
+    (async () => {
+      try {
+        const data = await getBookingOptions(photographerId, selectedCategory);
+        if (!active) return;
+        setApiAddOns(data.addOns || []);
+      } catch (err) {
+        console.error("Lỗi tải add-ons:", err);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [photographerId, selectedCategory, allPackages]);
 
   // Handle changing category
   const handleSelectCategory = useCallback((slug: string) => {
@@ -588,6 +676,29 @@ function BookingContent() {
     if (resolvedCategory === "wedding" && !currentTier) { setSubmitError("Vui lòng chọn gói dịch vụ."); return; }
     if (selectedTimeBooked) { setSubmitError("Khung giờ này đã được book."); return; }
 
+    // Check authentication. If guest, save draft and prompt modal
+    if (!session) {
+      const draft = {
+        photographerId,
+        selectedCategory,
+        selectedSubType,
+        selectedTier,
+        selectedPeopleScale,
+        selectedAddOns,
+        location,
+        shootDate,
+        shootTime,
+        specialRequest,
+        fullName,
+        email,
+        phone,
+        paymentMethod,
+      };
+      localStorage.setItem("sudion_booking_draft", JSON.stringify(draft));
+      setShowLoginModal(true);
+      return;
+    }
+
     try {
       setIsSubmitting(true);
       setSubmitError("");
@@ -595,7 +706,7 @@ function BookingContent() {
       const payload = {
         photographerId: photographer.id,
         packageId: matchedPackageId,
-        categorySlug: resolvedCategory,
+        categorySlug: matchedPackage?.category?.originalSlug || resolvedCategory,
         availabilitySlotLabel: shootTime,
         location, shootDate, shootTime,
         peopleScale: resolvedCategory === "wedding" ? (currentSubType?.label || "Chụp pre-wedding") : (selectedPeopleOption?.label || "Mặc định"),
@@ -665,6 +776,13 @@ function BookingContent() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   }, []);
 
+  const visibleAddons = useMemo(() => {
+    if (apiAddOns && apiAddOns.length > 0) {
+      return showMoreAddons ? apiAddOns : apiAddOns.slice(0, 4);
+    }
+    return showMoreAddons ? ADDON_CARDS : ADDON_CARDS.slice(0, 4);
+  }, [apiAddOns, showMoreAddons]);
+
   // ── Loading / Error states ──
   if (isLoading) return <main className="min-h-screen bg-[#fafbfc]" />;
 
@@ -684,7 +802,6 @@ function BookingContent() {
 
   if (!photographer) return null;
 
-  const visibleAddons = showMoreAddons ? ADDON_CARDS : ADDON_CARDS.slice(0, 4);
   const visibleSubTypes = showMoreSubTypes ? WEDDING_SUBTYPES : WEDDING_SUBTYPES.slice(0, 5);
 
   // ──────────── JSX ────────────
@@ -869,8 +986,8 @@ function BookingContent() {
                           <div className="p-4 pt-0">
                             <button type="button" onClick={() => setSelectedTier(tier.tier)}
                               className={`w-full rounded-lg py-2.5 text-xs font-bold transition-all ${active
-                                  ? "bg-[#ff8d28] text-white shadow"
-                                  : "border border-[#e8eaf1] bg-white text-[#4b5563] hover:border-[#ff8d28] hover:text-[#ff8d28]"
+                                ? "bg-[#ff8d28] text-white shadow"
+                                : "border border-[#e8eaf1] bg-white text-[#4b5563] hover:border-[#ff8d28] hover:text-[#ff8d28]"
                                 }`}>
                               {active ? "Đã chọn" : "Chọn gói"}
                             </button>
@@ -971,12 +1088,12 @@ function BookingContent() {
                         <button key={dateStr} type="button" disabled={isPast}
                           onClick={() => setShootDate(dateStr)}
                           className={`grid h-8 w-full place-items-center rounded-lg text-xs font-bold transition-all ${isSelected
-                              ? "bg-[#ff8d28] text-white shadow"
-                              : isToday
-                                ? "border border-[#ff8d28] bg-white text-[#ff8d28]"
-                                : isPast
-                                  ? "cursor-not-allowed text-[#d1d5db]"
-                                  : "text-[#374151] hover:bg-[#fff4eb]"
+                            ? "bg-[#ff8d28] text-white shadow"
+                            : isToday
+                              ? "border border-[#ff8d28] bg-white text-[#ff8d28]"
+                              : isPast
+                                ? "cursor-not-allowed text-[#d1d5db]"
+                                : "text-[#374151] hover:bg-[#fff4eb]"
                             }`}>
                           {day}
                         </button>
@@ -996,10 +1113,10 @@ function BookingContent() {
                         <button key={time} type="button" disabled={booked}
                           onClick={() => { setShootTime(time); setSubmitError(""); }}
                           className={`rounded-xl border py-2.5 text-center text-xs font-bold transition-all ${booked
-                              ? "cursor-not-allowed border-red-200 bg-red-50 text-red-300 line-through"
-                              : active
-                                ? "border-[#ff8d28] bg-[#ff8d28] text-white shadow-sm"
-                                : "border-[#e8eaf1] bg-white text-[#374151] hover:border-[#ffb970]"
+                            ? "cursor-not-allowed border-red-200 bg-red-50 text-red-300 line-through"
+                            : active
+                              ? "border-[#ff8d28] bg-[#ff8d28] text-white shadow-sm"
+                              : "border-[#e8eaf1] bg-white text-[#374151] hover:border-[#ffb970]"
                             }`}>
                           {time}
                         </button>
@@ -1183,6 +1300,46 @@ function BookingContent() {
           </aside>
         </form>
       </section>
+
+      {/* ── MODAL ĐĂNG NHẬP (POPUP NỔI) ── */}
+      {showLoginModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/55 p-4 backdrop-blur-sm transition-all duration-300">
+          <div className="w-full max-w-[420px] rounded-2xl border border-[#e5deed] bg-white p-6 shadow-[0_24px_64px_rgba(20,16,35,0.18)] ring-1 ring-black/5">
+            <div className="flex items-center gap-3">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#fff3eb] text-[#ff8d28]">
+
+              </span>
+              <h3 className="text-[17px] font-black text-[#14151f]">
+                Yêu cầu đăng nhập
+              </h3>
+            </div>
+
+            <p className="mt-4 text-[13px] font-medium leading-relaxed text-[#5d5b68]">
+              Để tiếp tục gửi yêu cầu đặt lịch chụp và thanh toán cọc, bạn cần đăng nhập tài khoản khách hàng. Hệ thống đã tự động lưu lại toàn bộ các lựa chọn hiện tại của bạn.
+            </p>
+
+            <div className="mt-6 flex items-center justify-end gap-2.5 border-t border-[#f1eef6] pt-4">
+              <button
+                type="button"
+                onClick={() => setShowLoginModal(false)}
+                className="rounded-xl border border-[#ddd8e8] bg-white px-4 py-2.5 text-[11px] font-black text-[#6c6878] transition hover:bg-[#fafbfc]"
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const currentUrl = window.location.pathname + window.location.search;
+                  router.push(`/login?redirect=${encodeURIComponent(currentUrl)}`);
+                }}
+                className="rounded-xl bg-[#ff8d28] px-5 py-2.5 text-[11px] font-black text-white shadow-sm transition hover:bg-[#e67d1f]"
+              >
+                Đăng nhập ngay
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

@@ -250,7 +250,7 @@ export default function ServicesPage() {
             {serviceCategories.map((service, index) => (
               <RevealCard key={`${service.slug}-${index}`} delay={index * 130}>
                 <Link
-                  href={`/photographer?category=${service.slug}`}
+                  href={`/services/${service.slug}`}
                   className="group block overflow-hidden rounded-2xl border border-[#e5e7ef] bg-white shadow-[0_16px_42px_rgba(14,17,29,0.045)] transition hover:-translate-y-1 hover:border-[#ffcfaa] hover:shadow-[0_22px_54px_rgba(255,141,40,0.12)]"
                 >
                   <div className="relative aspect-[16/10] overflow-hidden bg-[#eef1f7]">

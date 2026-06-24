@@ -25,7 +25,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="vi" className="h-full antialiased">
-      <body className={`${plusJakartaSans.className} min-h-full flex flex-col`}>
+      <body className={`${plusJakartaSans.className} min-h-full flex flex-col`} suppressHydrationWarning>
         <MotionEffects />
 
         <AuthProvider>

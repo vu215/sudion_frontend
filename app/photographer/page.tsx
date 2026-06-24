@@ -354,6 +354,15 @@ function PhotographerContent() {
   }, []);
 
   useEffect(() => {
+    if (isReady && !loading) {
+      const timer = window.setTimeout(() => {
+        window.dispatchEvent(new Event("sync-reveal"));
+      }, 50);
+      return () => window.clearTimeout(timer);
+    }
+  }, [isReady, loading]);
+
+  useEffect(() => {
     async function fetchPhotographers() {
       try {
         setLoading(true);
