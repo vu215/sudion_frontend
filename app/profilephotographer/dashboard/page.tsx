@@ -3,40 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/app/auth-context";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
-
-/* ── Types ─────────────────────────────────────────────── */
-type BookingStatus =
-  | "awaiting_payment" | "accepted" | "confirmed"
-  | "completed" | "fully_paid" | "rejected" | "cancelled" | string;
-
-type Booking = {
-  id: number;
-  booking_code: string;
-  service_name: string;
-  shoot_date: string | null;
-  shoot_time: string | null;
-  location: string | null;
-  estimated_total: number;
-  status: BookingStatus;
-  customer_full_name: string;
-  customer_phone: string;
-  customer_email: string;
-};
-
-type ApiResponse<T> = { success: boolean; message: string; data: T };
-
-/* ── API ────────────────────────────────────────────────── */
-async function fetchBookings(photographerId: string): Promise<Booking[]> {
-  const res = await fetch(
-    `${API_URL}/bookings/photographer/${encodeURIComponent(photographerId)}`,
-    { cache: "no-store" }
-  );
-  const json: ApiResponse<Booking[]> = await res.json();
-  if (!res.ok || !json.success) throw new Error(json.message);
-  return json.data;
-}
+import { getBookingsByPhotographer, getReviewsByPhotographer, type BookingItem, type ReviewItem } from "../api";
 
 /* ── Helpers ────────────────────────────────────────────── */
 function fmtDate(v: string | null) {
@@ -177,7 +144,8 @@ const AVT = ["bg-orange-100 text-orange-600","bg-blue-100 text-blue-600","bg-eme
 /* ── Main Page ──────────────────────────────────────────── */
 export default function DashboardPage() {
   const { session, isPhotographer } = useAuth();
-  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [bookings, setBookings] = useState<BookingItem[]>([]);
+  const [reviews, setReviews] = useState<ReviewItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -190,9 +158,21 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!photographerId) return;
     setLoading(true);
-    fetchBookings(photographerId)
-      .then((data) => { setBookings(data); setError(""); })
-      .catch((e) => setError(e.message ?? "Lỗi tải dữ liệu."))
+    setError("");
+
+    Promise.all([
+      getBookingsByPhotographer(photographerId),
+      getReviewsByPhotographer(photographerId),
+    ])
+      .then(([bookingData, reviewData]) => {
+        setBookings(bookingData);
+        setReviews(reviewData);
+      })
+      .catch((e) => {
+        setError(e instanceof Error ? e.message : "Lỗi tải dữ liệu.");
+        setBookings([]);
+        setReviews([]);
+      })
       .finally(() => setLoading(false));
   }, [photographerId]);
 
@@ -229,13 +209,23 @@ export default function DashboardPage() {
     [bookings]
   );
 
-  /* ── Revenue chart data (fake daily spread for demo) ── */
+  /* ── Revenue chart data — actual daily revenue for the last 14 days ── */
   const chartData = useMemo(() => {
-    if (!stats.revenue) return Array(14).fill(0);
-    const pts = Array.from({ length: 14 }, () => Math.random() * stats.revenue * 0.1);
-    pts[pts.length - 1] = stats.revenue * 0.12;
-    return pts;
-  }, [stats.revenue]);
+    const days = 14;
+    const now = new Date();
+
+    return Array.from({ length: days }, (_, idx) => {
+      const target = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (days - 1 - idx));
+      return bookings
+        .filter((b) => b.status === "fully_paid" && b.shoot_date && new Date(b.shoot_date).toDateString() === target.toDateString())
+        .reduce((sum, b) => sum + (b.estimated_total ?? 0), 0);
+    });
+  }, [bookings]);
+
+  const latestReview = useMemo(() => {
+    if (!reviews.length) return null;
+    return [...reviews].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+  }, [reviews]);
 
   const name = session?.fullName ?? "Photographer";
 
@@ -323,23 +313,34 @@ export default function DashboardPage() {
               )}
             </section>
 
-            {/* Latest review — static demo */}
             <section className="rounded-2xl border border-slate-100 bg-white shadow-sm px-5 py-4">
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-sm font-bold text-slate-800">Đánh giá mới nhất</h2>
-                <span className="text-xs font-semibold text-orange-500 cursor-pointer hover:underline">Xem tất cả</span>
+                <Link href="/profilephotographer/reviews" className="text-xs font-semibold text-orange-500 hover:underline">Xem tất cả</Link>
               </div>
-              <div className="flex items-start gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-orange-100 text-sm font-bold text-orange-600">T</div>
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-sm font-bold text-slate-700">Trần Minh Quân</p>
-                    <p className="text-[10px] text-slate-400">Chụp cưới ngoài cảnh · 21/05/2026</p>
-                  </div>
-                  <div className="mt-0.5 flex text-orange-400 text-sm gap-0.5">{"★★★★★".split("").map((s,i)=><span key={i}>{s}</span>)}</div>
-                  <p className="mt-1 text-xs leading-5 text-slate-500">Ảnh chụp rất đẹp, photographer nhiệt tình, dễ thương! Sẽ tiếp tục ủng hộ trong những lần sau.</p>
+              {loading ? (
+                <div className="space-y-2">
+                  <div className="h-10 animate-pulse rounded-xl bg-slate-100" />
                 </div>
-              </div>
+              ) : latestReview ? (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-orange-100 text-sm font-bold text-orange-600">
+                      {latestReview.customer_name.charAt(0)}
+                    </div>
+                    <div>
+                      <p className="font-bold text-slate-800">{latestReview.customer_name}</p>
+                      <p className="text-[10px] text-slate-400">{new Date(latestReview.created_at).toLocaleDateString("vi-VN")}</p>
+                    </div>
+                  </div>
+                  <div className="rounded-xl border border-slate-100 bg-slate-50 p-4 text-sm text-slate-600">
+                    <p className="font-semibold text-slate-800">{latestReview.rating} sao</p>
+                    <p className="mt-2 leading-6">{latestReview.comment || "Không có nhận xét."}</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-sm text-slate-400">Chưa có đánh giá nào. Khách hàng sẽ gửi đánh giá sau khi booking hoàn tất.</div>
+              )}
             </section>
           </div>
 

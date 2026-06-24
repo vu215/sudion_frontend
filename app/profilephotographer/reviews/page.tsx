@@ -168,6 +168,46 @@ export default function PhotographerReviewsPage() {
                     <div className="mt-1"><Stars rating={r.rating} /></div>
                     {r.comment && <p className="mt-1.5 text-sm leading-5 text-slate-500">{r.comment}</p>}
                   </div>
+                  <div className="flex items-start">
+                    <button
+                      onClick={async () => {
+                        if (!confirm("Xoá đánh giá này? (Việc này sẽ xoá booking có tiền cọc / chờ thanh toán nếu có.)")) return;
+                        setLoading(true);
+                        setError("");
+                        try {
+                          // Try to fetch booking to check status
+                          const bRes = await fetch(`${API_URL}/bookings/${encodeURIComponent(r.booking_code)}`, { method: "GET", cache: "no-store" });
+                          if (bRes.ok) {
+                            const bJson = await bRes.json();
+                            const booking = bJson && bJson.success && bJson.data ? bJson.data : null;
+                            console.log("Booking for delete:", booking);
+                            // Delete booking if status is in deposit/pending states (not completed/canceled)
+                            const depositStatuses = ["pending", "accepted", "confirmed", "deposit", "awaiting_payment"];
+                            if (booking && depositStatuses.includes(booking.status?.toLowerCase?.() || "")) {
+                              console.log("Deleting booking with status:", booking.status);
+                              const delRes = await fetch(`${API_URL}/bookings/${encodeURIComponent(r.booking_code)}`, { method: "DELETE" });
+                              const delJson = await delRes.json().catch(() => null);
+                              console.log("Delete booking result:", delJson);
+                            }
+                          }
+
+                          // Delete the review itself
+                          const res = await fetch(`${API_URL}/reviews/${r.id}`, { method: "DELETE" });
+                          const json = await res.json().catch(() => null);
+                          if (!res.ok || (json && json.success === false)) throw new Error((json && json.message) || "Không thể xoá đánh giá.");
+
+                          setReviews((cur) => cur.filter((x) => x.id !== r.id));
+                        } catch (e: any) {
+                          setError(e?.message || String(e));
+                        } finally {
+                          setLoading(false);
+                        }
+                      }}
+                      className="ml-3 rounded-md bg-red-50 px-2 py-1 text-xs font-semibold text-red-600 hover:bg-red-100"
+                    >
+                      Xoá
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>

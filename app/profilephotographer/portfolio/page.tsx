@@ -1,12 +1,9 @@
 "use client";
 
-import { useRef, useState } from "react";
-
-type PortfolioItem = {
-  id: string;
-  url: string;
-  caption: string;
-};
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useAuth } from "@/app/auth-context";
+import { useToast } from "@/app/toast-context";
+import { getPortfolioByPhotographer, uploadPortfolioItem, updatePortfolioItemCaption, deletePortfolioItem, type PortfolioItem } from "../api";
 
 export default function PhotographerPortfolioPage() {
   const [items, setItems] = useState<PortfolioItem[]>([]);
@@ -14,10 +11,20 @@ export default function PhotographerPortfolioPage() {
   const [preview, setPreview] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [editId, setEditId] = useState<string | null>(null);
+  const [editId, setEditId] = useState<string | number | null>(null);
   const [editCaption, setEditCaption] = useState("");
   const [lightbox, setLightbox] = useState<PortfolioItem | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const toast = useToast();
+  const { session, isPhotographer } = useAuth();
+
+  const photographerId = useMemo(() => {
+    if (isPhotographer && session?.photographerId) return session.photographerId;
+    if (typeof window !== "undefined") return window.localStorage.getItem("sudion_photographer_id") ?? "";
+    return "";
+  }, [isPhotographer, session]);
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
@@ -28,29 +35,72 @@ export default function PhotographerPortfolioPage() {
     reader.readAsDataURL(f);
   }
 
-  function handleAdd() {
-    if (!preview) return;
+  useEffect(() => {
+    if (!photographerId) return;
+    setLoading(true);
+    setError("");
+
+    getPortfolioByPhotographer(photographerId)
+      .then((items) => setItems(items))
+      .catch((error) => setError(error instanceof Error ? error.message : "Không thể tải portfolio."))
+      .finally(() => setLoading(false));
+  }, [photographerId]);
+
+  async function handleAdd() {
+    if (!preview || !file) return;
+    if (!photographerId) {
+      setError("Không xác định Photographer ID.");
+      return;
+    }
+
     setUploading(true);
-    setTimeout(() => {
-      setItems((cur) => [
-        ...cur,
-        { id: Date.now().toString(), url: preview!, caption },
-      ]);
+    setError("");
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("caption", caption);
+
+      const item = await uploadPortfolioItem(photographerId, formData);
+      setItems((cur) => [item, ...cur]);
       setPreview(null);
       setFile(null);
       setCaption("");
       if (inputRef.current) inputRef.current.value = "";
+      toast.success("Thêm ảnh", "Ảnh đã được tải lên portfolio.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Không thể tải ảnh lên.";
+      setError(message);
+      toast.error("Lỗi upload", message);
+    } finally {
       setUploading(false);
-    }, 600);
+    }
   }
 
-  function handleDelete(id: string) {
-    setItems((cur) => cur.filter((i) => i.id !== id));
+  async function handleDelete(id: string | number) {
+    if (!window.confirm("Bạn có chắc muốn xoá ảnh này khỏi portfolio?")) return;
+    try {
+      await deletePortfolioItem(String(id));
+      setItems((cur) => cur.filter((i) => i.id !== id));
+      toast.success("Xoá ảnh", "Ảnh đã được xoá.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Không thể xoá ảnh.";
+      setError(message);
+      toast.error("Lỗi xoá", message);
+    }
   }
 
-  function handleSaveEdit(id: string) {
-    setItems((cur) => cur.map((i) => i.id === id ? { ...i, caption: editCaption } : i));
-    setEditId(null);
+  async function handleSaveEdit(id: string | number) {
+    try {
+      const updated = await updatePortfolioItemCaption(String(id), editCaption);
+      setItems((cur) => cur.map((i) => (i.id === id ? updated : i)));
+      setEditId(null);
+      toast.success("Cập nhật chú thích", "Chú thích đã được cập nhật.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Không thể cập nhật chú thích.";
+      setError(message);
+      toast.error("Lỗi cập nhật", message);
+    }
   }
 
   return (

@@ -1,58 +1,114 @@
 "use client";
 
-import { useState } from "react";
-
-type Service = {
-  id: string;
-  name: string;
-  category: string;
-  duration: string;
-  price: number;
-  description: string;
-  active: boolean;
-};
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useAuth } from "@/app/auth-context";
+import { useToast } from "@/app/toast-context";
+import { getServicesByPhotographer, createPhotographerService, updatePhotographerService, deletePhotographerService, type PhotographerService } from "../api";
 
 const CATEGORIES = ["Cưới hỏi","Kỷ yếu","Chân dung","Food & Product","Sự kiện","Travel","Cặp đôi","Khác"];
 
-const EMPTY: Omit<Service, "id" | "active"> = { name: "", category: "Cưới hỏi", duration: "2 giờ", price: 0, description: "" };
+const EMPTY = { name: "", category: "Cưới hỏi", duration: "2 giờ", price: 0, description: "" };
 
 export default function PhotographerServicesPage() {
-  const [services, setServices] = useState<Service[]>([]);
+  const { session, isPhotographer } = useAuth();
+  const toast = useToast();
+  const [services, setServices] = useState<PhotographerService[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ ...EMPTY });
-  const [editId, setEditId] = useState<string | null>(null);
+  const [editId, setEditId] = useState<string | number | null>(null);
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  function openNew() { setForm({ ...EMPTY }); setEditId(null); setShowForm(true); }
-  function openEdit(s: Service) { setForm({ name: s.name, category: s.category, duration: s.duration, price: s.price, description: s.description }); setEditId(s.id); setShowForm(true); }
+  const photographerId = useMemo(() => {
+    if (isPhotographer && session?.photographerId) return session.photographerId;
+    if (typeof window !== "undefined") return window.localStorage.getItem("sudion_photographer_id") ?? "";
+    return "";
+  }, [isPhotographer, session]);
 
-  function handleSave() {
+  useEffect(() => {
+    if (!photographerId) return;
+    setLoading(true);
+    setError("");
+    getServicesByPhotographer(photographerId)
+      .then((data) => setServices(data))
+      .catch((error) => setError(error instanceof Error ? error.message : "Không thể tải dịch vụ."))
+      .finally(() => setLoading(false));
+  }, [photographerId]);
+
+  function openNew() {
+    setForm({ ...EMPTY });
+    setEditId(null);
+    setShowForm(true);
+  }
+
+  function openEdit(service: PhotographerService) {
+    setForm({
+      name: service.name,
+      category: service.category,
+      duration: service.duration,
+      price: service.price,
+      description: service.description,
+    });
+    setEditId(service.id);
+    setShowForm(true);
+  }
+
+  async function handleSave() {
     if (!form.name.trim()) return;
+    if (!photographerId) {
+      setError("Không xác định Photographer ID.");
+      return;
+    }
+
     setSaving(true);
-    setTimeout(() => {
+    setError("");
+
+    try {
+      const payload = { ...form, active: true };
       if (editId) {
-        setServices((cur) => cur.map((s) => s.id === editId ? { ...s, ...form } : s));
+        const updated = await updatePhotographerService(String(editId), payload);
+        setServices((cur) => cur.map((item) => (item.id === updated.id ? updated : item)));
+        toast.success("Cập nhật dịch vụ", "Đã cập nhật dịch vụ thành công.");
       } else {
-        setServices((cur) => [...cur, { id: Date.now().toString(), active: true, ...form }]);
+        const created = await createPhotographerService(photographerId, payload);
+        setServices((cur) => [created, ...cur]);
+        toast.success("Thêm dịch vụ", "Đã tạo dịch vụ mới thành công.");
       }
       setShowForm(false);
       setEditId(null);
+      setForm({ ...EMPTY });
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Lỗi lưu dịch vụ.");
+      toast.error("Lỗi dịch vụ", error instanceof Error ? error.message : "Lưu dịch vụ thất bại.");
+    } finally {
       setSaving(false);
-    }, 500);
+    }
   }
 
-  function handleToggle(id: string) {
-    setServices((cur) => cur.map((s) => s.id === id ? { ...s, active: !s.active } : s));
+  async function toggleServiceActive(id: string | number, active: boolean) {
+    try {
+      const updated = await updatePhotographerService(String(id), { active });
+      setServices((cur) => cur.map((item) => (item.id === updated.id ? updated : item)));
+    } catch (error) {
+      toast.error("Lỗi dịch vụ", error instanceof Error ? error.message : "Không thể cập nhật trạng thái.");
+    }
   }
 
-  function handleDelete(id: string) {
-    setServices((cur) => cur.filter((s) => s.id !== id));
+  async function handleDelete(id: string | number) {
+    if (!window.confirm("Bạn có chắc muốn xoá dịch vụ này?")) return;
+    try {
+      await deletePhotographerService(String(id));
+      setServices((cur) => cur.filter((item) => item.id !== id));
+      toast.success("Xoá dịch vụ", "Đã xoá dịch vụ thành công.");
+    } catch (error) {
+      toast.error("Lỗi dịch vụ", error instanceof Error ? error.message : "Không thể xoá dịch vụ.");
+    }
   }
 
   return (
     <div className="px-5 py-6 lg:px-8">
       <div className="mx-auto max-w-[1100px] space-y-6 pb-10">
-        {/* Header */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-widest text-orange-500">Dịch vụ</p>
@@ -70,58 +126,93 @@ export default function PhotographerServicesPage() {
           </button>
         </div>
 
-        {/* Form */}
+        {error && (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-600">
+            {error}
+          </div>
+        )}
+
         {showForm && (
           <div className="rounded-2xl border border-orange-100 bg-white p-5 shadow-sm">
             <h2 className="mb-4 text-sm font-bold text-slate-800">{editId ? "Chỉnh sửa dịch vụ" : "Tạo dịch vụ mới"}</h2>
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <label className="mb-1 block text-xs font-bold text-slate-500">Tên dịch vụ *</label>
-                <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                <input
+                  value={form.name}
+                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                   placeholder="Vd: Gói chụp cưới Premium"
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-orange-400 focus:bg-white transition" />
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-orange-400 focus:bg-white transition"
+                />
               </div>
               <div>
                 <label className="mb-1 block text-xs font-bold text-slate-500">Danh mục</label>
-                <select value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-orange-400 focus:bg-white transition">
-                  {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
+                <select
+                  value={form.category}
+                  onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-orange-400 focus:bg-white transition"
+                >
+                  {CATEGORIES.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
                 </select>
               </div>
               <div>
                 <label className="mb-1 block text-xs font-bold text-slate-500">Thời lượng</label>
-                <input value={form.duration} onChange={(e) => setForm((f) => ({ ...f, duration: e.target.value }))}
+                <input
+                  value={form.duration}
+                  onChange={(e) => setForm((f) => ({ ...f, duration: e.target.value }))}
                   placeholder="Vd: 2 giờ"
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-orange-400 focus:bg-white transition" />
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-orange-400 focus:bg-white transition"
+                />
               </div>
               <div>
                 <label className="mb-1 block text-xs font-bold text-slate-500">Giá (VNĐ)</label>
-                <input type="number" min={0} value={form.price} onChange={(e) => setForm((f) => ({ ...f, price: Number(e.target.value) }))}
+                <input
+                  type="number"
+                  min={0}
+                  value={form.price}
+                  onChange={(e) => setForm((f) => ({ ...f, price: Number(e.target.value) }))}
                   placeholder="Vd: 2000000"
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-orange-400 focus:bg-white transition" />
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-orange-400 focus:bg-white transition"
+                />
               </div>
               <div className="sm:col-span-2">
                 <label className="mb-1 block text-xs font-bold text-slate-500">Mô tả</label>
-                <textarea value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-                  rows={3} placeholder="Mô tả ngắn về gói dịch vụ này..."
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-orange-400 focus:bg-white resize-none transition" />
+                <textarea
+                  value={form.description}
+                  onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                  rows={3}
+                  placeholder="Mô tả ngắn về gói dịch vụ này..."
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-orange-400 focus:bg-white resize-none transition"
+                />
               </div>
             </div>
             <div className="mt-4 flex gap-2">
-              <button onClick={handleSave} disabled={saving || !form.name.trim()}
-                className="rounded-xl bg-orange-500 px-5 py-2.5 text-sm font-bold text-white hover:bg-orange-600 disabled:opacity-50 transition">
+              <button
+                onClick={handleSave}
+                disabled={saving || !form.name.trim()}
+                className="rounded-xl bg-orange-500 px-5 py-2.5 text-sm font-bold text-white hover:bg-orange-600 disabled:opacity-50 transition"
+              >
                 {saving ? "Đang lưu..." : editId ? "Lưu thay đổi" : "Tạo dịch vụ"}
               </button>
-              <button onClick={() => setShowForm(false)}
-                className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-50 transition">
+              <button
+                onClick={() => setShowForm(false)}
+                className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-50 transition"
+              >
                 Huỷ
               </button>
             </div>
           </div>
         )}
 
-        {/* List */}
-        {services.length === 0 && !showForm ? (
+        {loading ? (
+          <div className="space-y-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-24 animate-pulse rounded-2xl bg-slate-100" />
+            ))}
+          </div>
+        ) : services.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50 py-16 text-center">
             <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-orange-100">
               <svg className="h-7 w-7 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -135,7 +226,7 @@ export default function PhotographerServicesPage() {
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {services.map((s) => (
-              <article key={s.id} className={`rounded-2xl border bg-white shadow-sm transition ${s.active ? "border-slate-100" : "border-slate-100 opacity-60"}`}>
+              <article key={String(s.id)} className={`rounded-2xl border bg-white shadow-sm transition ${s.active ? "border-slate-100" : "border-slate-100 opacity-60"}`}>
                 <div className="p-4">
                   <div className="flex items-start justify-between gap-2">
                     <div>
@@ -163,7 +254,7 @@ export default function PhotographerServicesPage() {
                     Chỉnh sửa
                   </button>
                   <div className="h-4 w-px bg-slate-100" />
-                  <button onClick={() => handleToggle(s.id)}
+                  <button onClick={() => toggleServiceActive(s.id, !s.active)}
                     className="flex-1 rounded-lg py-1.5 text-xs font-semibold text-slate-500 hover:bg-slate-50 hover:text-slate-700 transition">
                     {s.active ? "Ẩn" : "Hiện"}
                   </button>

@@ -5,8 +5,16 @@ import { usePathname } from "next/navigation";
 import { useAuth } from "@/app/auth-context";
 import type { ReactNode } from "react";
 
+type NavItem = {
+  key: string;
+  href: string;
+  label: string;
+  icon: ReactNode;
+  badge?: string | number;
+};
+
 /* ── Nav items ────────────────────────────────────────────── */
-const NAV = [
+const NAV: NavItem[] = [
   {
     key: "dashboard",
     href: "/profilephotographer/dashboard",

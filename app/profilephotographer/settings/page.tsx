@@ -1,6 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useAuth } from "@/app/auth-context";
+import { useToast } from "@/app/toast-context";
+import { getPhotographerProfile, updatePhotographerProfile, type PhotographerProfile } from "../api";
 
 const SERVICE_OPTIONS = ["Chân dung cá nhân","Cặp đôi","Cưới hỏi","Kỷ yếu","Sự kiện","Food & Product","Travel"];
 const PAYMENT_OPTIONS = ["Chuyển khoản","Momo","VNPay","Tiền mặt"];
@@ -86,20 +89,118 @@ export default function PhotographerSettingsPage() {
 
   const [saved, setSaved] = useState(false);
   const [activeTab, setActiveTab] = useState<"profile"|"booking"|"payment"|"security">("profile");
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const toast = useToast();
+  const { session, isPhotographer } = useAuth();
+
+  const photographerId = useMemo(() => {
+    if (isPhotographer && session?.photographerId) return session.photographerId;
+    if (typeof window !== "undefined") return window.localStorage.getItem("sudion_photographer_id") ?? "";
+    return "";
+  }, [isPhotographer, session]);
 
   const set = (field: string, value: unknown) => setProfile((p) => ({ ...p, [field]: value }));
   const toggleService = (s: string) => setProfile((p) => ({
     ...p,
-    services: p.services.includes(s) ? p.services.filter((x) => x !== s) : [...p.services, s],
+    services: Array.isArray(p.services) ? (p.services.includes(s) ? p.services.filter((x) => x !== s) : [...p.services, s]) : [s],
   }));
   const toggleNotify = (k: keyof ProfileState["notifications"]) =>
     setProfile((p) => ({ ...p, notifications: { ...p.notifications, [k]: !p.notifications[k] } }));
 
-  const selectedServices = useMemo(() => profile.services.join(" · "), [profile.services]);
+  const selectedServices = useMemo(() => Array.isArray(profile.services) ? profile.services.join(" · ") : "", [profile.services]);
 
-  function handleSave() {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
+  useEffect(() => {
+    if (!photographerId) return;
+    setLoading(true);
+    setError("");
+
+      getPhotographerProfile(photographerId)
+      .then((data) => {
+        setProfile((prev) => ({
+          ...prev,
+          displayName: data.displayName ?? prev.displayName,
+          title: data.title ?? prev.title,
+          location: data.location ?? prev.location,
+          email: data.email ?? prev.email,
+          phone: data.phone ?? prev.phone,
+          bio: data.bio ?? prev.bio,
+          services: Array.isArray(data.services) ? data.services : prev.services,
+          isProfileActive: data.isProfileActive ?? prev.isProfileActive,
+          acceptMessages: data.acceptMessages ?? prev.acceptMessages,
+          noticeBeforeBooking: data.noticeBeforeBooking ?? prev.noticeBeforeBooking,
+          maxBookingsPerDay: data.maxBookingsPerDay ?? prev.maxBookingsPerDay,
+          bufferMinutes: data.bufferMinutes ?? prev.bufferMinutes,
+          priceFrom: data.priceFrom ?? prev.priceFrom,
+          priceTo: data.priceTo ?? prev.priceTo,
+          payoutAccount: data.payoutAccount ?? prev.payoutAccount,
+          payoutName: data.payoutName ?? prev.payoutName,
+          notifications: data.notifications ?? prev.notifications,
+        }));
+      })
+      .catch((error) => {
+        setError(error instanceof Error ? error.message : "Không thể tải hồ sơ.");
+      })
+      .finally(() => setLoading(false));
+  }, [photographerId]);
+
+  async function handleSave() {
+    if (!photographerId) {
+      setError("Không xác định Photographer ID.");
+      return;
+    }
+
+    if (profile.newPassword && profile.newPassword !== profile.confirmPassword) {
+      setError("Mật khẩu mới không khớp.");
+      return;
+    }
+
+    setSaving(true);
+    setError("");
+
+    try {
+      const payload: Partial<PhotographerProfile> & { password?: string } = {
+        displayName: profile.displayName,
+        title: profile.title,
+        location: profile.location,
+        email: profile.email,
+        phone: profile.phone,
+        bio: profile.bio,
+        services: profile.services,
+        isProfileActive: profile.isProfileActive,
+        acceptMessages: profile.acceptMessages,
+        noticeBeforeBooking: profile.noticeBeforeBooking,
+        maxBookingsPerDay: profile.maxBookingsPerDay,
+        bufferMinutes: profile.bufferMinutes,
+        priceFrom: profile.priceFrom,
+        priceTo: profile.priceTo,
+        payoutAccount: profile.payoutAccount,
+        payoutName: profile.payoutName,
+        notifications: profile.notifications,
+      };
+
+      if (profile.newPassword) {
+        payload.password = profile.newPassword;
+      }
+
+      await updatePhotographerProfile(photographerId, payload);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+      if (profile.newPassword) {
+        set("password", "");
+        set("newPassword", "");
+        set("confirmPassword", "");
+      }
+      toast.success("Lưu hồ sơ", "Thông tin đã được cập nhật.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Lưu hồ sơ thất bại.";
+      setError(message);
+      toast.error("Lỗi lưu", message);
+    } finally {
+      setSaving(false);
+    }
   }
 
   const TABS = [
@@ -136,9 +237,9 @@ export default function PhotographerSettingsPage() {
           <aside className="space-y-4">
             <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm text-center">
               <div className="mx-auto mb-3 flex h-20 w-20 items-center justify-center rounded-2xl bg-orange-100 text-3xl font-bold text-orange-500">
-                {profile.displayName.charAt(0)}
+                {profile.displayName?.charAt(0) ?? "P"}
               </div>
-              <p className="text-sm font-bold text-slate-800">{profile.displayName}</p>
+              <p className="text-sm font-bold text-slate-800">{profile.displayName ?? "Chưa đặt tên"}</p>
               <p className="text-xs text-slate-400">{profile.title}</p>
               <div className="mt-3 flex items-center justify-center gap-2">
                 <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${profile.isProfileActive ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
@@ -211,7 +312,7 @@ export default function PhotographerSettingsPage() {
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
                       {SERVICE_OPTIONS.map((s) => (
                         <button key={s} type="button" onClick={() => toggleService(s)}
-                          className={`rounded-xl border px-3 py-2.5 text-xs font-semibold transition ${profile.services.includes(s) ? "border-orange-300 bg-orange-50 text-orange-600" : "border-slate-200 bg-slate-50 text-slate-500 hover:border-orange-200"}`}>
+                          className={`rounded-xl border px-3 py-2.5 text-xs font-semibold transition ${(Array.isArray(profile.services) && profile.services.includes(s)) ? "border-orange-300 bg-orange-50 text-orange-600" : "border-slate-200 bg-slate-50 text-slate-500 hover:border-orange-200"}`}>
                           {s}
                         </button>
                       ))}
