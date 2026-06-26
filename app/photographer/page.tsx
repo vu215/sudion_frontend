@@ -144,9 +144,9 @@ function getDistanceKm(from: Coordinates, to: Coordinates) {
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos(fromLat) *
-      Math.cos(toLat) *
-      Math.sin(dLng / 2) *
-      Math.sin(dLng / 2);
+    Math.cos(toLat) *
+    Math.sin(dLng / 2) *
+    Math.sin(dLng / 2);
 
   return earthRadius * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
@@ -455,8 +455,8 @@ function PhotographerContent() {
       shootLocationId === "custom"
         ? null
         : shootLocationId === "current"
-        ? userLocation
-        : selectedShootLocation?.coordinates || null;
+          ? userLocation
+          : selectedShootLocation?.coordinates || null;
 
     if (!targetLocation) {
       return location === "Tất cả địa điểm"
@@ -630,11 +630,7 @@ function PhotographerContent() {
                   Tìm kiếm góc nhìn hoàn hảo cho tầm nhìn của bạn.
                 </p>
 
-                {category !== "all" ? (
-                  <p className="mt-1 text-[12px] font-bold text-[#ff8d28]">
-                    Đang lọc dịch vụ: {getServiceLabel(category)}
-                  </p>
-                ) : null}
+
               </div>
 
               <button
@@ -648,14 +644,12 @@ function PhotographerContent() {
                 <SparkIcon className="h-4 w-4 text-[#ff8d28]" />
                 Đề xuất của AI
                 <span
-                  className={`relative h-6 w-11 rounded-full transition-colors ${
-                    aiSuggested ? "bg-[#ff8d28]" : "bg-[#d8d3e4]"
-                  }`}
+                  className={`relative h-6 w-11 rounded-full transition-colors ${aiSuggested ? "bg-[#ff8d28]" : "bg-[#d8d3e4]"
+                    }`}
                 >
                   <span
-                    className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow-sm transition-all ${
-                      aiSuggested ? "right-1" : "right-6"
-                    }`}
+                    className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow-sm transition-all ${aiSuggested ? "right-1" : "right-6"
+                      }`}
                   />
                 </span>
               </button>
@@ -676,11 +670,10 @@ function PhotographerContent() {
 
                     setPage(1);
                   }}
-                  className={`${tabTextClass} ${
-                    tab === activeTab
-                      ? "border-b-2 border-[#ff8d28] text-[#ff8d28]"
-                      : "border-b-2 border-transparent text-[#414350]"
-                  }`}
+                  className={`${tabTextClass} ${tab === activeTab
+                    ? "border-b-2 border-[#ff8d28] text-[#ff8d28]"
+                    : "border-b-2 border-transparent text-[#414350]"
+                    }`}
                 >
                   {tab}
                 </button>
@@ -725,8 +718,8 @@ function PhotographerContent() {
                       distanceKm={getDisplayDistance(person)}
                       distanceLabel={
                         activeTab === "Photo ở gần bạn" &&
-                        shootLocationId !== "current" &&
-                        shootLocationId !== "custom"
+                          shootLocationId !== "current" &&
+                          shootLocationId !== "custom"
                           ? "Cách điểm chụp khoảng"
                           : "Cách bạn khoảng"
                       }
@@ -840,11 +833,10 @@ function FilterSidebar({
                   aria-pressed={checked}
                 >
                   <span
-                    className={`grid h-[18px] w-[18px] shrink-0 place-items-center rounded-[4px] border ${
-                      checked
-                        ? "border-[#ff8d28] bg-[#ff8d28] text-white"
-                        : "border-[#d3cee0] bg-white text-transparent"
-                    }`}
+                    className={`grid h-[18px] w-[18px] shrink-0 place-items-center rounded-[4px] border ${checked
+                      ? "border-[#ff8d28] bg-[#ff8d28] text-white"
+                      : "border-[#d3cee0] bg-white text-transparent"
+                      }`}
                   >
                     <CheckIcon className="h-3.5 w-3.5" />
                   </span>
@@ -921,9 +913,8 @@ function PhotographerCard({
         <button
           type="button"
           onClick={() => onFavoriteToggle(person.name)}
-          className={`absolute right-4 top-4 grid h-9 w-9 place-items-center rounded-full bg-white/90 shadow-sm opacity-0 transition-all duration-200 translate-y-1 group-hover:translate-y-0 group-hover:opacity-100 focus-visible:translate-y-0 focus-visible:opacity-100 ${
-            isFavorite ? "text-[#ff8d28]" : "text-[#414350]"
-          }`}
+          className={`absolute right-4 top-4 grid h-9 w-9 place-items-center rounded-full bg-white/90 shadow-sm opacity-0 transition-all duration-200 translate-y-1 group-hover:translate-y-0 group-hover:opacity-100 focus-visible:translate-y-0 focus-visible:opacity-100 ${isFavorite ? "text-[#ff8d28]" : "text-[#414350]"
+            }`}
           aria-pressed={isFavorite}
         >
           <HeartIcon className="h-5 w-5" filled={isFavorite} />
@@ -1067,15 +1058,14 @@ function NearbyMapPanel({
     selectedShootLocation.id === "custom"
       ? `photographer studio near ${customShootLocation || "Da Lat Vietnam"}`
       : selectedShootLocation.id === "current"
-      ? userLocation
-        ? `photographer studio near ${mapCenter.lat},${mapCenter.lng}`
-        : "photographer studio Ho Chi Minh City"
-      : selectedShootLocation.query,
+        ? userLocation
+          ? `photographer studio near ${mapCenter.lat},${mapCenter.lng}`
+          : "photographer studio Ho Chi Minh City"
+        : selectedShootLocation.query,
   );
 
-  const mapSrc = `https://www.google.com/maps?q=${mapQuery}&z=${
-    selectedShootLocation.id === "current" ? 13 : 14
-  }&output=embed`;
+  const mapSrc = `https://www.google.com/maps?q=${mapQuery}&z=${selectedShootLocation.id === "current" ? 13 : 14
+    }&output=embed`;
 
   return (
     <section
@@ -1181,12 +1171,11 @@ function NearbyMapPanel({
           <p className="mt-2 text-[12px] font-semibold leading-5 text-[#6b6878]">
             {selectedShootLocation.id === "current"
               ? locationMessage ||
-                "Cho phép trình duyệt lấy vị trí để quét các lựa chọn gần bạn."
+              "Cho phép trình duyệt lấy vị trí để quét các lựa chọn gần bạn."
               : selectedShootLocation.id === "custom"
-              ? `Google Maps đang tìm photographer/studio quanh ${
-                  customShootLocation || "địa chỉ bạn nhập"
+                ? `Google Maps đang tìm photographer/studio quanh ${customShootLocation || "địa chỉ bạn nhập"
                 }.`
-              : `Đang ưu tiên photographer/studio quanh ${selectedShootLocation.label}.`}
+                : `Đang ưu tiên photographer/studio quanh ${selectedShootLocation.label}.`}
           </p>
 
           <div className="mt-5 grid gap-3">
@@ -1283,13 +1272,12 @@ function Pagination({
           type="button"
           disabled={item === "..."}
           onClick={() => item !== "..." && onPageChange(Number(item))}
-          className={`grid h-9 min-w-9 place-items-center rounded-full px-3 text-xs font-black ${
-            item === String(activePage)
-              ? "bg-[#ff8d28] text-white"
-              : item === "..."
+          className={`grid h-9 min-w-9 place-items-center rounded-full px-3 text-xs font-black ${item === String(activePage)
+            ? "bg-[#ff8d28] text-white"
+            : item === "..."
               ? "cursor-default bg-transparent text-[#6c6878]"
               : "border border-[#ddd8e8] bg-white text-[#20212b]"
-          }`}
+            }`}
         >
           {item}
         </button>
