@@ -188,4 +188,27 @@ export const api = {
       }),
     delete: (id: number) => request(`/admin/services/${id}`, { method: 'DELETE' }),
   },
+
+  // Admin User APIs
+  users: {
+    getAll: (params?: Record<string, any>) => {
+      const query = params ? '?' + new URLSearchParams(params).toString() : '';
+      return request(`/admin/users${query}`);
+    },
+    getStats: () => request('/admin/users/stats'),
+    getById: (id: string) => request(`/admin/users/${id}`),
+    create: (data: any) => request('/admin/users', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: any) => request(`/admin/users/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    updateStatus: (id: string, status: string) =>
+      request(`/admin/users/${id}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status }),
+      }),
+    resetPassword: (id: string, newPassword: string) =>
+      request(`/admin/users/${id}/reset-password`, {
+        method: 'POST',
+        body: JSON.stringify({ newPassword }),
+      }),
+    delete: (id: string) => request(`/admin/users/${id}`, { method: 'DELETE' }),
+  },
 };
