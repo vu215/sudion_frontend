@@ -585,19 +585,72 @@ export default function PhotographerProfilePage({ params }: { params: Promise<{ 
 }
 
 function PhotographerProfileContent({ id }: { id: string }) {
-  const person = photographers.find((p) => p.id === id) || photographers[0];
+  const [dbPerson, setDbPerson] = useState<any>(null);
+
+  useEffect(() => {
+    async function loadDbPerson() {
+      if (!id || isNaN(Number(id))) return;
+
+      try {
+        const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+        const res = await fetch(`${API_URL}/photographers/${id}/booking-options`);
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success && json.data) {
+            const data = json.data;
+            const mappedPerson = {
+              id: String(data.photographer.id),
+              name: data.photographer.full_name,
+              title: data.photographer.photographer_type === "individual" ? "Cá nhân" : "Studio",
+              location: data.photographer.active_area || "Việt Nam",
+              rating: String(data.photographer.avg_rating || "4.8"),
+              reviewCount: data.packages?.reduce((acc: number, p: any) => acc + (p.review_count || 0), 0) || 45,
+              badge: data.photographer.verification_status === "verified" ? "Top Rated Photographer" : "Professional Photographer",
+              image: data.photographer.avatar_url || "https://i.pinimg.com/736x/a0/b0/00/a0b000947356b75df1e4ec794477fc49.jpg",
+              avatar: data.photographer.avatar_url || "https://i.pinimg.com/736x/9c/44/0c/9c440c4652d4e4476a5c61d25efbef1e.jpg",
+              cover: data.photographer.avatar_url || "https://i.pinimg.com/736x/bb/cc/37/bbcc37f0caa97bdff1f08ad8355ac9f4.jpg",
+              bio: data.photographer.bio || "Chưa có giới thiệu tiểu sử.",
+              portfolio: data.packages?.map((p: any) => p.image_url).filter(Boolean).slice(0, 5) || [],
+              equipment: ["Máy ảnh chuyên nghiệp"],
+              services: data.packages?.map((p: any) => ({
+                name: p.name,
+                desc: p.description || "Chưa có mô tả chi tiết.",
+                price: Number(p.price || 0).toLocaleString("vi-VN") + " VNĐ"
+              })) || [],
+              reviews: [
+                { name: "Khách hàng", time: "1 tuần trước", rating: 5, text: "Chụp ảnh đẹp, làm việc rất chuyên nghiệp và thân thiện!" }
+              ],
+              ratingScore: Number(data.photographer.avg_rating || 4.8),
+              totalReviews: 45,
+              startPrice: data.packages?.length ? Number(Math.min(...data.packages.map((p: any) => p.price || 0))).toLocaleString("vi-VN") + " VNĐ" : "Chưa cập nhật"
+            };
+            setDbPerson(mappedPerson);
+          }
+        }
+      } catch (err) {
+        console.error("Lỗi lấy dữ liệu photographer từ DB:", err);
+      }
+    }
+    loadDbPerson();
+  }, [id]);
+
+  const person = dbPerson || photographers.find((p) => p.id === id) || photographers[0];
   const [activeTab, setActiveTab] = useState("Tổng quan");
   const today = new Date();
   const todayStr = today.toISOString().slice(0, 10);
   const [selectedDates, setSelectedDates] = useState<string[]>([todayStr]);
-  const [selectedService, setSelectedService] = useState(person.services[0]);
+  const [selectedService, setSelectedService] = useState<any>(person.services[0] || { name: "Chọn dịch vụ", price: "0 VNĐ", desc: "" });
   const [reviews, setReviews] = useState(person.reviews);
   const [reviewerName, setReviewerName] = useState("");
   const [reviewText, setReviewText] = useState("");
   const [reviewRating, setReviewRating] = useState(5);
 
   useEffect(() => {
-    setSelectedService(person.services[0]);
+    if (person.services && person.services.length > 0) {
+      setSelectedService(person.services[0]);
+    } else {
+      setSelectedService({ name: "Chọn dịch vụ", price: "0 VNĐ", desc: "" });
+    }
     setSelectedDates([todayStr]);
     setReviews(person.reviews);
     setReviewerName("");

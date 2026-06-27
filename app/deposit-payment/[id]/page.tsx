@@ -10,12 +10,14 @@ const API_URL =
 
 type Booking = {
   booking_code: string;
+  photographer_id?: string | number;
   photographer_name: string;
   service_name: string;
   deposit_amount: number;
   remaining_amount: number;
   estimated_total: number;
   status: string;
+  location?: string | null;
 };
 
 type ApiResponse<T> = {
@@ -162,6 +164,91 @@ export default function DepositPaymentPage({
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("momo");
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
+  const [photographerDetail, setPhotographerDetail] = useState<any>(null);
+  const [paymentPercentage, setPaymentPercentage] = useState<30 | 50 | 100>(30);
+
+  const payAmount = useMemo(() => {
+    if (!booking) return 0;
+    return Math.round(booking.estimated_total * (paymentPercentage / 100));
+  }, [booking, paymentPercentage]);
+
+  const remainingAmount = useMemo(() => {
+    if (!booking) return 0;
+    return booking.estimated_total - payAmount;
+  }, [booking, payAmount]);
+
+  useEffect(() => {
+    if (!booking?.photographer_id) return;
+    
+    async function fetchPhotographer() {
+      try {
+        const res = await fetch(`${API_URL}/photographers/${booking.photographer_id}`);
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success) {
+            setPhotographerDetail(json.data);
+          }
+        }
+      } catch (err) {
+        console.error("Lỗi lấy chi tiết photographer:", err);
+      }
+    }
+
+    fetchPhotographer();
+  }, [booking?.photographer_id]);
+
+  const suggestedPackages = useMemo(() => {
+    if (!photographerDetail || !booking) return { sameCategory: [], otherCategory: [] };
+
+    const packages = photographerDetail.packages || [];
+    const bookedPkg = packages.find((p: any) => p.name === booking.service_name);
+    const categoryName = bookedPkg?.category?.name || "Cưới hỏi";
+
+    const sameCategory: any[] = [];
+    const otherCategory: any[] = [];
+
+    packages.forEach((pkg: any) => {
+      if (pkg.category?.name === categoryName) {
+        sameCategory.push({ ...pkg });
+      } else {
+        otherCategory.push({ ...pkg });
+      }
+    });
+
+    if (sameCategory.length <= 1 || (categoryName === "Cưới hỏi" && !sameCategory.some(p => p.name.includes("phóng sự")))) {
+      if (categoryName === "Cưới hỏi" || bookedPkg?.category?.slug === "wedding") {
+        sameCategory.push(
+          { id: "mock_wedding_1", name: "Chụp ảnh Phóng sự cưới", price: 8000000, category: { name: "Cưới hỏi", slug: "wedding" } },
+          { id: "mock_wedding_2", name: "Chụp ảnh Lễ gia tiên", price: 4500000, category: { name: "Cưới hỏi", slug: "wedding" } },
+          { id: "mock_wedding_3", name: "Chụp ảnh Lễ ăn hỏi", price: 5000000, category: { name: "Cưới hỏi", slug: "wedding" } }
+        );
+      } else if (categoryName === "Cặp đôi" || bookedPkg?.category?.slug === "couple") {
+        sameCategory.push(
+          { id: "mock_couple_1", name: "Chụp ảnh Cặp đôi dã ngoại", price: 2500000, category: { name: "Cặp đôi", slug: "couple" } },
+          { id: "mock_couple_2", name: "Chụp ảnh Kỷ niệm ngày cưới ngọt ngào", price: 3000000, category: { name: "Cặp đôi", slug: "couple" } }
+        );
+      } else if (categoryName === "Chân dung cá nhân" || bookedPkg?.category?.slug === "portrait") {
+        sameCategory.push(
+          { id: "mock_portrait_1", name: "Chụp chân dung doanh nhân chuyên nghiệp", price: 1500000, category: { name: "Chân dung cá nhân", slug: "portrait" } },
+          { id: "mock_portrait_2", name: "Chụp chân dung ngoại cảnh Vintage", price: 1200000, category: { name: "Chân dung cá nhân", slug: "portrait" } }
+        );
+      }
+    }
+
+    const uniqueSameCategoryMap = new Map<string, any>();
+    sameCategory.forEach((pkg) => {
+      uniqueSameCategoryMap.set(pkg.name, pkg);
+    });
+    const uniqueSameCategory = Array.from(uniqueSameCategoryMap.values());
+
+    uniqueSameCategory.sort((a, b) => {
+      const aSelected = a.name === booking.service_name;
+      const bSelected = b.name === booking.service_name;
+      return (aSelected ? 1 : 0) - (bSelected ? 1 : 0);
+    });
+
+    return { sameCategory: uniqueSameCategory, otherCategory };
+  }, [photographerDetail, booking]);
   const [pageError, setPageError] = useState("");
 
   useEffect(() => {
@@ -206,6 +293,24 @@ export default function DepositPaymentPage({
       setPaying(true);
       setPageError("");
 
+      // 1. Cập nhật deposit_amount và remaining_amount vào database qua API Admin
+      const updateRes = await fetch(`${API_URL}/admin/bookings/${booking.booking_code}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          deposit_amount: payAmount,
+          remaining_amount: remainingAmount,
+        }),
+      });
+
+      if (!updateRes.ok) {
+        const errJson = await updateRes.json();
+        throw new Error(errJson.message || "Không thể cập nhật số tiền thanh toán.");
+      }
+
+      // 2. Xác nhận thanh toán cọc
       const updatedBooking = await payDeposit(
         booking.booking_code,
         paymentMethod
@@ -294,19 +399,37 @@ export default function DepositPaymentPage({
             <div className="grid gap-4 rounded-[24px] border border-[#ffedd5] bg-[#fff7ed] p-5">
               <SectionTitle
                 eyebrow="Số tiền thanh toán"
-                title="Cọc trước để giữ lịch"
+                title="Chọn mức cọc hoặc thanh toán hết"
               />
 
-              <div className="grid gap-3">
+              <div className="grid gap-3 text-[#0f172a]">
                 <MoneyRow label="Tổng tiền" value={booking.estimated_total} />
+                
+                <div className="flex flex-col gap-2 rounded-[16px] bg-white border border-orange-100 p-4">
+                  <label className="text-[13px] font-bold text-[#64748b] flex justify-between items-center">
+                    <span>Chọn mức thanh toán:</span>
+                    <select
+                      value={paymentPercentage}
+                      onChange={(e) => setPaymentPercentage(Number(e.target.value) as 30 | 50 | 100)}
+                      className="rounded-lg border border-[#ff8d28] px-3 py-1 text-[13px] font-black text-[#ff8d28] bg-white outline-none cursor-pointer focus:ring-1 focus:ring-[#ff8d28]"
+                    >
+                      <option value={30}>Thanh toán cọc 30%</option>
+                      <option value={50}>Thanh toán cọc 50%</option>
+                      <option value={100}>Thanh toán đủ 100%</option>
+                    </select>
+                  </label>
+                  
+                  <div className="flex items-center justify-between mt-2 pt-2 border-t border-dashed border-gray-100">
+                    <span className="text-[13px] font-bold text-[#64748b]">Số tiền cần thanh toán:</span>
+                    <span className="text-[20px] font-black text-[#ff8d28]">
+                      {formatCurrency(payAmount)}
+                    </span>
+                  </div>
+                </div>
+
                 <MoneyRow
-                  label="Thanh toán cọc 50%"
-                  value={booking.deposit_amount}
-                  strong
-                />
-                <MoneyRow
-                  label="Còn lại sau khi cọc"
-                  value={booking.remaining_amount}
+                  label="Còn lại sau khi thanh toán"
+                  value={remainingAmount}
                 />
               </div>
             </div>
@@ -353,7 +476,7 @@ export default function DepositPaymentPage({
               <PaymentPreview
                 method={selectedMethod.label}
                 bookingCode={booking.booking_code}
-                amount={booking.deposit_amount}
+                amount={payAmount}
               />
             </div>
 
@@ -392,10 +515,51 @@ export default function DepositPaymentPage({
 
         <aside className="rounded-[30px] border border-[#e2e8f0] bg-white p-6 shadow-[0_24px_80px_rgba(15,23,42,0.06)] lg:sticky lg:top-[100px]">
           <p className="text-[12px] font-black uppercase tracking-[0.18em] text-[#ff8d28]">
+            Booking progress
+          </p>
+
+          <h2 className="mt-2 text-[22px] font-black tracking-[-0.04em] text-[#0f172a]">
+            Quy trình booking
+          </h2>
+
+          <div className="mt-4 mb-6 grid gap-2">
+            <ProgressItem
+              active={booking.status === "awaiting_payment"}
+              done={["accepted", "confirmed", "completed", "fully_paid"].includes(booking.status)}
+              title="Gửi yêu cầu"
+              description="Yêu cầu đặt lịch đã được gửi."
+            />
+            <ProgressItem
+              active={booking.status === "accepted"}
+              done={["confirmed", "completed", "fully_paid"].includes(booking.status)}
+              title="Xác nhận lịch"
+              description="Photographer xác nhận thời gian chụp."
+            />
+            <ProgressItem
+              active={booking.status === "accepted" || booking.status === "confirmed"}
+              done={["confirmed", "completed", "fully_paid"].includes(booking.status)}
+              title="Thanh toán cọc"
+              description={`Thanh toán cọc ${paymentPercentage}% để giữ chỗ.`}
+            />
+            <ProgressItem
+              active={booking.status === "completed"}
+              done={["completed", "fully_paid"].includes(booking.status)}
+              title="Thực hiện chụp"
+              description="Hoàn thành chụp & đưa link ảnh."
+            />
+            <ProgressItem
+              active={booking.status === "fully_paid"}
+              done={booking.status === "fully_paid"}
+              title="Hoàn tất"
+              description="Thanh toán đủ & đánh giá."
+            />
+          </div>
+
+          <p className="text-[12px] font-black uppercase tracking-[0.18em] text-[#ff8d28] border-t border-gray-100 pt-4">
             Payment summary
           </p>
 
-          <h2 className="mt-3 text-[26px] font-black tracking-[-0.04em] text-[#0f172a]">
+          <h2 className="mt-2 text-[22px] font-black tracking-[-0.04em] text-[#0f172a]">
             Tóm tắt thanh toán
           </h2>
 
@@ -412,12 +576,12 @@ export default function DepositPaymentPage({
             />
             <SummaryRow
               label="Cần thanh toán"
-              value={formatCurrency(booking.deposit_amount)}
+              value={formatCurrency(payAmount)}
               strong
             />
             <SummaryRow
               label="Còn lại"
-              value={formatCurrency(booking.remaining_amount)}
+              value={formatCurrency(remainingAmount)}
             />
           </div>
 
@@ -431,6 +595,95 @@ export default function DepositPaymentPage({
               của hệ thống.
             </p>
           </div>
+
+          {/* Gợi ý thể loại chụp khác */}
+          {photographerDetail && (
+            <div className="mt-6 rounded-[22px] border border-[#e2e8f0] bg-white p-5 shadow-sm text-[#0f172a]">
+              <p className="text-[12px] font-black uppercase tracking-[0.15em] text-[#ff8d28]">
+                Gợi ý thể loại chụp
+              </p>
+              
+              <h3 className="mt-2 text-[13.5px] font-black text-[#0f172a]">
+                Các loại hình {suggestedPackages.sameCategory[0]?.category?.name || "chụp ảnh"} khác:
+              </h3>
+
+              <div className="mt-3 space-y-2">
+                {suggestedPackages.sameCategory.map((pkg: any) => {
+                  const isSelected = pkg.name === booking.service_name;
+                  return (
+                    <div
+                      key={pkg.id}
+                      className={`flex items-center justify-between p-2.5 rounded-xl border text-[12px] ${
+                        isSelected
+                          ? "border-[#ff8d28]/30 bg-orange-50/20"
+                          : "border-[#eef2f7] bg-white"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 min-w-0 flex-1 pr-2">
+                        <img
+                          src={pkg.image_url || pkg.cover_image || pkg.image || getCategoryFallbackImage(pkg.category?.slug || pkg.category?.name)}
+                          alt={pkg.name}
+                          className="h-12 w-12 rounded-lg object-cover shrink-0 border border-gray-100"
+                        />
+                        <div className="min-w-0">
+                          <p className="font-bold text-gray-800 truncate">{pkg.name}</p>
+                          <p className="text-gray-500 font-medium mt-0.5">Giá: {pkg.price.toLocaleString("vi-VN")} VND</p>
+                        </div>
+                      </div>
+                      
+                      {isSelected ? (
+                        <span className="shrink-0 px-2.5 py-1 text-[10px] font-black rounded-full bg-orange-100 text-orange-600">
+                          Đã chọn
+                        </span>
+                      ) : (
+                        <Link
+                          href={`/booking?photographer=${booking.photographer_id}&service=${pkg.category?.slug || "all"}${pkg.id === "mock_wedding_1" ? "&wedding_subtype=phong-su" : pkg.id === "mock_wedding_2" ? "&wedding_subtype=gia-tien" : pkg.id === "mock_wedding_3" ? "&wedding_subtype=an-hoi" : ""}`}
+                          className="shrink-0 px-3 py-1 text-[10px] font-black rounded-lg bg-[#ff8d28] text-white hover:bg-[#e0751b] transition-colors"
+                        >
+                          Chọn thêm
+                        </Link>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {suggestedPackages.otherCategory.length > 0 && (
+                <>
+                  <h3 className="mt-4 text-[13.5px] font-black text-[#0f172a]">
+                    Dịch vụ khác của photographer đó:
+                  </h3>
+                  <div className="mt-3 space-y-2">
+                    {suggestedPackages.otherCategory.slice(0, 3).map((pkg: any) => (
+                      <div
+                        key={pkg.id}
+                        className="flex items-center justify-between p-2.5 rounded-xl border border-[#eef2f7] bg-white text-[12px]"
+                      >
+                        <div className="flex items-center gap-3 min-w-0 flex-1 pr-2">
+                          <img
+                            src={pkg.image_url || pkg.cover_image || pkg.image || getCategoryFallbackImage(pkg.category?.slug || pkg.category?.name)}
+                            alt={pkg.name}
+                            className="h-12 w-12 rounded-lg object-cover shrink-0 border border-gray-100"
+                          />
+                          <div className="min-w-0">
+                            <p className="font-bold text-gray-800 truncate">{pkg.name}</p>
+                            <p className="text-gray-400 font-bold text-[10px]">{pkg.category?.name}</p>
+                            <p className="text-gray-500 font-medium mt-0.5">{pkg.price.toLocaleString("vi-VN")} VND</p>
+                          </div>
+                        </div>
+                        <Link
+                          href={`/booking?photographer=${booking.photographer_id}&service=${pkg.category?.slug || "all"}&package=${pkg.id}`}
+                          className="shrink-0 px-3 py-1 text-[10px] font-black rounded-lg border border-[#ff8d28] text-[#ff8d28] hover:bg-orange-50 transition-colors"
+                        >
+                          Tìm hiểu
+                        </Link>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
         </aside>
       </section>
     </main>
@@ -653,4 +906,91 @@ function SummaryRow({
       </span>
     </div>
   );
+}
+
+function ProgressItem({
+  active,
+  done,
+  title,
+  description,
+}: {
+  active: boolean;
+  done: boolean;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div
+      className={`rounded-[14px] border p-2.5 transition-all ${
+        active
+          ? "border-[#ffcfaa] bg-[#fff7ed]"
+          : "border-[#eef2f7] bg-[#fbfcff]"
+      }`}
+    >
+      <div className="flex items-center gap-3">
+        <span
+          className={`grid h-6 w-6 shrink-0 place-items-center rounded-full text-[11px] font-black ${
+            done
+              ? "bg-[#ff8d28] text-white"
+              : active
+              ? "bg-white text-[#ff8d28] border border-[#ffcfaa]"
+              : "bg-[#e2e8f0] text-[#94a3b8]"
+          }`}
+        >
+          {done ? "✓" : "•"}
+        </span>
+
+        <div className="min-w-0 flex-1">
+          <p
+            className={`text-[12.5px] font-black truncate ${
+              active ? "text-[#0f172a]" : "text-[#64748b]"
+            }`}
+          >
+            {title}
+          </p>
+          {active && (
+            <p className="mt-0.5 text-[11px] font-semibold leading-4 text-[#64748b]">
+              {description}
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function getCategoryFallbackImage(slugOrName: string = "") {
+  const s = String(slugOrName).toLowerCase();
+  // Khớp ảnh cụ thể cho từng loại hình chụp cưới trong booking page
+  if (s.includes("phóng sự") || s.includes("phong-su")) {
+    return "https://i.pinimg.com/736x/6d/c5/19/6dc519d3bd5450d7e06a71e0e5a2a845.jpg";
+  }
+  if (s.includes("gia tiên") || s.includes("gia-tien")) {
+    return "https://i.pinimg.com/736x/88/f0/a4/88f0a43b271ad694a8e10c7eeaf76ea4.jpg";
+  }
+  if (s.includes("ăn hỏi") || s.includes("an-hoi")) {
+    return "https://i.pinimg.com/736x/26/e9/6c/26e96c6c35a006344570ac3fdcb44c41.jpg";
+  }
+  if (s.includes("wedding") || s.includes("cưới") || s.includes("pre-wedding")) {
+    return "https://i.pinimg.com/736x/d5/39/3f/d5393f1c798379d5dfdf1b85563074dc.jpg";
+  }
+  if (s.includes("couple") || s.includes("đôi")) {
+    return "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?w=120&auto=format&fit=crop&q=60";
+  }
+  if (s.includes("portrait") || s.includes("chân dung") || s.includes("cá nhân") || s.includes("đơn")) {
+    return "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=60";
+  }
+  if (s.includes("event") || s.includes("sự kiện")) {
+    return "https://images.unsplash.com/photo-1511578314322-379afb476865?w=120&auto=format&fit=crop&q=60";
+  }
+  if (s.includes("yearbook") || s.includes("kỷ yếu")) {
+    return "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=120&auto=format&fit=crop&q=60";
+  }
+  if (s.includes("travel") || s.includes("du lịch")) {
+    return "https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=120&auto=format&fit=crop&q=60";
+  }
+  if (s.includes("food") || s.includes("product") || s.includes("sản phẩm") || s.includes("ẩm thực")) {
+    return "https://images.unsplash.com/photo-1498837167922-ddd27525d352?w=120&auto=format&fit=crop&q=60";
+  }
+  return "https://images.unsplash.com/photo-1452780212940-6f5c0d14d84a?w=120&auto=format&fit=crop&q=60";
 }
