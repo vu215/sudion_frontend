@@ -125,8 +125,6 @@ const PEOPLE_OPTIONS_MAP: Record<string, { label: string; extra: number }[]> = {
   ],
   portrait: [
     { label: "1 người", extra: 0 },
-    { label: "2 người", extra: 300000 },
-    { label: "3-5 người", extra: 600000 },
   ],
   event: [
     { label: "Dưới 30 khách", extra: 0 },
@@ -359,7 +357,38 @@ function BookingContent() {
   const { session } = useAuth();
   const toast = useToast();
 
-  const photographerId = searchParams.get("photographer") || "";
+  const rawPhotographerId = searchParams.get("photographer") || "";
+  const photographerId = useMemo(() => {
+    const slugMap: Record<string, string> = {
+      "binh-nguyen": "3",
+      "hao-le": "2",
+      "may-studio": "28",
+      "linh-hoa": "17",
+      "studio-k": "20",
+      "minh-anh": "8",
+      "nha-bep": "13",
+      "anh-travel": "14",
+      "hoang-anh": "4",
+      "hung-trinh": "11",
+
+      // Kỷ yếu (Yearbook)
+      "thu-hien": "12",
+      "linh-anh": "21",
+      "hoa-mai": "30",
+
+      // Travel
+      "tu-anh": "23",
+      "duc-long": "32",
+
+      // Food & Product
+      "viet-hung": "22",
+      "thu-trang": "31",
+
+      // Sự kiện (Event)
+      "quang-viet": "26",
+    };
+    return slugMap[rawPhotographerId] || rawPhotographerId;
+  }, [rawPhotographerId]);
   const serviceQuery = searchParams.get("service")?.trim() || "";
 
   // ── Core state ──
@@ -382,7 +411,14 @@ function BookingContent() {
     }
     return null;
   });
-  const [selectedSubType, setSelectedSubType] = useState<string>("pre-wedding");
+  const [selectedSubType, setSelectedSubType] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      const search = new URLSearchParams(window.location.search);
+      const sub = search.get("wedding_subtype")?.trim();
+      return sub || "pre-wedding";
+    }
+    return "pre-wedding";
+  });
   const [selectedTier, setSelectedTier] = useState<"basic" | "standard" | "premium">("standard");
   const [selectedPeopleScale, setSelectedPeopleScale] = useState("");
   const [selectedAddOns, setSelectedAddOns] = useState<string[]>([]);
@@ -492,7 +528,7 @@ function BookingContent() {
   }, [estimatedTotal]);
 
   const depositAmount = useMemo(() => {
-    return Math.round(finalTotal * 0.5);
+    return Math.round(finalTotal * 0.3);
   }, [finalTotal]);
 
   const selectedAddOnsDetails = useMemo(
@@ -534,6 +570,18 @@ function BookingContent() {
     setFullName((c) => c || session.fullName);
     setEmail((c) => c || session.email);
   }, [session]);
+
+  // Đồng bộ state khi URL thay đổi query params (ví dụ từ gợi ý quay lại trang booking)
+  useEffect(() => {
+    const service = searchParams.get("service")?.trim();
+    if (service) {
+      setSelectedCategory(normalizeServiceFilter(service));
+    }
+    const subtype = searchParams.get("wedding_subtype")?.trim();
+    if (subtype) {
+      setSelectedSubType(subtype);
+    }
+  }, [searchParams]);
 
   // Load booked slots
   useEffect(() => {
@@ -734,6 +782,21 @@ function BookingContent() {
       if (!res.ok || !json.success) throw new Error(json.message || "Không thể tạo booking.");
 
       const bookingCode = json.data.booking_code;
+
+      // Cập nhật tỷ lệ cọc sang 30% mặc định vào DB thông qua API admin
+      try {
+        await fetch(`${API_URL}/admin/bookings/${bookingCode}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            deposit_amount: depositAmount,
+            remaining_amount: finalTotal - depositAmount,
+          }),
+        });
+      } catch (err) {
+        console.error("Lỗi cập nhật cọc 30% admin:", err);
+      }
+
       saveBooking({
         id: bookingCode,
         status: "awaiting_payment",
@@ -942,7 +1005,7 @@ function BookingContent() {
                     >
                       {currentPeopleOptions.map((o) => (
                         <option key={o.label} value={o.label}>
-                          {o.label} {o.extra > 0 ? `(+${formatCurrency(o.extra)})` : "(không phụ phí)"}
+                          {o.label} {o.extra > 0 ? `(+${formatCurrency(o.extra)})` : ""}
                         </option>
                       ))}
                     </select>
@@ -1253,10 +1316,10 @@ function BookingContent() {
             {/* Deposit */}
             <div className="mt-4 rounded-xl border border-[#fff4eb] bg-[#fffaf5] p-3">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-semibold text-[#6b7280]">Tiền cọc giữ lịch (50%)</span>
+                <span className="text-[11px] font-semibold text-[#6b7280]">Tiền cọc giữ lịch (30%)</span>
                 <span className="text-sm font-black text-[#ff8d28]">{formatCurrency(depositAmount)}</span>
               </div>
-              <p className="mt-1 text-[10px] text-[#9ca3af]">Thanh toán nốt 50% sau khi hoàn thành buổi chụp</p>
+              <p className="mt-1 text-[10px] text-[#9ca3af]">Thanh toán nốt 70% sau khi hoàn thành buổi chụp</p>
             </div>
 
             {/* Submit error */}

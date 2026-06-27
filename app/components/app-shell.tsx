@@ -108,6 +108,43 @@ function Header({ pathname }: { pathname: string }) {
             const active =
               link.href === "/" ? pathname === "/" : !link.href.includes("#") && pathname.startsWith(link.href);
 
+            if (link.href === "/services") {
+              return (
+                <div key={link.label} className="relative group flex items-center py-2 h-full">
+                  <span
+                    className={`border-b-2 pb-1 transition-all cursor-pointer ${
+                      pathname.startsWith("/services")
+                        ? "border-[#ff8d28] text-[#ff8d28]"
+                        : "border-transparent hover:text-[#0e111d]"
+                    }`}
+                  >
+                    {link.label}
+                  </span>
+                  <div className="absolute top-full left-1/2 -translate-x-1/2 pt-2 hidden group-hover:block w-48 z-50">
+                    <div className="rounded-xl border border-[#e8eaf1] bg-white shadow-lg py-2">
+                      {[
+                        { href: "/services/wedding", label: "Cưới hỏi" },
+                        { href: "/services/couple", label: "Cặp đôi" },
+                        { href: "/services/portrait", label: "Chân dung cá nhân" },
+                        { href: "/services/event", label: "Sự kiện" },
+                        { href: "/services/yearbook", label: "Kỷ yếu" },
+                        { href: "/services/travel", label: "Travel" },
+                        { href: "/services/food", label: "Food & Product" },
+                      ].map((sub) => (
+                        <Link
+                          key={sub.label}
+                          href={sub.href}
+                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-orange-50 hover:text-[#ff8d28] transition-colors"
+                        >
+                          {sub.label}
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+
             return (
               <Link
                 key={link.label}
@@ -286,10 +323,54 @@ function Header({ pathname }: { pathname: string }) {
         </div>
 
         {/* Mobile Nav Links */}
-        <nav className="flex flex-col px-3 py-3">
+        <nav className="flex flex-col px-3 py-3 gap-1">
           {headerLinks.map((link) => {
             const active =
               link.href === "/" ? pathname === "/" : !link.href.includes("#") && pathname.startsWith(link.href);
+
+            if (link.href === "/services") {
+              return (
+                <div key={link.label} className="flex flex-col">
+                  <div
+                    className={`flex items-center gap-3 rounded-xl px-4 py-3 text-[15px] font-bold transition-colors ${
+                      pathname.startsWith("/services")
+                        ? "text-[#ff8d28] bg-orange-50/30"
+                        : "text-gray-700 hover:bg-gray-50"
+                    }`}
+                  >
+                    <span>{link.label}</span>
+                  </div>
+                  <div className="flex flex-col pl-6 border-l border-gray-100 ml-4 mt-1 space-y-1">
+                    {[
+                      { href: "/services/wedding", label: "Cưới hỏi" },
+                      { href: "/services/couple", label: "Cặp đôi" },
+                      { href: "/services/portrait", label: "Chân dung cá nhân" },
+                      { href: "/services/event", label: "Sự kiện" },
+                      { href: "/services/yearbook", label: "Kỷ yếu" },
+                      { href: "/services/travel", label: "Travel" },
+                      { href: "/services/food", label: "Food & Product" },
+                    ].map((sub) => {
+                      const subActive = pathname === sub.href;
+                      return (
+                        <Link
+                          key={sub.label}
+                          href={sub.href}
+                          onClick={() => setMobileOpen(false)}
+                          className={`block px-4 py-2 text-sm font-semibold rounded-lg transition-colors ${
+                            subActive
+                              ? "text-[#ff8d28] bg-orange-50/50"
+                              : "text-gray-600 hover:text-[#ff8d28] hover:bg-gray-50"
+                          }`}
+                        >
+                          {sub.label}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            }
+
             return (
               <Link
                 key={link.label}

@@ -504,12 +504,43 @@ function DashboardBookingCard({
   updatingCode: string;
   onUpdateStatus: (bookingCode: string, status: string) => Promise<void>;
 }) {
+  const [driveLink, setDriveLink] = useState("");
   const statusInfo = getStatusInfo(booking.status);
   const isUpdating = updatingCode === booking.booking_code;
 
   const canAccept = booking.status === "awaiting_payment";
   const canReject = booking.status === "awaiting_payment";
   const canComplete = booking.status === "confirmed";
+
+  const handleComplete = async () => {
+    if (!driveLink.trim().startsWith("http")) {
+      alert("Vui lòng nhập link Google Drive hợp lệ (bắt đầu bằng http hoặc https).");
+      return;
+    }
+    try {
+      // 1. Cập nhật địa điểm chứa link ảnh vào database qua API Admin
+      const updateRes = await fetch(`${API_URL}/admin/bookings/${booking.booking_code}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          location: `${booking.location || "Chưa chọn"} [Photos: ${driveLink.trim()}]`,
+        }),
+      });
+      
+      if (!updateRes.ok) {
+        const errJson = await updateRes.json();
+        throw new Error(errJson.message || "Không thể cập nhật liên kết Drive.");
+      }
+
+      // 2. Chuyển trạng thái sang completed
+      await onUpdateStatus(booking.booking_code, "completed");
+    } catch (error: any) {
+      console.error("Lỗi hoàn thành buổi chụp:", error);
+      alert(error.message || "Lỗi khi hoàn thành buổi chụp.");
+    }
+  };
 
   return (
     <article className="overflow-hidden rounded-[22px] border border-[#e2e8f0] bg-white shadow-[0_16px_40px_rgba(15,23,42,0.045)]">
@@ -640,14 +671,27 @@ function DashboardBookingCard({
               </button>
             ) : null}
 
+             {canComplete ? (
+              <div className="flex flex-col gap-2 mb-2 text-[#0f172a] text-left">
+                <label className="block text-[11px] font-black uppercase tracking-[0.12em] text-[#94a3b8]">
+                  Link Google Drive ảnh buổi chụp (Bắt buộc)
+                </label>
+                <input
+                  type="url"
+                  value={driveLink}
+                  onChange={(e) => setDriveLink(e.target.value)}
+                  placeholder="https://drive.google.com/..."
+                  className="w-full rounded-[10px] border border-[#e2e8f0] px-3 py-2 text-[12px] font-bold outline-none focus:border-[#ff8d28] bg-white text-[#0f172a]"
+                />
+              </div>
+            ) : null}
+
             {canComplete ? (
               <button
                 type="button"
-                onClick={() =>
-                  onUpdateStatus(booking.booking_code, "completed")
-                }
-                disabled={isUpdating}
-                className="rounded-[12px] bg-[#16a34a] px-4 py-3 text-center text-[13px] font-black text-white shadow-[0_10px_24px_rgba(22,163,74,0.18)] transition-all hover:bg-[#15803d] disabled:cursor-not-allowed disabled:opacity-60"
+                onClick={handleComplete}
+                disabled={isUpdating || !driveLink.trim().startsWith("http")}
+                className="rounded-[12px] bg-[#16a34a] px-4 py-3 text-center text-[13px] font-black text-white shadow-[0_10px_24px_rgba(22,163,74,0.18)] transition-all hover:bg-[#15803d] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isUpdating ? "Đang xử lý..." : "Hoàn thành buổi chụp"}
               </button>

@@ -662,13 +662,34 @@ function BookingCard({
             <InfoItem label="Giờ chụp" value={formatTime(booking.shoot_time)} />
             <InfoItem
               label="Địa điểm"
-              value={booking.location || "Chưa chọn"}
+              value={booking.location ? booking.location.split(" [Photos:")[0] : "Chưa chọn"}
             />
             <InfoItem
               label="Quy mô"
               value={booking.people_scale || "Chưa chọn"}
             />
           </div>
+
+          {booking.location && booking.location.includes("[Photos:") && (
+            <div className="rounded-[16px] border border-blue-200 bg-blue-50/50 px-4 py-3 flex items-center justify-between">
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-[0.14em] text-blue-500">
+                  Ảnh buổi chụp (Google Drive)
+                </p>
+                <p className="mt-1 text-[13px] font-semibold text-blue-700">
+                  Nhiếp ảnh gia đã tải ảnh lên thư mục Google Drive.
+                </p>
+              </div>
+              <a
+                href={booking.location.match(/\[Photos:\s*(https?:\/\/[^\]]+)\]/)?.[1] || "#"}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-[10px] bg-blue-600 px-4 py-2 text-[12px] font-black text-white shadow-sm hover:bg-blue-700 transition-colors"
+              >
+                📂 Xem ảnh
+              </a>
+            </div>
+          )}
 
           <div className="rounded-[16px] border border-[#eef0f5] bg-[#fafbfc] px-4 py-3">
             <p className="text-[12px] font-black uppercase tracking-[0.14em] text-[#94a3b8]">
@@ -716,16 +737,23 @@ function BookingCard({
 
         <div className="grid gap-3 rounded-[18px] border border-[#eef0f5] bg-[#fbfcff] p-4">
           <MoneyRow label="Tổng tiền" value={booking.estimated_total} />
-          <MoneyRow
-            label="Tiền cọc 50%"
-            value={booking.deposit_amount}
-            highlight={booking.status === "confirmed"}
-          />
-          <MoneyRow
-            label="Còn lại"
-            value={booking.remaining_amount}
-            highlight={booking.status === "completed"}
-          />
+          {(() => {
+            const depositPct = booking.estimated_total > 0 ? Math.round((booking.deposit_amount / booking.estimated_total) * 100) : 50;
+            return (
+              <>
+                <MoneyRow
+                  label={`Tiền cọc ${depositPct}%`}
+                  value={booking.deposit_amount}
+                  highlight={booking.status === "confirmed"}
+                />
+                <MoneyRow
+                  label="Còn lại"
+                  value={booking.remaining_amount}
+                  highlight={booking.status === "completed"}
+                />
+              </>
+            );
+          })()}
 
           <div className="my-1 h-px bg-[#e8eaf1]" />
 

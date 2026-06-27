@@ -329,8 +329,9 @@ function NextSteps({
   const packagePrice = Number(booking.base_price || 0);
   const addOnRows = booking.add_ons || [];
   const finalTotal = Number(booking.estimated_total || 0);
-  const depositAmount = Math.round(finalTotal * 0.5);
-  const remainingAmount = finalTotal - depositAmount;
+  const depositAmount = Number(booking.deposit_amount !== undefined && booking.deposit_amount !== null ? booking.deposit_amount : Math.round(finalTotal * 0.5));
+  const remainingAmount = Number(booking.remaining_amount !== undefined && booking.remaining_amount !== null ? booking.remaining_amount : finalTotal - depositAmount);
+  const depositPct = finalTotal > 0 ? Math.round((depositAmount / finalTotal) * 100) : 50;
 
   const paymentInfo = useMemo(() => {
     const commonText = `Booking ${booking.booking_code}\n${
@@ -491,7 +492,7 @@ function NextSteps({
 
             <div className="flex items-center justify-between gap-4 rounded-[10px] border border-[#dcd9f3] bg-[#f0ecff] px-3.5 py-2.5">
               <p className="text-[14px] font-black text-[#ff8d28]">
-                Tiền cọc (50%)
+                Tiền cọc ({depositPct}%)
               </p>
 
               <p className="text-[15px] font-black text-[#ff8d28]">
