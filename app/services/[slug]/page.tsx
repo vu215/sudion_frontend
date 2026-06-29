@@ -17,6 +17,7 @@ import {
   type ServicePackage,
   type ServiceSlug,
 } from "../service-api";
+import { getBookingUrl } from "@/lib/routes";
 
 const containerClass = "mx-auto w-full max-w-[1440px] px-6 md:px-12 lg:px-20";
 
@@ -718,7 +719,7 @@ function PortraitResultCard({
           </Link>
 
           <Link
-            href={`/booking?photographer=${item.photographerId}&service=${serviceSlug}`}
+            href={getBookingUrl(item.photographerId, serviceSlug)}
             className="rounded-lg bg-[#ff8d28] px-3 py-2.5 text-center text-[12px] font-black text-white shadow-[0_8px_18px_rgba(255,141,40,0.18)] transition hover:bg-[#e0751b]"
           >
             Đặt lịch

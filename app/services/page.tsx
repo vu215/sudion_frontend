@@ -9,6 +9,7 @@ import {
   type CSSProperties,
   type ReactNode,
 } from "react";
+import { getPhotographerListUrl } from "@/lib/routes";
 import {
   getServicesPageData,
   type UiServiceCategory,
@@ -110,7 +111,7 @@ export default function ServicesPage() {
                 serviceCategories.map((service, index) => (
                   <Link
                     key={`${service.slug}-${index}`}
-                    href={`/photographer?category=${service.slug}`}
+                    href={getPhotographerListUrl(service.slug)}
                     className="rounded-full border border-[#e8eaf1] bg-white px-5 py-2.5 text-[14px] font-extrabold text-[#0e111d] shadow-[0_8px_18px_rgba(14,17,29,0.04)] transition hover:border-[#ff8d28] hover:bg-[#fff7ef] hover:text-[#ff8d28]"
                   >
                     {service.title}

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState, use } from "react";
+import { getReviewUrl } from "@/lib/routes";
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
@@ -385,7 +386,7 @@ function ActionButtons({ booking }: { booking: Booking }) {
     return (
       <div className="grid gap-3 sm:grid-cols-2">
         <Link
-          href={`/review?booking=${encodeURIComponent(booking.booking_code)}`}
+          href={getReviewUrl(booking.booking_code)}
           className="rounded-[16px] bg-[#ff8d28] px-5 py-4 text-center text-[14px] font-black text-white shadow-[0_14px_30px_rgba(255,141,40,0.22)] transition-all hover:-translate-y-0.5 hover:bg-[#e0751b]"
         >
           Đánh giá photographer

@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import Link from "next/link";
+import { getPhotographerListUrl } from "@/lib/routes";
 
 const assets = {
   photographer: "https://i.pinimg.com/1200x/94/93/63/94936335f2639081d5ab76217e01159e.jpg",
@@ -302,9 +303,7 @@ function SearchBar() {
         />
 
         <Link
-          href={`/photographer?category=${selectedCategory}&location=${encodeURIComponent(
-            selectedLocation,
-          )}`}
+          href={getPhotographerListUrl(selectedCategory, selectedLocation)}
           className="inline-flex min-h-[42px] items-center justify-center rounded-[10px] bg-[#ff8d28] px-4 text-[14px] font-extrabold text-white shadow-[0_8px_18px_rgba(255,141,40,0.22)] transition-all hover:bg-[#e0751b] sm:col-span-2 lg:col-span-1 lg:min-h-full"
         >
           Tìm Kiếm
@@ -597,7 +596,7 @@ function ServiceCopy({
       <Link
         data-reveal
         data-reveal-delay="400"
-        href={`/photographer?category=${id}`}
+        href={getPhotographerListUrl(id)}
         className="mt-8 inline-flex rounded-lg bg-[#ff8d28] hover:bg-[#e0751b] px-7 py-3.5 text-[13px] sm:text-[14px] font-bold text-white shadow-[0_8px_16px_rgba(255,141,40,0.12)] transition-all hover:translate-y-[-1px]"
       >
         {cta}

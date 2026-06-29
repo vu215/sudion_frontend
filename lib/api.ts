@@ -136,6 +136,7 @@ export const api = {
     },
     getStats: () => request('/admin/reports/stats'),
     getById: (id: string) => request(`/admin/reports/${id}`),
+    update: (id: string, data: any) => request(`/admin/reports/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     updateStatus: (id: string, status: string, admin_note?: string) =>
       request(`/admin/reports/${id}/status`, {
         method: 'PATCH',
@@ -210,5 +211,106 @@ export const api = {
         body: JSON.stringify({ newPassword }),
       }),
     delete: (id: string) => request(`/admin/users/${id}`, { method: 'DELETE' }),
+  },
+
+  // Admin Refund APIs
+  refunds: {
+    getAll: (params?: Record<string, any>) => {
+      const query = params ? '?' + new URLSearchParams(params).toString() : '';
+      return request(`/admin/refunds${query}`);
+    },
+    getStats: () => request('/admin/refunds/stats'),
+    getById: (id: string) => request(`/admin/refunds/${id}`),
+    create: (data: any) => request('/admin/refunds', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: any) => request(`/admin/refunds/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    updateStatus: (id: string, status: string, admin_note?: string) =>
+      request(`/admin/refunds/${id}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status, admin_note }),
+      }),
+    approve: (id: string, admin_note?: string) =>
+      request(`/admin/refunds/${id}/approve`, {
+        method: 'POST',
+        body: JSON.stringify({ admin_note }),
+      }),
+    process: (id: string, admin_note?: string, refund_transaction_code?: string) =>
+      request(`/admin/refunds/${id}/process`, {
+        method: 'POST',
+        body: JSON.stringify({ admin_note, refund_transaction_code }),
+      }),
+    reject: (id: string, admin_note: string) =>
+      request(`/admin/refunds/${id}/reject`, {
+        method: 'POST',
+        body: JSON.stringify({ admin_note }),
+      }),
+    delete: (id: string) => request(`/admin/refunds/${id}`, { method: 'DELETE' }),
+  },
+
+  // Admin Review APIs
+  reviews: {
+    getAll: (params?: Record<string, any>) => {
+      const query = params ? '?' + new URLSearchParams(params).toString() : '';
+      return request(`/admin/reviews${query}`);
+    },
+    getStats: () => request('/admin/reviews/stats'),
+    getById: (id: number) => request(`/admin/reviews/${id}`),
+    update: (id: number, data: any) => request(`/admin/reviews/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    toggleHide: (id: number, is_hidden: boolean) =>
+      request(`/admin/reviews/${id}/hide`, {
+        method: 'PATCH',
+        body: JSON.stringify({ is_hidden }),
+      }),
+    delete: (id: number) => request(`/admin/reviews/${id}`, { method: 'DELETE' }),
+  },
+
+  // Admin AI Moderation APIs
+  aiModeration: {
+    getAll: (params?: Record<string, any>) => {
+      const query = params ? '?' + new URLSearchParams(params).toString() : '';
+      return request(`/admin/ai-moderation${query}`);
+    },
+    getStats: () => request('/admin/ai-moderation/stats'),
+    getFlagged: () => request('/admin/ai-moderation/flagged'),
+    getById: (id: string) => request(`/admin/ai-moderation/${id}`),
+    updateDecision: (id: string, decision: string, review_note?: string, reviewed_by?: string) =>
+      request(`/admin/ai-moderation/${id}/decision`, {
+        method: 'PUT',
+        body: JSON.stringify({ decision, review_note, reviewed_by }),
+      }),
+    bulkUpdate: (ids: string[], decision: string, review_note?: string) =>
+      request('/admin/ai-moderation/bulk-update', {
+        method: 'POST',
+        body: JSON.stringify({ ids, decision, review_note }),
+      }),
+    delete: (id: string) => request(`/admin/ai-moderation/${id}`, { method: 'DELETE' }),
+  },
+
+  // Admin Settings APIs
+  settings: {
+    getAll: () => request('/admin/settings'),
+    getByKey: (key: string) => request(`/admin/settings/${key}`),
+    getByCategory: (category: string) => request(`/admin/settings/category/${category}`),
+    getPaymentSettings: () => request('/admin/settings/payment'),
+    update: (key: string, value: any, description?: string, category?: string, value_type?: string) =>
+      request(`/admin/settings/${key}`, {
+        method: 'PUT',
+        body: JSON.stringify({ value, description, category, value_type }),
+      }),
+    updatePaymentSettings: (data: any) =>
+      request('/admin/settings/payment', {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+    bulkUpdate: (settings: any[]) =>
+      request('/admin/settings/bulk-update', {
+        method: 'POST',
+        body: JSON.stringify({ settings }),
+      }),
+    resetToDefaults: (category?: string) =>
+      request('/admin/settings/reset', {
+        method: 'POST',
+        body: JSON.stringify({ category }),
+      }),
+    delete: (key: string) => request(`/admin/settings/${key}`, { method: 'DELETE' }),
   },
 };

@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import AdminLayout from "../_components/admin-layout";
 import { AdminIcon, IconButton } from "../_components/admin-icons";
+import { api } from "@/lib/api";
 
 type RefundStatus = "Chờ duyệt" | "Đang xử lý" | "Đã hoàn tiền" | "Từ chối";
 type RefundMethod = "MoMo" | "VNPAY" | "Chuyển khoản" | "ZaloPay";
@@ -49,7 +50,9 @@ const statusColors: Record<RefundStatus, string> = {
 };
 
 export default function RefundsPage() {
-  const [items, setItems] = useState(seed);
+  const [items, setItems] = useState<Refund[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({ total: 0, pending: 0, processed: 0, rejected: 0, pending_amount: 0, processed_amount: 0 });
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<RefundStatus | "Tất cả">("Tất cả");
   const [method, setMethod] = useState("Tất cả");
@@ -58,26 +61,118 @@ export default function RefundsPage() {
   const [adminNote, setAdminNote] = useState("");
   const [toast, setToast] = useState("");
 
+  // Load data from API
+  useEffect(() => {
+    loadRefunds();
+    loadStats();
+  }, [status, method]);
+
+  async function loadRefunds() {
+    setLoading(true);
+    try {
+      const params: Record<string, any> = { page: 1, pageSize: 100 };
+      if (status !== "Tất cả") params.status = status;
+      if (method !== "Tất cả") params.method = method;
+
+      const result = await api.refunds.getAll(params);
+      if (result.success && result.data) {
+        setItems(result.data);
+      }
+    } catch (error) {
+      console.error("Error loading refunds:", error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function loadStats() {
+    try {
+      const result = await api.refunds.getStats();
+      if (result.success && result.data) {
+        setStats(result.data);
+      }
+    } catch (error) {
+      console.error("Error loading stats:", error);
+    }
+  }
+
   const selected = items.find((item) => item.id === selectedId) ?? items[0];
 
   const filtered = useMemo(() => items.filter((item) => {
     const text = [item.id, item.customer, item.bookingId, item.photographer, item.reason, item.status].join(" ").toLowerCase();
-    return text.includes(query.toLowerCase())
-      && (status === "Tất cả" || item.status === status)
-      && (method === "Tất cả" || item.method === method);
-  }), [items, query, status, method]);
+    return text.includes(query.toLowerCase());
+  }), [items, query]);
 
-  const totalPending = items.filter((i) => i.status === "Chờ duyệt").reduce((s, i) => s + i.refundAmount, 0);
-  const totalRefunded = items.filter((i) => i.status === "Đã hoàn tiền").reduce((s, i) => s + i.refundAmount, 0);
+  const totalPending = stats.pending_amount || 0;
+  const totalRefunded = stats.processed_amount || 0;
 
   function notify(text: string) { setToast(text); setTimeout(() => setToast(""), 1800); }
 
-  function patch(id: string, value: Partial<Refund>) {
-    setItems((list) => list.map((item) => item.id === id ? {
-      ...item, ...value,
-      history: value.status ? [...item.history, `15/06/2026 · ${value.status}`] : item.history,
-      updatedAt: "15/06/2026",
-    } : item));
+  async function patch(id: string, value: Partial<Refund>) {
+    try {
+      // Call API to update
+      if (value.status || value.adminNote) {
+        const result = await api.refunds.updateStatus(id, value.status || '', value.adminNote);
+        if (result.success) {
+          // Reload data from server
+          loadRefunds();
+          loadStats();
+        }
+      }
+    } catch (error) {
+      notify("Lỗi khi cập nhật");
+    }
+  }
+
+  async function handleApprove(id: string) {
+    try {
+      const result = await api.refunds.approve(id, adminNote);
+      if (result.success) {
+        notify("Đã duyệt yêu cầu");
+        loadRefunds();
+        loadStats();
+      }
+    } catch (error) {
+      notify("Lỗi khi duyệt");
+    }
+  }
+
+  async function handleProcess(id: string) {
+    try {
+      const result = await api.refunds.process(id, adminNote);
+      if (result.success) {
+        notify("Đã xác nhận hoàn tiền");
+        loadRefunds();
+        loadStats();
+      }
+    } catch (error) {
+      notify("Lỗi khi xử lý");
+    }
+  }
+
+  async function handleReject(id: string) {
+    try {
+      const result = await api.refunds.reject(id, adminNote || 'Từ chối yêu cầu');
+      if (result.success) {
+        notify("Đã từ chối yêu cầu");
+        loadRefunds();
+        loadStats();
+      }
+    } catch (error) {
+      notify("Lỗi khi từ chối");
+    }
+  }
+
+  async function handleSaveNote(id: string) {
+    try {
+      const result = await api.refunds.update(id, { admin_note: adminNote });
+      if (result.success) {
+        notify("Đã lưu ghi chú");
+        loadRefunds();
+      }
+    } catch (error) {
+      notify("Lỗi khi lưu");
+    }
   }
 
   function openDetail(id: string) {
@@ -109,10 +204,10 @@ export default function RefundsPage() {
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <StatCard title="Tổng yêu cầu" value={String(items.length)} note="↑ 5.2% so với tháng trước" tone="orange" />
-          <StatCard title="Chờ duyệt" value={String(items.filter((i) => i.status === "Chờ duyệt").length)} note={`${money(totalPending)} đang chờ`} tone="amber" />
-          <StatCard title="Đã hoàn tiền" value={String(items.filter((i) => i.status === "Đã hoàn tiền").length)} note={money(totalRefunded)} tone="green" />
-          <StatCard title="Từ chối" value={String(items.filter((i) => i.status === "Từ chối").length)} note="Không đủ điều kiện" tone="red" />
+          <StatCard title="Tổng yêu cầu" value={String(stats.total)} note="Tất cả yêu cầu" tone="orange" />
+          <StatCard title="Chờ duyệt" value={String(stats.pending)} note={`${money(totalPending)} đang chờ`} tone="amber" />
+          <StatCard title="Đã hoàn tiền" value={String(stats.processed)} note={money(totalRefunded)} tone="green" />
+          <StatCard title="Từ chối" value={String(stats.rejected)} note="Không đủ điều kiện" tone="red" />
         </div>
 
         <Panel className="mt-4">
@@ -210,10 +305,10 @@ export default function RefundsPage() {
               <textarea value={adminNote} onChange={(e) => setAdminNote(e.target.value)} className="mt-2 w-full min-h-[72px] rounded-xl border border-[#dfe3ec] p-3 text-[12px] outline-none focus:border-[#ff8d28]" placeholder="Nhập ghi chú xử lý..." />
             </div>
             <div className="mt-5 grid grid-cols-2 gap-2">
-              <button onClick={() => { patch(selected.id, { status: "Đang xử lý", adminNote }); notify("Đã duyệt, đang xử lý."); }} className="h-10 rounded-xl border border-blue-200 bg-blue-50 text-[12px] font-medium text-blue-700 hover:bg-blue-100">Duyệt</button>
-              <button onClick={() => { patch(selected.id, { status: "Đã hoàn tiền", adminNote }); notify("Đã xác nhận hoàn tiền."); }} className="h-10 rounded-xl bg-[#ff8d28] text-[12px] font-medium text-white hover:bg-[#f47f16]">Đã hoàn tiền</button>
-              <button onClick={() => { patch(selected.id, { status: "Từ chối", adminNote }); notify("Đã từ chối yêu cầu."); }} className="h-10 rounded-xl border border-red-200 bg-red-50 text-[12px] font-medium text-red-600 hover:bg-red-100">Từ chối</button>
-              <button onClick={() => { patch(selected.id, { adminNote }); notify("Đã lưu ghi chú."); }} className="h-10 rounded-xl border border-[#dfe3ec] bg-white text-[12px] font-medium text-[#536078] hover:bg-[#f7f8fb]">Lưu ghi chú</button>
+              <button onClick={() => handleApprove(selected.id)} className="h-10 rounded-xl border border-blue-200 bg-blue-50 text-[12px] font-medium text-blue-700 hover:bg-blue-100">Duyệt</button>
+              <button onClick={() => handleProcess(selected.id)} className="h-10 rounded-xl bg-[#ff8d28] text-[12px] font-medium text-white hover:bg-[#f47f16]">Đã hoàn tiền</button>
+              <button onClick={() => handleReject(selected.id)} className="h-10 rounded-xl border border-red-200 bg-red-50 text-[12px] font-medium text-red-600 hover:bg-red-100">Từ chối</button>
+              <button onClick={() => handleSaveNote(selected.id)} className="h-10 rounded-xl border border-[#dfe3ec] bg-white text-[12px] font-medium text-[#536078] hover:bg-[#f7f8fb]">Lưu ghi chú</button>
             </div>
           </aside>
         </div>

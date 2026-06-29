@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import AdminLayout from "../_components/admin-layout";
 import { AdminIcon, IconButton } from "../_components/admin-icons";
+import { api } from "@/lib/api";
 
 type ReviewStatus = "Hiển thị" | "Đã ẩn";
 type Review = {
@@ -34,7 +35,9 @@ const seed: Review[] = [
 ];
 
 export default function ReviewsPage() {
-  const [items, setItems] = useState(seed);
+  const [items, setItems] = useState<Review[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<any>(null);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<ReviewStatus | "Tất cả" | "Bị report">("Tất cả");
   const [rating, setRating] = useState("Tất cả");
@@ -48,6 +51,48 @@ export default function ReviewsPage() {
     return text.includes(query.toLowerCase()) && (status === "Tất cả" || item.status === status || (status === "Bị report" && item.report > 0)) && (rating === "Tất cả" || item.rating === Number(rating));
   }), [items, query, rating, status]);
 
+  // Load reviews from API on mount and when filters change
+  useEffect(() => {
+    loadReviews();
+  }, [status, rating]);
+
+  // Load stats on mount
+  useEffect(() => {
+    loadStats();
+  }, []);
+
+  async function loadReviews() {
+    setLoading(true);
+    try {
+      const params: Record<string, any> = { page: 1, pageSize: 100 };
+      if (status !== "Tất cả") params.status = status;
+      if (rating !== "Tất cả") params.rating = rating;
+
+      const result = await api.reviews.getAll(params);
+      if (result.success && result.data) {
+        setItems(result.data);
+      } else {
+        setItems(seed);
+      }
+    } catch (error) {
+      console.error("Error loading reviews:", error);
+      setItems(seed);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function loadStats() {
+    try {
+      const result = await api.reviews.getStats();
+      if (result.success && result.data) {
+        setStats(result.data);
+      }
+    } catch (error) {
+      console.error("Error loading stats:", error);
+    }
+  }
+
   function notify(text: string) {
     setToast(text);
     setTimeout(() => setToast(""), 1800);
@@ -55,6 +100,58 @@ export default function ReviewsPage() {
 
   function patch(id: number, value: Partial<Review>) {
     setItems((list) => list.map((item) => item.id === id ? { ...item, ...value } : item));
+  }
+
+  async function handleToggleStatus(id: number, currentStatus: ReviewStatus) {
+    try {
+      const newStatus = currentStatus === "Hiển thị" ? "Đã ẩn" : "Hiển thị";
+      const is_hidden = newStatus === "Đã ẩn";
+      
+      const result = await api.reviews.toggleHide(id, is_hidden);
+      if (result.success) {
+        patch(id, { status: newStatus });
+        notify(`Đã ${is_hidden ? 'ẩn' : 'hiển thị'} đánh giá.`);
+        await loadReviews();
+      } else {
+        notify("Lỗi khi cập nhật.");
+      }
+    } catch (error) {
+      console.error("Error toggling review status:", error);
+      notify("Lỗi khi cập nhật.");
+    }
+  }
+
+  async function handleDelete(id: number) {
+    try {
+      const result = await api.reviews.delete(id);
+      if (result.success) {
+        setItems((list) => list.filter((item) => item.id !== id));
+        setDetailOpen(false);
+        window.setTimeout(() => setSelectedId(null), 220);
+        notify("Đã xóa đánh giá.");
+        await loadReviews();
+      } else {
+        notify("Lỗi khi xóa.");
+      }
+    } catch (error) {
+      console.error("Error deleting review:", error);
+      notify("Lỗi khi xóa.");
+    }
+  }
+
+  async function handleSaveNote(id: number) {
+    try {
+      // Since admin_note is not in the schema, we can only update is_hidden
+      // You may want to add an admin_note column to booking_reviews table
+      const currentReview = items.find((item) => item.id === id);
+      if (!currentReview) return;
+      
+      patch(id, { note });
+      notify("Đã lưu thay đổi (ghi chú chỉ lưu local).");
+    } catch (error) {
+      console.error("Error saving note:", error);
+      notify("Lỗi khi lưu.");
+    }
   }
 
   function openDetail(item: Review) {
@@ -75,10 +172,10 @@ export default function ReviewsPage() {
         <PageHead onClear={() => { setQuery(""); setStatus("Tất cả"); setRating("Tất cả"); }} />
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <Stat title="Tổng đánh giá" value="2.568" note="↑ 18.6% so với tháng trước" tone="orange" />
-          <Stat title="Đã hiển thị" value="2.246" note="87.4% tổng số" tone="green" />
-          <Stat title="Đã ẩn" value="235" note="9.2% tổng số" tone="red" />
-          <Stat title="Bị report" value="87" note="3.4% tổng số" tone="red" />
+          <Stat title="Tổng đánh giá" value={stats ? String(stats.total) : "0"} note="↑ 18.6% so với tháng trước" tone="orange" />
+          <Stat title="Đã hiển thị" value={stats ? String(stats.visible) : "0"} note="87.4% tổng số" tone="green" />
+          <Stat title="Đã ẩn" value={stats ? String(stats.hidden) : "0"} note="9.2% tổng số" tone="red" />
+          <Stat title="Bị report" value={stats ? String(stats.reported) : "0"} note="3.4% tổng số" tone="red" />
         </div>
 
         <Panel className="mt-4">
@@ -97,7 +194,7 @@ export default function ReviewsPage() {
           <div className="mt-4 flex gap-6 overflow-x-auto border-b border-[#edf0f5]">
             {(["Tất cả", "Hiển thị", "Đã ẩn", "Bị report"] as const).map((tab) => (
               <button key={tab} onClick={() => setStatus(tab)} className={`shrink-0 border-b-2 px-2 py-3 text-[12px] font-medium ${status === tab ? "border-[#ff8d28] text-[#ff8d28]" : "border-transparent text-[#536078]"}`}>
-                {tab} {tab === "Tất cả" ? "(2.568)" : tab === "Hiển thị" ? "(2.246)" : tab === "Đã ẩn" ? "(235)" : "(87)"}
+                {tab} ({tab === "Tất cả" ? items.length : tab === "Hiển thị" ? items.filter(i => i.status === "Hiển thị").length : tab === "Đã ẩn" ? items.filter(i => i.status === "Đã ẩn").length : items.filter(i => i.report > 0).length})
               </button>
             ))}
           </div>
@@ -119,14 +216,14 @@ export default function ReviewsPage() {
                     <td className="px-3 py-3"><Badge text={item.status} /></td>
                     <td className="px-3 py-3">{item.date}</td>
                     <td className="px-3 py-3">{item.report}</td>
-                    <td className="px-3 py-3"><div className="flex gap-2"><IconButton label="Xem chi tiết" icon="eye" onClick={(event) => { event.stopPropagation(); openDetail(item); }} /><IconButton label="Ẩn/hiện" icon="refresh" onClick={(event) => { event.stopPropagation(); patch(item.id, { status: item.status === "Hiển thị" ? "Đã ẩn" : "Hiển thị" }); openDetail(item); notify("Đã cập nhật trạng thái đánh giá."); }} /></div></td>
+                    <td className="px-3 py-3"><div className="flex gap-2"><IconButton label="Xem chi tiết" icon="eye" onClick={(event) => { event.stopPropagation(); openDetail(item); }} /><IconButton label="Ẩn/hiện" icon="refresh" onClick={(event) => { event.stopPropagation(); handleToggleStatus(item.id, item.status); }} /></div></td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
           <div className="mt-4 flex items-center justify-between text-[12px] text-[#697086]">
-            <span>Hiển thị 1 - {filtered.length} của 2.568 đánh giá</span>
+            <span>Hiển thị 1 - {filtered.length} của {items.length} đánh giá</span>
             <span className="rounded-xl border border-[#dfe3ec] px-3 py-2">10 / trang</span>
           </div>
         </Panel>
@@ -138,8 +235,8 @@ export default function ReviewsPage() {
               <div className="mt-5 flex items-center gap-3 border-b border-[#edf0f5] pb-5"><img src={selected.avatar} alt="" className="h-14 w-14 rounded-full object-cover" /><div><b>{selected.user}</b><p className="text-[#697086]">{selected.email}</p><p className="mt-2 text-[#697086]">Tổng đánh giá: 12 · Hữu ích: {selected.helpful}</p></div></div>
               <InfoBlock title="Thông tin đánh giá" rows={[["Rating", "★".repeat(selected.rating) + ` ${selected.rating}.0`], ["Nội dung", selected.content], ["Booking", selected.booking], ["Dịch vụ", selected.service], ["Photographer", selected.photographer], ["Ngày đánh giá", selected.date]]} />
               <div className="mt-5"><p className="mb-2 text-[12px] text-[#697086]">Hình ảnh đính kèm</p><div className="grid grid-cols-4 gap-2">{selected.images.map((img) => <img key={img} src={img} alt="" className="h-14 rounded-lg object-cover" />)}</div></div>
-              <div className="mt-5 grid gap-3 text-[12px]"><Select value={selected.status} options={["Hiển thị", "Đã ẩn"]} onChange={(value) => patch(selected.id, { status: value as ReviewStatus })} /><p>Số lượt report: <b>{selected.report} lượt</b></p><textarea value={note} onChange={(event) => setNote(event.target.value)} className="min-h-[72px] rounded-xl border border-[#dfe3ec] p-3 outline-none focus:border-[#ff8d28]" placeholder="Nhập ghi chú nếu có..." /></div>
-              <div className="mt-6 flex justify-end gap-2"><IconButton label="Ẩn" icon="archive" onClick={() => patch(selected.id, { status: "Đã ẩn" })} /><IconButton label="Xóa" icon="delete" tone="danger" onClick={() => { setItems((list) => list.filter((item) => item.id !== selected.id)); setDetailOpen(false); window.setTimeout(() => setSelectedId(null), 220); notify("Đã xóa đánh giá."); }} /><IconButton label="Lưu" icon="check" onClick={() => { patch(selected.id, { note }); notify("Đã lưu thay đổi."); }} /></div>
+              <div className="mt-5 grid gap-3 text-[12px]"><Select value={selected.status} options={["Hiển thị", "Đã ẩn"]} onChange={(value) => handleToggleStatus(selected.id, selected.status)} /><p>Số lượt report: <b>{selected.report} lượt</b></p><textarea value={note} onChange={(event) => setNote(event.target.value)} className="min-h-[72px] rounded-xl border border-[#dfe3ec] p-3 outline-none focus:border-[#ff8d28]" placeholder="Nhập ghi chú nếu có..." /></div>
+              <div className="mt-6 flex justify-end gap-2"><IconButton label="Ẩn" icon="archive" onClick={() => handleToggleStatus(selected.id, selected.status)} /><IconButton label="Xóa" icon="delete" tone="danger" onClick={() => handleDelete(selected.id)} /><IconButton label="Lưu" icon="check" onClick={() => handleSaveNote(selected.id)} /></div>
             </aside>
           </div>
         ) : null}

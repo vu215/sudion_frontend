@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/app/auth-context";
 import { useToast } from "@/app/toast-context";
+import { getReviewUrl, getMessagesUrl } from "@/lib/routes";
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
@@ -775,18 +776,14 @@ function BookingCard({
             {booking.status === "fully_paid" ? (
               <div className="grid gap-2">
                 <Link
-                  href={`/review?booking=${encodeURIComponent(
-                    booking.booking_code
-                  )}`}
+                  href={getReviewUrl(booking.booking_code)}
                   className="rounded-[12px] bg-[#ff8d28] px-4 py-3 text-center text-[13px] font-black text-white shadow-[0_10px_24px_rgba(255,141,40,0.18)] transition-all hover:bg-[#e0751b]"
                 >
                   Đánh giá photographer
                 </Link>
 
                 <Link
-                  href={`/messages?booking=${encodeURIComponent(
-                    booking.booking_code
-                  )}`}
+                  href={getMessagesUrl(booking.booking_code)}
                   className="rounded-[12px] border border-[#e8eaf1] bg-white px-4 py-3 text-center text-[13px] font-black text-[#334155] transition-all hover:border-[#ffcfaa] hover:text-[#ff8d28]"
                 >
                   Chat với photographer

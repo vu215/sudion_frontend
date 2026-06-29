@@ -359,6 +359,9 @@ function BookingContent() {
   const { session } = useAuth();
   const toast = useToast();
 
+  // Support both old query string and new dynamic routing
+  // If accessed via /booking/{photographerId}/{serviceSlug}, params will come via searchParams
+  // If accessed via /booking?photographer=...&service=..., use old format
   const photographerId = searchParams.get("photographer") || "";
   const serviceQuery = searchParams.get("service")?.trim() || "";
 

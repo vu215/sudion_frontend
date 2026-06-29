@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import AdminLayout from "../_components/admin-layout";
 import { AdminIcon, IconButton } from "../_components/admin-icons";
+import { api } from "@/lib/api";
 
 type ReportStatus = "Chờ xử lý" | "Đang xem xét" | "Đã xử lý" | "Từ chối";
 type ReportCategory = "Chất lượng dịch vụ" | "Hành vi không phù hợp" | "Gian lận" | "Bản quyền" | "Spam" | "Khác";
@@ -58,47 +59,112 @@ export default function ReportsPage() {
   const [toast, setToast] = useState("");
   const [page, setPage] = useState(1);
 
-  const selected = items.find((item) => item.id === selectedId) ?? items[0];
+  const selected = useMemo(() => {
+    if (!items || items.length === 0) return null;
+    if (!selectedId) return items[0] || null;
+    return items.find((item) => item.id === selectedId) || null;
+  }, [items, selectedId]);
 
-  const filtered = useMemo(() => items.filter((item) => {
-    const text = [item.id, item.reporter, item.target, item.category, item.description, item.status].join(" ").toLowerCase();
-    return text.includes(query.toLowerCase())
-      && (status === "Tất cả" || item.status === status)
-      && (priority === "Tất cả" || item.priority === priority)
-      && (category === "Tất cả" || item.category === category);
-  }), [items, query, status, priority, category]);
+  const filtered = useMemo(() => {
+    if (!items || items.length === 0) return [];
+    return items.filter((item) => {
+      const text = [item.id, item.reporter, item.target, item.category, item.description, item.status].join(" ").toLowerCase();
+      return text.includes(query.toLowerCase());
+    });
+  }, [items, query]);
 
-  // Load reports from API
-  useState(() => {
-    async function loadReports() {
-      setLoading(true);
-      try {
-        const result = await api.reports.getAll({ page, pageSize: 20 });
-        if (result.success && result.data) {
-          // Use mock data for now since backend might not have data
-          setItems(seed);
-        } else {
-          setItems(seed);
-        }
-      } catch (error) {
-        console.error("Error loading reports:", error);
+  // Load reports from API on mount and when filters change
+  useEffect(() => {
+    loadReports();
+  }, [status, priority, category, page]);
+
+  // Load stats on mount
+  useEffect(() => {
+    loadStats();
+  }, []);
+
+  async function loadReports() {
+    setLoading(true);
+    try {
+      const params: Record<string, any> = { page, pageSize: 20 };
+      if (status !== "Tất cả") params.status = status;
+      if (priority !== "Tất cả") params.priority = priority;
+      if (category !== "Tất cả") params.category = category;
+
+      const result = await api.reports.getAll(params);
+      if (result.success && result.data && Array.isArray(result.data)) {
+        // Transform backend data to frontend format
+        const transformedData: Report[] = result.data.map((item: any) => ({
+          id: item.report_id || item.id,
+          reporter: item.reporter_name || "Unknown",
+          reporterAvatar: avatars[Math.floor(Math.random() * avatars.length)],
+          reporterId: item.reporter_user_id?.toString() || "N/A",
+          target: item.target_name || "Unknown",
+          targetType: item.target_type || "User",
+          targetId: item.target_id || "N/A",
+          category: item.category || "Khác",
+          description: item.description || "",
+          evidence: item.evidence ? (typeof item.evidence === 'string' ? JSON.parse(item.evidence) : item.evidence) : [],
+          status: mapStatus(item.status) || "Chờ xử lý",
+          priority: mapPriority(item.priority) || "Thấp",
+          createdAt: item.created_at ? formatDate(item.created_at) : "",
+          updatedAt: item.updated_at ? formatDate(item.updated_at) : "",
+          adminNote: item.admin_note || "",
+          history: [formatDate(item.created_at) + " · Báo cáo được tạo"],
+        }));
+        setItems(transformedData);
+      } else {
+        // Fallback to seed if API fails
         setItems(seed);
       }
+    } catch (error) {
+      console.error("Error loading reports:", error);
+      setItems(seed);
+    } finally {
       setLoading(false);
     }
-    loadReports();
-  });
+  }
 
-  // Load stats
-  useState(() => {
-    async function loadStats() {
+  function mapStatus(status: string): ReportStatus {
+    const statusMap: Record<string, ReportStatus> = {
+      "pending": "Chờ xử lý",
+      "reviewing": "Đang xem xét",
+      "resolved": "Đã xử lý",
+      "rejected": "Từ chối",
+    };
+    return statusMap[status] || "Chờ xử lý";
+  }
+
+  function mapPriority(priority: string): "Cao" | "Trung bình" | "Thấp" {
+    const priorityMap: Record<string, "Cao" | "Trung bình" | "Thấp"> = {
+      "high": "Cao",
+      "medium": "Trung bình",
+      "low": "Thấp",
+    };
+    return priorityMap[priority] || "Thấp";
+  }
+
+  function formatDate(dateStr: string): string {
+    if (!dateStr) return "";
+    const date = new Date(dateStr);
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${day}/${month}/${year} ${hours}:${minutes}`;
+  }
+
+  async function loadStats() {
+    try {
       const result = await api.reports.getStats();
-      if (result.success) {
+      if (result.success && result.data) {
         setStats(result.data);
       }
+    } catch (error) {
+      console.error("Error loading stats:", error);
     }
-    loadStats();
-  });
+  }
 
   function notify(text: string) { setToast(text); setTimeout(() => setToast(""), 1800); }
 
@@ -108,6 +174,98 @@ export default function ReportsPage() {
       history: value.status ? [...item.history, `15/06/2026 · ${value.status}`] : item.history,
       updatedAt: "15/06/2026",
     } : item));
+  }
+
+  async function handleResolve(id: string) {
+    try {
+      // Map Vietnamese status to English for backend
+      const statusMap: Record<ReportStatus, string> = {
+        "Chờ xử lý": "pending",
+        "Đang xem xét": "reviewing",
+        "Đã xử lý": "resolved",
+        "Từ chối": "rejected",
+      };
+      const result = await api.reports.updateStatus(id, statusMap["Đã xử lý"], adminNote);
+      if (result.success) {
+        patch(id, { status: "Đã xử lý", adminNote });
+        notify("Đã xử lý khiếu nại.");
+        await loadReports();
+      } else {
+        notify("Lỗi khi cập nhật.");
+      }
+    } catch (error) {
+      console.error("Error resolving report:", error);
+      notify("Lỗi khi cập nhật.");
+    }
+  }
+
+  async function handleReject(id: string) {
+    try {
+      const statusMap: Record<ReportStatus, string> = {
+        "Chờ xử lý": "pending",
+        "Đang xem xét": "reviewing",
+        "Đã xử lý": "resolved",
+        "Từ chối": "rejected",
+      };
+      const result = await api.reports.updateStatus(id, statusMap["Từ chối"], adminNote);
+      if (result.success) {
+        patch(id, { status: "Từ chối", adminNote });
+        notify("Đã từ chối khiếu nại.");
+        await loadReports();
+      } else {
+        notify("Lỗi khi cập nhật.");
+      }
+    } catch (error) {
+      console.error("Error rejecting report:", error);
+      notify("Lỗi khi cập nhật.");
+    }
+  }
+
+  async function handleReviewing(id: string) {
+    try {
+      const statusMap: Record<ReportStatus, string> = {
+        "Chờ xử lý": "pending",
+        "Đang xem xét": "reviewing",
+        "Đã xử lý": "resolved",
+        "Từ chối": "rejected",
+      };
+      const result = await api.reports.updateStatus(id, statusMap["Đang xem xét"], adminNote);
+      if (result.success) {
+        patch(id, { status: "Đang xem xét", adminNote });
+        notify("Đang xem xét.");
+        await loadReports();
+      } else {
+        notify("Lỗi khi cập nhật.");
+      }
+    } catch (error) {
+      console.error("Error updating report:", error);
+      notify("Lỗi khi cập nhật.");
+    }
+  }
+
+  async function handleSaveNote(id: string) {
+    try {
+      const currentReport = items.find((item) => item.id === id);
+      if (!currentReport) return;
+      
+      const statusMap: Record<ReportStatus, string> = {
+        "Chờ xử lý": "pending",
+        "Đang xem xét": "reviewing",
+        "Đã xử lý": "resolved",
+        "Từ chối": "rejected",
+      };
+      const result = await api.reports.updateStatus(id, statusMap[currentReport.status], adminNote);
+      if (result.success) {
+        patch(id, { adminNote });
+        notify("Đã lưu ghi chú.");
+        await loadReports();
+      } else {
+        notify("Lỗi khi lưu.");
+      }
+    } catch (error) {
+      console.error("Error saving note:", error);
+      notify("Lỗi khi lưu.");
+    }
   }
 
   function openDetail(id: string) {
@@ -139,17 +297,17 @@ export default function ReportsPage() {
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <StatCard title="Tổng khiếu nại" value={String(items.length)} note="↑ 8.3% so với tháng trước" tone="orange" />
-          <StatCard title="Chờ xử lý" value={String(items.filter((i) => i.status === "Chờ xử lý").length)} note="Cần xử lý sớm" tone="amber" />
-          <StatCard title="Đang xem xét" value={String(items.filter((i) => i.status === "Đang xem xét").length)} note="Đang điều tra" tone="blue" />
-          <StatCard title="Đã xử lý" value={String(items.filter((i) => i.status === "Đã xử lý").length)} note="Hoàn tất" tone="green" />
+          <StatCard title="Tổng khiếu nại" value={String(items?.length || 0)} note="↑ 8.3% so với tháng trước" tone="orange" />
+          <StatCard title="Chờ xử lý" value={String(items?.filter((i) => i.status === "Chờ xử lý").length || 0)} note="Cần xử lý sớm" tone="amber" />
+          <StatCard title="Đang xem xét" value={String(items?.filter((i) => i.status === "Đang xem xét").length || 0)} note="Đang điều tra" tone="blue" />
+          <StatCard title="Đã xử lý" value={String(items?.filter((i) => i.status === "Đã xử lý").length || 0)} note="Hoàn tất" tone="green" />
         </div>
 
         <Panel className="mt-4">
           <div className="mb-3 flex gap-6 overflow-x-auto border-b border-[#edf0f5]">
             {(["Tất cả", "Chờ xử lý", "Đang xem xét", "Đã xử lý", "Từ chối"] as const).map((tab) => (
               <button key={tab} onClick={() => setStatus(tab)} className={`shrink-0 border-b-2 px-2 py-3 text-[12px] font-medium ${status === tab ? "border-[#ff8d28] text-[#ff8d28]" : "border-transparent text-[#536078]"}`}>
-                {tab} ({tab === "Tất cả" ? items.length : items.filter((i) => i.status === tab).length})
+                {tab} ({tab === "Tất cả" ? (items?.length || 0) : (items?.filter((i) => i.status === tab).length || 0)})
               </button>
             ))}
           </div>
@@ -189,13 +347,13 @@ export default function ReportsPage() {
             </table>
           </div>
           <div className="mt-4 flex items-center justify-between text-[12px] text-[#697086]">
-            <span>Hiển thị 1 - {filtered.length} của {items.length} báo cáo</span>
+            <span>Hiển thị 1 - {filtered.length} của {items?.length || 0} báo cáo</span>
             <span className="rounded-xl border border-[#dfe3ec] px-3 py-2">10 / trang</span>
           </div>
         </Panel>
       </div>
 
-      {selectedId !== null ? (
+      {selectedId !== null && selected ? (
         <div className={`fixed inset-0 z-50 bg-[#0f172a]/45 backdrop-blur-[3px] transition-opacity duration-200 ${detailOpen ? "opacity-100" : "opacity-0"}`} onClick={closeDetail}>
           <aside className={`absolute right-0 top-0 h-full w-full min-w-0 overflow-y-auto border-l border-[#e6e9f1] bg-white px-5 py-5 shadow-[-24px_0_48px_rgba(12,18,32,0.2)] transition-transform duration-300 ease-out sm:w-[460px] ${detailOpen ? "translate-x-0" : "translate-x-full"}`} onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between">
@@ -224,7 +382,7 @@ export default function ReportsPage() {
               <h3 className="text-[13px] font-semibold">Mô tả khiếu nại</h3>
               <p className="mt-2 text-[12px] leading-6 text-[#536078]">{selected.description}</p>
             </div>
-            {selected.evidence.length > 0 && (
+            {selected?.evidence && Array.isArray(selected.evidence) && selected.evidence.length > 0 && (
               <div className="mt-5 border-t border-[#edf0f5] pt-5">
                 <h3 className="text-[13px] font-semibold">Bằng chứng đính kèm</h3>
                 <div className="mt-3 grid grid-cols-3 gap-2">{selected.evidence.map((img) => <img key={img} src={img} alt="" className="h-20 w-full rounded-xl object-cover" />)}</div>
@@ -232,17 +390,17 @@ export default function ReportsPage() {
             )}
             <div className="mt-5 border-t border-[#edf0f5] pt-5">
               <h3 className="text-[13px] font-semibold">Lịch sử xử lý</h3>
-              <div className="mt-3 space-y-2 text-[12px] text-[#536078]">{selected.history.map((h) => <p key={h}>○ {h}</p>)}</div>
+              <div className="mt-3 space-y-2 text-[12px] text-[#536078]">{selected?.history && Array.isArray(selected.history) ? selected.history.map((h) => <p key={h}>○ {h}</p>) : <p className="text-[#697086]">Chưa có lịch sử</p>}</div>
             </div>
             <div className="mt-5 border-t border-[#edf0f5] pt-5">
               <h3 className="text-[13px] font-semibold">Ghi chú Admin</h3>
               <textarea value={adminNote} onChange={(e) => setAdminNote(e.target.value)} className="mt-2 w-full min-h-[80px] rounded-xl border border-[#dfe3ec] p-3 text-[12px] outline-none focus:border-[#ff8d28]" placeholder="Nhập ghi chú xử lý..." />
             </div>
             <div className="mt-5 grid grid-cols-2 gap-2">
-              <button onClick={() => { patch(selected.id, { status: "Đang xem xét", adminNote }); notify("Đang xem xét."); }} className="h-10 rounded-xl border border-blue-200 bg-blue-50 text-[12px] font-medium text-blue-700 hover:bg-blue-100">Đang xem xét</button>
-              <button onClick={() => { patch(selected.id, { status: "Đã xử lý", adminNote }); notify("Đã xử lý khiếu nại."); }} className="h-10 rounded-xl border border-emerald-200 bg-emerald-50 text-[12px] font-medium text-emerald-700 hover:bg-emerald-100">Đã xử lý</button>
-              <button onClick={() => { patch(selected.id, { status: "Từ chối", adminNote }); notify("Đã từ chối khiếu nại."); }} className="h-10 rounded-xl border border-[#dfe3ec] bg-white text-[12px] font-medium text-[#536078] hover:bg-[#f7f8fb]">Từ chối</button>
-              <button onClick={() => { patch(selected.id, { adminNote }); notify("Đã lưu ghi chú."); }} className="h-10 rounded-xl bg-[#ff8d28] text-[12px] font-medium text-white hover:bg-[#f47f16]">Lưu ghi chú</button>
+              <button onClick={() => handleReviewing(selected.id)} className="h-10 rounded-xl border border-blue-200 bg-blue-50 text-[12px] font-medium text-blue-700 hover:bg-blue-100">Đang xem xét</button>
+              <button onClick={() => handleResolve(selected.id)} className="h-10 rounded-xl border border-emerald-200 bg-emerald-50 text-[12px] font-medium text-emerald-700 hover:bg-emerald-100">Đã xử lý</button>
+              <button onClick={() => handleReject(selected.id)} className="h-10 rounded-xl border border-[#dfe3ec] bg-white text-[12px] font-medium text-[#536078] hover:bg-[#f7f8fb]">Từ chối</button>
+              <button onClick={() => handleSaveNote(selected.id)} className="h-10 rounded-xl bg-[#ff8d28] text-[12px] font-medium text-white hover:bg-[#f47f16]">Lưu ghi chú</button>
             </div>
           </aside>
         </div>
