@@ -14,8 +14,8 @@ function fmtDate(v: string | null) {
 function fmtTime(v: string | null) {
   return v ? String(v).slice(0, 5) : "—";
 }
-function fmtMoney(v: number) {
-  return v.toLocaleString("vi-VN") + "đ";
+function fmtMoney(v: number | string | null | undefined) {
+  return Number(v || 0).toLocaleString("vi-VN") + "đ";
 }
 function isUpcoming(shoot_date: string | null) {
   if (!shoot_date) return false;
@@ -149,11 +149,13 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const photographerId = useMemo(() => {
-    if (isPhotographer && session?.photographerId) return session.photographerId;
-    if (typeof window !== "undefined") return window.localStorage.getItem("sudion_photographer_id") ?? "";
-    return "";
-  }, [isPhotographer, session]);
+  const [photographerId, setPhotographerId] = useState("");
+
+  useEffect(() => {
+    const sessionId = isPhotographer && session?.photographerId ? session.photographerId : "";
+    const savedId = typeof window !== "undefined" ? window.localStorage.getItem("sudion_photographer_id") ?? "" : "";
+    setPhotographerId(sessionId || savedId);
+  }, [isPhotographer, session?.photographerId]);
 
   useEffect(() => {
     if (!photographerId) return;
@@ -183,7 +185,7 @@ export default function DashboardPage() {
     const completed = bookings.filter((b) => ["fully_paid","completed"].includes(b.status)).length;
     const revenue = bookings
       .filter((b) => b.status === "fully_paid")
-      .reduce((s, b) => s + (b.estimated_total ?? 0), 0);
+      .reduce((s, b) => s + Number(b.estimated_total ?? 0), 0);
     return { total, upcoming, completed, revenue };
   }, [bookings]);
 

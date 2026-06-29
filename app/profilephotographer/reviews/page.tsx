@@ -46,11 +46,12 @@ export default function PhotographerReviewsPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const photographerId = useMemo(() => {
-    if (isPhotographer && session?.photographerId) return session.photographerId;
-    if (typeof window !== "undefined") return window.localStorage.getItem("sudion_photographer_id") ?? "";
-    return "";
-  }, [isPhotographer, session]);
+  const [photographerId, setPhotographerId] = useState("");
+  useEffect(() => {
+    const sessionId = isPhotographer && session?.photographerId ? session.photographerId : "";
+    const savedId = typeof window !== "undefined" ? window.localStorage.getItem("sudion_photographer_id") ?? "" : "";
+    setPhotographerId(sessionId || savedId);
+  }, [isPhotographer, session?.photographerId]);
 
   useEffect(() => {
     if (!photographerId) return;
