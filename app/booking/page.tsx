@@ -296,29 +296,30 @@ function getCalendarDays(year: number, month: number): (number | null)[] {
   return days;
 }
 
-function getAddonImage(id: string, category: string): string {
-  const cleanId = id.toLowerCase();
-  if (cleanId.includes("flycam") || cleanId.includes("drone")) {
+function getAddonImage(id: string, category: string, name = ""): string {
+  const cleanId   = id.toLowerCase();
+  const cleanName = name.toLowerCase();
+  const combined  = `${cleanId} ${cleanName}`;
+
+  if (combined.includes("flycam") || combined.includes("drone") || combined.includes("bay"))
     return "https://images.unsplash.com/photo-1473968512647-3e447244af8f?w=400&q=80&fit=crop";
-  }
-  if (cleanId.includes("album") || cleanId.includes("book")) {
+  if (combined.includes("album"))
     return "https://images.unsplash.com/photo-1544946503-58e2bae0d82d?w=400&q=80&fit=crop";
-  }
-  if (cleanId.includes("gate") || cleanId.includes("photo") || cleanId.includes("print") || cleanId.includes("frame")) {
+  if (combined.includes("photobook") || combined.includes("photo book") || combined.includes("phóng sự"))
+    return "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400&q=80&fit=crop";
+  if (combined.includes("cổng") || combined.includes("cong") || combined.includes("80x") || combined.includes("80×") || combined.includes("frame") || combined.includes("print"))
     return "https://images.unsplash.com/photo-1513519245088-0e12902e35ca?w=400&q=80&fit=crop";
-  }
-  if (cleanId.includes("makeup")) {
+  if (combined.includes("makeup") || combined.includes("trang điểm") || combined.includes("trang diem"))
     return "https://images.unsplash.com/photo-1487412912498-0447578fcca8?w=400&q=80&fit=crop";
-  }
-  if (cleanId.includes("video")) {
+  if (combined.includes("video") || combined.includes("highlight") || combined.includes("clip"))
     return "https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?w=400&q=80&fit=crop";
-  }
-  if (cleanId.includes("retouch") || cleanId.includes("edit")) {
+  if (combined.includes("retouch") || combined.includes("edit") || combined.includes("chỉnh sửa") || combined.includes("nâng cao"))
     return "https://images.unsplash.com/photo-1542744094-24638eff58bb?w=400&q=80&fit=crop";
-  }
-  if (cleanId.includes("raw")) {
+  if (combined.includes("raw") || combined.includes("file gốc") || combined.includes("file goc"))
     return "https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=400&q=80&fit=crop";
-  }
+  if (combined.includes("book") || combined.includes("sách") || combined.includes("sach"))
+    return "https://images.unsplash.com/photo-1544946503-58e2bae0d82d?w=400&q=80&fit=crop";
+
   return CATEGORY_INFO[category]?.image || "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=400&q=80&fit=crop";
 }
 
@@ -961,9 +962,9 @@ function BookingContent() {
                             {active && <span className="h-2 w-2 rounded-full bg-[#ff8d28]" />}
                           </span>
                           {/* Image */}
-                          <span className="relative h-10 w-12 shrink-0 overflow-hidden rounded-lg bg-[#f3f4f6]">
-                            <Image src={sub.image} alt={sub.label} fill className="object-cover" sizes="48px" />
-                          </span>
+                          <div className="relative h-10 w-12 shrink-0 overflow-hidden rounded-lg bg-[#f3f4f6]">
+                            <Image src={sub.image} alt={sub.label} fill className="object-cover" sizes="48px" unoptimized />
+                          </div>
                           {/* Text */}
                           <div className="min-w-0 flex-1">
                             <span className={`block text-[11px] font-bold leading-tight ${active ? "text-[#ff8d28]" : "text-[#0e111d]"}`}>
@@ -1071,14 +1072,14 @@ function BookingContent() {
                   <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
                     {visibleAddons.map((addon) => {
                       const active = selectedAddOns.includes(addon.id);
-                      const addonImage = getAddonImage(addon.id, resolvedCategory || "all");
+                      const addonImage = getAddonImage(addon.id, resolvedCategory || "all", addon.name);
                       return (
                         <button key={addon.id} type="button" onClick={() => toggleAddon(addon.id)}
                           className={`group flex items-center gap-3 rounded-xl border p-3 text-left transition-all ${active ? "border-[#ff8d28] bg-[#fff4eb]" : "border-[#e8eaf1] bg-white hover:border-[#ffb970]"
                             }`}>
-                          <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-[#f3f4f6]">
-                            <Image src={addonImage} alt={addon.name} fill className="object-cover" sizes="40px" />
-                          </span>
+                          <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-[#f3f4f6]">
+                            <Image src={addonImage} alt={addon.name} fill className="object-cover" sizes="40px" unoptimized />
+                          </div>
                           <div className="min-w-0 flex-1">
                             <span className={`block text-[12px] font-bold ${active ? "text-[#ff8d28]" : "text-[#0e111d]"}`}>{addon.name}</span>
                             <span className="block text-[10px] font-semibold text-[#ff8d28]">+{formatCurrency(addon.price)}</span>
