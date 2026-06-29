@@ -393,50 +393,71 @@ async function handleCancelBooking() {
             <div className="absolute right-[-90px] top-[-90px] h-[260px] w-[260px] rounded-full bg-[#ff8d28]/20 blur-3xl" />
             <div className="absolute bottom-[-120px] left-[30%] h-[260px] w-[260px] rounded-full bg-white/10 blur-3xl" />
 
-            <div className="relative grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-end">
+            <div className="relative grid gap-6 lg:grid-cols-[1.55fr_0.95fr] lg:items-end">
               <div>
-                <p className="text-[12px] font-black uppercase tracking-[0.18em] text-[#ffb267]">
-                  My bookings
-                </p>
+                <span className="inline-flex rounded-full bg-orange-50 px-3 py-1 text-sm font-semibold uppercase tracking-[0.16em] text-orange-600">
+                  Khách hàng
+                </span>
 
-                <h1 className="mt-3 max-w-[760px] text-[34px] font-black leading-[1.05] tracking-[-0.04em] sm:text-[44px]">
-                  Quản lý lịch đặt chụp của bạn
+                <h1 className="mt-4 max-w-[760px] text-[34px] font-black leading-[1.05] tracking-[-0.04em] text-white sm:text-[44px]">
+                  Thông tin khách hàng
                 </h1>
 
-                <p className="mt-4 max-w-[720px] text-[14px] font-medium leading-7 text-white/70">
-                  Theo dõi toàn bộ luồng: gửi yêu cầu, photographer xác nhận,
-                  thanh toán cọc, thanh toán còn lại, đánh giá và chat.
+                <p className="mt-4 max-w-[720px] text-sm leading-7 text-white/75">
+                  Trang quản lý hồ sơ khách hàng và các lịch đặt, thiết kế cho trải nghiệm của khách hàng studio chuyên nghiệp.
                 </p>
               </div>
 
-              <form
-                onSubmit={handleSubmit}
-                className="rounded-[20px] border border-white/10 bg-white/10 p-3 backdrop-blur-md"
-              >
-                <label className="grid gap-2">
-                  <span className="px-1 text-[12px] font-extrabold text-white/80">
-                    Email đặt lịch
-                  </span>
+              <aside className="rounded-[28px] border border-white/20 bg-white/10 p-6 shadow-[0_30px_90px_rgba(0,0,0,0.18)] backdrop-blur-md text-white">
+                <div className="flex items-start gap-4">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-[22px] bg-white/15 text-2xl font-bold text-white">
+                    {(session?.fullName || "KH").split(" ").map((s) => s[0]).slice(0, 2).join("")}
+                  </div>
 
-                  <span className="flex gap-2 rounded-[14px] bg-white p-2">
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={(event) => setEmail(event.target.value)}
-                      placeholder="you@email.com"
-                      className="min-h-[44px] flex-1 border-0 bg-transparent px-3 text-[14px] font-bold text-[#111827] outline-none placeholder:text-[#9ca3af]"
-                    />
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.22em] text-orange-200">Khách hàng</p>
+                    <h2 className="mt-3 text-2xl font-black text-white">{session?.fullName || "Khách hàng"}</h2>
+                    <p className="mt-2 text-sm text-white/75">{session?.email || "Chưa đăng nhập"}</p>
+                  </div>
+                </div>
 
-                    <button
-                      type="submit"
-                      disabled={loading}
-                      className="rounded-[12px] bg-[#ff8d28] px-4 text-[13px] font-black text-white shadow-[0_10px_24px_rgba(255,141,40,0.3)] transition-all hover:bg-[#e0751b] disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {loading ? "Đang tải" : "Tra cứu"}
-                    </button>
-                  </span>
-                </label>
-              </form>
+                <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-3xl bg-white/10 p-4">
+                    <p className="text-[12px] uppercase tracking-[0.16em] text-white/60">Tổng booking</p>
+                    <p className="mt-3 text-3xl font-black text-white">{stats.total}</p>
+                  </div>
+                  <div className="rounded-3xl bg-white/10 p-4">
+                    <p className="text-[12px] uppercase tracking-[0.16em] text-white/60">Đã thanh toán đủ</p>
+                    <p className="mt-3 text-3xl font-black text-white">{stats.fullyPaid}</p>
+                  </div>
+                </div>
+
+                <div className="mt-6 grid gap-3 rounded-[24px] bg-white/10 p-4">
+                  <div className="flex items-center justify-between text-sm text-white/90">
+                    <span>Vai trò</span>
+                    <strong className="rounded-full bg-white/10 px-3 py-1 text-xs uppercase tracking-[0.14em] text-white/80">{session?.role || "Khách"}</strong>
+                  </div>
+                  <div className="flex items-center justify-between text-sm text-white/90">
+                    <span>Gói thành viên</span>
+                    <span className="rounded-full bg-orange-100/20 px-3 py-1 text-xs font-semibold text-orange-200">Khách hàng</span>
+                  </div>
+                </div>
+
+                <div className="mt-6 flex flex-wrap gap-3">
+                  <Link
+                    href="/user"
+                    className="inline-flex min-w-[140px] items-center justify-center rounded-full bg-[#ff8d28] px-4 py-3 text-sm font-black text-white shadow-[0_10px_24px_rgba(255,141,40,0.25)] transition hover:bg-[#e0751b]"
+                  >
+                    Chỉnh sửa hồ sơ
+                  </Link>
+                  <Link
+                    href="/photographer"
+                    className="inline-flex min-w-[140px] items-center justify-center rounded-full border border-white/20 bg-white/10 px-4 py-3 text-sm font-black text-white transition hover:bg-white/15"
+                  >
+                    Đặt lịch mới
+                  </Link>
+                </div>
+              </aside>
             </div>
           </div>
 
@@ -453,22 +474,21 @@ async function handleCancelBooking() {
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <h2 className="text-[22px] font-black tracking-[-0.02em] text-[#0e111d]">
-                  Danh sách booking
+                  Thông tin và lịch đặt
                 </h2>
 
                 <p className="mt-1 text-[13px] font-semibold text-[#6b7280]">
-                  Trang này tự cập nhật sau mỗi 8 giây.
+                  Trang hiển thị thông tin cá nhân và danh sách lịch đặt của bạn. Dữ liệu tự cập nhật.
                 </p>
               </div>
 
               <Link
-                href="/photographer"
+                href="/user"
                 className="inline-flex w-fit items-center justify-center rounded-[12px] bg-[#ff8d28] px-4 py-3 text-[13px] font-black text-white shadow-[0_10px_24px_rgba(255,141,40,0.18)] transition-all hover:translate-y-[-1px] hover:bg-[#e0751b]"
               >
-                Tạo booking mới
+                Chỉnh sửa hồ sơ
               </Link>
             </div>
-
             <div className="mt-5 flex gap-2 overflow-x-auto pb-2">
               {statusTabs.map((tab) => {
                 const active = tab.id === activeStatus;
