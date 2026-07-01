@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Inter } from "next/font/google";
+import { api } from "@/lib/api";
 
 const inter = Inter({ subsets: ["latin", "vietnamese"], weight: ["400", "500", "600", "700"] });
 
@@ -33,6 +34,21 @@ export default function AdminLayout({
   onSearch?: (value: string) => void;
 }) {
   const [collapsed, setCollapsed] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    async function loadUnreadCount() {
+      try {
+        const result = await api.notifications.getStats();
+        if (result.success && result.data) {
+          setUnreadCount((result.data as any).unread || 0);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    loadUnreadCount();
+  }, []);
 
   return (
     <main className={`${inter.className} min-h-screen overflow-x-hidden bg-[#f7f7fb] text-[13px] text-[#0f172a]`}>
@@ -62,9 +78,11 @@ export default function AdminLayout({
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" className="h-5 w-5"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
           </button>
           <div className="ml-auto flex items-center gap-3">
-            <button type="button" aria-label="Thông báo" title="Thông báo" className="relative grid h-9 w-9 place-items-center rounded-xl text-[#536078] hover:bg-[#fff3e8] hover:text-[#ff8d28]">
+            <button type="button" aria-label="Thông báo" title="Thông báo" onClick={() => window.location.href = '/admin/notifications'} className="relative grid h-9 w-9 place-items-center rounded-xl text-[#536078] hover:bg-[#fff3e8] hover:text-[#ff8d28]">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><path d="M18 16H6l1.5-2V10a4.5 4.5 0 019 0v4L18 16zM10 19h4" /></svg>
-              <b className="absolute right-0 top-0 rounded-full bg-red-500 px-1 text-[10px] leading-4 text-white">12</b>
+              {unreadCount > 0 && (
+                <b className="absolute right-0 top-0 rounded-full bg-red-500 px-1.5 text-[9px] leading-4 text-white">{unreadCount}</b>
+              )}
             </button>
             <img src="/Overlay+Shadow.png" alt="Admin" className="h-9 w-9 rounded-full object-cover" />
             <div className="hidden sm:block"><b>Admin</b><p className="text-[11px] text-[#697086]">Super Admin</p></div>

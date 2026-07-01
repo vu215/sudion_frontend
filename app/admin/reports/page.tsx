@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import AdminLayout from "../_components/admin-layout";
 import { AdminIcon, IconButton } from "../_components/admin-icons";
+import { api } from "@/lib/api";
 
 type ReportStatus = "Chờ xử lý" | "Đang xem xét" | "Đã xử lý" | "Từ chối";
 type ReportCategory = "Chất lượng dịch vụ" | "Hành vi không phù hợp" | "Gian lận" | "Bản quyền" | "Spam" | "Khác";
@@ -57,57 +58,182 @@ export default function ReportsPage() {
   const [adminNote, setAdminNote] = useState("");
   const [toast, setToast] = useState("");
   const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState<any>(null);
 
-  const selected = items.find((item) => item.id === selectedId) ?? items[0];
+  const mapStatus = (backendStatus: string): ReportStatus => {
+    const statusMap: Record<string, ReportStatus> = {
+      pending: "Chờ xử lý",
+      reviewing: "Đang xem xét",
+      resolved: "Đã xử lý",
+      rejected: "Từ chối",
+    };
+    return statusMap[backendStatus] || "Chờ xử lý";
+  };
 
-  const filtered = useMemo(() => items.filter((item) => {
-    const text = [item.id, item.reporter, item.target, item.category, item.description, item.status].join(" ").toLowerCase();
-    return text.includes(query.toLowerCase())
-      && (status === "Tất cả" || item.status === status)
-      && (priority === "Tất cả" || item.priority === priority)
-      && (category === "Tất cả" || item.category === category);
-  }), [items, query, status, priority, category]);
+  const mapPriority = (backendPriority: string): "Cao" | "Trung bình" | "Thấp" => {
+    const priorityMap: Record<string, "Cao" | "Trung bình" | "Thấp"> = {
+      high: "Cao",
+      medium: "Trung bình",
+      low: "Thấp",
+    };
+    return priorityMap[backendPriority] || "Trung bình";
+  };
+
+  const transformReport = (r: any): Report => {
+    let evidenceList: string[] = [];
+    if (r.evidence) {
+      try {
+        evidenceList = typeof r.evidence === "string" ? JSON.parse(r.evidence) : r.evidence;
+      } catch {
+        evidenceList = [r.evidence];
+      }
+    }
+    return {
+      id: String(r.report_id || r.id),
+      reporter: r.reporter_name || "N/A",
+      reporterAvatar: "/logo_sudion.jpg",
+      reporterId: String(r.reporter_user_id || "N/A"),
+      target: r.target_name || "N/A",
+      targetType: r.target_type || "Photographer",
+      targetId: String(r.target_id || "N/A"),
+      category: r.category || "Khác",
+      description: r.description || "",
+      evidence: Array.isArray(evidenceList) ? evidenceList : [],
+      status: mapStatus(r.status || "pending"),
+      priority: mapPriority(r.priority || "medium"),
+      createdAt: r.created_at ? new Date(r.created_at).toLocaleString("vi-VN") : "N/A",
+      updatedAt: r.updated_at ? new Date(r.updated_at).toLocaleString("vi-VN") : "N/A",
+      adminNote: r.admin_note || "",
+      history: r.admin_note ? [
+        `${r.created_at ? new Date(r.created_at).toLocaleString("vi-VN") : "Gần đây"} · Báo cáo được tạo`,
+        `Ghi chú: ${r.admin_note}`
+      ] : [
+        `${r.created_at ? new Date(r.created_at).toLocaleString("vi-VN") : "Gần đây"} · Báo cáo được tạo`
+      ]
+    };
+  };
 
   // Load reports from API
-  useState(() => {
-    async function loadReports() {
-      setLoading(true);
-      try {
-        const result = await api.reports.getAll({ page, pageSize: 20 });
-        if (result.success && result.data) {
-          // Use mock data for now since backend might not have data
-          setItems(seed);
-        } else {
-          setItems(seed);
-        }
-      } catch (error) {
-        console.error("Error loading reports:", error);
-        setItems(seed);
+  async function loadReports() {
+    setLoading(true);
+    try {
+      const params: Record<string, any> = { page, pageSize: 20 };
+      if (query) params.query = query;
+      if (status !== "Tất cả") params.status = status;
+      if (priority !== "Tất cả") params.priority = priority;
+      if (category !== "Tất cả") params.category = category;
+
+      const result = await api.reports.getAll(params);
+      if (result.success && result.data && Array.isArray(result.data)) {
+        setItems(result.data.map(transformReport));
+        setPagination(result.pagination);
+      } else {
+        setItems([]);
       }
+    } catch (error) {
+      console.error("Error loading reports:", error);
+      setItems([]);
+    } finally {
       setLoading(false);
     }
-    loadReports();
-  });
+  }
 
   // Load stats
-  useState(() => {
-    async function loadStats() {
+  async function loadStats() {
+    try {
       const result = await api.reports.getStats();
-      if (result.success) {
+      if (result.success && result.data) {
         setStats(result.data);
       }
+    } catch (error) {
+      console.error("Error loading stats:", error);
     }
+  }
+
+  useEffect(() => {
+    loadReports();
+  }, [page, query, status, priority, category]);
+
+  useEffect(() => {
     loadStats();
-  });
+  }, []);
+
+  const selected = items.find((item) => item.id === selectedId) ?? items[0] ?? null;
+
+  const filtered = useMemo(() => {
+    if (items === seed) {
+      return items.filter((item) => {
+        const text = [item.id, item.reporter, item.target, item.category, item.description, item.status].join(" ").toLowerCase();
+        return text.includes(query.toLowerCase())
+          && (status === "Tất cả" || item.status === status)
+          && (priority === "Tất cả" || item.priority === priority)
+          && (category === "Tất cả" || item.category === category);
+      });
+    }
+    return items;
+  }, [items, query, status, priority, category]);
 
   function notify(text: string) { setToast(text); setTimeout(() => setToast(""), 1800); }
 
   function patch(id: string, value: Partial<Report>) {
     setItems((list) => list.map((item) => item.id === id ? {
       ...item, ...value,
-      history: value.status ? [...item.history, `15/06/2026 · ${value.status}`] : item.history,
-      updatedAt: "15/06/2026",
+      history: value.status ? [...item.history, `${new Date().toLocaleString("vi-VN")} · Trạng thái mới: ${value.status}`] : item.history,
+      updatedAt: new Date().toLocaleString("vi-VN"),
     } : item));
+  }
+
+  async function handleUpdateStatus(id: string, newStatus: ReportStatus) {
+    const backendStatusMap: Record<ReportStatus, string> = {
+      "Chờ xử lý": "pending",
+      "Đang xem xét": "reviewing",
+      "Đã xử lý": "resolved",
+      "Từ chối": "rejected",
+    };
+
+    try {
+      let result;
+      if (newStatus === "Đang xem xét") {
+        result = await api.reports.updateStatus(id, "reviewing", adminNote);
+      } else if (newStatus === "Đã xử lý") {
+        result = await api.reports.resolve(id, adminNote, "Xử lý hoàn tất");
+      } else if (newStatus === "Từ chối") {
+        result = await api.reports.reject(id, adminNote);
+      } else {
+        result = await api.reports.updateStatus(id, "pending", adminNote);
+      }
+
+      if (result.success) {
+        patch(id, { status: newStatus, adminNote });
+        notify(`Đã cập nhật báo cáo thành: ${newStatus}`);
+        loadStats();
+      } else {
+        notify("Lỗi: " + (result.message || result.error));
+      }
+    } catch (err) {
+      console.error(err);
+      notify("Có lỗi xảy ra khi cập nhật báo cáo.");
+    }
+  }
+
+  async function handleSaveNote(id: string) {
+    try {
+      const backendStatusMap: Record<ReportStatus, string> = {
+        "Chờ xử lý": "pending",
+        "Đang xem xét": "reviewing",
+        "Đã xử lý": "resolved",
+        "Từ chối": "rejected",
+      };
+      const result = await api.reports.updateStatus(id, backendStatusMap[selected.status], adminNote);
+      if (result.success) {
+        patch(id, { adminNote });
+        notify("Đã lưu ghi chú.");
+      } else {
+        notify("Lỗi: " + (result.message || result.error));
+      }
+    } catch {
+      notify("Lỗi khi lưu ghi chú.");
+    }
   }
 
   function openDetail(id: string) {
@@ -121,6 +247,11 @@ export default function ReportsPage() {
     setDetailOpen(false);
     window.setTimeout(() => setSelectedId(null), 220);
   }
+
+  const kpiPending = stats?.pending ?? items.filter((i) => i.status === "Chờ xử lý").length;
+  const kpiReviewing = stats?.reviewing ?? items.filter((i) => i.status === "Đang xem xét").length;
+  const kpiResolved = stats?.resolved ?? items.filter((i) => i.status === "Đã xử lý").length;
+  const kpiTotal = stats?.total ?? items.length;
 
   return (
     <AdminLayout active="Report / Khiếu nại" search={query} onSearch={setQuery}>
@@ -139,17 +270,17 @@ export default function ReportsPage() {
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <StatCard title="Tổng khiếu nại" value={String(items.length)} note="↑ 8.3% so với tháng trước" tone="orange" />
-          <StatCard title="Chờ xử lý" value={String(items.filter((i) => i.status === "Chờ xử lý").length)} note="Cần xử lý sớm" tone="amber" />
-          <StatCard title="Đang xem xét" value={String(items.filter((i) => i.status === "Đang xem xét").length)} note="Đang điều tra" tone="blue" />
-          <StatCard title="Đã xử lý" value={String(items.filter((i) => i.status === "Đã xử lý").length)} note="Hoàn tất" tone="green" />
+          <StatCard title="Tổng khiếu nại" value={String(kpiTotal)} note="Trong hệ thống" tone="orange" />
+          <StatCard title="Chờ xử lý" value={String(kpiPending)} note="Cần xử lý sớm" tone="amber" />
+          <StatCard title="Đang xem xét" value={String(kpiReviewing)} note="Đang điều tra" tone="blue" />
+          <StatCard title="Đã xử lý" value={String(kpiResolved)} note="Hoàn tất" tone="green" />
         </div>
 
         <Panel className="mt-4">
           <div className="mb-3 flex gap-6 overflow-x-auto border-b border-[#edf0f5]">
             {(["Tất cả", "Chờ xử lý", "Đang xem xét", "Đã xử lý", "Từ chối"] as const).map((tab) => (
               <button key={tab} onClick={() => setStatus(tab)} className={`shrink-0 border-b-2 px-2 py-3 text-[12px] font-medium ${status === tab ? "border-[#ff8d28] text-[#ff8d28]" : "border-transparent text-[#536078]"}`}>
-                {tab} ({tab === "Tất cả" ? items.length : items.filter((i) => i.status === tab).length})
+                {tab} ({tab === "Tất cả" ? kpiTotal : tab === "Chờ xử lý" ? kpiPending : tab === "Đang xem xét" ? kpiReviewing : tab === "Đã xử lý" ? kpiResolved : (stats?.rejected ?? items.filter((i) => i.status === "Từ chối").length)})
               </button>
             ))}
           </div>
@@ -166,36 +297,55 @@ export default function ReportsPage() {
             <IconButton label="Đặt lại" icon="filter" size="md" onClick={() => { setQuery(""); setStatus("Tất cả"); setPriority("Tất cả"); setCategory("Tất cả"); }} />
           </div>
 
-          <div className="overflow-x-auto rounded-xl border border-[#e6e9f1]">
-            <table className="w-full min-w-[1040px] text-left text-[12px]">
-              <thead className="bg-[#fbfcfe] text-[#536078]">
-                <tr>{["", "Người báo cáo", "Đối tượng", "Loại khiếu nại", "Ưu tiên", "Trạng thái", "Ngày tạo", "Cập nhật", ""].map((h, i) => <th key={i} className="px-3 py-3 font-semibold">{h}</th>)}</tr>
-              </thead>
-              <tbody className="divide-y divide-[#edf0f5]">
-                {filtered.map((item) => (
-                  <tr key={item.id} onClick={() => openDetail(item.id)} className={`cursor-pointer hover:bg-[#fff8f1] ${selectedId === item.id ? "bg-[#fff3e8]" : "bg-white"}`}>
-                    <td className="px-3 py-3"><input type="checkbox" onClick={(e) => e.stopPropagation()} className="h-4 w-4 rounded border-[#d6dbe7] accent-[#ff8d28]" /></td>
-                    <td className="px-3 py-3"><div className="flex items-center gap-3"><img src={item.reporterAvatar} alt="" className="h-9 w-9 rounded-full object-cover" /><div><b className="font-semibold">{item.reporter}</b><p className="text-[#697086]">{item.reporterId}</p></div></div></td>
-                    <td className="px-3 py-3"><b className="font-semibold">{item.target}</b><p className="text-[#697086]">{item.targetType} · {item.targetId}</p></td>
-                    <td className="px-3 py-3"><span className="rounded-lg bg-[#f0f2f8] px-2.5 py-1 text-[11px]">{item.category}</span></td>
-                    <td className="px-3 py-3"><PriorityBadge text={item.priority} /></td>
-                    <td className="px-3 py-3"><span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium ${statusColors[item.status]}`}>{item.status}</span></td>
-                    <td className="px-3 py-3 text-[#697086]">{item.createdAt}</td>
-                    <td className="px-3 py-3 text-[#697086]">{item.updatedAt}</td>
-                    <td className="px-3 py-3"><div className="flex gap-2"><IconButton label="Xem" icon="eye" onClick={(e) => { e.stopPropagation(); openDetail(item.id); }} /></div></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          {loading && filtered.length === 0 ? (
+            <div className="py-12 text-center text-[#697086]">Đang tải dữ liệu...</div>
+          ) : (
+            <div className="overflow-x-auto rounded-xl border border-[#e6e9f1]">
+              <table className="w-full min-w-[1040px] text-left text-[12px]">
+                <thead className="bg-[#fbfcfe] text-[#536078]">
+                  <tr>{["", "Người báo cáo", "Đối tượng", "Loại khiếu nại", "Ưu tiên", "Trạng thái", "Ngày tạo", "Cập nhật", ""].map((h, i) => <th key={i} className="px-3 py-3 font-semibold">{h}</th>)}</tr>
+                </thead>
+                <tbody className="divide-y divide-[#edf0f5]">
+                  {filtered.length === 0 ? (
+                    <tr><td colSpan={9} className="px-3 py-8 text-center text-[#697086]">Không tìm thấy báo cáo nào.</td></tr>
+                  ) : (
+                    filtered.map((item) => (
+                      <tr key={item.id} onClick={() => openDetail(item.id)} className={`cursor-pointer hover:bg-[#fff8f1] ${selectedId === item.id ? "bg-[#fff3e8]" : "bg-white"}`}>
+                        <td className="px-3 py-3"><input type="checkbox" onClick={(e) => e.stopPropagation()} className="h-4 w-4 rounded border-[#d6dbe7] accent-[#ff8d28]" /></td>
+                        <td className="px-3 py-3"><div className="flex items-center gap-3"><img src={item.reporterAvatar} alt="" className="h-9 w-9 rounded-full object-cover" /><div><b className="font-semibold">{item.reporter}</b><p className="text-[#697086]">{item.reporterId}</p></div></div></td>
+                        <td className="px-3 py-3"><b className="font-semibold">{item.target}</b><p className="text-[#697086]">{item.targetType} · {item.targetId}</p></td>
+                        <td className="px-3 py-3"><span className="rounded-lg bg-[#f0f2f8] px-2.5 py-1 text-[11px]">{item.category}</span></td>
+                        <td className="px-3 py-3"><PriorityBadge text={item.priority} /></td>
+                        <td className="px-3 py-3"><span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium ${statusColors[item.status]}`}>{item.status}</span></td>
+                        <td className="px-3 py-3 text-[#697086]">{item.createdAt}</td>
+                        <td className="px-3 py-3 text-[#697086]">{item.updatedAt}</td>
+                        <td className="px-3 py-3"><div className="flex gap-2"><IconButton label="Xem" icon="eye" onClick={(e) => { e.stopPropagation(); openDetail(item.id); }} /></div></td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+
           <div className="mt-4 flex items-center justify-between text-[12px] text-[#697086]">
-            <span>Hiển thị 1 - {filtered.length} của {items.length} báo cáo</span>
-            <span className="rounded-xl border border-[#dfe3ec] px-3 py-2">10 / trang</span>
+            <span>Hiển thị 1 - {filtered.length} của {pagination?.total || filtered.length} báo cáo</span>
+            <div className="flex gap-2">
+              {pagination && pagination.page > 1 && (
+                <button onClick={() => setPage(page - 1)} className="rounded-xl border px-3 py-1.5 hover:bg-gray-50">Trước</button>
+              )}
+              <span className="rounded-xl border px-3 py-1.5">
+                Trang {pagination?.page || 1} / {pagination?.totalPages || 1}
+              </span>
+              {pagination && pagination.page < pagination.totalPages && (
+                <button onClick={() => setPage(page + 1)} className="rounded-xl border px-3 py-1.5 hover:bg-gray-50">Sau</button>
+              )}
+            </div>
           </div>
         </Panel>
       </div>
 
-      {selectedId !== null ? (
+      {selectedId !== null && selected ? (
         <div className={`fixed inset-0 z-50 bg-[#0f172a]/45 backdrop-blur-[3px] transition-opacity duration-200 ${detailOpen ? "opacity-100" : "opacity-0"}`} onClick={closeDetail}>
           <aside className={`absolute right-0 top-0 h-full w-full min-w-0 overflow-y-auto border-l border-[#e6e9f1] bg-white px-5 py-5 shadow-[-24px_0_48px_rgba(12,18,32,0.2)] transition-transform duration-300 ease-out sm:w-[460px] ${detailOpen ? "translate-x-0" : "translate-x-full"}`} onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between">
@@ -224,25 +374,25 @@ export default function ReportsPage() {
               <h3 className="text-[13px] font-semibold">Mô tả khiếu nại</h3>
               <p className="mt-2 text-[12px] leading-6 text-[#536078]">{selected.description}</p>
             </div>
-            {selected.evidence.length > 0 && (
+            {selected.evidence?.length > 0 && (
               <div className="mt-5 border-t border-[#edf0f5] pt-5">
                 <h3 className="text-[13px] font-semibold">Bằng chứng đính kèm</h3>
-                <div className="mt-3 grid grid-cols-3 gap-2">{selected.evidence.map((img) => <img key={img} src={img} alt="" className="h-20 w-full rounded-xl object-cover" />)}</div>
+                <div className="mt-3 grid grid-cols-3 gap-2">{selected.evidence.map((img, idx) => <img key={idx} src={img} alt="" className="h-20 w-full rounded-xl object-cover" />)}</div>
               </div>
             )}
             <div className="mt-5 border-t border-[#edf0f5] pt-5">
               <h3 className="text-[13px] font-semibold">Lịch sử xử lý</h3>
-              <div className="mt-3 space-y-2 text-[12px] text-[#536078]">{selected.history.map((h) => <p key={h}>○ {h}</p>)}</div>
+              <div className="mt-3 space-y-2 text-[12px] text-[#536078]">{selected.history.map((h, i) => <p key={i}>○ {h}</p>)}</div>
             </div>
             <div className="mt-5 border-t border-[#edf0f5] pt-5">
               <h3 className="text-[13px] font-semibold">Ghi chú Admin</h3>
               <textarea value={adminNote} onChange={(e) => setAdminNote(e.target.value)} className="mt-2 w-full min-h-[80px] rounded-xl border border-[#dfe3ec] p-3 text-[12px] outline-none focus:border-[#ff8d28]" placeholder="Nhập ghi chú xử lý..." />
             </div>
             <div className="mt-5 grid grid-cols-2 gap-2">
-              <button onClick={() => { patch(selected.id, { status: "Đang xem xét", adminNote }); notify("Đang xem xét."); }} className="h-10 rounded-xl border border-blue-200 bg-blue-50 text-[12px] font-medium text-blue-700 hover:bg-blue-100">Đang xem xét</button>
-              <button onClick={() => { patch(selected.id, { status: "Đã xử lý", adminNote }); notify("Đã xử lý khiếu nại."); }} className="h-10 rounded-xl border border-emerald-200 bg-emerald-50 text-[12px] font-medium text-emerald-700 hover:bg-emerald-100">Đã xử lý</button>
-              <button onClick={() => { patch(selected.id, { status: "Từ chối", adminNote }); notify("Đã từ chối khiếu nại."); }} className="h-10 rounded-xl border border-[#dfe3ec] bg-white text-[12px] font-medium text-[#536078] hover:bg-[#f7f8fb]">Từ chối</button>
-              <button onClick={() => { patch(selected.id, { adminNote }); notify("Đã lưu ghi chú."); }} className="h-10 rounded-xl bg-[#ff8d28] text-[12px] font-medium text-white hover:bg-[#f47f16]">Lưu ghi chú</button>
+              <button onClick={() => handleUpdateStatus(selected.id, "Đang xem xét")} className="h-10 rounded-xl border border-blue-200 bg-blue-50 text-[12px] font-medium text-blue-700 hover:bg-blue-100">Đang xem xét</button>
+              <button onClick={() => handleUpdateStatus(selected.id, "Đã xử lý")} className="h-10 rounded-xl border border-emerald-200 bg-emerald-50 text-[12px] font-medium text-emerald-700 hover:bg-emerald-100">Đã xử lý</button>
+              <button onClick={() => handleUpdateStatus(selected.id, "Từ chối")} className="h-10 rounded-xl border border-red-200 bg-red-50 text-[12px] font-medium text-red-700 hover:bg-red-100">Từ chối</button>
+              <button onClick={() => handleSaveNote(selected.id)} className="h-10 rounded-xl bg-[#ff8d28] text-[12px] font-medium text-white hover:bg-[#f47f16]">Lưu ghi chú</button>
             </div>
           </aside>
         </div>

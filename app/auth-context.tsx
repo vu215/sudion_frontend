@@ -2,6 +2,7 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -28,9 +29,11 @@ type AuthResult = {
 
 type AuthContextValue = {
   session: AuthSession | null;
+  isLoading: boolean;
   isLoggedIn: boolean;
   isCustomer: boolean;
   isPhotographer: boolean;
+  isAdmin: boolean;
   refresh: () => void;
   logout: () => void;
   login: (emailInput: string, passwordInput: string) => Promise<AuthResult>;
@@ -48,19 +51,21 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSessionState] = useState<AuthSession | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const router = useRouter();
 
-  function refresh() {
+  const refresh = useCallback(() => {
     setSessionState(getSession());
-  }
+    setIsLoading(false);
+  }, []);
 
-  function logout() {
+  const logout = useCallback(() => {
     clearSession();
     setSessionState(null);
-  }
+  }, []);
 
-  async function login(emailInput: string, passwordInput: string) {
+  const login = useCallback(async (emailInput: string, passwordInput: string) => {
     const result = await loginUser(emailInput, passwordInput);
 
     if (result.ok && result.session) {
@@ -68,14 +73,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     return result;
-  }
+  }, []);
 
-  async function register(params: {
+  const register = useCallback(async (params: {
     fullName: string;
     email: string;
     password: string;
     phone?: string;
-  }) {
+  }) => {
     const result = await registerUser({
       ...params,
       role: "customer",
@@ -100,9 +105,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     return result;
-  }
+  }, []);
 
-  function transitionTo(targetUrl: string) {
+  const transitionTo = useCallback((targetUrl: string) => {
     setIsTransitioning(true);
 
     setTimeout(() => {
@@ -112,18 +117,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setTimeout(() => {
       setIsTransitioning(false);
     }, 1000);
-  }
+  }, [router]);
 
   useEffect(() => {
     refresh();
-  }, []);
+  }, [refresh]);
 
   const value = useMemo<AuthContextValue>(() => {
     return {
       session,
+      isLoading,
       isLoggedIn: Boolean(session),
       isCustomer: session?.role === "customer",
       isPhotographer: session?.role === "photographer",
+      isAdmin: session?.role === "admin",
       refresh,
       logout,
       login,
@@ -131,7 +138,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isTransitioning,
       transitionTo,
     };
-  }, [session, isTransitioning]);
+  }, [session, isLoading, isTransitioning, refresh, logout, login, register, transitionTo]);
 
   return (
     <AuthContext.Provider value={value}>

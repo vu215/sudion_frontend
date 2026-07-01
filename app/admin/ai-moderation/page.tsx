@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import AdminLayout from "../_components/admin-layout";
 import { AdminIcon, IconButton } from "../_components/admin-icons";
+import { api } from "@/lib/api";
 
 type Status = "Chờ xử lý" | "Vi phạm" | "Đã xử lý";
 type Severity = "Cao" | "Trung bình" | "Thấp";
@@ -23,7 +24,7 @@ type Alert = {
 };
 
 const seed: Alert[] = [
-  { id: "IMG_12987.jpg", title: "Ảnh trong portfolio", type: "Nội dung nhạy cảm", source: "Portfolio", author: "Minh Tuấn Studio", authorId: "PHO_1023", severity: "Cao", score: 96, time: "25/11/2024 10:30", status: "Chờ xử lý", image: "/screen%201.png", reason: "Phát hiện nội dung có yếu tố nhạy cảm (Skin exposure).", history: ["25/11/2024 10:30 · AI phát hiện và tạo cảnh báo"] },
+  { id: "IMG_12987.jpg", title: "Ảnh trong portfolio", type: "Nội dung nhạy cảm", source: "Portfolio", author: "Minh Tuấn Studio", authorId: "PHO_1023", severity: "Cao", score: 96, time: "25/11/2024 10:30", status: "Chờ xử lý", image: "/screen% 1.png", reason: "Phát hiện nội dung có yếu tố nhạy cảm (Skin exposure).", history: ["25/11/2024 10:30 · AI phát hiện và tạo cảnh báo"] },
   { id: "MSG_55621", title: "Tin nhắn chat", type: "Spam", source: "Tin nhắn", author: "User: Trần Văn A", authorId: "USR_3345", severity: "Trung bình", score: 72, time: "25/11/2024 09:15", status: "Chờ xử lý", image: "/Overlay+Shadow.png", reason: "Nội dung lặp lại nhiều lần và có dấu hiệu quảng cáo.", history: ["25/11/2024 09:15 · AI phát hiện spam"] },
   { id: "BK_8891_IMG3.jpg", title: "Ảnh trong booking", type: "Bạo lực / Máu me", source: "Booking", author: "Elena Studio", authorId: "PHO_2045", severity: "Cao", score: 93, time: "24/11/2024 16:45", status: "Vi phạm", image: "/Overlay+Border+Shadow.png", reason: "Ảnh có dấu hiệu bạo lực hoặc máu me vượt ngưỡng an toàn.", history: ["24/11/2024 16:45 · AI phát hiện", "24/11/2024 17:10 · Admin xác nhận vi phạm"] },
   { id: "REV_3321", title: "Bình luận đánh giá", type: "Ngôn từ thù hận", source: "Đánh giá", author: "User: Nguyễn B", authorId: "USR_2211", severity: "Trung bình", score: 68, time: "24/11/2024 15:20", status: "Chờ xử lý", image: "/logo_sudion.jpg", reason: "Bình luận chứa từ khóa có khả năng công kích hoặc thù hận.", history: ["24/11/2024 15:20 · AI phát hiện"] },
@@ -34,7 +35,9 @@ const seed: Alert[] = [
 ];
 
 export default function AiModerationPage() {
-  const [items, setItems] = useState(seed);
+  const [items, setItems] = useState<Alert[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<any>({ total: 1248, review: 156, flagged: 892, approved: 1092 });
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<Status | "Tất cả">("Tất cả");
   const [type, setType] = useState("Tất cả");
@@ -42,6 +45,66 @@ export default function AiModerationPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [toast, setToast] = useState("");
+
+  useEffect(() => {
+    async function loadData() {
+      setLoading(true);
+      try {
+        const [listRes, statsRes] = await Promise.allSettled([
+          api.aiModeration.getAll({ page: 1, pageSize: 100 }),
+          api.aiModeration.getStats()
+        ]);
+
+        if (statsRes.status === "fulfilled" && statsRes.value.success && statsRes.value.data) {
+          setStats(statsRes.value.data);
+        }
+
+        if (listRes.status === "fulfilled" && listRes.value.success && listRes.value.data && Array.isArray(listRes.value.data)) {
+          if (listRes.value.data.length === 0) {
+            setItems(seed);
+          } else {
+            const mapped: Alert[] = listRes.value.data.map((r: any) => {
+              const mapSeverity = (sev: string): Severity => {
+                if (sev === "High" || sev === "Critical") return "Cao";
+                if (sev === "Medium") return "Trung bình";
+                return "Thấp";
+              };
+              const mapStatus = (dec: string): Status => {
+                if (dec === "Approved") return "Đã xử lý";
+                if (dec === "Rejected") return "Vi phạm";
+                return "Chờ xử lý";
+              };
+              return {
+                id: r.id,
+                title: r.contentType === "image" ? "Ảnh trong portfolio" : "Nội dung văn bản",
+                type: r.issues && r.issues.length > 0 ? r.issues.join(", ") : "Nội dung nhạy cảm",
+                source: r.contentId || "Portfolio",
+                author: r.user || "Nhiếp ảnh gia",
+                authorId: r.userId || "N/A",
+                severity: mapSeverity(r.severity),
+                score: Math.round(r.confidence * 100),
+                time: r.timestamp,
+                status: mapStatus(r.decision),
+                image: r.contentType === "image" ? r.content : "/logo_sudion.jpg",
+                reason: r.reviewNote || "Cảnh báo tự động từ AI",
+                history: [`${r.timestamp} · AI phát hiện và tạo cảnh báo`]
+              };
+            });
+            setItems(mapped);
+          }
+        } else {
+          setItems(seed);
+        }
+      } catch (error) {
+        console.error("Error fetching AI moderation data:", error);
+        setItems(seed);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadData();
+  }, []);
+
   const types = useMemo(() => ["Tất cả", ...Array.from(new Set(items.map((item) => item.type)))], [items]);
   const selected = items.find((item) => item.id === selectedId) ?? items[0];
   const filtered = useMemo(() => items.filter((item) => {
@@ -54,8 +117,28 @@ export default function AiModerationPage() {
     setTimeout(() => setToast(""), 1800);
   }
 
+  async function handleUpdateDecision(id: string, newDecision: Status) {
+    const decisionMap = {
+      "Đã xử lý": "Approved",
+      "Vi phạm": "Rejected",
+      "Chờ xử lý": "Review"
+    };
+
+    try {
+      const result = await api.aiModeration.updateDecision(id, decisionMap[newDecision]);
+      if (result.success) {
+        patch(id, { status: newDecision });
+        notify("Cập nhật quyết định kiểm duyệt thành công.");
+      } else {
+        notify("Lỗi: " + (result.message || result.error));
+      }
+    } catch (err) {
+      notify("Lỗi khi kết nối API.");
+    }
+  }
+
   function patch(id: string, value: Partial<Alert>) {
-    setItems((list) => list.map((item) => item.id === id ? { ...item, ...value, history: value.status ? [...item.history, `15/06/2026 · ${value.status}`] : item.history } : item));
+    setItems((list) => list.map((item) => item.id === id ? { ...item, ...value, history: value.status ? [...item.history, `${new Date().toLocaleString("vi-VN")} · Cập nhật: ${value.status}`] : item.history } : item));
   }
 
   function openDetail(id: string) {
@@ -151,7 +234,7 @@ export default function AiModerationPage() {
           </div>
           <InfoBlock title="Thông tin cảnh báo" rows={[["Loại vi phạm", selected.type], ["Nguồn", selected.source], ["Người đăng", `${selected.author} (${selected.authorId})`], ["Ngày phát hiện", selected.time], ["AI Score", `${selected.score}%`], ["Lý do AI phát hiện", selected.reason]]} />
           <h3 className="mt-6 border-t border-[#edf0f5] pt-5 text-[14px] font-semibold">Lịch sử xử lý</h3>
-          <div className="mt-3 space-y-2 text-[12px] text-[#536078]">{selected.history.map((item) => <p key={item}>○ {item}</p>)}</div>
+          <div className="mt-3 space-y-2 text-[12px] text-[#536078]">{selected.history.map((item, index) => <p key={index}>○ {item}</p>)}</div>
           <div className="mt-6 flex justify-end gap-2 border-t border-[#edf0f5] pt-5">
             <IconButton label="Xác nhận vi phạm" icon="check" onClick={() => { patch(selected.id, { status: "Vi phạm" }); notify("Đã xác nhận vi phạm."); }} />
             <IconButton label="Bỏ qua cảnh báo" icon="close" onClick={() => { patch(selected.id, { status: "Đã xử lý" }); notify("Đã bỏ qua cảnh báo."); }} />

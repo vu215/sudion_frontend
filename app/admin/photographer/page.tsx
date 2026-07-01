@@ -99,7 +99,7 @@ export default function PhotographerPage() {
         console.log('API Response:', result); // Debug
         
         if (result.success && result.data) {
-          const transformedData = result.data.map((p: any) => ({
+          const transformedData = (result.data as any).map((p: any) => ({
             id: p.id,
             studio: p.name || "N/A", // Use name as studio
             name: p.name,

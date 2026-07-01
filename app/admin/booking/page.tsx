@@ -72,7 +72,7 @@ export default function BookingPage() {
       
       if (result.success && result.data) {
         // Transform backend data to frontend format
-        const transformedData = result.data.map((booking: any) => ({
+        const transformedData = (result.data as any).map((booking: any) => ({
           id: booking.booking_code,
           customer: booking.customer_full_name,
           phone: booking.customer_phone,
@@ -252,7 +252,7 @@ export default function BookingPage() {
           <SectionTitle>Thông tin khách hàng</SectionTitle><div className="mt-3 flex items-center gap-3"><img src={selected.customerAvatar} alt="" className="h-12 w-12 rounded-full object-cover" /><div><b>{selected.customer}</b><p className="text-[#697086]">{selected.phone}</p><p className="text-[#697086]">{selected.email}</p></div><div className="ml-auto"><IconButton label="Xem profile" icon="user" /></div></div>
           <InfoBlock title="Thông tin booking" rows={[["Photographer", selected.photographer], ["Dịch vụ", selected.service], ["Ngày chụp", selected.shootDate], ["Địa điểm", selected.place], ["Thời gian", selected.time], ["Gói dịch vụ", selected.packageName], ["Ghi chú", selected.note]]} />
           <InfoBlock title="Thanh toán" rows={[["Tổng tiền", money(selected.amount)], ["Đã thanh toán (cọc)", money(selected.amount * 0.3)], ["Còn lại", money(selected.amount * 0.7)], ["Phương thức", "MoMo"], ["Trạng thái thanh toán", selected.payment]]} />
-          <SectionTitle>Lịch sử trạng thái</SectionTitle><div className="mt-3 space-y-2 text-[12px] text-[#536078]">{selected.history.map((h) => <p key={h}>○ {h}</p>)}</div>
+          <SectionTitle>Lịch sử trạng thái</SectionTitle><div className="mt-3 space-y-2 text-[12px] text-[#536078]">{selected.history.map((h, i) => <p key={i}>○ {h}</p>)}</div>
           <div className="mt-6 flex justify-end gap-2"><IconButton label="Xác nhận" icon="check" onClick={() => { handleUpdateStatus(selected.id, "Đã xác nhận"); }} /><IconButton label="Từ chối" icon="close" tone="danger" onClick={() => { handleUpdateStatus(selected.id, "Đã hủy"); }} /><IconButton label="Liên hệ" icon="mail" onClick={() => notify("Đã mở liên hệ khách.")} /></div>
         </aside>
         </div> : null}

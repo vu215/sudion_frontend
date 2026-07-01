@@ -49,6 +49,44 @@ const typeIconBg: Record<NotiType, string> = {
   "Người dùng": "bg-[#fff3e8] text-[#ff8d28]",
 };
 
+const mapType = (backendType: string): NotiType => {
+  const typeMap: Record<string, NotiType> = {
+    booking_request: "Booking",
+    booking: "Booking",
+    payment: "Thanh toán",
+    violation: "Vi phạm",
+    ai_violation: "Vi phạm",
+    system: "Hệ thống",
+  };
+  return typeMap[backendType] || "Người dùng";
+};
+
+const mapIcon = (type: NotiType): "calendar" | "credit" | "shield" | "user" | "settings" => {
+  const iconMap: Record<NotiType, "calendar" | "credit" | "shield" | "user" | "settings"> = {
+    "Booking": "calendar",
+    "Thanh toán": "credit",
+    "Vi phạm": "shield",
+    "Người dùng": "user",
+    "Hệ thống": "settings",
+  };
+  return iconMap[type] || "settings";
+};
+
+const transformNotification = (n: any): Notification => {
+  const mappedType = mapType(n.type || "system");
+  return {
+    id: String(n.id),
+    type: mappedType,
+    title: n.title || "Thông báo",
+    body: n.message || n.body || "",
+    status: n.is_read ? "Đã đọc" : "Chưa đọc",
+    time: n.created_at ? new Date(n.created_at).toLocaleString("vi-VN") : "Vừa xong",
+    target: n.user_email || "Hệ thống",
+    targetId: n.user_id ? String(n.user_id) : "SYS",
+    icon: mapIcon(mappedType),
+  };
+};
+
 export default function NotificationsPage() {
   const [items, setItems] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,8 +98,9 @@ export default function NotificationsPage() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [toast, setToast] = useState("");
   const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState<any>(null);
 
-  const selected = items.find((item) => item.id === selectedId) ?? items[0];
+  const selected = items.find((item) => item.id === selectedId) ?? items[0] ?? null;
   const unreadCount = items.filter((item) => item.status === "Chưa đọc").length;
 
   const filtered = useMemo(() => items.filter((item) => {
@@ -72,57 +111,84 @@ export default function NotificationsPage() {
   }), [items, query, type, status]);
 
   // Load notifications from API
-  useEffect(() => {
-    async function loadNotifications() {
-      setLoading(true);
+  async function loadNotifications() {
+    setLoading(true);
+    try {
       const result = await api.notifications.getAll({ page, pageSize: 20 });
       
       if (result.success && result.data && Array.isArray(result.data)) {
-        // Transform backend data if needed
-        // For now, assume backend returns empty array
-        if (result.data.length === 0) {
-          // Use seed data as fallback
-          setItems(seed);
-        } else {
-          setItems(result.data);
-        }
+        const mappedData = result.data.map(transformNotification);
+        setItems(mappedData);
+        setPagination(result.pagination);
       } else {
-        // Fallback to seed data
-        setItems(seed);
+        setItems([]);
       }
+    } catch (err) {
+      console.error(err);
+      setItems([]);
+    } finally {
       setLoading(false);
     }
-
-    loadNotifications();
-  }, [page]);
+  }
 
   // Load stats
-  useEffect(() => {
-    async function loadStats() {
+  async function loadStats() {
+    try {
       const result = await api.notifications.getStats();
       if (result.success) {
         setStats(result.data);
       }
+    } catch (err) {
+      console.error(err);
     }
+  }
+
+  useEffect(() => {
+    loadNotifications();
+  }, [page]);
+
+  useEffect(() => {
     loadStats();
   }, []);
 
   function notify(text: string) { setToast(text); setTimeout(() => setToast(""), 1800); }
 
-  function markRead(id: string) {
-    setItems((list) => list.map((item) => item.id === id ? { ...item, status: "Đã đọc" as NotiStatus } : item));
-    // TODO: Call API to mark as read
-    // api.notifications.markAsRead(id);
+  async function markRead(id: string) {
+    try {
+      const result = await api.notifications.markAsRead(id);
+      if (result.success) {
+        setItems((list) => list.map((item) => item.id === id ? { ...item, status: "Đã đọc" as NotiStatus } : item));
+        loadStats();
+      }
+    } catch (err) {
+      console.error(err);
+    }
   }
 
   async function markAllRead() {
-    // Call API
     const result = await api.notifications.markAllAsRead();
     if (result.success) {
       setItems((list) => list.map((item) => ({ ...item, status: "Đã đọc" as NotiStatus })));
       notify("Đã đánh dấu tất cả là đã đọc.");
+      loadStats();
     } else {
       notify("Lỗi: Không thể đánh dấu đã đọc.");
+    }
+  }
+
+  async function handleDeleteNotification(id: string) {
+    try {
+      const result = await api.notifications.delete(id);
+      if (result.success) {
+        setItems((list) => list.filter((item) => item.id !== id));
+        closeDetail();
+        notify("Đã xóa thông báo.");
+        loadStats();
+      } else {
+        notify("Lỗi: " + (result.message || result.error));
+      }
+    } catch {
+      notify("Lỗi khi xóa thông báo.");
     }
   }
 
@@ -180,44 +246,58 @@ export default function NotificationsPage() {
             <IconButton label="Đặt lại" icon="filter" size="md" onClick={() => { setQuery(""); setType("Tất cả"); setStatus("Tất cả"); }} />
           </div>
 
-          <div className="divide-y divide-[#edf0f5]">
-            {filtered.map((item) => (
-              <div key={item.id} onClick={() => openDetail(item.id)} className={`flex cursor-pointer items-start gap-4 py-4 transition hover:bg-[#fff8f1] ${item.status === "Chưa đọc" ? "bg-[#fffcf8]" : "bg-white"}`}>
-                <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${typeIconBg[item.type]}`}>
-                  <AdminIcon name={item.icon} className="h-5 w-5" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    {item.status === "Chưa đọc" && <span className="h-2 w-2 shrink-0 rounded-full bg-[#ff8d28]" />}
-                    <b className="truncate text-[13px] font-semibold">{item.title}</b>
-                    <span className={`ml-auto shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${typeColors[item.type]}`}>{item.type}</span>
+          {loading && filtered.length === 0 ? (
+            <div className="py-12 text-center text-[#697086]">Đang tải dữ liệu...</div>
+          ) : (
+            <div className="divide-y divide-[#edf0f5]">
+              {filtered.map((item) => (
+                <div key={item.id} onClick={() => openDetail(item.id)} className={`flex cursor-pointer items-start gap-4 py-4 transition hover:bg-[#fff8f1] ${item.status === "Chưa đọc" ? "bg-[#fffcf8]" : "bg-white"}`}>
+                  <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${typeIconBg[item.type] || "bg-gray-100 text-gray-600"}`}>
+                    <AdminIcon name={item.icon || "settings"} className="h-5 w-5" />
                   </div>
-                  <p className="mt-1 text-[12px] leading-5 text-[#697086]">{item.body}</p>
-                  <p className="mt-1.5 text-[11px] text-[#8a93a5]">{item.time} · {item.target}</p>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      {item.status === "Chưa đọc" && <span className="h-2 w-2 shrink-0 rounded-full bg-[#ff8d28]" />}
+                      <b className="truncate text-[13px] font-semibold">{item.title}</b>
+                      <span className={`ml-auto shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${typeColors[item.type] || "bg-gray-100"}`}>{item.type}</span>
+                    </div>
+                    <p className="mt-1 text-[12px] leading-5 text-[#697086]">{item.body}</p>
+                    <p className="mt-1.5 text-[11px] text-[#8a93a5]">{item.time} · {item.target}</p>
+                  </div>
+                  <IconButton label="Xem" icon="eye" onClick={(e) => { e.stopPropagation(); openDetail(item.id); }} />
                 </div>
-                <IconButton label="Xem" icon="eye" onClick={(e) => { e.stopPropagation(); openDetail(item.id); }} />
-              </div>
-            ))}
-            {filtered.length === 0 && (
-              <div className="py-16 text-center text-[#697086]">Không tìm thấy thông báo phù hợp.</div>
-            )}
-          </div>
+              ))}
+              {filtered.length === 0 && (
+                <div className="py-16 text-center text-[#697086]">Không tìm thấy thông báo phù hợp.</div>
+              )}
+            </div>
+          )}
           <div className="mt-4 flex items-center justify-between text-[12px] text-[#697086]">
-            <span>Hiển thị 1 - {filtered.length} của {items.length} thông báo</span>
-            <span className="rounded-xl border border-[#dfe3ec] px-3 py-2">20 / trang</span>
+            <span>Hiển thị {filtered.length} của {pagination?.total || items.length} thông báo</span>
+            <div className="flex gap-2">
+              {pagination && pagination.page > 1 && (
+                <button onClick={() => setPage(page - 1)} className="rounded-xl border px-3 py-1.5 hover:bg-gray-50">Trước</button>
+              )}
+              <span className="rounded-xl border px-3 py-1.5">
+                Trang {pagination?.page || 1} / {pagination?.totalPages || 1}
+              </span>
+              {pagination && pagination.page < pagination.totalPages && (
+                <button onClick={() => setPage(page + 1)} className="rounded-xl border px-3 py-1.5 hover:bg-gray-50">Sau</button>
+              )}
+            </div>
           </div>
         </Panel>
       </div>
 
-      {selectedId !== null ? (
+      {selectedId !== null && selected ? (
         <div className={`fixed inset-0 z-50 bg-[#0f172a]/45 backdrop-blur-[3px] transition-opacity duration-200 ${detailOpen ? "opacity-100" : "opacity-0"}`} onClick={closeDetail}>
           <aside className={`absolute right-0 top-0 h-full w-full min-w-0 overflow-y-auto border-l border-[#e6e9f1] bg-white px-5 py-5 shadow-[-24px_0_48px_rgba(12,18,32,0.2)] transition-transform duration-300 ease-out sm:w-[430px] ${detailOpen ? "translate-x-0" : "translate-x-full"}`} onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h2 className="text-[16px] font-semibold">Chi tiết thông báo</h2>
               <IconButton label="Đóng" icon="close" onClick={closeDetail} />
             </div>
-            <div className={`mt-5 grid h-16 w-16 place-items-center rounded-2xl ${typeIconBg[selected.type]}`}>
-              <AdminIcon name={selected.icon} className="h-7 w-7" />
+            <div className={`mt-5 grid h-16 w-16 place-items-center rounded-2xl ${typeIconBg[selected.type] || "bg-gray-100 text-gray-600"}`}>
+              <AdminIcon name={selected.icon || "settings"} className="h-7 w-7" />
             </div>
             <h3 className="mt-4 text-[15px] font-semibold">{selected.title}</h3>
             <p className="mt-2 text-[13px] leading-6 text-[#697086]">{selected.body}</p>
@@ -228,8 +308,8 @@ export default function NotificationsPage() {
               <InfoRow label="Trạng thái" value={selected.status} />
             </div>
             <div className="mt-6 flex justify-end gap-2 border-t border-[#edf0f5] pt-5">
-              <IconButton label="Đánh dấu đã đọc" icon="check" onClick={() => { markRead(selected.id); notify("Đã đánh dấu đã đọc."); }} />
-              <IconButton label="Xóa thông báo" icon="delete" tone="danger" onClick={() => { setItems((list) => list.filter((item) => item.id !== selected.id)); closeDetail(); notify("Đã xóa thông báo."); }} />
+              <IconButton label="Đóng" icon="close" onClick={closeDetail} />
+              <IconButton label="Xóa thông báo" icon="delete" tone="danger" onClick={() => handleDeleteNotification(selected.id)} />
             </div>
           </aside>
         </div>
@@ -243,7 +323,7 @@ function Panel({ children, className = "" }: { children: React.ReactNode; classN
 }
 
 function Select({ value, options, onChange, prefix = "" }: { value: string; options: string[]; onChange: (v: string) => void; prefix?: string }) {
-  return <select value={value} onChange={(e) => onChange(e.target.value)} className="!h-10 !min-h-0 !w-full rounded-xl !border !border-[#ffd2ad] bg-white !px-3 !py-0 !text-[12px] !font-normal text-[#ff8d28] !shadow-none outline-none focus:!border-[#ff8d28] focus:ring-2 focus:ring-[#ff8d28]/10">{options.map((o) => <option key={o} value={o}>{prefix ? `${prefix} ${o}` : o}</option>)}</select>;
+  return <select value={value} onChange={(e) => onChange(e.target.value)} className="!h-10 !min-h-0 !w-full rounded-xl !border !border-[#ffd2ad] bg-white !px-3 !py-0 !text-[12px] !font-normal text-[#ff8d28] !shadow-none outline-none focus:!border-[#ff8d28]">{options.map((o) => <option key={o} value={o}>{prefix ? `${prefix} ${o}` : o}</option>)}</select>;
 }
 
 function InfoRow({ label, value }: { label: string; value: string }) {

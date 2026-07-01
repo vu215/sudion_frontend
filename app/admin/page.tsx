@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import AdminLayout from "./_components/admin-layout";
 import { AdminIcon, IconButton } from "./_components/admin-icons";
+import { api } from "@/lib/api";
 
 type BookingStatus = "Chờ xác nhận" | "Đã xác nhận" | "Đang thực hiện" | "Hoàn thành" | "Đã hủy";
 type Booking = { id: string; customer: string; service: string; photographer: string; date: string; amount: number; status: BookingStatus; avatar: string };
@@ -11,7 +12,7 @@ type Activity = { title: string; subtitle: string; tone: "orange" | "green" | "r
 
 const avatarPool = ["/Overlay+Shadow.png", "/logo_sudion.jpg", "/screen%201.png", "/Overlay+Border+Shadow.png"];
 
-const bookings: Booking[] = [
+const seedBookings: Booking[] = [
   { id: "BK20241130", customer: "Nguyễn Hoàng Nam", service: "Chụp ảnh cưới", photographer: "Minh Tuấn Studio", date: "2024-11-30", amount: 12450000, status: "Chờ xác nhận", avatar: avatarPool[0] },
   { id: "BK20241129", customer: "Trần Thu Hà", service: "Chụp ảnh đôi", photographer: "Elena Studio", date: "2024-11-29", amount: 3200000, status: "Chờ xác nhận", avatar: avatarPool[1] },
   { id: "BK20241128", customer: "Lê Quang Huy", service: "Chụp ảnh kỷ yếu", photographer: "Khang Pham", date: "2024-11-28", amount: 2800000, status: "Chờ xác nhận", avatar: avatarPool[2] },
@@ -28,7 +29,7 @@ const bookings: Booking[] = [
   { id: "BK20240509", customer: "Trần Bảo Ngọc", service: "Chụp đơn", photographer: "Elena Studio", date: "2024-05-09", amount: 2500000, status: "Hoàn thành", avatar: avatarPool[1] },
 ];
 
-const refunds: Refund[] = [
+const seedRefunds: Refund[] = [
   { id: "RF20241201", customer: "Nguyễn Thị Mai", bookingId: "BK20241201", amount: 8500000, date: "2024-11-30", status: "Chờ duyệt", avatar: avatarPool[0] },
   { id: "RF20241128", customer: "Trần Văn Phong", bookingId: "BK20241128", amount: 3200000, date: "2024-11-28", status: "Chờ duyệt", avatar: avatarPool[1] },
   { id: "RF20241125", customer: "Lê Nhật Minh", bookingId: "BK20241125", amount: 2000000, date: "2024-11-25", status: "Chờ duyệt", avatar: avatarPool[2] },
@@ -36,13 +37,13 @@ const refunds: Refund[] = [
   { id: "RF20241118", customer: "Đặng Quốc Bảo", bookingId: "BK20241118", amount: 6300000, date: "2024-11-18", status: "Chờ duyệt", avatar: avatarPool[0] },
 ];
 
-const reports = [
+const seedReports = [
   ["Báo cáo từ Nguyễn Thu Hà", "Liên quan booking #BK20241130", "10 phút trước"],
   ["Báo cáo từ Trần Minh Quân", "Liên quan photographer #PH125", "1 giờ trước"],
   ["Báo cáo từ Lê Phương Anh", "Liên quan booking #BK20241124", "2 giờ trước"],
 ];
 
-const activities: Activity[] = [
+const seedActivities: Activity[] = [
   { title: "Admin Phương duyệt hoàn tiền cho booking #BK20241115", subtitle: "15 phút trước", tone: "green" },
   { title: "Photographer Minh Tuấn Studio đã được xác minh", subtitle: "1 giờ trước", tone: "green" },
   { title: "Có 5 booking mới được tạo", subtitle: "2 giờ trước", tone: "orange" },
@@ -57,27 +58,187 @@ const statusColors: Record<BookingStatus, string> = {
   "Đã hủy": "#ef4455",
 };
 
+const currentYear = new Date().getFullYear();
+const currentMonth = new Date().getMonth() + 1;
+const prevMonth = currentMonth === 1 ? 12 : currentMonth - 1;
+const prevMonthYear = currentMonth === 1 ? currentYear - 1 : currentYear;
+
 const periods = [
-  { label: "Tháng 11/2024", start: "2024-11-01", end: "2024-11-30" },
-  { label: "Tháng 10/2024", start: "2024-10-01", end: "2024-10-31" },
-  { label: "Quý 4/2024", start: "2024-10-01", end: "2024-12-31" },
-  { label: "Năm 2024", start: "2024-01-01", end: "2024-12-31" },
+  {
+    label: `Tháng ${currentMonth}/${currentYear}`,
+    start: `${currentYear}-${String(currentMonth).padStart(2, "0")}-01`,
+    end: `${currentYear}-${String(currentMonth).padStart(2, "0")}-31`
+  },
+  {
+    label: `Tháng ${prevMonth}/${prevMonthYear}`,
+    start: `${prevMonthYear}-${String(prevMonth).padStart(2, "0")}-01`,
+    end: `${prevMonthYear}-${String(prevMonth).padStart(2, "0")}-31`
+  },
+  {
+    label: `Cả năm ${currentYear}`,
+    start: `${currentYear}-01-01`,
+    end: `${currentYear}-12-31`
+  },
+  {
+    label: `Tháng 11/2024 (Seed Data)`,
+    start: "2024-11-01",
+    end: "2024-11-30"
+  }
 ];
 
 export default function AdminDashboardPage() {
   const [periodIndex, setPeriodIndex] = useState(0);
   const [chartMode, setChartMode] = useState<"month" | "day">("month");
   const period = periods[periodIndex];
-  const filteredBookings = useMemo(() => bookings.filter((item) => inRange(item.date, period.start, period.end)), [period]);
-  const filteredRefunds = useMemo(() => refunds.filter((item) => inRange(item.date, period.start, period.end)), [period]);
-  const chartData = useMemo(() => buildChartData(chartMode, period, chartMode === "month" ? bookings : filteredBookings), [chartMode, filteredBookings, period]);
+
+  const [bookings, setBookings] = useState<Booking[]>(seedBookings);
+  const [refunds, setRefunds] = useState<Refund[]>(seedRefunds);
+  const [reports, setReports] = useState<any[]>(seedReports);
+  const [activities, setActivities] = useState<Activity[]>(seedActivities);
+  const [stats, setStats] = useState({
+    users: 12548,
+    photographers: 1248,
+    bookings: 14,
+    revenue: 96950000
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadDashboardData() {
+      setLoading(true);
+      try {
+        const [
+          uStats, pStats, bStats, payStats,
+          allBookings, allRefunds, allReports, allLogs
+        ] = await Promise.allSettled([
+          api.users.getStats(),
+          api.photographers.getStats(),
+          api.bookings.getStats(),
+          api.payments.getStats(),
+          api.bookings.getAll({ page: 1, pageSize: 100 }),
+          api.refunds.getAll({ page: 1, pageSize: 50 }),
+          api.reports.getAll({ page: 1, pageSize: 50 }),
+          api.logs.getAll({ page: 1, pageSize: 50 })
+        ]);
+
+        // Process stats
+        const newStats = { ...stats };
+        if (uStats.status === "fulfilled" && uStats.value.success && uStats.value.data) {
+          newStats.users = (uStats.value.data as any).total;
+        }
+        if (pStats.status === "fulfilled" && pStats.value.success && pStats.value.data) {
+          newStats.photographers = (pStats.value.data as any).total;
+        }
+        if (bStats.status === "fulfilled" && bStats.value.success && bStats.value.data) {
+          newStats.bookings = (bStats.value.data as any).total;
+        }
+        if (payStats.status === "fulfilled" && payStats.value.success && payStats.value.data) {
+          newStats.revenue = Number((payStats.value.data as any).total_revenue || (payStats.value.data as any).completedAmount || 0);
+        }
+        setStats(newStats);
+
+        // Process bookings
+        if (allBookings.status === "fulfilled" && allBookings.value.success && allBookings.value.data) {
+          const mapStatus = (backendStatus: string): BookingStatus => {
+            const statusMap: Record<string, BookingStatus> = {
+              "awaiting_payment": "Chờ xác nhận",
+              "accepted": "Đã xác nhận",
+              "confirmed": "Đang thực hiện",
+              "completed": "Hoàn thành",
+              "fully_paid": "Hoàn thành",
+              "cancelled": "Đã hủy",
+              "rejected": "Đã hủy",
+            };
+            return statusMap[backendStatus] || "Chờ xác nhận";
+          };
+          const mapped = (allBookings.value.data as any).map((b: any) => ({
+            id: b.booking_code,
+            customer: b.customer_full_name,
+            service: b.service_name,
+            photographer: b.photographer_name,
+            date: b.shoot_date ? b.shoot_date.split("T")[0] : b.created_at.split("T")[0],
+            amount: Number(b.estimated_total || 0),
+            status: mapStatus(b.status),
+            avatar: avatarPool[Math.floor(Math.random() * avatarPool.length)]
+          }));
+          if (mapped.length > 0) {
+            setBookings(mapped);
+          }
+        }
+
+        // Process refunds
+        if (allRefunds.status === "fulfilled" && allRefunds.value.success && allRefunds.value.data) {
+          const mapRefundStatus = (st: string) => {
+            const m: Record<string, any> = {
+              pending: "Chờ duyệt",
+              processing: "Đang xử lý",
+              completed: "Đã hoàn tiền",
+              rejected: "Từ chối"
+            };
+            return m[st] || "Chờ duyệt";
+          };
+          const mapped = (allRefunds.value.data as any).map((r: any) => ({
+            id: r.id || `RF_${r.booking_code || r.booking_id}`,
+            customer: r.customer_name || "Khách hàng",
+            bookingId: r.booking_code || String(r.booking_id),
+            amount: Number(r.refund_amount || r.amount || 0),
+            date: r.created_at ? r.created_at.split("T")[0] : new Date().toISOString().split("T")[0],
+            status: mapRefundStatus(r.status),
+            avatar: avatarPool[Math.floor(Math.random() * avatarPool.length)]
+          }));
+          if (mapped.length > 0) {
+            setRefunds(mapped);
+          }
+        }
+
+        // Process reports
+        if (allReports.status === "fulfilled" && allReports.value.success && allReports.value.data) {
+          const mapped = (allReports.value.data as any).map((r: any) => [
+            `Báo cáo từ ${r.reporter_name || "Người dùng"}`,
+            `Liên quan: ${r.subject || "Nội dung"}`,
+            r.created_at ? new Date(r.created_at).toLocaleDateString("vi-VN") : "Gần đây"
+          ]);
+          if (mapped.length > 0) {
+            setReports(mapped);
+          }
+        }
+
+        // Process activities
+        if (allLogs.status === "fulfilled" && allLogs.value.success && allLogs.value.data) {
+          const toneMap = (action: string) => {
+            if (action.includes("error") || action.includes("delete") || action.includes("fail")) return "red";
+            if (action.includes("create") || action.includes("add") || action.includes("update")) return "orange";
+            return "green";
+          };
+          const mapped = (allLogs.value.data as any).map((l: any) => ({
+            title: l.message || `${l.action} bởi ${l.user_email || "System"}`,
+            subtitle: new Date(l.created_at).toLocaleString("vi-VN"),
+            tone: toneMap((l.action || "").toLowerCase())
+          }));
+          if (mapped.length > 0) {
+            setActivities(mapped);
+          }
+        }
+
+      } catch (err) {
+        console.error("Error loading dashboard data", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadDashboardData();
+  }, []);
+
+  const filteredBookings = useMemo(() => bookings.filter((item) => inRange(item.date, period.start, period.end)), [bookings, period]);
+  const filteredRefunds = useMemo(() => refunds.filter((item) => inRange(item.date, period.start, period.end)), [refunds, period]);
+  const chartData = useMemo(() => buildChartData(chartMode, period, chartMode === "month" ? bookings : filteredBookings), [chartMode, bookings, filteredBookings, period]);
   const totalRevenue = filteredBookings.reduce((sum, item) => sum + item.amount, 0);
   const confirmedBookings = filteredBookings.filter((item) => item.status === "Chờ xác nhận");
   const kpis = [
-    { title: "Tổng người dùng", value: formatNumber(12548 + filteredBookings.length * 2), trend: "12.5%", tone: "orange", icon: "users" },
-    { title: "Photographer", value: formatNumber(1248), trend: "8.7%", tone: "orange", icon: "camera" },
-    { title: "Tổng booking", value: formatNumber(filteredBookings.length), trend: "15.3%", tone: "green", icon: "calendar" },
-    { title: "Doanh thu (VNĐ)", value: money(totalRevenue), trend: "18.6%", tone: "orange", icon: "dollar" },
+    { title: "Tổng người dùng", value: formatNumber(stats.users), trend: "12.5%", tone: "orange", icon: "users" },
+    { title: "Photographer", value: formatNumber(stats.photographers), trend: "8.7%", tone: "orange", icon: "camera" },
+    { title: "Tổng booking", value: formatNumber(stats.bookings), trend: "15.3%", tone: "green", icon: "calendar" },
+    { title: "Doanh thu (VNĐ)", value: money(stats.revenue), trend: "18.6%", tone: "orange", icon: "dollar" },
   ];
 
   function exportCsv() {
@@ -98,6 +259,19 @@ export default function AdminDashboardPage() {
     link.download = `pixora-dashboard-${period.start}-${period.end}.csv`;
     link.click();
     URL.revokeObjectURL(url);
+  }
+
+  if (loading && bookings.length === seedBookings.length) {
+    return (
+      <AdminLayout active="Dashboard">
+        <div className="flex min-h-[400px] items-center justify-center">
+          <div className="text-center">
+            <div className="mb-4 text-2xl">🔄</div>
+            <p className="text-gray-600">Đang tải dữ liệu dashboard...</p>
+          </div>
+        </div>
+      </AdminLayout>
+    );
   }
 
   return (
