@@ -50,7 +50,7 @@ export default function ServicesPage() {
         const result = await api.services.getAll(params);
 
         if (result.success && result.data) {
-          setItems(result.data);
+          setItems(result.data as Service[]);
           setPagination(result.pagination);
         }
       } catch (error) {

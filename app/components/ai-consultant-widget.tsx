@@ -137,30 +137,15 @@ export function AiConsultantWidget() {
   const processResponse = async (userInput: string) => {
     const trimmedInput = userInput.trim().toLowerCase();
 
-    // Dynamically check localStorage config on every message to capture changes without reloading
-    let currentSettings = aiSettings;
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("studion-ai-settings");
-      if (saved) {
-        try {
-          currentSettings = JSON.parse(saved);
-        } catch (e) {
-          console.error("Lỗi đọc cấu hình AI mới", e);
-        }
-      }
+    // Try calling the backend AI endpoint first
+    try {
+      const backendResponse = await callBackendAI(userInput);
+      if (backendResponse) return; // Successfully got AI response from backend
+    } catch (error) {
+      console.error("Backend AI call failed, falling back to local simulator:", error);
     }
 
-    // Check if real API connection is configured in Admin Settings
-    if (currentSettings && currentSettings.key && currentSettings.provider !== "Mock Simulator") {
-      try {
-        await callRealAI(userInput, currentSettings);
-        return;
-      } catch (error) {
-        console.error("Lỗi gọi AI thật, chuyển hướng về chế độ giả lập thông minh:", error);
-      }
-    }
-
-    // --- INTERACTIVE SMART SIMULATION FLOW ---
+    // --- INTERACTIVE SMART SIMULATION FLOW (Fallback) ---
 
     // Check if we are in a guided flow step
     if (flowState.step === "waiting_location") {
@@ -526,91 +511,40 @@ export function AiConsultantWidget() {
     }, 1200);
   };
 
-  // Call real AI (Gemini or OpenAI API directly from client)
-  const callRealAI = async (userInput: string, settings?: AiSettings | null) => {
-    const activeSettings = settings || aiSettings;
-    if (!activeSettings) return;
-
-    const { provider, model, key, endpoint, systemPrompt } = activeSettings;
-
-    // Create summary of photographers for the AI context
-    const summary = photographers
-      .slice(0, 15) // Limit context size
-      .map(
-        (p) =>
-          `- ID: ${p.id}, Họ tên: ${p.full_name}, Vùng hoạt động: ${p.active_area || "Chưa rõ"
-          }, Thể loại: ${p.categories || "Đa dạng"}, Giá tối thiểu: ${p.min_price ? p.min_price.toLocaleString("vi-VN") + " VND" : "Thỏa thuận"
-          }, Đánh giá: ${p.avg_rating} sao`
-      )
-      .join("\n");
-
-    const systemPromptContext = `${systemPrompt}\n\nDanh sách nhiếp ảnh gia thật trên nền tảng Sudion để tư vấn:\n${summary}\n\nChú ý: Khi gợi ý một photographer cụ thể, hãy hướng dẫn khách hàng bấm vào đường dẫn theo cấu trúc '/photographer-profile?id=ID_CỦA_HỌ' để xem chi tiết và đặt lịch.`;
+  // Call AI via secure backend endpoint (API key stored in database, not exposed to browser)
+  const callBackendAI = async (userInput: string): Promise<boolean> => {
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
     const chatHistory = messages
       .slice(-10) // Send last 10 messages for context
-      .map((m) => `${m.sender === "user" ? "Khách hàng" : "AI Trợ lý"}: ${m.text}`)
-      .join("\n");
+      .map((m) => ({ sender: m.sender === "user" ? "user" : "bot", text: m.text }));
 
-    if (provider === "Google Gemini") {
-      // Calling Gemini API
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [
-              {
-                parts: [
-                  {
-                    text: `${systemPromptContext}\n\nLịch sử hội thoại:\n${chatHistory}\n\nKhách hàng: ${userInput}\n\nAI Trợ lý phản hồi ngắn gọn bằng tiếng Việt:`,
-                  },
-                ],
-              },
-            ],
-          }),
-        }
-      );
+    const response = await fetch(`${API_URL}/ai/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: userInput,
+        history: chatHistory,
+      }),
+    });
 
-      if (!response.ok) {
-        throw new Error("Lỗi API Gemini");
-      }
-
-      const resJson = await response.json();
-      const aiResponseText =
-        resJson?.candidates?.[0]?.content?.parts?.[0]?.text ||
-        "Tôi chưa nhận được phản hồi từ AI. Hãy thử lại sau.";
-      addBotMessage(formatResponseHtml(aiResponseText), undefined, true);
-    } else if (provider === "OpenAI") {
-      // Calling OpenAI API
-      const response = await fetch(endpoint || "https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${key}`,
-        },
-        body: JSON.stringify({
-          model: model || "gpt-4o-mini",
-          messages: [
-            { role: "system", content: systemPromptContext },
-            {
-              role: "user",
-              content: `Lịch sử hội thoại:\n${chatHistory}\n\nKhách hàng: ${userInput}\n\nAI Trợ lý phản hồi:`,
-            },
-          ],
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Lỗi API OpenAI");
-      }
-
-      const resJson = await response.json();
-      const aiResponseText =
-        resJson?.choices?.[0]?.message?.content ||
-        "Tôi chưa nhận được phản hồi từ OpenAI. Hãy thử lại.";
-      addBotMessage(formatResponseHtml(aiResponseText), undefined, true);
+    if (!response.ok) {
+      throw new Error(`Backend AI error: ${response.status}`);
     }
+
+    const resJson = await response.json();
+
+    // If backend says to use simulator (no API key configured), return false to fall through
+    if (resJson.useSimulator) {
+      return false;
+    }
+
+    if (resJson.success && resJson.text) {
+      addBotMessage(formatResponseHtml(resJson.text), undefined, true);
+      return true;
+    }
+
+    return false;
   };
 
   // Format response formatting, transforming markdown list/links to HTML

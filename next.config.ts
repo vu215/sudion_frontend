@@ -7,6 +7,7 @@ const nextConfig: NextConfig = {
   env: {
     NEXT_PUBLIC_REACT_TRACE_ROOT: __dirname,
   },
+  
   images: {
     unoptimized: true,
     remotePatterns: [

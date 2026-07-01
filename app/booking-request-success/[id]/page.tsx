@@ -2,14 +2,17 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState, use } from "react";
+import { useRouter } from "next/navigation";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 const AUTO_REFRESH_MS = 8000;
 
 type Booking = {
+  id?: number;
   booking_code: string;
   photographer_id?: string | number;
   photographer_name: string;
+  service_id?: string | number;
   service_name: string;
   shoot_date: string | null;
   shoot_time: string | null;
@@ -18,6 +21,21 @@ type Booking = {
   remaining_amount: number;
   status: string;
   location?: string | null;
+
+  customer_full_name?: string;
+  customer_phone?: string;
+  customer_email?: string;
+  contact_channel?: string | null;
+  people_scale?: string | null;
+  people_extra?: number;
+  scene?: string | null;
+  concept?: string | null;
+  budget?: string | null;
+  add_ons?: any;
+  reference_file_name?: string | null;
+  payment_method?: string | null;
+  base_price?: string | number;
+  add_on_total?: string | number;
 };
 
 type ApiResponse<T> = { success: boolean; message: string; data: T };
@@ -91,15 +109,29 @@ async function fetchBooking(code: string): Promise<Booking> {
   return json.data;
 }
 
-type PkgSuggestion = { id: number; name: string; price: number; image_url?: string | null; category: { name: string; slug: string } };
+const WEDDING_SUBTYPES = [
+  { id: "pre-wedding", label: "Chụp ảnh cưới", extra: 0, image: "https://i.pinimg.com/736x/d5/39/3f/d5393f1c798379d5dfdf1b85563074dc.jpg" },
+  { id: "phong-su", label: "Phóng sự cưới", extra: 2500000, image: "https://i.pinimg.com/736x/6d/c5/19/6dc519d3bd5450d7e06a71e0e5a2a845.jpg" },
+  { id: "gia-tien", label: "Lễ gia tiên", extra: 800000, image: "https://i.pinimg.com/736x/88/f0/a4/88f0a43b271ad694a8e10c7eeaf76ea4.jpg" },
+  { id: "an-hoi", label: "Lễ ăn hỏi", extra: 800000, image: "https://i.pinimg.com/736x/26/e9/6c/26e96c6c35a006344570ac3fdcb44c41.jpg" },
+  { id: "tiec-cuoi", label: "Tiệc cưới", extra: 2000000, image: "https://i.pinimg.com/1200x/ac/88/59/ac88598c891cad0cbe1920807b14187e.jpg" },
+  { id: "studio-cuoi", label: "Chụp studio cưới", extra: 1000000, image: "https://images.unsplash.com/photo-1606800052052-a08af7148866?w=400&q=80&fit=crop" },
+  { id: "le-cuoi", label: "Chụp lễ cưới", extra: 1500000, image: "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=400&q=80" },
+  { id: "full-day", label: "Chụp full wedding day", extra: 5000000, image: "https://i.pinimg.com/1200x/18/33/4d/18334d20531bae69b882960af71a6113.jpg" },
+];
 
-/* ─── Page ─── */
+type PkgSuggestion = { id: string | number; name: string; price: number; image_url?: string | null; category: { name: string; slug: string }; isSubtype?: boolean; extra?: number };
+
 export default function BookingRequestSuccessPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: bookingCode } = use(params);
+  const router = useRouter();
   const [booking,      setBooking]      = useState<Booking | null>(null);
   const [loading,      setLoading]      = useState(true);
   const [pageError,    setPageError]    = useState("");
   const [suggestions,  setSuggestions]  = useState<PkgSuggestion[]>([]);
+  const [switching,    setSwitching]    = useState(false);
+  const [showSameCategory, setShowSameCategory] = useState(false);
+  const [showOtherCategory, setShowOtherCategory] = useState(false);
 
   useEffect(() => {
     let ignore = false;
@@ -120,7 +152,7 @@ export default function BookingRequestSuccessPage({ params }: { params: Promise<
     return () => { ignore = true; clearInterval(t); };
   }, [bookingCode]);
 
-  // Load gợi ý dịch vụ từ photographer
+  // Load all packages of photographer to suggest
   useEffect(() => {
     if (!booking?.photographer_id) return;
     let ignore = false;
@@ -131,24 +163,94 @@ export default function BookingRequestSuccessPage({ params }: { params: Promise<
         const json = await res.json();
         if (!json.success || ignore) return;
         const pkgs: PkgSuggestion[] = (json.data?.packages || []);
-        // Lấy tối đa 4 gói khác với gói đã đặt
-        const others = pkgs.filter(p => p.name !== booking.service_name).slice(0, 4);
-        setSuggestions(others);
+        setSuggestions(pkgs);
       } catch { /* silent */ }
     })();
     return () => { ignore = true; };
-  }, [booking?.photographer_id, booking?.service_name]);
+  }, [booking?.photographer_id]);
+
+  // Find category of currently booked service
+  const currentPkg = useMemo(() => {
+    return suggestions.find(p => p.name === booking?.service_name || p.id === Number(booking?.service_id));
+  }, [suggestions, booking]);
+
+  const currentCategorySlug = useMemo(() => {
+    if (currentPkg) return currentPkg.category.slug;
+    const name = (booking?.service_name || "").toLowerCase()
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d");
+    if (name.includes("cuoi") || name.includes("wedding") || name.includes("gia tien") || name.includes("dam hoi")) return "wedding";
+    if (name.includes("doi") || name.includes("couple")) return "couple";
+    if (name.includes("su kien") || name.includes("event")) return "event";
+    if (name.includes("ky yeu") || name.includes("yearbook")) return "yearbook";
+    if (name.includes("du lich") || name.includes("travel")) return "travel";
+    if (name.includes("am thuc") || name.includes("food") || name.includes("san pham") || name.includes("product")) return "food";
+    return "portrait";
+  }, [currentPkg, booking]);
+
+  // Group same category (wedding): unselected first, selected last
+  const sameCategoryPkgs = useMemo(() => {
+    if (currentCategorySlug === "wedding") {
+      const basePrice = Number(booking?.base_price || 5000000);
+      const list = WEDDING_SUBTYPES.map(sub => ({
+        id: sub.id,
+        name: sub.label,
+        price: basePrice + sub.extra,
+        image_url: sub.image,
+        category: { name: "Chụp ảnh cưới", slug: "wedding" },
+        isSubtype: true,
+        extra: sub.extra
+      }));
+      return [...list].sort((a, b) => {
+        const aSelected = a.name === booking?.people_scale;
+        const bSelected = b.name === booking?.people_scale;
+        if (aSelected && !bSelected) return 1;
+        if (!aSelected && bSelected) return -1;
+        return 0;
+      });
+    }
+
+    const list = suggestions.filter(p => p.category.slug === currentCategorySlug);
+    return [...list].sort((a, b) => {
+      const aSelected = a.name === booking?.service_name || a.id === Number(booking?.service_id);
+      const bSelected = b.name === booking?.service_name || b.id === Number(booking?.service_id);
+      if (aSelected && !bSelected) return 1;
+      if (!aSelected && bSelected) return -1;
+      return 0;
+    });
+  }, [suggestions, currentCategorySlug, booking]);
+
+  // Group other categories' packages
+  const otherCategoryPkgs = useMemo(() => {
+    return suggestions.filter(p => p.category.slug !== currentCategorySlug);
+  }, [suggestions, currentCategorySlug]);
+
+  // Navigate to booking page with the selected service pre-filled
+  function handleSelectService(newPkg: any) {
+    const isSelected = newPkg.isSubtype
+      ? newPkg.name === booking?.people_scale
+      : newPkg.name === booking?.service_name || newPkg.id === Number(booking?.service_id);
+      
+    if (isSelected || switching || !booking) return;
+
+    // Redirect to booking page with photographer + service pre-filled
+    const photographerId = String(booking.photographer_id);
+    if (newPkg.isSubtype) {
+      router.push(`/booking?photographer=${photographerId}&service=wedding&wedding_subtype=${newPkg.id}`);
+    } else {
+      router.push(`/booking?photographer=${photographerId}&service=${newPkg.category.slug}`);
+    }
+  }
 
   const info = useMemo(() => si(booking?.status || "awaiting_payment"), [booking?.status]);
 
   if (loading) return <Skeleton />;
   if (pageError || !booking) return <ErrorScreen msg={pageError || "Không tìm thấy booking."} />;
 
-  const depositPct = booking.estimated_total > 0
-    ? Math.round((booking.deposit_amount / booking.estimated_total) * 100)
-    : 50;
+  // Initial cọc is 30% instead of 50%
+  const displayDeposit = Math.round(booking.estimated_total * 0.3);
+  const displayRemaining = booking.estimated_total - displayDeposit;
 
-  // Tách địa điểm và link ảnh
+  // Split location and image drive link
   const rawLocation  = booking.location || "";
   const photoMatch   = rawLocation.match(/\[Photos:\s*(https?:\/\/[^\]]+)\]/);
   const displayLoc   = rawLocation.split(" [Photos:")[0] || "Chưa chọn";
@@ -156,6 +258,13 @@ export default function BookingRequestSuccessPage({ params }: { params: Promise<
 
   return (
     <main className="min-h-screen bg-[#f4f6fa] px-4 py-10 sm:py-14 text-[#0f172a]">
+      {switching && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm text-white">
+          <div className="h-12 w-12 animate-spin rounded-full border-4 border-t-[#ff8d28] border-white/20" />
+          <p className="mt-4 text-sm font-black">Đang chuyển đổi gói dịch vụ...</p>
+        </div>
+      )}
+
       <div className="mx-auto max-w-[960px] grid gap-5 lg:grid-cols-[1fr_300px] lg:items-start">
 
         {/* ── Left ── */}
@@ -214,8 +323,8 @@ export default function BookingRequestSuccessPage({ params }: { params: Promise<
             {/* Money */}
             <div className="grid grid-cols-3 gap-3">
               <MoneyCard label="Tổng tiền"          value={booking.estimated_total} />
-              <MoneyCard label={`Cọc ${depositPct}%`} value={booking.deposit_amount} />
-              <MoneyCard label="Còn lại"            value={booking.remaining_amount} />
+              <MoneyCard label="Cọc 30%"            value={displayDeposit} />
+              <MoneyCard label="Còn lại"            value={displayRemaining} />
             </div>
 
             {/* Actions */}
@@ -224,55 +333,111 @@ export default function BookingRequestSuccessPage({ params }: { params: Promise<
         </div>
 
         {/* ── Right sidebar ── */}
-        <aside className="rounded-2xl border border-[#e2e8f0] bg-white p-5 shadow-sm lg:sticky lg:top-[88px]">
-          <p className="text-[11px] font-black uppercase tracking-widest text-[#ff8d28]">Quy trình</p>
-          <div className="mt-3 grid gap-1.5">
-            {[
-              { keys: ["awaiting_payment","accepted","confirmed","completed","fully_paid"], doneKeys: ["accepted","confirmed","completed","fully_paid"], title: "Gửi yêu cầu"          },
-              { keys: ["accepted","confirmed","completed","fully_paid"],                   doneKeys: ["confirmed","completed","fully_paid"],            title: "Photographer xác nhận" },
-              { keys: ["confirmed","completed","fully_paid"],                              doneKeys: ["completed","fully_paid"],                        title: "Thanh toán cọc"       },
-              { keys: ["completed","fully_paid"],                                          doneKeys: ["fully_paid"],                                    title: "Hoàn thành chụp"      },
-              { keys: ["fully_paid"],                                                      doneKeys: [],                                                title: "Hoàn tất"             },
-            ].map((step, i) => {
-              const active = step.keys.includes(booking.status);
-              const done   = step.doneKeys.includes(booking.status);
-              return (
-                <div key={i} className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 text-[12.5px] ${active ? "border-[#ffcfaa] bg-[#fff7ed] font-black text-[#0f172a]" : "border-[#eef2f7] text-[#94a3b8] font-semibold"}`}>
-                  <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-full text-[10px] font-black ${done ? "bg-[#ff8d28] text-white" : active ? "border border-[#ff8d28] text-[#ff8d28]" : "bg-[#e2e8f0] text-[#94a3b8]"}`}>
-                    {done ? "✓" : i + 1}
-                  </span>
-                  {step.title}
-                </div>
-              );
-            })}
+        <aside className="rounded-2xl border border-[#e2e8f0] bg-white p-5 shadow-sm lg:sticky lg:top-[88px] grid gap-4">
+          <div>
+            <p className="text-[11px] font-black uppercase tracking-widest text-[#ff8d28]">Quy trình</p>
+            <div className="mt-3 grid gap-1.5">
+              {[
+                { keys: ["awaiting_payment","accepted","confirmed","completed","fully_paid"], doneKeys: ["accepted","confirmed","completed","fully_paid"], title: "Gửi yêu cầu"          },
+                { keys: ["accepted","confirmed","completed","fully_paid"],                   doneKeys: ["confirmed","completed","fully_paid"],            title: "Photographer xác nhận" },
+                { keys: ["confirmed","completed","fully_paid"],                              doneKeys: ["completed","fully_paid"],                        title: "Thanh toán cọc"       },
+                { keys: ["completed","fully_paid"],                                          doneKeys: ["fully_paid"],                                    title: "Hoàn thành chụp"      },
+                { keys: ["fully_paid"],                                                      doneKeys: [],                                                title: "Hoàn tất"             },
+              ].map((step, i) => {
+                const active = step.keys.includes(booking.status);
+                const done   = step.doneKeys.includes(booking.status);
+                return (
+                  <div key={i} className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 text-[12.5px] ${active ? "border-[#ffcfaa] bg-[#fff7ed] font-black text-[#0f172a]" : "border-[#eef2f7] text-[#94a3b8] font-semibold"}`}>
+                    <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-full text-[10px] font-black ${done ? "bg-[#ff8d28] text-white" : active ? "border border-[#ff8d28] text-[#ff8d28]" : "bg-[#e2e8f0] text-[#94a3b8]"}`}>
+                      {done ? "✓" : i + 1}
+                    </span>
+                    {step.title}
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
-          {/* Auto-refresh note */}
-          <div className="mt-4 rounded-xl border border-[#ffedd5] bg-[#fff7ed] p-3">
-            <p className="text-[12px] font-black text-[#ea580c]">Tự cập nhật trạng thái</p>
-            <p className="mt-1 text-[11px] font-medium leading-4 text-[#9a3412]">
-              Khi photographer xác nhận, từ chối hoặc hoàn thành booking, trang này sẽ tự cập nhật sau vài giây.
-            </p>
-          </div>
-
-          {/* Gợi ý dịch vụ khác */}
-          {suggestions.length > 0 && (
-            <div className="mt-4">
-              <p className="text-[11px] font-black uppercase tracking-widest text-[#ff8d28]">Gợi ý thêm</p>
+          {/* Dịch vụ cùng nhóm gợi ý */}
+          {sameCategoryPkgs.length > 0 && (
+            <div>
+              <p className="text-[11px] font-black uppercase tracking-widest text-[#ff8d28]">Loại hình chụp ảnh</p>
               <div className="mt-2 grid gap-2">
-                {suggestions.map(pkg => (
-                  <Link
-                    key={pkg.id}
-                    href={`/booking?photographer=${booking.photographer_id}&service=${pkg.category.slug}`}
-                    className="flex items-center gap-3 rounded-xl border border-[#eef2f7] bg-white p-2.5 transition hover:border-[#ffcfaa] hover:bg-[#fff7ed]"
+                {(showSameCategory ? sameCategoryPkgs : sameCategoryPkgs.slice(0, 3)).map(pkg => {
+                  const isSelected = pkg.isSubtype
+                    ? pkg.name === booking?.people_scale
+                    : pkg.name === booking?.service_name || pkg.id === Number(booking?.service_id);
+                  return (
+                    <button
+                      key={pkg.id}
+                      type="button"
+                      disabled={isSelected || switching}
+                      onClick={() => handleSelectService(pkg)}
+                      className={`flex items-center gap-3 rounded-xl border p-2.5 transition text-left w-full ${
+                        isSelected
+                          ? "border-[#ff8d28] bg-[#fff7ed] ring-2 ring-[#ff8d28]/20 cursor-default"
+                          : "border-[#eef2f7] bg-white hover:border-[#ffcfaa] hover:bg-[#fff7ed]"
+                      }`}
+                    >
+                      <div className="h-11 w-11 shrink-0 rounded-lg overflow-hidden bg-[#f1f5f9]">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={pkg.image_url || getCatImage(pkg.category.slug, pkg.category.name, pkg.name)}
+                          alt={pkg.name}
+                          className="h-full w-full object-cover"
+                          onError={(e) => { (e.target as HTMLImageElement).src = getCatImage(pkg.category.slug, pkg.category.name, pkg.name); }}
+                        />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-1">
+                          <p className="truncate text-[12px] font-black text-[#0f172a]">{pkg.name}</p>
+                          {isSelected && (
+                            <span className="shrink-0 rounded-full bg-[#ff8d28] px-1.5 py-0.5 text-[9px] font-black text-white">Đang chọn</span>
+                          )}
+                        </div>
+                        <p className="text-[11px] font-semibold text-[#64748b]">{pkg.category.name}</p>
+                        <p className="text-[11px] font-black text-[#ff8d28]">{fmt(pkg.price)}</p>
+                      </div>
+                      {!isSelected && (
+                        <svg className="h-4 w-4 shrink-0 text-[#cbd5e1]" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 18l6-6-6-6"/></svg>
+                      )}
+                    </button>
+                  );
+                })}
+                {sameCategoryPkgs.length > 3 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowSameCategory(v => !v)}
+                    className="flex items-center justify-center gap-1 rounded-xl border border-dashed border-[#ffcfaa] py-2 text-[11px] font-black text-[#ff8d28] transition hover:bg-[#fff7ed]"
                   >
-                    {/* Thumbnail */}
+                    {showSameCategory ? 'Thu gọn' : `Xem thêm ${sameCategoryPkgs.length - 3} loại`}
+                    <svg className={`h-3.5 w-3.5 transition-transform ${showSameCategory ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Dịch vụ khác gợi ý */}
+          {otherCategoryPkgs.length > 0 && (
+            <div>
+              <p className="text-[11px] font-black uppercase tracking-widest text-[#64748b]">Dịch vụ khác của photographer</p>
+              <div className="mt-2 grid gap-2">
+                {(showOtherCategory ? otherCategoryPkgs : otherCategoryPkgs.slice(0, 3)).map(pkg => (
+                  <button
+                    key={pkg.id}
+                    type="button"
+                    disabled={switching}
+                    onClick={() => handleSelectService(pkg)}
+                    className="flex items-center gap-3 rounded-xl border border-[#eef2f7] bg-white p-2.5 transition hover:border-[#ffcfaa] hover:bg-[#fff7ed] text-left w-full"
+                  >
                     <div className="h-11 w-11 shrink-0 rounded-lg overflow-hidden bg-[#f1f5f9]">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
-                        src={pkg.image_url || getCatImage(pkg.category.slug, pkg.category.name)}
+                        src={pkg.image_url || getCatImage(pkg.category.slug, pkg.category.name, pkg.name)}
                         alt={pkg.name}
                         className="h-full w-full object-cover"
-                        onError={(e) => { (e.target as HTMLImageElement).src = getCatImage(pkg.category.slug, pkg.category.name); }}
+                        onError={(e) => { (e.target as HTMLImageElement).src = getCatImage(pkg.category.slug, pkg.category.name, pkg.name); }}
                       />
                     </div>
                     <div className="min-w-0 flex-1">
@@ -281,8 +446,18 @@ export default function BookingRequestSuccessPage({ params }: { params: Promise<
                       <p className="text-[11px] font-black text-[#ff8d28]">{fmt(pkg.price)}</p>
                     </div>
                     <svg className="h-4 w-4 shrink-0 text-[#cbd5e1]" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 18l6-6-6-6"/></svg>
-                  </Link>
+                  </button>
                 ))}
+                {otherCategoryPkgs.length > 3 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowOtherCategory(v => !v)}
+                    className="flex items-center justify-center gap-1 rounded-xl border border-dashed border-[#cbd5e1] py-2 text-[11px] font-black text-[#64748b] transition hover:bg-[#f8fafc]"
+                  >
+                    {showOtherCategory ? 'Thu gọn' : `Xem thêm ${otherCategoryPkgs.length - 3} dịch vụ`}
+                    <svg className={`h-3.5 w-3.5 transition-transform ${showOtherCategory ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -356,22 +531,32 @@ function Skeleton() {
   );
 }
 
-// SVG placeholder đúng màu + icon theo từng category — không phụ thuộc domain ngoài
-function getCatImage(slug: string, name: string): string {
-  const s = (slug + " " + name).toLowerCase()
+function getCatImage(slug: string, name: string, pkgName: string = ""): string {
+  const s = (slug + " " + name + " " + pkgName).toLowerCase()
     .normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d");
 
-  const make = (bg: string, emoji: string) =>
-    `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='80' height='80'><rect width='80' height='80' fill='${encodeURIComponent(bg)}' rx='8'/><text x='50%' y='54%' dominant-baseline='middle' text-anchor='middle' font-size='32'>${emoji}</text></svg>`;
-
-  if (s.includes("wedding") || s.includes("cuoi"))                     return make("#fff0f0", "💍");
-  if (s.includes("couple")  || s.includes("doi"))                      return make("#fff0f9", "👫");
-  if (s.includes("portrait")|| s.includes("chan-dung")||s.includes("ca-nhan")) return make("#f0f4ff", "🧑");
-  if (s.includes("event")   || s.includes("su-kien"))                  return make("#f0fff4", "🎉");
-  if (s.includes("yearbook")|| s.includes("ky-yeu")||s.includes("tot-nghiep")) return make("#fffbf0", "🎓");
-  if (s.includes("travel")  || s.includes("du-lich"))                  return make("#f0fbff", "✈️");
-  if (s.includes("food")    || s.includes("am-thuc")||s.includes("san-pham"))  return make("#fff8f0", "🍽️");
-  return make("#f8f8f8", "📷");
+  if (s.includes("wedding") || s.includes("cuoi") || s.includes("gia tien") || s.includes("dam hoi") || s.includes("le gia tien")) {
+    return "https://images.unsplash.com/photo-1519741497674-611481863552?w=150&auto=format&fit=crop&q=60";
+  }
+  if (s.includes("couple") || s.includes("doi")) {
+    return "https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?w=150&auto=format&fit=crop&q=60";
+  }
+  if (s.includes("portrait") || s.includes("chan-dung") || s.includes("ca-nhan")) {
+    return "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=60";
+  }
+  if (s.includes("event") || s.includes("su-kien")) {
+    return "https://images.unsplash.com/photo-1511578314322-379afb476865?w=150&auto=format&fit=crop&q=60";
+  }
+  if (s.includes("yearbook") || s.includes("ky-yeu") || s.includes("tot-nghiep")) {
+    return "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=150&auto=format&fit=crop&q=60";
+  }
+  if (s.includes("travel") || s.includes("du-lich")) {
+    return "https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=150&auto=format&fit=crop&q=60";
+  }
+  if (s.includes("food") || s.includes("am-thuc") || s.includes("san-pham") || s.includes("product")) {
+    return "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=150&auto=format&fit=crop&q=60";
+  }
+  return "https://images.unsplash.com/photo-1452780212940-6f5c0d14d848?w=150&auto=format&fit=crop&q=60";
 }
 
 function ErrorScreen({ msg }: { msg: string }) {

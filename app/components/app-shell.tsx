@@ -5,6 +5,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState, useRef, useEffect, type ReactNode } from "react";
 import { useAuth } from "@/app/auth-context";
 import { AiConsultantWidget } from "./ai-consultant-widget";
+import { ScrollToTop } from "./scroll-to-top";
+import { ErrorBoundary } from "./error-boundary";
 
 const containerClass = "w-full max-w-[1440px] mx-auto px-6 md:px-12 lg:px-20";
 
@@ -40,10 +42,16 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <>
+      <a href="#main-content" className="skip-to-content">
+        Bỏ qua đến nội dung chính
+      </a>
       <Header pathname={pathname} />
-      <div className="pt-[76px] lg:pt-[88px]">{children}</div>
+      <div id="main-content" className="pt-[76px] lg:pt-[88px]">
+        <ErrorBoundary>{children}</ErrorBoundary>
+      </div>
       <Footer />
       {mounted && <AiConsultantWidget />}
+      <ScrollToTop />
     </>
   );
 }
