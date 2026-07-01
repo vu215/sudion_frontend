@@ -43,7 +43,37 @@ function formatTimeRange(value: string | null) {
 
   return `${cleanValue} - ${String(endHour).padStart(2, "0")}:${minute}`;
 }
+function getPaymentStatusLabel(status: string) {
+  if (status === "awaiting_payment") {
+    return "Đang chờ photographer xác nhận";
+  }
 
+  if (status === "accepted") {
+    return "Photographer đã xác nhận, chờ thanh toán cọc";
+  }
+
+  if (status === "confirmed") {
+    return "Đã thanh toán cọc";
+  }
+
+  if (status === "completed") {
+    return "Buổi chụp đã hoàn thành, chờ thanh toán còn lại";
+  }
+
+  if (status === "fully_paid") {
+    return "Đã thanh toán đủ";
+  }
+
+  if (status === "rejected") {
+    return "Photographer đã từ chối";
+  }
+
+  if (status === "cancelled") {
+    return "Booking đã hủy";
+  }
+
+  return status;
+}
 export default function BookingSuccessPage({
   params,
 }: {
