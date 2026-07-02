@@ -1,8 +1,13 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
-import Link from "next/link";
-import { getPhotographers, type Photographer } from "../services/photographer-api";
+import { useEffect, useRef, useState } from "react";
+import {
+  getPhotographers,
+  type Photographer,
+} from "../services/photographer-api";
+
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
 type Message = {
   id: string;
@@ -12,13 +17,125 @@ type Message = {
   options?: string[];
 };
 
-type AiSettings = {
-  provider: string;
-  model: string;
-  key: string;
-  endpoint: string;
-  systemPrompt: string;
+type FlowState = {
+  step: "idle" | "waiting_location" | "waiting_category" | "waiting_budget";
+  location?: string;
+  category?: string;
+  budget?: string;
 };
+
+type AiChatResponse = {
+  success: boolean;
+  message: string;
+  data?: {
+    provider: string;
+    reply: string;
+    options?: string[];
+  };
+};
+
+const STORAGE_KEY = "sudion-ai-chat-history";
+
+const welcomeMessages: Message[] = [
+  {
+    id: "welcome-1",
+    sender: "bot",
+    text: "Xin chào! Tôi là Trợ lý ảo Sudion AI. Rất vui được hỗ trợ bạn.",
+  },
+  {
+    id: "welcome-2",
+    sender: "bot",
+    text:
+      "Tôi có thể giúp bạn tìm photographer phù hợp, tư vấn concept chụp, xem bảng giá, hỏi chính sách cọc/hủy lịch hoặc hướng dẫn đặt lịch.",
+    options: [
+      "Tìm photographer phù hợp",
+      "Gợi ý Concept / Style chụp",
+      "Bảng giá dịch vụ trung bình",
+      "Đặt lịch như thế nào?",
+      "Chính sách cọc & hủy lịch",
+    ],
+  },
+];
+
+function makeId(prefix: string) {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function normalizeText(value: string) {
+  return value.trim().toLowerCase();
+}
+
+function escapeHtml(value: string) {
+  return String(value || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function formatMoney(value?: number | string | null) {
+  const numberValue = Number(value || 0);
+  if (!numberValue) return "Liên hệ";
+  return `${numberValue.toLocaleString("vi-VN")}đ`;
+}
+
+function getPhotographerProfileUrl(id: string | number) {
+  return `/photographer-profile?id=${encodeURIComponent(String(id))}`;
+}
+
+function plainTextToHtml(text: string) {
+  let html = escapeHtml(text)
+    .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+    .replace(/\n/g, "<br />");
+
+  html = html.replace(
+    /(\/photographer-profile\?id=[A-Za-z0-9_-]+)/g,
+    `<a href="$1" class="font-black text-orange-600 underline underline-offset-2">$1</a>`
+  );
+
+  html = html.replace(
+    /(https?:\/\/[^\s<]+)/g,
+    `<a href="$1" target="_blank" rel="noreferrer" class="font-black text-orange-600 underline underline-offset-2">$1</a>`
+  );
+
+  return html;
+}
+
+function createPhotographerCardHtml(p: Photographer) {
+  const avatar = escapeHtml(
+    p.avatar_url ||
+      "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=80&q=80"
+  );
+
+  const name = escapeHtml(p.full_name || "Photographer");
+  const area = escapeHtml(p.active_area || "Việt Nam");
+  const categories = escapeHtml(p.categories || "Đa dạng");
+  const rating = escapeHtml(String(p.avg_rating || "5.0"));
+  const price = escapeHtml(formatMoney(p.min_price));
+  const profileUrl = escapeHtml(getPhotographerProfileUrl(p.id));
+
+  return `
+    <div class="my-2 overflow-hidden rounded-2xl border border-orange-100 bg-white shadow-sm">
+      <div class="flex items-center gap-3 p-3">
+        <img src="${avatar}" alt="${name}" class="h-12 w-12 shrink-0 rounded-2xl object-cover" />
+        <div class="min-w-0 flex-1">
+          <p class="truncate text-sm font-black text-slate-900">${name}</p>
+          <p class="truncate text-[11px] font-bold text-slate-400">${area}</p>
+          <p class="truncate text-[11px] text-slate-500">${categories}</p>
+          <div class="mt-1 flex items-center gap-1.5">
+            <span class="text-xs font-black text-amber-500">★ ${rating}</span>
+            <span class="text-xs text-slate-300">|</span>
+            <span class="text-xs font-bold text-slate-700">Giá từ: ${price}</span>
+          </div>
+        </div>
+        <a href="${profileUrl}" class="shrink-0 rounded-xl bg-orange-500 px-3 py-2 text-[11px] font-black text-white shadow-sm transition hover:bg-orange-600">
+          Xem
+        </a>
+      </div>
+    </div>
+  `;
+}
 
 export function AiConsultantWidget() {
   const [isOpen, setIsOpen] = useState(false);
@@ -27,191 +144,349 @@ export function AiConsultantWidget() {
   const [inputVal, setInputVal] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [photographers, setPhotographers] = useState<Photographer[]>([]);
-  const [aiSettings, setAiSettings] = useState<AiSettings | null>(null);
-
-  // States for guided flow (interactive simulator)
-  const [flowState, setFlowState] = useState<{
-    step: "idle" | "waiting_location" | "waiting_category" | "waiting_budget";
-    location?: string;
-    category?: string;
-    budget?: string;
-  }>({ step: "idle" });
+  const [flowState, setFlowState] = useState<FlowState>({ step: "idle" });
+  const [lastProvider, setLastProvider] = useState("");
 
   const chatEndRef = useRef<HTMLDivElement>(null);
 
-  // Load configuration and photographers
   useEffect(() => {
-    // Hide tooltip after 6 seconds
-    const timer = setTimeout(() => {
+    const timer = window.setTimeout(() => {
       setShowTooltip(false);
     }, 6000);
 
-    // Fetch config from localStorage
-    const saved = localStorage.getItem("studion-ai-settings");
-    if (saved) {
-      try {
-        setAiSettings(JSON.parse(saved));
-      } catch (e) {
-        console.error("Lỗi đọc cấu hình AI", e);
+    try {
+      const saved = window.localStorage.getItem(STORAGE_KEY);
+
+      if (saved) {
+        const parsed = JSON.parse(saved);
+
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setMessages(parsed);
+        }
       }
+    } catch (error) {
+      console.error("Không thể đọc lịch sử chatbot:", error);
     }
 
-    // Fetch photographers from backend API
     async function loadPhotographers() {
       try {
         const data = await getPhotographers();
         setPhotographers(data);
-      } catch (err) {
-        console.error("Lỗi tải danh sách nhiếp ảnh gia cho chatbot:", err);
+      } catch (error) {
+        console.error("Lỗi tải photographer cho chatbot:", error);
       }
     }
-    loadPhotographers();
 
-    return () => clearTimeout(timer);
+    void loadPhotographers();
+
+    return () => window.clearTimeout(timer);
   }, []);
 
-  // Initialize chat history on first open
   useEffect(() => {
     if (isOpen && messages.length === 0) {
-      setMessages([
-        {
-          id: "welcome-1",
-          sender: "bot",
-          text: "Xin chào! Tôi là Trợ lý ảo Sudion AI. Rất vui được hỗ trợ bạn.",
-        },
-        {
-          id: "welcome-2",
-          sender: "bot",
-          text: "Tôi có thể giúp bạn tìm nhiếp ảnh gia phù hợp, tư vấn phong cách chụp (concept) độc đáo hoặc xem bảng giá dịch vụ. Hãy chọn một trong các chủ đề dưới đây hoặc nhắn tin trực tiếp cho tôi nhé!",
-          options: [
-            "Tìm photographer phù hợp",
-            "Gợi ý Concept / Style chụp",
-            "Bảng giá dịch vụ trung bình",
-          ],
-        },
-      ]);
+      setMessages(welcomeMessages);
     }
   }, [isOpen, messages.length]);
 
-  // Scroll to bottom on new messages
+  useEffect(() => {
+    if (messages.length > 0) {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
+    }
+  }, [messages]);
+
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
 
-  const handleSendMessage = async (text: string) => {
-    if (!text.trim()) return;
-
-    // Add user message
-    const userMsgId = `user-${Date.now()}`;
-    setMessages((prev) => [...prev, { id: userMsgId, sender: "user", text }]);
-    setInputVal("");
-    setIsTyping(true);
-
-    // Generate AI/Simulated response
-    setTimeout(async () => {
-      try {
-        await processResponse(text);
-      } catch (e) {
-        console.error(e);
-        addBotMessage("Xin lỗi, tôi gặp sự cố kết nối. Hãy thử lại sau nhé!");
-      } finally {
-        setIsTyping(false);
-      }
-    }, 800);
-  };
-
-  const addBotMessage = (text: string, options?: string[], isHtml = false) => {
+  function addBotMessage(text: string, options?: string[], isHtml = false) {
     setMessages((prev) => [
       ...prev,
       {
-        id: `bot-${Date.now()}-${Math.random()}`,
+        id: makeId("bot"),
         sender: "bot",
         text,
         options,
         isHtml,
       },
     ]);
-  };
+  }
 
-  // Logic processor for responses
-  const processResponse = async (userInput: string) => {
-    const trimmedInput = userInput.trim().toLowerCase();
+  function addUserMessage(text: string) {
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: makeId("user"),
+        sender: "user",
+        text,
+      },
+    ]);
+  }
 
-    // Dynamically check localStorage config on every message to capture changes without reloading
-    let currentSettings = aiSettings;
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("studion-ai-settings");
-      if (saved) {
-        try {
-          currentSettings = JSON.parse(saved);
-        } catch (e) {
-          console.error("Lỗi đọc cấu hình AI mới", e);
-        }
-      }
-    }
+  function resetChat() {
+    setMessages(welcomeMessages);
+    setFlowState({ step: "idle" });
+    setInputVal("");
+    setLastProvider("");
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(welcomeMessages));
+  }
 
-    // Check if real API connection is configured in Admin Settings
-    if (currentSettings && currentSettings.key && currentSettings.provider !== "Mock Simulator") {
+  async function handleSendMessage(text: string) {
+    const cleanText = text.trim();
+
+    if (!cleanText || isTyping) return;
+
+    addUserMessage(cleanText);
+    setInputVal("");
+    setIsTyping(true);
+
+    window.setTimeout(async () => {
       try {
-        await callRealAI(userInput, currentSettings);
-        return;
+        await processResponse(cleanText);
       } catch (error) {
-        console.error("Lỗi gọi AI thật, chuyển hướng về chế độ giả lập thông minh:", error);
+        console.error("Chatbot error:", error);
+        addBotMessage(
+          "Xin lỗi, tôi gặp sự cố khi xử lý tin nhắn. Bạn thử lại sau nhé!",
+          ["Quay lại menu chính"]
+        );
+      } finally {
+        setIsTyping(false);
       }
+    }, 350);
+  }
+
+  async function callBackendAI(userInput: string) {
+    const response = await fetch(`${API_URL}/ai-chat/chat`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        message: userInput,
+        history: messages
+          .filter((item) => !item.isHtml)
+          .slice(-10)
+          .map((item) => ({
+            sender: item.sender,
+            text: item.text,
+          })),
+      }),
+    });
+
+    const json: AiChatResponse = await response.json();
+
+    if (!response.ok || !json.success || !json.data?.reply) {
+      throw new Error(json.message || "Không thể gọi AI backend.");
     }
 
-    // --- INTERACTIVE SMART SIMULATION FLOW ---
+    setLastProvider(json.data.provider || "backend");
+    addBotMessage(json.data.reply, json.data.options || []);
+  }
 
-    // Check if we are in a guided flow step
-    if (flowState.step === "waiting_location") {
-      const location = userInput;
-      setFlowState((prev) => ({ ...prev, step: "waiting_category", location }));
+  async function processResponse(userInput: string) {
+    const trimmedInput = normalizeText(userInput);
+
+    const isBookingGuideIntent =
+      trimmedInput.includes("đặt lịch") ||
+      trimmedInput.includes("làm sao để book") ||
+      trimmedInput.includes("hướng dẫn book") ||
+      trimmedInput.includes("cách book") ||
+      trimmedInput.includes("booking như thế nào");
+
+    const isPaymentIntent =
+      trimmedInput.includes("thanh toán") ||
+      trimmedInput.includes("tiền cọc") ||
+      trimmedInput.includes("đặt cọc") ||
+      trimmedInput.includes("cọc bao nhiêu") ||
+      trimmedInput.includes("chuyển khoản") ||
+      trimmedInput.includes("momo") ||
+      trimmedInput.includes("vnpay");
+
+    const isCancelIntent =
+      trimmedInput.includes("hủy lịch") ||
+      trimmedInput.includes("hủy book") ||
+      trimmedInput.includes("hoàn tiền") ||
+      trimmedInput.includes("đổi lịch") ||
+      trimmedInput.includes("hoàn cọc");
+
+    const isMenuIntent =
+      trimmedInput.includes("quay lại menu") ||
+      trimmedInput.includes("main menu") ||
+      trimmedInput.includes("bắt đầu lại");
+
+    const isChatIntent =
+      trimmedInput.includes("chat") ||
+      trimmedInput.includes("nhắn tin") ||
+      trimmedInput.includes("nhắn với photographer") ||
+      trimmedInput.includes("nói chuyện với photographer");
+
+    const isImageLinkIntent =
+      trimmedInput.includes("nhận ảnh") ||
+      trimmedInput.includes("link ảnh") ||
+      trimmedInput.includes("google drive") ||
+      trimmedInput.includes("drive") ||
+      trimmedInput.includes("xem ảnh");
+
+    if (isMenuIntent) {
+      setFlowState({ step: "idle" });
+
+      addBotMessage("Tôi có thể hỗ trợ gì thêm cho bạn?", [
+        "Tìm photographer phù hợp",
+        "Gợi ý Concept / Style chụp",
+        "Bảng giá dịch vụ trung bình",
+        "Đặt lịch như thế nào?",
+        "Chính sách cọc & hủy lịch",
+      ]);
+
+      return;
+    }
+
+    if (isBookingGuideIntent) {
+      setFlowState({ step: "idle" });
+
       addBotMessage(
-        `Đã ghi nhận khu vực **${location}**. Bạn muốn chụp thể loại nào dưới đây?`,
+        `Để đặt lịch trên Sudion:\n\n` +
+          `1. Vào trang **Photographer**.\n` +
+          `2. Chọn photographer và gói dịch vụ phù hợp.\n` +
+          `3. Bấm **Đặt lịch**.\n` +
+          `4. Chọn ngày, giờ, địa điểm, concept.\n` +
+          `5. Chờ photographer xác nhận.\n` +
+          `6. Thanh toán cọc để giữ lịch.\n\n` +
+          `Sau khi cọc xong, bạn có thể chat với photographer.`,
+        ["Tìm photographer phù hợp", "Chính sách cọc & hủy lịch"]
+      );
+
+      return;
+    }
+
+    if (isPaymentIntent) {
+      setFlowState({ step: "idle" });
+
+      addBotMessage(
+        `**Chính sách thanh toán:**\n\n` +
+          `• Sau khi photographer xác nhận, khách thanh toán cọc để giữ lịch.\n` +
+          `• Sau khi cọc thành công, chat giữa khách và photographer sẽ mở.\n` +
+          `• Phần còn lại thanh toán sau khi buổi chụp hoàn thành.\n` +
+          `• Khách chỉ xem được link ảnh sau khi thanh toán đủ.`,
+        ["Chat mở khi nào?", "Khi nào được nhận ảnh?", "Quay lại menu chính"]
+      );
+
+      return;
+    }
+
+    if (isCancelIntent) {
+      setFlowState({ step: "idle" });
+
+      addBotMessage(
+        `**Chính sách hủy lịch:**\n\n` +
+          `• Hủy trước 48 giờ: có thể được hoàn cọc.\n` +
+          `• Hủy quá sát giờ: có thể không được hoàn cọc vì photographer đã chuẩn bị lịch.\n` +
+          `• Nếu muốn đổi lịch, nên trao đổi với photographer qua chat sau khi đã cọc.`,
+        ["Đặt lịch như thế nào?", "Quay lại menu chính"]
+      );
+
+      return;
+    }
+
+    if (isChatIntent) {
+      setFlowState({ step: "idle" });
+
+      addBotMessage(
+        `Chat với photographer sẽ mở sau khi khách thanh toán cọc thành công.\n\n` +
+          `Các trạng thái có thể chat:\n` +
+          `• **Đã cọc / confirmed**\n` +
+          `• **Hoàn thành buổi chụp / completed**\n` +
+          `• **Đã thanh toán đủ / fully_paid**`,
+        ["Đặt lịch như thế nào?", "Chính sách cọc & hủy lịch"]
+      );
+
+      return;
+    }
+
+    if (isImageLinkIntent) {
+      setFlowState({ step: "idle" });
+
+      addBotMessage(
+        `Link ảnh sẽ được photographer gửi bằng thư mục Google Drive sau khi hoàn thành buổi chụp.\n\n` +
+          `Lưu ý:\n` +
+          `• Photographer phải gửi link thư mục Google Drive.\n` +
+          `• Link đúng dạng: **https://drive.google.com/drive/folders/...**\n` +
+          `• Khách chỉ xem được link ảnh sau khi thanh toán đủ phần còn lại.\n` +
+          `• Folder Drive cần bật quyền **Bất kỳ ai có đường liên kết**.`,
+        ["Thanh toán còn lại như thế nào?", "Quay lại menu chính"]
+      );
+
+      return;
+    }
+
+    if (flowState.step === "waiting_location") {
+      const location = userInput.trim();
+
+      setFlowState((prev) => ({
+        ...prev,
+        step: "waiting_category",
+        location,
+      }));
+
+      addBotMessage(
+        `Đã ghi nhận khu vực **${location}**. Bạn muốn chụp thể loại nào?`,
         ["Cưới hỏi", "Kỷ yếu", "Cặp đôi", "Sự kiện", "Sản phẩm"]
       );
+
       return;
     }
 
     if (flowState.step === "waiting_category") {
-      const category = userInput;
-      setFlowState((prev) => ({ ...prev, step: "waiting_budget", category }));
+      const category = userInput.trim();
+
+      setFlowState((prev) => ({
+        ...prev,
+        step: "waiting_budget",
+        category,
+      }));
+
       addBotMessage(
-        `Bạn muốn tìm nhiếp ảnh gia chụp **${category}**. Ngân sách tối đa của bạn khoảng bao nhiêu?`,
-        ["Dưới 2.000.000đ", "2.000.000đ - 5.000.000đ", "Trên 5.000.000đ", "Không giới hạn"]
+        `Bạn muốn tìm photographer chụp **${category}**. Ngân sách tối đa khoảng bao nhiêu?`,
+        [
+          "Dưới 2.000.000đ",
+          "2.000.000đ - 5.000.000đ",
+          "Trên 5.000.000đ",
+          "Không giới hạn",
+        ]
       );
+
       return;
     }
 
     if (flowState.step === "waiting_budget") {
-      const budget = userInput;
-      // Reset state and search
+      const budget = userInput.trim();
+      const location = flowState.location || "";
+      const category = flowState.category || "";
+
       setFlowState({ step: "idle" });
-      searchPhotographers(flowState.location || "", flowState.category || "", budget);
+      searchPhotographers(location, category, budget);
+
       return;
     }
 
-    // Check for standard greetings
     if (
       trimmedInput === "hello" ||
       trimmedInput === "hi" ||
       trimmedInput.startsWith("chào") ||
-      trimmedInput.includes("xin chào") ||
-      trimmedInput.includes("hello bot") ||
-      trimmedInput.includes("chào bot")
+      trimmedInput.includes("xin chào")
     ) {
       addBotMessage(
-        "Xin chào! Tôi là Trợ lý AI của Sudion. Tôi có thể giúp gì cho bạn hôm nay? Hãy thử chọn các tác vụ nhanh bên dưới hoặc đặt câu hỏi tự do nhé!",
+        "Xin chào! Tôi là Trợ lý AI của Sudion. Bạn muốn tôi hỗ trợ gì hôm nay?",
         [
-          " Tìm photographer phù hợp",
-          " Gợi ý Concept / Style chụp",
-          " Bảng giá dịch vụ trung bình"
+          "Tìm photographer phù hợp",
+          "Gợi ý Concept / Style chụp",
+          "Bảng giá dịch vụ trung bình",
+          "Đặt lịch như thế nào?",
         ]
       );
+
       return;
     }
 
-    // Direct actions matching options or keywords
     if (
       trimmedInput.includes("tìm photographer") ||
       trimmedInput.includes("nhiếp ảnh gia") ||
@@ -219,559 +494,431 @@ export function AiConsultantWidget() {
       trimmedInput.includes("tìm thợ")
     ) {
       setFlowState({ step: "waiting_location" });
+
       addBotMessage(
-        "Tuyệt vời! Hãy cho tôi biết bạn đang tìm kiếm photographer ở khu vực nào?",
+        "Tuyệt vời! Bạn muốn tìm photographer ở khu vực nào?",
         ["TP. Hồ Chí Minh", "Hà Nội", "Đà Lạt", "Đà Nẵng", "Cần Thơ"]
       );
+
       return;
     }
 
-    if (trimmedInput.includes("concept") || trimmedInput.includes("style") || trimmedInput.includes("gợi ý") || trimmedInput.includes("phong cách")) {
+    if (
+      trimmedInput.includes("concept") ||
+      trimmedInput.includes("style") ||
+      trimmedInput.includes("gợi ý") ||
+      trimmedInput.includes("phong cách")
+    ) {
       addBotMessage(
-        "Bạn muốn tham khảo concept chụp hình cho thể loại nào?",
+        "Bạn muốn tham khảo concept chụp cho thể loại nào?",
         ["Chụp Cưới hỏi", "Chụp Kỷ yếu", "Chụp Cặp đôi", "Sản phẩm & Food"]
       );
+
       return;
     }
 
     if (trimmedInput.includes("cưới hỏi") || trimmedInput.includes("đám cưới")) {
       addBotMessage(
-        `**Concept Gợi ý cho Cưới hỏi:**\n\n` +
-        `1. **Studio Hàn Quốc tối giản**: Chụp phông trơn trắng/xám, tôn lên vẻ đẹp tinh khiết của trang phục và nụ cười biểu cảm.\n` +
-        `2. **Cinematic Vintage ngoại cảnh**: Màu ảnh film trầm ấm hoài niệm. Rất thích hợp chụp tại các phố cổ hoặc đồi thông Đà Lạt.\n` +
-        `3. **Phóng sự cưới (Wedding Photojournalism)**: Lưu giữ chân thực khoảnh khắc vui mừng, xúc động bất chợt suốt lễ cưới.\n\n` +
-        `Bạn muốn tìm nhiếp ảnh gia chuyên chụp phong cách này chứ?`,
-        [" Tìm photographer phù hợp", "Quay lại menu chính"]
+        `**Concept gợi ý cho Cưới hỏi:**\n\n` +
+          `1. **Studio Hàn Quốc tối giản**: phông trắng/xám, nhẹ nhàng, sang.\n` +
+          `2. **Cinematic Vintage ngoại cảnh**: màu film ấm, hợp Đà Lạt/phố cổ.\n` +
+          `3. **Phóng sự cưới**: bắt khoảnh khắc thật trong lễ cưới.\n\n` +
+          `Bạn muốn tôi tìm photographer hợp concept này không?`,
+        ["Tìm photographer phù hợp", "Quay lại menu chính"]
       );
+
       return;
     }
 
     if (trimmedInput.includes("kỷ yếu") || trimmedInput.includes("học sinh")) {
       addBotMessage(
-        `**Concept Gợi ý cho Kỷ yếu:**\n\n` +
-        `1. **Cổ phục Việt Nam (Nhật Bình/Tấc Áo)**: Chụp tại Hoàng Thành, Đền Chùa cổ kính mang nét tôn nghiêm truyền thống.\n` +
-        `2. **Thanh xuân vườn trường Retro**: Chụp tại trường học với trang phục thanh xuân kiểu Nhật/Hàn, màu ảnh trong trẻo.\n` +
-        `3. **Party Night / Prom sang chảnh**: Đầm tiệc tối sang trọng với hiệu ứng đèn bokeh lung linh.\n\n` +
-        `Bạn muốn tìm nhiếp ảnh gia chuyên chụp phong cách này chứ?`,
-        [" Tìm photographer phù hợp", "Quay lại menu chính"]
+        `**Concept gợi ý cho Kỷ yếu:**\n\n` +
+          `1. **Thanh xuân vườn trường**: trong trẻo, tự nhiên.\n` +
+          `2. **Cổ phục Việt Nam**: áo Nhật Bình/Tấc, hợp địa điểm cổ kính.\n` +
+          `3. **Prom Night**: sang trọng, ánh đèn bokeh, váy/vest.\n\n` +
+          `Bạn muốn tôi tìm photographer hợp concept này không?`,
+        ["Tìm photographer phù hợp", "Quay lại menu chính"]
       );
+
       return;
     }
 
-    if (trimmedInput.includes("cặp đôi") || trimmedInput.includes("couple") || trimmedInput.includes("hai người")) {
-      addBotMessage(
-        `**Concept Gợi ý cho Cặp đôi:**\n\n` +
-        `1. **Street Style tự nhiên**: Các góc phố quen thuộc, quán cafe cũ, bắt trọn từng khoảnh khắc ôm, nắm tay tự nhiên của hai bạn.\n` +
-        `2. **Picnic dã ngoại**: Bày biện đồ ăn ngọt, hoa quả, thảm trải trên bãi cỏ xanh mướt dưới ánh nắng ban chiều ấm áp.\n\n` +
-        `Bạn muốn tìm nhiếp ảnh gia chuyên chụp phong cách này chứ?`,
-        [" Tìm photographer phù hợp", "Quay lại menu chính"]
-      );
-      return;
-    }
-
-    if (trimmedInput.includes("sản phẩm") || trimmedInput.includes("food") || trimmedInput.includes("đồ ăn") || trimmedInput.includes("quảng cáo")) {
-      addBotMessage(
-        `**Concept Gợi ý cho Sản phẩm & Food:**\n\n` +
-        `1. **Flatlay tối giản (Minimalist)**: Chụp từ trên xuống, sắp đặt gọn gàng cùng các phụ kiện màu pastel.\n` +
-        `2. **Rustic hoài cổ**: Sử dụng khay gỗ, tấm vải thô, ánh sáng nghiêng từ cửa sổ tạo bóng đổ sâu lắng.\n\n` +
-        `Bạn muốn tìm nhiếp ảnh gia chuyên chụp phong cách này chứ?`,
-        [" Tìm photographer phù hợp", "Quay lại menu chính"]
-      );
-      return;
-    }
-
-    if (trimmedInput.includes("bảng giá") || trimmedInput.includes("giá cả") || trimmedInput.includes("bao nhiêu tiền") || trimmedInput.includes("chi phí") || trimmedInput.includes("giá dịch vụ")) {
-      addBotMessage(
-        `**Mức giá tham khảo các dịch vụ trên Sudion:**\n\n` +
-        `• **Chụp cưới hỏi**: Từ 5.000.000đ - 18.000.000đ (trọn gói album/makeup)\n` +
-        `• **Chụp kỷ yếu**: Từ 2.000.000đ - 7.000.000đ (cho nhóm/lớp)\n` +
-        `• **Chụp couple**: Từ 1.500.000đ - 3.500.000đ / gói\n` +
-        `• **Chụp sự kiện**: Từ 1.000.000đ / giờ chụp\n` +
-        `• **Chụp sản phẩm/Food**: Từ 1.200.000đ / concept\n\n` +
-        `Để xem chi tiết đầy đủ hơn, vui lòng tham khảo trang dịch vụ của chúng tôi.`,
-        ["Xem trang dịch vụ", "Tìm photographer phù hợp"]
-      );
-      return;
-    }
-
-    if (trimmedInput.includes("xem trang dịch vụ") || trimmedInput.includes("dịch vụ")) {
-      addBotMessage(
-        `Bạn có thể tham khảo trực tiếp trang danh sách dịch vụ của chúng tôi để chọn gói chụp phù hợp nhất: <a href="/services" class="text-orange-500 font-bold underline font-semibold">Xem danh sách dịch vụ tại đây</a>`,
-        ["Quay lại menu chính"],
-        true
-      );
-      return;
-    }
-
-    // Book guide query matching
     if (
-      trimmedInput.includes("đặt lịch") ||
-      trimmedInput.includes("làm sao để book") ||
-      trimmedInput.includes("hướng dẫn book") ||
-      trimmedInput.includes("đăng ký chụp") ||
-      trimmedInput.includes("cách book")
+      trimmedInput.includes("cặp đôi") ||
+      trimmedInput.includes("couple") ||
+      trimmedInput.includes("hai người")
     ) {
       addBotMessage(
-        `Để đặt lịch chụp với nhiếp ảnh gia trên Sudion, bạn vui lòng làm theo hướng dẫn sau:\n\n` +
-        `1. Chọn mục **Photographer** từ thanh menu để xem danh sách nhiếp ảnh gia.\n` +
-        `2. Xem qua hồ sơ và chọn một **Gói dịch vụ (Package)** ưng ý, sau đó bấm nút **Đặt lịch**.\n` +
-        `3. Chọn Ngày & Khung giờ chụp, điền yêu cầu (concept, địa điểm cụ thể), sau đó tiến hành thanh toán tiền cọc 30% để xác nhận đặt lịch thành công!\n\n` +
-        `Bạn có muốn tìm photographer ngay bây giờ không?`,
-        [" Tìm photographer phù hợp", "Quay lại menu chính"]
+        `**Concept gợi ý cho Cặp đôi:**\n\n` +
+          `1. **Street style tự nhiên**: quán cafe, phố quen, khoảnh khắc đời thường.\n` +
+          `2. **Picnic dã ngoại**: bãi cỏ, hoa, ánh nắng chiều, tone pastel.\n` +
+          `3. **Cinematic night**: chụp đêm, ánh đèn đường, cảm xúc điện ảnh.\n\n` +
+          `Bạn muốn tôi tìm photographer hợp concept này không?`,
+        ["Tìm photographer phù hợp", "Quay lại menu chính"]
       );
+
       return;
     }
 
-    // Payment query matching
     if (
-      trimmedInput.includes("thanh toán") ||
-      trimmedInput.includes("tiền cọc") ||
-      trimmedInput.includes("đặt cọc") ||
-      trimmedInput.includes("cọc bao nhiêu") ||
-      trimmedInput.includes("chuyển khoản")
+      trimmedInput.includes("sản phẩm") ||
+      trimmedInput.includes("food") ||
+      trimmedInput.includes("đồ ăn")
     ) {
       addBotMessage(
-        `**Chính sách thanh toán của Sudion:**\n\n` +
-        `• Bạn cần thanh toán **đặt cọc trước 30%** ước tính giá trị gói chụp để xác nhận đặt lịch thành công.\n` +
-        `• Số tiền 70% còn lại bạn sẽ thanh toán trực tiếp cho Photographer bằng tiền mặt hoặc chuyển khoản sau khi buổi chụp hình hoàn thành và bạn nhận được ảnh.\n` +
-        `• Các cổng thanh toán hỗ trợ: Chuyển khoản ngân hàng, MoMo, VNPay.\n\n` +
-        `Bạn có câu hỏi nào khác không?`,
-        ["Quay lại menu chính"]
+        `**Concept gợi ý cho Sản phẩm & Food:**\n\n` +
+          `1. **Flatlay tối giản**: chụp từ trên xuống, bố cục sạch.\n` +
+          `2. **Rustic hoài cổ**: nền gỗ, ánh sáng nghiêng, màu trầm.\n` +
+          `3. **Commercial clean**: nền sáng, sản phẩm rõ, hợp quảng cáo.\n\n` +
+          `Bạn muốn tôi tìm photographer hợp concept này không?`,
+        ["Tìm photographer phù hợp", "Quay lại menu chính"]
       );
+
       return;
     }
 
-    // Cancellation query matching
     if (
-      trimmedInput.includes("hủy lịch") ||
-      trimmedInput.includes("hủy book") ||
-      trimmedInput.includes("hoàn tiền") ||
-      trimmedInput.includes("đổi lịch") ||
-      trimmedInput.includes("hoàn cọc")
+      trimmedInput.includes("bảng giá") ||
+      trimmedInput.includes("giá cả") ||
+      trimmedInput.includes("bao nhiêu tiền") ||
+      trimmedInput.includes("chi phí") ||
+      trimmedInput.includes("giá dịch vụ")
     ) {
       addBotMessage(
-        `**Chính sách đổi trả và hủy lịch:**\n\n` +
-        `• **Hủy lịch miễn phí trước 48 giờ**: Nếu bạn hủy lịch trước thời điểm chụp từ 48 tiếng trở lên, bạn sẽ được hoàn trả **100% tiền đặt cọc** tự động.\n` +
-        `• **Hủy lịch muộn (sau 48 giờ)**: Số tiền cọc sẽ được chuyển cho nhiếp ảnh gia như một khoản bồi thường chuẩn bị.\n` +
-        `• **Đổi lịch**: Bạn có thể thỏa thuận đổi lịch trực tiếp với photographer thông qua hộp chat tin nhắn riêng để không mất phí.\n\n` +
-        `Nếu bạn cần hỗ trợ hủy lịch cụ thể, hãy liên hệ CSKH nhé.`,
-        ["Quay lại menu chính"]
+        `**Mức giá tham khảo trên Sudion:**\n\n` +
+          `• **Chụp cưới hỏi**: 5.000.000đ - 18.000.000đ\n` +
+          `• **Chụp kỷ yếu**: 2.000.000đ - 7.000.000đ\n` +
+          `• **Chụp couple**: 1.500.000đ - 3.500.000đ\n` +
+          `• **Chụp sự kiện**: từ 1.000.000đ / giờ\n` +
+          `• **Chụp sản phẩm/Food**: từ 1.200.000đ / concept\n\n` +
+          `Giá thực tế tùy photographer, địa điểm và concept.`,
+        ["Tìm photographer phù hợp", "Gợi ý Concept / Style chụp"]
       );
+
       return;
     }
 
-    // Location details matching
-    if (
-      trimmedInput.includes("khu vực") ||
-      trimmedInput.includes("ở đâu") ||
-      trimmedInput.includes("địa bàn") ||
-      trimmedInput.includes("hoạt động")
-    ) {
-      addBotMessage(
-        `Sudion hiện hỗ trợ kết nối nhiếp ảnh gia trên toàn quốc, tập trung đông đảo nhất tại:\n` +
-        `• **TP. Hồ Chí Minh**\n` +
-        `• **Hà Nội**\n` +
-        `• **Đà Lạt**\n` +
-        `• **Đà Nẵng & Huế**\n\n` +
-        `Bạn có thể tìm thợ ảnh tại khu vực của bạn bằng tính năng tìm kiếm dưới đây:`,
-        [" Tìm photographer phù hợp", "Quay lại menu chính"]
-      );
-      return;
-    }
+    try {
+      await callBackendAI(userInput);
+    } catch (error) {
+      console.error("Backend AI lỗi, dùng fallback local:", error);
 
-    // Support details matching
-    if (
-      trimmedInput.includes("liên hệ") ||
-      trimmedInput.includes("số điện thoại") ||
-      trimmedInput.includes("hotline") ||
-      trimmedInput.includes("email") ||
-      trimmedInput.includes("tổng đài") ||
-      trimmedInput.includes("hỗ trợ")
-    ) {
       addBotMessage(
-        `**Thông tin liên hệ hỗ trợ khách hàng của Sudion:**\n\n` +
-        `• **Hotline hỗ trợ 24/7**: 1900 1234\n` +
-        `• **Email CSKH**: support@studion.vn\n` +
-        `• **Địa chỉ văn phòng**: 123 Nguyễn Huệ, Quận 1, TP. Hồ Chí Minh\n\n` +
-        `Tôi có thể giúp bạn các vấn đề khác liên quan đến đặt lịch không?`,
-        ["Quay lại menu chính"]
-      );
-      return;
-    }
-
-    if (trimmedInput.includes("quay lại menu") || trimmedInput.includes("main menu") || trimmedInput.includes("bắt đầu lại")) {
-      addBotMessage(
-        "Tôi có thể hỗ trợ gì thêm cho bạn? Hãy chọn bên dưới:",
+        `Tôi có thể hỗ trợ bạn tìm photographer, tư vấn concept, báo giá tham khảo, chính sách cọc/hủy lịch và hướng dẫn đặt lịch. Bạn muốn hỏi phần nào?`,
         [
-          " Tìm photographer phù hợp",
-          " Gợi ý Concept / Style chụp",
-          " Bảng giá dịch vụ trung bình"
+          "Tìm photographer phù hợp",
+          "Gợi ý Concept / Style chụp",
+          "Bảng giá dịch vụ trung bình",
+          "Đặt lịch như thế nào?",
+          "Chính sách cọc & hủy lịch",
         ]
       );
-      return;
     }
+  }
 
-    // Intelligent default response in simulation mode
-    addBotMessage(
-      `Chào bạn! Dù ở chế độ giả lập, tôi vẫn có thể tư vấn tốt cho bạn. Có phải bạn đang quan tâm đến việc chọn photographer phù hợp, chọn concept chụp hình hay các chính sách thanh toán/hủy lịch trên Sudion không?\n\nHãy chọn một trong các tùy chọn nhanh dưới đây hoặc hỏi cụ thể hơn nhé:`,
-      [
-        " Tìm photographer phù hợp",
-        " Gợi ý Concept / Style chụp",
-        " Bảng giá dịch vụ trung bình",
-        "Đăng ký & Đặt lịch như thế nào?",
-        "Chính sách cọc & hủy lịch"
-      ]
-    );
-  };
-
-  // Search logic for simulation
-  const searchPhotographers = (location: string, category: string, budget: string) => {
+  function searchPhotographers(location: string, category: string, budget: string) {
     setIsTyping(true);
 
-    setTimeout(() => {
+    window.setTimeout(() => {
       setIsTyping(false);
 
-      // Filter list of real photographers
+      const normalizedLocation = normalizeText(location);
+      const normalizedCategory = normalizeText(category);
+
       const results = photographers.filter((p) => {
-        // Match location
-        const matchLoc = !location || location === "Tất cả địa điểm" ||
-          p.active_area?.toLowerCase().includes(location.toLowerCase()) ||
-          location.toLowerCase().includes(p.active_area?.toLowerCase() || "");
+        const area = normalizeText(p.active_area || "");
+        const categories = normalizeText(p.categories || "");
 
-        // Match category
-        const matchCat = !category ||
-          p.categories?.toLowerCase().includes(category.toLowerCase());
+        const matchLocation =
+          !normalizedLocation ||
+          normalizedLocation.includes("tất cả") ||
+          area.includes(normalizedLocation) ||
+          normalizedLocation.includes(area);
 
-        // Match budget
+        const matchCategory =
+          !normalizedCategory ||
+          categories.includes(normalizedCategory) ||
+          normalizedCategory.includes(categories);
+
+        const minPrice = Number(p.min_price || 0);
+
         let matchBudget = true;
+
         if (budget.includes("Dưới 2.000.000đ")) {
-          matchBudget = p.min_price <= 2000000;
+          matchBudget = minPrice > 0 && minPrice <= 2000000;
         } else if (budget.includes("2.000.000đ - 5.000.000đ")) {
-          matchBudget = p.min_price >= 2000000 && p.min_price <= 5000000;
+          matchBudget = minPrice >= 2000000 && minPrice <= 5000000;
         } else if (budget.includes("Trên 5.000.000đ")) {
-          matchBudget = p.min_price >= 5000000;
+          matchBudget = minPrice >= 5000000;
         }
 
-        return matchLoc && matchCat && matchBudget;
+        return matchLocation && matchCategory && matchBudget;
       });
+
+      const displayResults =
+        results.length > 0 ? results : photographers.slice(0, 3);
 
       if (results.length > 0) {
         addBotMessage(
-          `Dựa trên tìm kiếm tại **${location}**, dịch vụ **${category}**, phân khúc **${budget}**, tôi đã tìm thấy **${results.length}** nhiếp ảnh gia phù hợp nhất:`
+          `Dựa trên khu vực **${location}**, thể loại **${category}**, ngân sách **${budget}**, tôi tìm thấy **${results.length}** photographer phù hợp:`
         );
-
-        // Render card results inside chat
-        results.slice(0, 3).forEach((p) => {
-          const htmlContent = `
-            <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl my-2 flex items-center gap-3">
-              <img src="${p.avatar_url || 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=80&q=80'}" alt="${p.full_name}" class="w-12 h-12 rounded-full object-cover shrink-0" />
-              <div class="min-w-0 flex-1">
-                <p class="text-sm font-bold text-slate-800 truncate">${p.full_name}</p>
-                <p class="text-[11px] text-slate-400 truncate">${p.active_area || 'Không rõ địa điểm'}</p>
-                <div class="flex items-center gap-1.5 mt-0.5">
-                  <span class="text-yellow-500 font-bold text-xs">★ ${p.avg_rating || '5.0'}</span>
-                  <span class="text-slate-300 text-xs">|</span>
-                  <span class="text-slate-600 font-medium text-xs">Giá từ: ${p.min_price ? p.min_price.toLocaleString('vi-VN') + 'đ' : 'Liên hệ'}</span>
-                </div>
-              </div>
-              <a href="/photographer-profile?id=${p.id}" class="px-2.5 py-1.5 bg-orange-500 hover:bg-orange-600 text-white text-[11px] font-bold rounded-lg shrink-0 transition-colors">
-                Xem
-              </a>
-            </div>
-          `;
-          addBotMessage(htmlContent, undefined, true);
-        });
-
-        if (results.length > 3) {
-          addBotMessage(
-            `Ngoài ra vẫn còn nhiều photographer khác phù hợp. Bạn có thể bấm vào đây để xem tất cả: <a href="/photographer?location=${encodeURIComponent(location)}&category=${encodeURIComponent(category)}" class="text-orange-500 font-bold underline">Xem toàn bộ</a>`,
-            ["Quay lại menu chính"],
-            true
-          );
-        } else {
-          addBotMessage("Bạn muốn tìm hiểu thêm về chủ đề khác chứ?", ["Quay lại menu chính"]);
-        }
       } else {
-        // Fallback recommendations if no matches
         addBotMessage(
-          `Hiện tại chưa có photographer nào khớp chính xác bộ lọc tại **${location}** mức giá **${budget}**. Dưới đây là các photographer nổi bật được đề xuất cho bạn:`
+          `Hiện chưa có photographer khớp chính xác với bộ lọc đó. Tôi gợi ý vài photographer nổi bật để bạn tham khảo:`
         );
-
-        photographers.slice(0, 2).forEach((p) => {
-          const htmlContent = `
-            <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl my-2 flex items-center gap-3">
-              <img src="${p.avatar_url || 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=80&q=80'}" alt="${p.full_name}" class="w-12 h-12 rounded-full object-cover shrink-0" />
-              <div class="min-w-0 flex-1">
-                <p class="text-sm font-bold text-slate-800 truncate">${p.full_name}</p>
-                <p class="text-[11px] text-slate-400 truncate">${p.active_area || 'Việt Nam'}</p>
-                <div class="flex items-center gap-1.5 mt-0.5">
-                  <span class="text-yellow-500 font-bold text-xs">★ ${p.avg_rating || '4.9'}</span>
-                  <span class="text-slate-300 text-xs">|</span>
-                  <span class="text-slate-600 font-medium text-xs">Giá từ: ${p.min_price ? p.min_price.toLocaleString('vi-VN') + 'đ' : 'Liên hệ'}</span>
-                </div>
-              </div>
-              <a href="/photographer-profile?id=${p.id}" class="px-2.5 py-1.5 bg-orange-500 hover:bg-orange-600 text-white text-[11px] font-bold rounded-lg shrink-0 transition-colors">
-                Xem
-              </a>
-            </div>
-          `;
-          addBotMessage(htmlContent, undefined, true);
-        });
-
-        addBotMessage("Bạn có muốn điều chỉnh lại địa điểm hoặc ngân sách chụp không?", [
-          " Tìm photographer phù hợp",
-          "Quay lại menu chính"
-        ]);
-      }
-    }, 1200);
-  };
-
-  // Call real AI (Gemini or OpenAI API directly from client)
-  const callRealAI = async (userInput: string, settings?: AiSettings | null) => {
-    const activeSettings = settings || aiSettings;
-    if (!activeSettings) return;
-
-    const { provider, model, key, endpoint, systemPrompt } = activeSettings;
-
-    // Create summary of photographers for the AI context
-    const summary = photographers
-      .slice(0, 15) // Limit context size
-      .map(
-        (p) =>
-          `- ID: ${p.id}, Họ tên: ${p.full_name}, Vùng hoạt động: ${p.active_area || "Chưa rõ"
-          }, Thể loại: ${p.categories || "Đa dạng"}, Giá tối thiểu: ${p.min_price ? p.min_price.toLocaleString("vi-VN") + " VND" : "Thỏa thuận"
-          }, Đánh giá: ${p.avg_rating} sao`
-      )
-      .join("\n");
-
-    const systemPromptContext = `${systemPrompt}\n\nDanh sách nhiếp ảnh gia thật trên nền tảng Sudion để tư vấn:\n${summary}\n\nChú ý: Khi gợi ý một photographer cụ thể, hãy hướng dẫn khách hàng bấm vào đường dẫn theo cấu trúc '/photographer-profile?id=ID_CỦA_HỌ' để xem chi tiết và đặt lịch.`;
-
-    const chatHistory = messages
-      .slice(-10) // Send last 10 messages for context
-      .map((m) => `${m.sender === "user" ? "Khách hàng" : "AI Trợ lý"}: ${m.text}`)
-      .join("\n");
-
-    if (provider === "Google Gemini") {
-      // Calling Gemini API
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [
-              {
-                parts: [
-                  {
-                    text: `${systemPromptContext}\n\nLịch sử hội thoại:\n${chatHistory}\n\nKhách hàng: ${userInput}\n\nAI Trợ lý phản hồi ngắn gọn bằng tiếng Việt:`,
-                  },
-                ],
-              },
-            ],
-          }),
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error("Lỗi API Gemini");
       }
 
-      const resJson = await response.json();
-      const aiResponseText =
-        resJson?.candidates?.[0]?.content?.parts?.[0]?.text ||
-        "Tôi chưa nhận được phản hồi từ AI. Hãy thử lại sau.";
-      addBotMessage(formatResponseHtml(aiResponseText), undefined, true);
-    } else if (provider === "OpenAI") {
-      // Calling OpenAI API
-      const response = await fetch(endpoint || "https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${key}`,
-        },
-        body: JSON.stringify({
-          model: model || "gpt-4o-mini",
-          messages: [
-            { role: "system", content: systemPromptContext },
-            {
-              role: "user",
-              content: `Lịch sử hội thoại:\n${chatHistory}\n\nKhách hàng: ${userInput}\n\nAI Trợ lý phản hồi:`,
-            },
-          ],
-        }),
+      displayResults.slice(0, 3).forEach((p) => {
+        addBotMessage(createPhotographerCardHtml(p), undefined, true);
       });
 
-      if (!response.ok) {
-        throw new Error("Lỗi API OpenAI");
-      }
-
-      const resJson = await response.json();
-      const aiResponseText =
-        resJson?.choices?.[0]?.message?.content ||
-        "Tôi chưa nhận được phản hồi từ OpenAI. Hãy thử lại.";
-      addBotMessage(formatResponseHtml(aiResponseText), undefined, true);
-    }
-  };
-
-  // Format response formatting, transforming markdown list/links to HTML
-  const formatResponseHtml = (text: string) => {
-    let formatted = text
-      .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
-      .replace(/\*(.*?)\*/g, "<em>$1</em>")
-      .replace(/\n/g, "<br />");
-
-    // Replace Markdown-like links [Text](URL) with HTML links
-    formatted = formatted.replace(
-      /\[(.*?)\]\(((?:\/|https?:\/\/)[^\s)]+)\)/g,
-      '<a href="$2" class="text-orange-500 font-bold underline">$1</a>'
-    );
-
-    return formatted;
-  };
+      addBotMessage("Bạn muốn tôi hỗ trợ thêm gì không?", [
+        "Tìm photographer phù hợp",
+        "Gợi ý Concept / Style chụp",
+        "Quay lại menu chính",
+      ]);
+    }, 700);
+  }
 
   return (
-    <div className="fixed bottom-6 right-6 z-[999] flex flex-col items-end">
-      {/* Tooltip greeting */}
-      {showTooltip && !isOpen && (
-        <div className="relative mb-3 flex max-w-[260px] items-start gap-2 rounded-2xl border border-[#ffe3cc] bg-white p-3.5 shadow-[0_12px_28px_rgba(255,141,40,0.14)] animate-bounce duration-1000">
-          <p className="text-xs font-semibold leading-5 text-slate-800">
-            Bạn cần tìm photographer phù hợp hoặc tư vấn concept chụp? Chat với AI ngay nhé!
-          </p>
+    <div className="fixed bottom-5 right-5 z-[80] flex flex-col items-end sm:bottom-6 sm:right-6">
+      {showTooltip && !isOpen ? (
+        <div className="relative mb-3 w-[270px] overflow-hidden rounded-3xl border border-orange-100 bg-white/95 p-4 shadow-[0_18px_50px_rgba(15,23,42,0.16)] backdrop-blur-xl">
           <button
+            type="button"
             onClick={() => setShowTooltip(false)}
-            className="text-slate-400 hover:text-slate-600 text-xs font-black shrink-0"
+            className="absolute right-3 top-3 grid h-6 w-6 place-items-center rounded-full text-xs font-black text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
           >
             ×
           </button>
-          <div className="absolute bottom-[-6px] right-6 h-3 w-3 rotate-45 border-r border-b border-[#ffe3cc] bg-white"></div>
-        </div>
-      )}
 
-      {/* Floating Action Button Trigger */}
-      <button
-        onClick={() => {
-          setIsOpen(!isOpen);
-          setShowTooltip(false);
-        }}
-        className="relative flex h-14 w-14 items-center justify-center rounded-full bg-[#ff8d28] text-white shadow-lg hover:scale-105 transition-all hover:bg-[#e67d1e] focus:outline-none"
-        title="Trợ lý tư vấn AI"
-      >
-        {isOpen ? (
-          <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        ) : (
-          <span className="relative flex h-full w-full items-center justify-center">
-            <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </span>
-        )}
-      </button>
-
-      {/* Chat Window Panel */}
-      {isOpen && (
-        <div className="fixed bottom-24 right-6 flex h-[540px] w-[370px] max-w-[calc(100vw-32px)] flex-col rounded-3xl border border-[#edf0f5] bg-white shadow-[0_16px_48px_rgba(15,23,42,0.15)] overflow-hidden transition-all duration-300">
-          {/* Header */}
-          <div className="flex items-center justify-between bg-gradient-to-r from-[#ff8d28] to-[#ffaa5c] p-4 text-white">
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <div className="grid h-10 w-10 place-items-center rounded-full bg-white/20 text-white text-lg font-black shadow-inner">
-
-                </div>
-                <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-[#ff8d28] bg-emerald-500"></span>
-              </div>
-              <div>
-                <h3 className="text-sm font-black tracking-wide leading-tight">Sudion Trợ lý AI</h3>
-                <span className="text-[10px] text-orange-50/80 font-bold">Đang trực tuyến</span>
-              </div>
+          <div className="mb-2 flex items-center gap-2">
+            <div className="grid h-8 w-8 place-items-center rounded-2xl bg-gradient-to-br from-orange-400 to-orange-600 text-xs font-black text-white shadow-md">
+              AI
             </div>
-            <button
-              onClick={() => setIsOpen(false)}
-              className="rounded-full p-1.5 hover:bg-white/10 text-white transition-colors"
-            >
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
+            <div>
+              <p className="text-xs font-black text-slate-900">Sudion AI</p>
+              <p className="text-[10px] font-bold text-emerald-500">
+                Đang trực tuyến
+              </p>
+            </div>
           </div>
 
-          {/* Messages Body */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/50">
+          <p className="pr-4 text-xs font-semibold leading-5 text-slate-600">
+            Cần tìm photographer hoặc tư vấn concept? Chat với AI ngay nhé.
+          </p>
+
+          <div className="absolute bottom-[-6px] right-7 h-3 w-3 rotate-45 border-b border-r border-orange-100 bg-white" />
+        </div>
+      ) : null}
+
+      {isOpen ? (
+        <div className="fixed bottom-24 right-3 z-[90] flex h-[min(640px,calc(100vh-120px))] w-[min(430px,calc(100vw-24px))] flex-col overflow-hidden rounded-[30px] border border-white/70 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.22)] sm:right-6">
+          <div className="relative overflow-hidden bg-gradient-to-br from-orange-500 via-orange-400 to-amber-400 px-4 py-4 text-white">
+            <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-white/15 blur-sm" />
+            <div className="absolute -bottom-14 left-10 h-28 w-28 rounded-full bg-white/10 blur-sm" />
+
+            <div className="relative flex items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="relative grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-white/20 text-sm font-black text-white shadow-inner backdrop-blur-md">
+                  AI
+                  <span className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-orange-400 bg-emerald-400" />
+                </div>
+
+                <div className="min-w-0">
+                  <h3 className="truncate text-sm font-black tracking-wide">
+                    Sudion Trợ lý AI
+                  </h3>
+                  <p className="mt-0.5 text-[11px] font-bold text-white/85">
+                    {lastProvider === "gemini"
+                      ? "AI Gemini đang hoạt động"
+                      : "Đang trực tuyến"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="relative flex shrink-0 items-center gap-1">
+                <button
+                  type="button"
+                  onClick={resetChat}
+                  className="rounded-full bg-white/15 px-3 py-1.5 text-[11px] font-black text-white transition hover:bg-white/25"
+                >
+                  Reset
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsOpen(false)}
+                  className="grid h-8 w-8 place-items-center rounded-full bg-white/15 text-white transition hover:bg-white/25"
+                  title="Thu nhỏ"
+                >
+                  <svg
+                    className="h-4 w-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex-1 space-y-4 overflow-y-auto bg-gradient-to-b from-slate-50 to-white px-4 py-4">
             {messages.map((m) => (
-              <div key={m.id} className={`flex flex-col ${m.sender === "user" ? "items-end" : "items-start"}`}>
+              <div
+                key={m.id}
+                className={`flex flex-col ${
+                  m.sender === "user" ? "items-end" : "items-start"
+                }`}
+              >
                 <div
-                  className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-xs leading-5 shadow-sm ${m.sender === "user"
-                    ? "bg-[#ff8d28] text-white rounded-br-none"
-                    : "bg-white text-slate-800 border border-slate-100 rounded-bl-none"
-                    }`}
+                  className={`max-w-[86%] break-words rounded-3xl px-4 py-3 text-[13px] leading-6 shadow-sm ${
+                    m.sender === "user"
+                      ? "rounded-br-lg bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-orange-200"
+                      : "rounded-bl-lg border border-slate-100 bg-white text-slate-700 shadow-slate-200/70"
+                  }`}
                 >
                   {m.isHtml ? (
                     <div dangerouslySetInnerHTML={{ __html: m.text }} />
                   ) : (
-                    <p className="whitespace-pre-line">{m.text}</p>
+                    <div
+                      className="whitespace-pre-line"
+                      dangerouslySetInnerHTML={{
+                        __html: plainTextToHtml(m.text),
+                      }}
+                    />
                   )}
                 </div>
 
-                {/* Option quick select chips */}
-                {m.options && m.options.length > 0 && (
-                  <div className="mt-2.5 flex flex-wrap gap-2">
+                {m.options && m.options.length > 0 ? (
+                  <div
+                    className={`mt-2.5 flex max-w-[92%] flex-wrap gap-2 ${
+                      m.sender === "user" ? "justify-end" : "justify-start"
+                    }`}
+                  >
                     {m.options.map((option) => (
                       <button
                         key={option}
-                        onClick={() => handleSendMessage(option)}
-                        className="rounded-full border border-orange-200 bg-orange-50/60 px-3.5 py-1.5 text-[11px] font-bold text-[#ff8d28] hover:bg-[#ff8d28] hover:text-white hover:border-[#ff8d28] transition-all duration-200"
+                        type="button"
+                        onClick={() => void handleSendMessage(option)}
+                        disabled={isTyping}
+                        className="rounded-full border border-orange-200 bg-white px-3.5 py-2 text-[11px] font-black text-orange-500 shadow-sm transition-all duration-200 hover:border-orange-500 hover:bg-orange-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         {option}
                       </button>
                     ))}
                   </div>
-                )}
+                ) : null}
               </div>
             ))}
 
-            {/* Typing Indicator */}
-            {isTyping && (
-              <div className="flex items-start gap-2">
-                <div className="rounded-2xl rounded-bl-none border border-slate-100 bg-white px-4 py-3 shadow-sm">
-                  <div className="flex gap-1.5">
-                    <span className="h-2 w-2 animate-bounce rounded-full bg-[#ff8d28]"></span>
-                    <span className="h-2 w-2 animate-bounce rounded-full bg-[#ff8d28]" style={{ animationDelay: "0.2s" }}></span>
-                    <span className="h-2 w-2 animate-bounce rounded-full bg-[#ff8d28]" style={{ animationDelay: "0.4s" }}></span>
+            {isTyping ? (
+              <div className="flex items-start">
+                <div className="rounded-3xl rounded-bl-lg border border-slate-100 bg-white px-4 py-3 shadow-sm">
+                  <div className="flex items-center gap-1.5">
+                    <span className="h-2 w-2 animate-bounce rounded-full bg-orange-500" />
+                    <span
+                      className="h-2 w-2 animate-bounce rounded-full bg-orange-500"
+                      style={{ animationDelay: "0.15s" }}
+                    />
+                    <span
+                      className="h-2 w-2 animate-bounce rounded-full bg-orange-500"
+                      style={{ animationDelay: "0.3s" }}
+                    />
                   </div>
                 </div>
               </div>
-            )}
+            ) : null}
+
             <div ref={chatEndRef} />
           </div>
 
-          {/* Form Message Send Input */}
           <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleSendMessage(inputVal);
+            onSubmit={(event) => {
+              event.preventDefault();
+              void handleSendMessage(inputVal);
             }}
-            className="flex items-center gap-2 border-t border-slate-100 bg-white p-3"
+            className="border-t border-slate-100 bg-white p-3"
           >
-            <input
-              type="text"
-              value={inputVal}
-              onChange={(e) => setInputVal(e.target.value)}
-              placeholder="Hỏi tôi bất kỳ điều gì..."
-              className="h-10 min-w-0 flex-1 rounded-full border border-slate-200 bg-slate-50/50 px-4 text-xs text-slate-800 outline-none focus:border-[#ff8d28] focus:bg-white transition-all"
-            />
-            <button
-              type="submit"
-              disabled={!inputVal.trim()}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#ff8d28] text-white shadow-md hover:bg-[#e67d1e] disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none transition-all"
-            >
-              <svg className="h-4.5 w-4.5 transform rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-              </svg>
-            </button>
+            <div className="flex items-center gap-2 rounded-3xl border border-slate-200 bg-slate-50 p-1.5 transition focus-within:border-orange-300 focus-within:bg-white focus-within:shadow-[0_0_0_4px_rgba(249,115,22,0.08)]">
+              <input
+                type="text"
+                value={inputVal}
+                onChange={(event) => setInputVal(event.target.value)}
+                placeholder="Hỏi tôi bất kỳ điều gì..."
+                className="h-11 min-w-0 flex-1 bg-transparent px-3 text-sm font-medium text-slate-800 outline-none placeholder:text-slate-400"
+              />
+
+              <button
+                type="submit"
+                disabled={!inputVal.trim() || isTyping}
+                className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-orange-500 text-white shadow-md shadow-orange-200 transition hover:bg-orange-600 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none"
+                title="Gửi"
+              >
+                <svg
+                  className="h-5 w-5 rotate-90"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+                  />
+                </svg>
+              </button>
+            </div>
           </form>
         </div>
-      )}
+      ) : null}
+
+      <button
+        type="button"
+        onClick={() => {
+          setIsOpen(!isOpen);
+          setShowTooltip(false);
+        }}
+        className="relative z-[95] grid h-16 w-16 place-items-center rounded-full bg-gradient-to-br from-orange-400 to-orange-600 text-white shadow-[0_18px_45px_rgba(249,115,22,0.38)] transition-all hover:-translate-y-0.5 hover:scale-105"
+        title="Trợ lý tư vấn AI"
+      >
+        {isOpen ? (
+          <svg
+            className="h-7 w-7"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth="2.6"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        ) : (
+          <>
+            <span className="absolute inset-0 rounded-full bg-orange-400 opacity-30 animate-ping" />
+            <svg
+              className="relative h-7 w-7"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth="2.2"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+          </>
+        )}
+      </button>
     </div>
   );
 }
