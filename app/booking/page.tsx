@@ -65,6 +65,7 @@ type PackageTier = {
 type SubTypeOption = { id: string; label: string; extra: number; image: string };
 
 type AddonCard = { id: string; name: string; price: number; image: string; note?: string };
+type DepositPercent = 30 | 50 | 100;
 
 /* ───────── CONSTANTS ───────── */
 
@@ -189,7 +190,11 @@ const MONTH_NAMES = [
 ];
 
 const DAY_HEADERS = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
-
+const DEPOSIT_OPTIONS: Array<{ value: DepositPercent; label: string; note: string }> = [
+  { value: 30, label: "Cọc 30%", note: "Thanh toán 70% còn lại sau buổi chụp" },
+  { value: 50, label: "Cọc 50%", note: "Giữ lịch chắc hơn, còn lại 50%" },
+  { value: 100, label: "Cọc hết", note: "Thanh toán đủ ngay, nhận ảnh khi photographer hoàn thành" },
+];
 /* ───────── UTILITY FUNCTIONS ───────── */
 
 function formatCurrency(value: number) {
@@ -436,7 +441,7 @@ function BookingContent() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("momo");
-
+const [depositPercent, setDepositPercent] = useState<DepositPercent>(30);
   // ── Calendar state ──
   const [calMonth, setCalMonth] = useState(() => new Date().getMonth());
   const [calYear, setCalYear] = useState(() => new Date().getFullYear());
@@ -528,10 +533,13 @@ function BookingContent() {
     return estimatedTotal;
   }, [estimatedTotal]);
 
-  const depositAmount = useMemo(() => {
-    return Math.round(finalTotal * 0.3);
-  }, [finalTotal]);
+const depositAmount = useMemo(() => {
+  return Math.round((finalTotal * depositPercent) / 100);
+}, [finalTotal, depositPercent]);
 
+const remainingAmount = useMemo(() => {
+  return Math.max(finalTotal - depositAmount, 0);
+}, [finalTotal, depositAmount]);
   const selectedAddOnsDetails = useMemo(
     () => apiAddOns.filter((a) => selectedAddOns.includes(a.id)).map((a) => ({ id: a.id, name: a.name, price: a.price })),
     [selectedAddOns, apiAddOns]
@@ -558,6 +566,9 @@ function BookingContent() {
           if (draft.email) setEmail(draft.email);
           if (draft.phone) setPhone(draft.phone);
           if (draft.paymentMethod) setPaymentMethod(draft.paymentMethod);
+          if ([30, 50, 100].includes(Number(draft.depositPercent))) {
+  setDepositPercent(Number(draft.depositPercent) as DepositPercent);
+}
         }
         localStorage.removeItem("sudion_booking_draft");
       }
@@ -742,6 +753,7 @@ function BookingContent() {
         email,
         phone,
         paymentMethod,
+        depositPercent,
       };
       localStorage.setItem("sudion_booking_draft", JSON.stringify(draft));
       setShowLoginModal(true);
@@ -765,8 +777,9 @@ function BookingContent() {
         concept: specialRequest,
         budget: String(finalTotal),
         scene: "",
-        paymentMethod,
-        customer: {
+       paymentMethod,
+depositPercent,
+customer: {
           fullName: fullName || session?.fullName || "Khách vãng lai",
           phone,
           email: email || session?.email || "guest@sudion.vn",
@@ -791,7 +804,7 @@ function BookingContent() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             deposit_amount: depositAmount,
-            remaining_amount: finalTotal - depositAmount,
+            remaining_amount: remainingAmount,
           }),
         });
       } catch (err) {
@@ -1314,15 +1327,60 @@ function BookingContent() {
               </div>
             </div>
 
-            {/* Deposit */}
-            <div className="mt-4 rounded-xl border border-[#fff4eb] bg-[#fffaf5] p-3">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-semibold text-[#6b7280]">Tiền cọc giữ lịch (30%)</span>
-                <span className="text-sm font-black text-[#ff8d28]">{formatCurrency(depositAmount)}</span>
-              </div>
-              <p className="mt-1 text-[10px] text-[#9ca3af]">Thanh toán nốt 70% sau khi hoàn thành buổi chụp</p>
-            </div>
+        {/* Deposit */}
+<div className="mt-4 rounded-xl border border-[#fff4eb] bg-[#fffaf5] p-3">
+  <div className="flex items-center justify-between gap-3">
+    <div>
+      <span className="text-[11px] font-semibold text-[#6b7280]">
+        Chọn mức cọc giữ lịch
+      </span>
+      <p className="mt-1 text-[10px] text-[#9ca3af]">
+        Có thể cọc 30%, 50% hoặc thanh toán đủ ngay.
+      </p>
+    </div>
 
+    <span className="text-sm font-black text-[#ff8d28]">
+      {formatCurrency(depositAmount)}
+    </span>
+  </div>
+
+  <div className="mt-3 grid grid-cols-3 gap-2">
+    {DEPOSIT_OPTIONS.map((option) => (
+      <button
+        key={option.value}
+        type="button"
+        onClick={() => setDepositPercent(option.value)}
+        className={`rounded-xl border px-2 py-2 text-left transition ${
+          depositPercent === option.value
+            ? "border-[#ff8d28] bg-white shadow-[0_8px_18px_rgba(255,141,40,0.14)]"
+            : "border-[#fed7aa] bg-[#fffaf5] hover:bg-white"
+        }`}
+      >
+        <span
+          className={`block text-[11px] font-black ${
+            depositPercent === option.value ? "text-[#ff8d28]" : "text-[#92400e]"
+          }`}
+        >
+          {option.label}
+        </span>
+        <span className="mt-1 block text-[9px] font-semibold leading-4 text-[#9ca3af]">
+          {option.note}
+        </span>
+      </button>
+    ))}
+  </div>
+
+  <div className="mt-3 grid gap-1 rounded-xl bg-white px-3 py-2 text-[11px] font-bold text-[#4b5563]">
+    <div className="flex justify-between">
+      <span>Cọc {depositPercent}%</span>
+      <span className="text-[#ff8d28]">{formatCurrency(depositAmount)}</span>
+    </div>
+    <div className="flex justify-between">
+      <span>Còn lại</span>
+      <span>{formatCurrency(remainingAmount)}</span>
+    </div>
+  </div>
+</div>
             {/* Submit error */}
             {submitError && (
               <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-center text-xs font-bold text-red-600">

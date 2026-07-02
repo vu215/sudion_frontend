@@ -1,9 +1,9 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useAuth } from "@/app/auth-context";
 import { useToast } from "@/app/toast-context";
+
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
@@ -103,25 +103,25 @@ const statusMap: Record<
   },
   accepted: {
     label: "Đã xác nhận, chờ khách cọc",
-    note: "Bạn đã xác nhận lịch. Đang chờ khách thanh toán cọc 50%.",
+    note: "Bạn đã xác nhận lịch. Đang chờ khách thanh toán cọc.",
     className: "border-[#bfdbfe] bg-[#eff6ff] text-[#1d4ed8]",
     dot: "bg-[#3b82f6]",
   },
   confirmed: {
     label: "Khách đã thanh toán cọc",
-    note: "Lịch đã được giữ. Sau khi chụp xong, bấm Hoàn thành.",
+    note: "Lịch đã được giữ. Có thể chat với khách. Sau khi chụp xong, nhập link thư mục Google Drive rồi bấm Hoàn thành.",
     className: "border-[#bbf7d0] bg-[#ecfdf5] text-[#047857]",
     dot: "bg-[#10b981]",
   },
   completed: {
     label: "Đã hoàn thành, chờ khách thanh toán còn lại",
-    note: "Bạn đã hoàn thành buổi chụp. Đang chờ khách thanh toán phần còn lại.",
+    note: "Bạn đã hoàn thành buổi chụp. Đang chờ khách thanh toán phần còn lại để nhận ảnh. Chat vẫn mở.",
     className: "border-[#fde68a] bg-[#fefce8] text-[#a16207]",
     dot: "bg-[#eab308]",
   },
   fully_paid: {
     label: "Khách đã thanh toán đủ",
-    note: "Booking đã hoàn tất. Khách có thể đánh giá và chat.",
+    note: "Booking đã hoàn tất. Khách có thể xem ảnh, đánh giá và chat.",
     className: "border-[#bbf7d0] bg-[#f0fdf4] text-[#15803d]",
     dot: "bg-[#22c55e]",
   },
@@ -152,6 +152,30 @@ function getStatusInfo(status: string) {
 
 function formatCurrency(value: number | string | null | undefined) {
   return `${Number(value || 0).toLocaleString("vi-VN")} VND`;
+}
+
+function stripPhotoDriveLink(location?: string | null) {
+  return String(location || "")
+    .replace(/\s*\[Photos:\s*https?:\/\/[^\]]+\]/i, "")
+    .trim();
+}
+
+function isValidGoogleDriveFolderLink(value: string) {
+  try {
+    const url = new URL(value.trim());
+    const host = url.hostname.toLowerCase();
+    const path = url.pathname.toLowerCase();
+
+    if (url.protocol !== "https:" && url.protocol !== "http:") return false;
+
+    if (host !== "drive.google.com" && host !== "www.drive.google.com") {
+      return false;
+    }
+
+    return /^\/drive\/(?:u\/\d+\/)?folders\/[^/]+/.test(path);
+  } catch {
+    return false;
+  }
 }
 
 function formatDate(value: string | null) {
@@ -207,10 +231,33 @@ async function updateBookingStatus(bookingCode: string, status: string) {
   return json.data;
 }
 
+async function updateBookingPhotoLink(bookingCode: string, location: string) {
+  const response = await fetch(
+    `${API_URL}/admin/bookings/${encodeURIComponent(bookingCode)}`,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ location }),
+    }
+  );
+
+  const json = await response.json().catch(() => null);
+
+  if (!response.ok || json?.success === false) {
+    throw new Error(json?.message || "Không thể cập nhật liên kết Google Drive.");
+  }
+
+  return json;
+}
+
 export default function PhotographerDashboardPage() {
-  const { session, isPhotographer } = useAuth();
   const toast = useToast();
+  const requestIdRef = useRef(0);
+
   const [photographerId, setPhotographerId] = useState("");
+  const [loadedPhotographerId, setLoadedPhotographerId] = useState("");
   const [bookings, setBookings] = useState<BackendBooking[]>([]);
   const [activeStatus, setActiveStatus] = useState("all");
 
@@ -220,29 +267,24 @@ export default function PhotographerDashboardPage() {
   const [successMessage, setSuccessMessage] = useState("");
 
   useEffect(() => {
-    const sessionPhotographerId =
-      isPhotographer && session?.photographerId ? session.photographerId : "";
-
-    const savedId = window.localStorage.getItem("sudion_photographer_id") || "";
-    const finalId = sessionPhotographerId || savedId;
-
-    if (!finalId) return;
-
-    setPhotographerId(finalId);
-    void handleLoadBookings(finalId);
+    if (!loadedPhotographerId) return;
 
     const timer = window.setInterval(async () => {
+      const currentRequestId = requestIdRef.current;
+
       try {
-        const data = await getBookingsByPhotographer(finalId);
+        const data = await getBookingsByPhotographer(loadedPhotographerId);
+
+        if (currentRequestId !== requestIdRef.current) return;
+
         setBookings(data);
-        window.localStorage.setItem("sudion_photographer_id", finalId);
       } catch (error) {
         console.error("Auto refresh photographer dashboard failed:", error);
       }
     }, AUTO_REFRESH_MS);
 
     return () => window.clearInterval(timer);
-  }, [isPhotographer, session?.photographerId]);
+  }, [loadedPhotographerId]);
 
   const stats = useMemo(() => {
     return {
@@ -265,82 +307,94 @@ export default function PhotographerDashboardPage() {
   }, [activeStatus, bookings]);
 
   async function handleLoadBookings(targetId = photographerId) {
+    const finalId = targetId.trim();
+
+    if (!finalId) {
+      setPageError("Vui lòng nhập photographer ID.");
+      setBookings([]);
+      setLoadedPhotographerId("");
+      return;
+    }
+
+    const currentRequestId = ++requestIdRef.current;
+
     try {
-      const finalId = targetId.trim();
-
-      if (!finalId) {
-        setPageError("Vui lòng nhập photographer ID.");
-        return;
-      }
-
       setLoading(true);
       setPageError("");
       setSuccessMessage("");
+      setPhotographerId(finalId);
 
       const data = await getBookingsByPhotographer(finalId);
 
+      if (currentRequestId !== requestIdRef.current) return;
+
       setBookings(data);
-      window.localStorage.setItem("sudion_photographer_id", finalId);
+      setLoadedPhotographerId(finalId);
+      setActiveStatus("all");
     } catch (error) {
+      if (currentRequestId !== requestIdRef.current) return;
+
       console.error("Lỗi lấy booking photographer:", error);
 
       setBookings([]);
+      setLoadedPhotographerId("");
       setPageError(
         error instanceof Error
           ? error.message
           : "Không thể lấy booking của photographer."
       );
     } finally {
-      setLoading(false);
+      if (currentRequestId === requestIdRef.current) {
+        setLoading(false);
+      }
     }
   }
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    await handleLoadBookings();
+  async function handleUpdateStatus(
+    bookingCode: string,
+    status: string
+  ): Promise<BackendBooking | null> {
+    try {
+      setUpdatingCode(bookingCode);
+      setPageError("");
+      setSuccessMessage("");
+
+      const updatedBooking = await updateBookingStatus(bookingCode, status);
+
+      setBookings((current) =>
+        current.map((item) =>
+          item.booking_code === updatedBooking.booking_code
+            ? updatedBooking
+            : item
+        )
+      );
+
+      const statusLabel = getStatusInfo(updatedBooking.status).label;
+
+      setSuccessMessage(
+        `Đã cập nhật booking ${updatedBooking.booking_code}: ${statusLabel}.`
+      );
+
+      toast.success(
+        "Cập nhật booking thành công",
+        `Booking ${updatedBooking.booking_code}: ${statusLabel}.`
+      );
+
+      return updatedBooking;
+    } catch (error) {
+      console.error("Lỗi cập nhật trạng thái:", error);
+
+      const message =
+        error instanceof Error ? error.message : "Không thể cập nhật trạng thái.";
+
+      setPageError(message);
+      toast.error("Cập nhật thất bại", message);
+
+      return null;
+    } finally {
+      setUpdatingCode("");
+    }
   }
-
- async function handleUpdateStatus(bookingCode: string, status: string) {
-  try {
-    setUpdatingCode(bookingCode);
-    setPageError("");
-    setSuccessMessage("");
-
-    const updatedBooking = await updateBookingStatus(bookingCode, status);
-
-    setBookings((current) =>
-      current.map((item) =>
-        item.booking_code === updatedBooking.booking_code
-          ? updatedBooking
-          : item
-      )
-    );
-
-    const statusLabel = getStatusInfo(updatedBooking.status).label;
-
-    setSuccessMessage(
-      `Đã cập nhật booking ${updatedBooking.booking_code}: ${statusLabel}.`
-    );
-
-    toast.success(
-      "Cập nhật booking thành công",
-      `Booking ${updatedBooking.booking_code}: ${statusLabel}.`
-    );
-  } catch (error) {
-    console.error("Lỗi cập nhật trạng thái:", error);
-
-    const message =
-      error instanceof Error
-        ? error.message
-        : "Không thể cập nhật trạng thái.";
-
-    setPageError(message);
-
-    toast.error("Cập nhật thất bại", message);
-  } finally {
-    setUpdatingCode("");
-  }
-}
 
   return (
     <main className="min-h-screen bg-[#f8fafc] text-[#0f172a]">
@@ -361,38 +415,53 @@ export default function PhotographerDashboardPage() {
                 </h1>
 
                 <p className="mt-4 max-w-[720px] text-[14px] font-medium leading-7 text-white/70">
-                  Xác nhận lịch, từ chối lịch, đánh dấu hoàn thành sau khi khách
-                  đã cọc, và theo dõi thanh toán còn lại.
+                  Nhập photographer ID rồi bấm Xem đơn. Trang này không dùng form
+                  submit, không dùng localStorage, không dùng session nên không tự
+                  quay về ID cũ.
                 </p>
               </div>
 
-              <form
-                onSubmit={handleSubmit}
-                className="rounded-[20px] border border-white/10 bg-white/10 p-3 backdrop-blur-md"
-              >
+              <div className="rounded-[20px] border border-white/10 bg-white/10 p-3 backdrop-blur-md">
                 <label className="grid gap-2">
                   <span className="px-1 text-[12px] font-extrabold text-white/80">
-                    Photographer ID
+                    Photographer ID đang xem
                   </span>
 
                   <span className="flex gap-2 rounded-[14px] bg-white p-2">
                     <input
                       value={photographerId}
                       onChange={(event) => setPhotographerId(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.preventDefault();
+                          void handleLoadBookings(photographerId);
+                        }
+                      }}
                       placeholder="Ví dụ: 79"
                       className="min-h-[44px] flex-1 border-0 bg-transparent px-3 text-[14px] font-bold text-[#111827] outline-none placeholder:text-[#9ca3af]"
                     />
 
                     <button
-                      type="submit"
+                      type="button"
+                      onClick={() => void handleLoadBookings(photographerId)}
                       disabled={loading}
                       className="rounded-[12px] bg-[#ff8d28] px-4 text-[13px] font-black text-white shadow-[0_10px_24px_rgba(255,141,40,0.3)] transition-all hover:bg-[#e0751b] disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {loading ? "Đang tải" : "Xem đơn"}
                     </button>
                   </span>
+
+                  {loadedPhotographerId ? (
+                    <span className="px-1 text-[11px] font-bold text-white/60">
+                      Auto refresh đang chạy cho ID: {loadedPhotographerId}
+                    </span>
+                  ) : (
+                    <span className="px-1 text-[11px] font-bold text-white/60">
+                      Chưa chọn photographer ID.
+                    </span>
+                  )}
                 </label>
-              </form>
+              </div>
             </div>
           </div>
 
@@ -413,7 +482,7 @@ export default function PhotographerDashboardPage() {
                 </h2>
 
                 <p className="mt-1 text-[13px] font-semibold text-[#64748b]">
-                  Trang này tự cập nhật sau mỗi 8 giây.
+                  Trang này tự cập nhật sau mỗi 8 giây theo ID đã bấm Xem đơn.
                 </p>
               </div>
 
@@ -460,8 +529,10 @@ export default function PhotographerDashboardPage() {
 
             {loading ? (
               <DashboardSkeleton />
+            ) : !loadedPhotographerId ? (
+              <EmptyState hasPhotographerId={false} />
             ) : filteredBookings.length === 0 ? (
-              <EmptyState hasPhotographerId={Boolean(photographerId.trim())} />
+              <EmptyState hasPhotographerId />
             ) : (
               <div className="mt-5 grid gap-4">
                 {filteredBookings.map((booking) => (
@@ -470,6 +541,15 @@ export default function PhotographerDashboardPage() {
                     booking={booking}
                     updatingCode={updatingCode}
                     onUpdateStatus={handleUpdateStatus}
+                    onBookingChanged={(updatedBooking) => {
+                      setBookings((current) =>
+                        current.map((item) =>
+                          item.booking_code === updatedBooking.booking_code
+                            ? updatedBooking
+                            : item
+                        )
+                      );
+                    }}
                   />
                 ))}
               </div>
@@ -499,228 +579,343 @@ function DashboardBookingCard({
   booking,
   updatingCode,
   onUpdateStatus,
+  onBookingChanged,
 }: {
   booking: BackendBooking;
   updatingCode: string;
-  onUpdateStatus: (bookingCode: string, status: string) => Promise<void>;
+  onUpdateStatus: (
+    bookingCode: string,
+    status: string
+  ) => Promise<BackendBooking | null>;
+  onBookingChanged: (booking: BackendBooking) => void;
 }) {
+  const toast = useToast();
+
   const [driveLink, setDriveLink] = useState("");
+  const [driveError, setDriveError] = useState("");
+
   const statusInfo = getStatusInfo(booking.status);
   const isUpdating = updatingCode === booking.booking_code;
+  const cleanLocation = stripPhotoDriveLink(booking.location) || "Chưa chọn";
+  const isDriveLinkValid = isValidGoogleDriveFolderLink(driveLink);
 
   const canAccept = booking.status === "awaiting_payment";
   const canReject = booking.status === "awaiting_payment";
   const canComplete = booking.status === "confirmed";
+  const canChat = ["confirmed", "completed", "fully_paid"].includes(
+    String(booking.status || "")
+  );
 
-  const handleComplete = async () => {
-    if (!driveLink.trim().startsWith("http")) {
-      alert("Vui lòng nhập link Google Drive hợp lệ (bắt đầu bằng http hoặc https).");
+  const driveErrorMessage =
+    "Vui lòng gửi đúng link thư mục Google Drive. Không dùng Google Docs, Google Sheets, Google Drive file hoặc link web khác.";
+
+  async function handleComplete() {
+    if (!isDriveLinkValid) {
+      setDriveError(driveErrorMessage);
+
+      toast.error("Link Google Drive không hợp lệ", driveErrorMessage);
       return;
     }
+
     try {
-      // 1. Cập nhật địa điểm chứa link ảnh vào database qua API Admin
-      const updateRes = await fetch(`${API_URL}/admin/bookings/${booking.booking_code}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          location: `${booking.location || "Chưa chọn"} [Photos: ${driveLink.trim()}]`,
-        }),
-      });
-      
-      if (!updateRes.ok) {
-        const errJson = await updateRes.json();
-        throw new Error(errJson.message || "Không thể cập nhật liên kết Drive.");
+      setDriveError("");
+
+      const finalLocation = `${cleanLocation} [Photos: ${driveLink.trim()}]`;
+
+      await updateBookingPhotoLink(booking.booking_code, finalLocation);
+
+      const updatedStatusBooking = await onUpdateStatus(
+        booking.booking_code,
+        "completed"
+      );
+
+      if (updatedStatusBooking) {
+        onBookingChanged({
+          ...updatedStatusBooking,
+          location: finalLocation,
+        });
+      } else {
+        onBookingChanged({
+          ...booking,
+          location: finalLocation,
+        });
       }
 
-      // 2. Chuyển trạng thái sang completed
-      await onUpdateStatus(booking.booking_code, "completed");
-    } catch (error: any) {
+      setDriveLink("");
+
+      toast.success(
+        "Đã gửi link ảnh",
+        "Link thư mục Google Drive hợp lệ đã được lưu cho booking."
+      );
+    } catch (error) {
       console.error("Lỗi hoàn thành buổi chụp:", error);
-      alert(error.message || "Lỗi khi hoàn thành buổi chụp.");
+
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Lỗi khi hoàn thành buổi chụp.";
+
+      setDriveError(message);
+      toast.error("Không thể hoàn thành", message);
     }
-  };
+  }
 
   return (
-    <article className="overflow-hidden rounded-[22px] border border-[#e2e8f0] bg-white shadow-[0_16px_40px_rgba(15,23,42,0.045)]">
-      <div className="flex flex-col gap-4 border-b border-[#eef2f7] bg-[#fbfcff] px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <p className="text-[12px] font-black uppercase tracking-[0.14em] text-[#ff8d28]">
-            {booking.booking_code}
-          </p>
+    <>
+      {driveError ? (
+        <DriveErrorModal
+          message={driveError}
+          onClose={() => setDriveError("")}
+        />
+      ) : null}
 
-          <h3 className="mt-1 text-[20px] font-black tracking-[-0.03em] text-[#0f172a]">
-            {booking.service_name}
-          </h3>
+      <article className="overflow-hidden rounded-[22px] border border-[#e2e8f0] bg-white shadow-[0_16px_40px_rgba(15,23,42,0.045)]">
+        <div className="flex flex-col gap-4 border-b border-[#eef2f7] bg-[#fbfcff] px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="text-[12px] font-black uppercase tracking-[0.14em] text-[#ff8d28]">
+              {booking.booking_code}
+            </p>
 
-          <p className="mt-1 text-[13px] font-semibold text-[#64748b]">
-            Khách hàng:{" "}
-            <span className="font-black text-[#111827]">
-              {booking.customer_full_name}
-            </span>
-          </p>
+            <h3 className="mt-1 text-[20px] font-black tracking-[-0.03em] text-[#0f172a]">
+              {booking.service_name}
+            </h3>
+
+            <p className="mt-1 text-[13px] font-semibold text-[#64748b]">
+              Khách hàng:{" "}
+              <span className="font-black text-[#111827]">
+                {booking.customer_full_name}
+              </span>
+            </p>
+          </div>
+
+          <span
+            className={`inline-flex w-fit items-center gap-2 rounded-full border px-3 py-2 text-[12px] font-black ${statusInfo.className}`}
+          >
+            <span className={`h-2 w-2 rounded-full ${statusInfo.dot}`} />
+            {statusInfo.label}
+          </span>
         </div>
 
-        <span
-          className={`inline-flex w-fit items-center gap-2 rounded-full border px-3 py-2 text-[12px] font-black ${statusInfo.className}`}
-        >
-          <span className={`h-2 w-2 rounded-full ${statusInfo.dot}`} />
-          {statusInfo.label}
-        </span>
-      </div>
+        <div className="grid gap-5 p-5 lg:grid-cols-[minmax(0,1fr)_300px]">
+          <div className="grid gap-4">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <InfoItem label="Ngày chụp" value={formatDate(booking.shoot_date)} />
+              <InfoItem label="Giờ chụp" value={formatTime(booking.shoot_time)} />
+              <InfoItem label="Địa điểm" value={cleanLocation} />
+              <InfoItem
+                label="Quy mô"
+                value={booking.people_scale || "Chưa chọn"}
+              />
+            </div>
 
-      <div className="grid gap-5 p-5 lg:grid-cols-[minmax(0,1fr)_300px]">
-        <div className="grid gap-4">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <InfoItem label="Ngày chụp" value={formatDate(booking.shoot_date)} />
-            <InfoItem label="Giờ chụp" value={formatTime(booking.shoot_time)} />
-            <InfoItem
-              label="Địa điểm"
-              value={booking.location || "Chưa chọn"}
-            />
-            <InfoItem
-              label="Quy mô"
-              value={booking.people_scale || "Chưa chọn"}
-            />
-          </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <InfoItem
+                label="Email khách"
+                value={booking.customer_email || "Chưa có"}
+              />
+              <InfoItem
+                label="Số điện thoại"
+                value={booking.customer_phone || "Chưa có"}
+              />
+            </div>
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            <InfoItem
-              label="Email khách"
-              value={booking.customer_email || "Chưa có"}
-            />
-            <InfoItem
-              label="Số điện thoại"
-              value={booking.customer_phone || "Chưa có"}
-            />
-          </div>
-
-          <div className="rounded-[16px] border border-[#eef2f7] bg-[#fafbfc] px-4 py-3">
-            <p className="text-[12px] font-black uppercase tracking-[0.14em] text-[#94a3b8]">
-              Ghi chú trạng thái
-            </p>
-
-            <p className="mt-2 text-[14px] font-semibold leading-6 text-[#475569]">
-              {statusInfo.note}
-            </p>
-          </div>
-
-          {booking.concept ? (
-            <div className="rounded-[16px] border border-[#eef2f7] bg-white px-4 py-3">
+            <div className="rounded-[16px] border border-[#eef2f7] bg-[#fafbfc] px-4 py-3">
               <p className="text-[12px] font-black uppercase tracking-[0.14em] text-[#94a3b8]">
-                Concept / ghi chú
+                Ghi chú trạng thái
               </p>
 
-              <p className="mt-2 whitespace-pre-line text-[14px] font-semibold leading-6 text-[#475569]">
-                {booking.concept}
+              <p className="mt-2 text-[14px] font-semibold leading-6 text-[#475569]">
+                {statusInfo.note}
               </p>
             </div>
-          ) : null}
-        </div>
 
-        <div className="grid gap-3 rounded-[18px] border border-[#eef2f7] bg-[#fbfcff] p-4">
-          <MoneyRow label="Tổng tiền" value={booking.estimated_total} />
-          <MoneyRow
-            label="Tiền cọc"
-            value={booking.deposit_amount}
-            highlight={booking.status === "confirmed"}
-          />
-          <MoneyRow
-            label="Còn lại"
-            value={booking.remaining_amount}
-            highlight={booking.status === "completed"}
-          />
+            {booking.concept ? (
+              <div className="rounded-[16px] border border-[#eef2f7] bg-white px-4 py-3">
+                <p className="text-[12px] font-black uppercase tracking-[0.14em] text-[#94a3b8]">
+                  Concept / ghi chú
+                </p>
 
-          <div className="my-1 h-px bg-[#e2e8f0]" />
-
-          <div className="grid gap-2">
-            {canAccept ? (
-              <button
-                type="button"
-                onClick={() =>
-                  onUpdateStatus(booking.booking_code, "accepted")
-                }
-                disabled={isUpdating}
-                className="rounded-[12px] bg-[#ff8d28] px-4 py-3 text-center text-[13px] font-black text-white shadow-[0_10px_24px_rgba(255,141,40,0.18)] transition-all hover:bg-[#e0751b] disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isUpdating ? "Đang xử lý..." : "Xác nhận lịch"}
-              </button>
-            ) : null}
-
-            {canReject ? (
-              <button
-                type="button"
-                onClick={() =>
-                  onUpdateStatus(booking.booking_code, "rejected")
-                }
-                disabled={isUpdating}
-                className="rounded-[12px] border border-red-200 bg-white px-4 py-3 text-center text-[13px] font-black text-red-600 transition-all hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                Từ chối lịch
-              </button>
-            ) : null}
-
-            {booking.status === "accepted" ? (
-              <button
-                type="button"
-                disabled
-                className="rounded-[12px] bg-[#eff6ff] px-4 py-3 text-center text-[13px] font-black text-[#1d4ed8]"
-              >
-                Đang chờ khách thanh toán cọc
-              </button>
-            ) : null}
-
-             {canComplete ? (
-              <div className="flex flex-col gap-2 mb-2 text-[#0f172a] text-left">
-                <label className="block text-[11px] font-black uppercase tracking-[0.12em] text-[#94a3b8]">
-                  Link Google Drive ảnh buổi chụp (Bắt buộc)
-                </label>
-                <input
-                  type="url"
-                  value={driveLink}
-                  onChange={(e) => setDriveLink(e.target.value)}
-                  placeholder="https://drive.google.com/..."
-                  className="w-full rounded-[10px] border border-[#e2e8f0] px-3 py-2 text-[12px] font-bold outline-none focus:border-[#ff8d28] bg-white text-[#0f172a]"
-                />
+                <p className="mt-2 whitespace-pre-line text-[14px] font-semibold leading-6 text-[#475569]">
+                  {booking.concept}
+                </p>
               </div>
             ) : null}
+          </div>
 
-            {canComplete ? (
-              <button
-                type="button"
-                onClick={handleComplete}
-                disabled={isUpdating || !driveLink.trim().startsWith("http")}
-                className="rounded-[12px] bg-[#16a34a] px-4 py-3 text-center text-[13px] font-black text-white shadow-[0_10px_24px_rgba(22,163,74,0.18)] transition-all hover:bg-[#15803d] disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {isUpdating ? "Đang xử lý..." : "Hoàn thành buổi chụp"}
-              </button>
-            ) : null}
+          <div className="grid gap-3 rounded-[18px] border border-[#eef2f7] bg-[#fbfcff] p-4">
+            <MoneyRow label="Tổng tiền" value={booking.estimated_total} />
 
-            {booking.status === "completed" ? (
-              <button
-                type="button"
-                disabled
-                className="rounded-[12px] bg-[#fefce8] px-4 py-3 text-center text-[13px] font-black text-[#a16207]"
-              >
-                Chờ khách thanh toán còn lại
-              </button>
-            ) : null}
+            <MoneyRow
+              label="Tiền cọc"
+              value={booking.deposit_amount}
+              highlight={booking.status === "confirmed"}
+            />
 
-            {booking.status === "fully_paid" ? (
-              <Link
-                href={`/messages?booking=${encodeURIComponent(
-                  booking.booking_code
-                )}`}
-                className="rounded-[12px] bg-[#ff8d28] px-4 py-3 text-center text-[13px] font-black text-white shadow-[0_10px_24px_rgba(255,141,40,0.18)] transition-all hover:bg-[#e0751b]"
-              >
-                Chat với khách
-              </Link>
-            ) : null}
+            <MoneyRow
+              label="Còn lại"
+              value={booking.remaining_amount}
+              highlight={booking.status === "completed"}
+            />
+
+            <div className="my-1 h-px bg-[#e2e8f0]" />
+
+            <div className="grid gap-2">
+              {canAccept ? (
+                <button
+                  type="button"
+                  onClick={() =>
+                    onUpdateStatus(booking.booking_code, "accepted")
+                  }
+                  disabled={isUpdating}
+                  className="rounded-[12px] bg-[#ff8d28] px-4 py-3 text-center text-[13px] font-black text-white shadow-[0_10px_24px_rgba(255,141,40,0.18)] transition-all hover:bg-[#e0751b] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isUpdating ? "Đang xử lý..." : "Xác nhận lịch"}
+                </button>
+              ) : null}
+
+              {canReject ? (
+                <button
+                  type="button"
+                  onClick={() =>
+                    onUpdateStatus(booking.booking_code, "rejected")
+                  }
+                  disabled={isUpdating}
+                  className="rounded-[12px] border border-red-200 bg-white px-4 py-3 text-center text-[13px] font-black text-red-600 transition-all hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Từ chối lịch
+                </button>
+              ) : null}
+
+              {booking.status === "accepted" ? (
+                <button
+                  type="button"
+                  disabled
+                  className="rounded-[12px] bg-[#eff6ff] px-4 py-3 text-center text-[13px] font-black text-[#1d4ed8]"
+                >
+                  Đang chờ khách thanh toán cọc
+                </button>
+              ) : null}
+
+              {canChat ? (
+                <Link
+                  href={`/messages?booking=${encodeURIComponent(
+                    booking.booking_code
+                  )}`}
+                  className="rounded-[12px] bg-[#ff8d28] px-4 py-3 text-center text-[13px] font-black text-white shadow-[0_10px_24px_rgba(255,141,40,0.18)] transition-all hover:bg-[#e0751b]"
+                >
+                  Chat với khách
+                </Link>
+              ) : null}
+
+              {canComplete ? (
+                <div className="mb-2 flex flex-col gap-2 text-left text-[#0f172a]">
+                  <label className="block text-[11px] font-black uppercase tracking-[0.12em] text-[#94a3b8]">
+                    Link Google Drive ảnh buổi chụp
+                  </label>
+
+                  <input
+                    type="url"
+                    value={driveLink}
+                    onChange={(event) => {
+                      setDriveLink(event.target.value);
+
+                      if (driveError) {
+                        setDriveError("");
+                      }
+                    }}
+                    placeholder="https://drive.google.com/drive/folders/..."
+                    className={`w-full rounded-[10px] border px-3 py-2 text-[12px] font-bold text-[#0f172a] outline-none ${
+                      driveLink.trim() && !isDriveLinkValid
+                        ? "border-red-300 bg-red-50 focus:border-red-500"
+                        : "border-[#e2e8f0] bg-white focus:border-[#ff8d28]"
+                    }`}
+                  />
+
+                  {driveLink.trim() && !isDriveLinkValid ? (
+                    <div className="rounded-[12px] border border-red-200 bg-red-50 px-3 py-2">
+                      <p className="text-[11px] font-black text-red-700">
+                        Link Google Drive không hợp lệ
+                      </p>
+                      <p className="mt-1 text-[11px] font-bold leading-5 text-red-600">
+                        Chỉ nhận link thư mục Google Drive dạng
+                        https://drive.google.com/drive/folders/... Không dùng
+                        Google Docs, Sheets, file Drive hoặc web khác.
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-[11px] font-semibold leading-5 text-[#94a3b8]">
+                      Chỉ chấp nhận link thư mục Google Drive để khách nhận ảnh.
+                    </p>
+                  )}
+                </div>
+              ) : null}
+
+              {canComplete ? (
+                <button
+                  type="button"
+                  onClick={handleComplete}
+                  disabled={isUpdating || !isDriveLinkValid}
+                  className="rounded-[12px] bg-[#16a34a] px-4 py-3 text-center text-[13px] font-black text-white shadow-[0_10px_24px_rgba(22,163,74,0.18)] transition-all hover:bg-[#15803d] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {isUpdating ? "Đang xử lý..." : "Hoàn thành buổi chụp"}
+                </button>
+              ) : null}
+
+              {booking.status === "completed" ? (
+                <button
+                  type="button"
+                  disabled
+                  className="rounded-[12px] bg-[#fefce8] px-4 py-3 text-center text-[13px] font-black text-[#a16207]"
+                >
+                  Chờ khách thanh toán còn lại
+                </button>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      </article>
+    </>
+  );
+}
+
+function DriveErrorModal({
+  message,
+  onClose,
+}: {
+  message: string;
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-[9999] grid place-items-center bg-black/50 px-4 backdrop-blur-sm">
+      <div className="w-full max-w-[560px] overflow-hidden rounded-[24px] border border-red-300 bg-white shadow-[0_24px_90px_rgba(127,29,29,0.35)]">
+        <div className="bg-red-600 px-6 py-4 text-white">
+          <p className="text-[12px] font-black uppercase tracking-[0.16em] text-red-100">
+            Cảnh báo
+          </p>
+
+          <h3 className="mt-1 text-[22px] font-black">
+            Link Google Drive không hợp lệ
+          </h3>
+        </div>
+
+        <div className="px-6 py-5">
+          <div className="rounded-[16px] border border-red-200 bg-red-50 px-4 py-3 text-[14px] font-bold leading-6 text-red-700">
+            {message}
+          </div>
+
+          <div className="mt-5 flex justify-end">
+            <button
+              type="button"
+              onClick={onClose}
+              autoFocus
+              className="rounded-[14px] bg-red-600 px-6 py-3 text-[13px] font-black text-white shadow-[0_10px_24px_rgba(220,38,38,0.2)] transition hover:bg-red-700"
+            >
+              OK
+            </button>
           </div>
         </div>
       </div>
-    </article>
+    </div>
   );
 }
 
@@ -750,6 +945,7 @@ function MoneyRow({
   return (
     <div className="flex items-center justify-between gap-4">
       <span className="text-[13px] font-bold text-[#64748b]">{label}</span>
+
       <span
         className={`text-[14px] font-black ${
           highlight ? "text-[#ff8d28]" : "text-[#0f172a]"
@@ -770,8 +966,8 @@ function EmptyState({ hasPhotographerId }: { hasPhotographerId: boolean }) {
 
       <p className="mx-auto mt-2 max-w-[560px] text-[14px] font-semibold leading-6 text-[#64748b]">
         {hasPhotographerId
-          ? "Khi khách gửi yêu cầu đặt lịch, đơn sẽ xuất hiện tại đây."
-          : "Sau khi đăng nhập bằng tài khoản photographer, hệ thống sẽ tự lấy ID nếu bạn đã liên kết khi đăng ký."}
+          ? "Photographer ID này hiện chưa có booking nào."
+          : "Nhập ID photographer rồi bấm Xem đơn để bắt đầu."}
       </p>
     </div>
   );

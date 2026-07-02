@@ -18,6 +18,8 @@ const API_URL =
 
 const AUTO_REFRESH_MS = 3000;
 
+const CHAT_OPEN_STATUSES = ["confirmed", "completed", "fully_paid"];
+
 type BookingStatus =
   | "awaiting_payment"
   | "accepted"
@@ -77,25 +79,27 @@ const statusMap: Record<string, StatusInfo> = {
   },
   accepted: {
     label: "Chờ khách thanh toán cọc",
-    description: "Photographer đã xác nhận. Khách cần thanh toán cọc.",
+    description: "Photographer đã xác nhận. Khách cần thanh toán cọc để mở chat.",
     className: "border-blue-200 bg-blue-50 text-blue-700",
     dot: "bg-blue-500",
   },
   confirmed: {
     label: "Đã thanh toán cọc",
-    description: "Booking đã được giữ lịch. Chat sẽ mở sau khi thanh toán đủ.",
+    description:
+      "Booking đã được giữ lịch. Chat đã mở để khách và photographer trao đổi.",
     className: "border-emerald-200 bg-emerald-50 text-emerald-700",
     dot: "bg-emerald-500",
   },
   completed: {
     label: "Chờ khách thanh toán phần còn lại",
-    description: "Buổi chụp đã hoàn thành. Khách cần thanh toán phần còn lại.",
+    description:
+      "Buổi chụp đã hoàn thành. Chat vẫn mở để hai bên trao đổi.",
     className: "border-purple-200 bg-purple-50 text-purple-700",
     dot: "bg-purple-500",
   },
   fully_paid: {
     label: "Đã thanh toán đủ",
-    description: "Chat đã mở. Hai bên có thể trao đổi tại đây.",
+    description: "Chat đang mở. Hai bên có thể trao đổi tại đây.",
     className: "border-emerald-200 bg-emerald-50 text-emerald-700",
     dot: "bg-emerald-500",
   },
@@ -122,6 +126,10 @@ function getStatusInfo(status: string): StatusInfo {
       dot: "bg-slate-400",
     }
   );
+}
+
+function canChatByStatus(status?: string | null) {
+  return CHAT_OPEN_STATUSES.includes(String(status || ""));
 }
 
 function formatDate(value: string | null) {
@@ -257,7 +265,7 @@ function MessagesContent() {
       ? session?.photographerId || session?.userId || "photographer"
       : session?.email || session?.userId || "guest";
 
-  const canChat = booking?.status === "fully_paid";
+  const canChat = canChatByStatus(booking?.status);
 
   const statusInfo = useMemo(() => {
     return getStatusInfo(booking?.status || "awaiting_payment");
@@ -374,10 +382,10 @@ function MessagesContent() {
     }
 
     if (!canChat) {
-      setPageError("Chỉ có thể chat sau khi booking đã thanh toán đủ.");
+      setPageError("Chỉ có thể chat sau khi khách đã thanh toán cọc.");
       toast.warning(
         "Chat chưa mở",
-        "Booking cần thanh toán đủ trước khi nhắn tin."
+        "Khách cần thanh toán cọc trước khi nhắn tin."
       );
       return;
     }
@@ -537,8 +545,8 @@ function HeaderSearch({
           </h1>
 
           <p className="mt-4 max-w-[680px] text-[14px] font-medium leading-7 text-white/70">
-            Phòng chat chỉ mở sau khi booking đã thanh toán đủ. Tin nhắn và
-            trạng thái booking tự cập nhật sau mỗi 3 giây.
+            Phòng chat mở sau khi khách thanh toán cọc. Tin nhắn và trạng thái
+            booking tự cập nhật sau mỗi 3 giây.
           </p>
         </div>
 
@@ -687,7 +695,7 @@ function ChatComposer({
           placeholder={
             canChat
               ? "Nhập tin nhắn..."
-              : "Chat chỉ mở sau khi booking thanh toán đủ"
+              : "Chat chỉ mở sau khi khách thanh toán cọc"
           }
           disabled={!canChat || sending}
           rows={1}
@@ -741,13 +749,12 @@ function ChatSidebar({
 
       {canChat ? (
         <div className="rounded-[18px] border border-emerald-200 bg-emerald-50 px-4 py-3 text-[13px] font-bold leading-6 text-emerald-700">
-          Chat đang mở. Hai bên có thể trao đổi sau khi booking đã thanh toán
-          đủ.
+          Chat đang mở. Hai bên có thể trao đổi sau khi khách đã thanh toán cọc.
         </div>
       ) : (
         <div className="rounded-[18px] border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] font-bold leading-6 text-amber-700">
           Booking cần ở trạng thái{" "}
-          <span className="font-black">Đã thanh toán đủ</span> thì mới chat
+          <span className="font-black">Đã thanh toán cọc</span> thì mới chat
           được.
         </div>
       )}
@@ -894,7 +901,7 @@ function NoMessageState({ canChat }: { canChat: boolean }) {
         <p className="mt-2 max-w-[430px] text-[13px] font-semibold leading-6 text-[#64748b]">
           {canChat
             ? "Bạn có thể bắt đầu cuộc trò chuyện đầu tiên tại đây."
-            : "Sau khi booking thanh toán đủ, khách và photographer có thể trao đổi tại đây."}
+            : "Sau khi khách thanh toán cọc, khách và photographer có thể trao đổi tại đây."}
         </p>
       </div>
     </div>
