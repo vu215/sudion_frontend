@@ -1,20 +1,1731 @@
-export default function PhotographerMessagesPage() {
+"use client";
+
+import Link from "next/link";
+import {
+  Suspense,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useAuth } from "@/app/auth-context";
+import { useToast } from "@/app/toast-context";
+
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+
+const AUTO_REFRESH_MS = 3000;
+const HISTORY_REFRESH_MS = 8000;
+
+const CHAT_OPEN_STATUSES = ["confirmed", "completed", "fully_paid"];
+
+type UserRole = "customer" | "photographer";
+
+type BookingStatus =
+  | "awaiting_payment"
+  | "accepted"
+  | "confirmed"
+  | "completed"
+  | "fully_paid"
+  | "rejected"
+  | "cancelled"
+  | string;
+
+type BackendBooking = {
+  id: number;
+  booking_code: string;
+  photographer_id: string;
+  photographer_name: string;
+  service_name: string;
+  shoot_date: string | null;
+  shoot_time: string | null;
+  status: BookingStatus;
+  customer_full_name: string;
+  customer_email: string;
+  customer_phone: string;
+  created_at?: string;
+  updated_at?: string;
+};
+
+type ChatMessage = {
+  id: number;
+  booking_code: string;
+  sender_id: string | null;
+  sender_name: string;
+  sender_role: "customer" | "photographer" | string;
+  receiver_id: string | null;
+  message: string;
+  is_read: number;
+  created_at: string;
+};
+
+type ApiResponse<T> = {
+  success: boolean;
+  message: string;
+  data: T;
+  error?: unknown;
+  pagination?: unknown;
+};
+
+type StatusInfo = {
+  label: string;
+  description: string;
+  className: string;
+  dot: string;
+};
+
+const statusTabs = [
+  { id: "all", label: "Tất cả" },
+  { id: "awaiting_payment", label: "Chờ xác nhận" },
+  { id: "accepted", label: "Chờ khách cọc" },
+  { id: "confirmed", label: "Đã cọc" },
+  { id: "completed", label: "Chờ trả còn lại" },
+  { id: "fully_paid", label: "Đã thanh toán đủ" },
+  { id: "rejected", label: "Từ chối" },
+  { id: "cancelled", label: "Đã hủy" },
+];
+
+const statusMap: Record<string, StatusInfo> = {
+  awaiting_payment: {
+    label: "Chờ photographer xác nhận",
+    description: "Photographer chưa xác nhận lịch nên chưa thể chat.",
+    className: "border-amber-200 bg-amber-50 text-amber-700",
+    dot: "bg-amber-500",
+  },
+  accepted: {
+    label: "Chờ khách thanh toán cọc",
+    description:
+      "Photographer đã xác nhận. Khách cần thanh toán cọc để mở chat.",
+    className: "border-blue-200 bg-blue-50 text-blue-700",
+    dot: "bg-blue-500",
+  },
+  confirmed: {
+    label: "Đã thanh toán cọc",
+    description:
+      "Booking đã được giữ lịch. Chat đã mở để khách và photographer trao đổi.",
+    className: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    dot: "bg-emerald-500",
+  },
+  completed: {
+    label: "Chờ khách thanh toán phần còn lại",
+    description:
+      "Buổi chụp đã hoàn thành. Chat vẫn mở để hai bên trao đổi.",
+    className: "border-purple-200 bg-purple-50 text-purple-700",
+    dot: "bg-purple-500",
+  },
+  fully_paid: {
+    label: "Đã thanh toán đủ",
+    description: "Chat đang mở. Hai bên có thể trao đổi tại đây.",
+    className: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    dot: "bg-emerald-500",
+  },
+  rejected: {
+    label: "Photographer đã từ chối",
+    description: "Booking bị từ chối nên không thể mở chat.",
+    className: "border-red-200 bg-red-50 text-red-700",
+    dot: "bg-red-500",
+  },
+  cancelled: {
+    label: "Đã hủy",
+    description: "Booking đã hủy nên không thể mở chat.",
+    className: "border-slate-200 bg-slate-50 text-slate-600",
+    dot: "bg-slate-400",
+  },
+};
+
+function getStatusInfo(status: string): StatusInfo {
   return (
-    <main className="px-6 py-7 lg:px-8 xl:px-10">
-      <div className="mx-auto max-w-[1080px] space-y-6 pb-10">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-[#1a1a2e]">Tin nhắn</h1>
-            <p className="mt-1 text-sm text-slate-500">Danh sách liên hệ và tin nhắn từ khách hàng.</p>
+    statusMap[status] || {
+      label: status,
+      description: "Trạng thái booking hiện tại.",
+      className: "border-slate-200 bg-slate-50 text-slate-600",
+      dot: "bg-slate-400",
+    }
+  );
+}
+
+function canChatByStatus(status?: string | null) {
+  return CHAT_OPEN_STATUSES.includes(String(status || ""));
+}
+
+function formatDate(value: string | null | undefined) {
+  if (!value) return "Chưa chọn";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleDateString("vi-VN");
+}
+
+function formatTime(value: string | null | undefined) {
+  if (!value) return "Chưa chọn";
+  return String(value).slice(0, 5);
+}
+
+function formatDateTime(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleString("vi-VN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+}
+
+function findDeepValue(obj: any, keys: string[]): string {
+  if (!obj || typeof obj !== "object") return "";
+
+  for (const key of keys) {
+    const value = obj?.[key];
+
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+
+    if (typeof value === "number") {
+      return String(value);
+    }
+  }
+
+  for (const value of Object.values(obj)) {
+    if (value && typeof value === "object") {
+      const found = findDeepValue(value, keys);
+      if (found) return found;
+    }
+  }
+
+  return "";
+}
+
+function readAllLocalStorageObjects() {
+  if (typeof window === "undefined") return [];
+
+  const result: any[] = [];
+
+  for (let index = 0; index < window.localStorage.length; index += 1) {
+    const key = window.localStorage.key(index);
+    if (!key) continue;
+
+    const raw = window.localStorage.getItem(key);
+    if (!raw) continue;
+
+    result.push({
+      key,
+      raw,
+    });
+
+    try {
+      result.push({
+        key,
+        raw,
+        parsed: JSON.parse(raw),
+      });
+    } catch {
+      // bỏ qua string thường
+    }
+  }
+
+  return result;
+}
+
+function getDirectStorageValue(keys: string[]) {
+  if (typeof window === "undefined") return "";
+
+  for (const key of keys) {
+    const value = window.localStorage.getItem(key);
+    if (value) return value;
+  }
+
+  return "";
+}
+
+function getAuthToken() {
+  if (typeof window === "undefined") return "";
+
+  const directValue = getDirectStorageValue([
+    "sudion_token",
+    "sudion_auth_token",
+    "sudion_access_token",
+    "auth_token",
+    "access_token",
+    "token",
+    "accessToken",
+    "jwt",
+  ]);
+
+  if (directValue) return directValue;
+
+  const allItems = readAllLocalStorageObjects();
+
+  for (const item of allItems) {
+    if (typeof item.raw === "string") {
+      const raw = item.raw.trim();
+
+      if (raw.startsWith("eyJ") && raw.split(".").length === 3) {
+        return raw;
+      }
+    }
+
+    if (item.parsed) {
+      const token = findDeepValue(item.parsed, [
+        "token",
+        "accessToken",
+        "access_token",
+        "authToken",
+        "jwt",
+      ]);
+
+      if (token) return token;
+    }
+  }
+
+  return "";
+}
+
+function getStoredRole() {
+  const directRole = getDirectStorageValue(["role", "user_role", "sudion_role"]);
+
+  if (directRole) return directRole;
+
+  const allItems = readAllLocalStorageObjects();
+
+  for (const item of allItems) {
+    if (!item.parsed) continue;
+
+    const role = findDeepValue(item.parsed, ["role", "user_role"]);
+    if (role) return role;
+  }
+
+  return "";
+}
+
+function getStoredEmail() {
+  const directEmail = getDirectStorageValue([
+    "email",
+    "user_email",
+    "sudion_email",
+    "sudion_booking_email",
+  ]);
+
+  if (directEmail) return directEmail;
+
+  const allItems = readAllLocalStorageObjects();
+
+  for (const item of allItems) {
+    if (!item.parsed) continue;
+
+    const email = findDeepValue(item.parsed, [
+      "email",
+      "user_email",
+      "customer_email",
+    ]);
+
+    if (email) return email;
+  }
+
+  return "";
+}
+
+function getStoredFullName() {
+  const directName = getDirectStorageValue([
+    "fullName",
+    "full_name",
+    "name",
+    "user_name",
+  ]);
+
+  if (directName) return directName;
+
+  const allItems = readAllLocalStorageObjects();
+
+  for (const item of allItems) {
+    if (!item.parsed) continue;
+
+    const name = findDeepValue(item.parsed, [
+      "fullName",
+      "full_name",
+      "name",
+      "user_name",
+    ]);
+
+    if (name) return name;
+  }
+
+  return "";
+}
+
+function getStoredUserId() {
+  const directUserId = getDirectStorageValue([
+    "userId",
+    "user_id",
+    "sudion_user_id",
+    "id",
+  ]);
+
+  if (directUserId) return directUserId;
+
+  const allItems = readAllLocalStorageObjects();
+
+  for (const item of allItems) {
+    if (!item.parsed) continue;
+
+    const id = findDeepValue(item.parsed, ["userId", "user_id", "id"]);
+    if (id) return id;
+  }
+
+  return "";
+}
+
+function getStoredPhotographerId() {
+  const directId = getDirectStorageValue([
+    "sudion_photographer_id",
+    "photographerId",
+    "photographer_id",
+    "photographerRecordId",
+    "photographer_record_id",
+  ]);
+
+  if (directId) return directId;
+
+  const allItems = readAllLocalStorageObjects();
+
+  for (const item of allItems) {
+    if (!item.parsed) continue;
+
+    const photographerId = findDeepValue(item.parsed, [
+      "photographerId",
+      "photographer_id",
+      "photographerRecordId",
+      "photographer_record_id",
+    ]);
+
+    if (photographerId) return photographerId;
+
+    const role = findDeepValue(item.parsed, ["role", "user_role"]);
+    const userId = findDeepValue(item.parsed, ["userId", "user_id", "id"]);
+
+    if (userId && String(role).toLowerCase().includes("photographer")) {
+      return userId;
+    }
+  }
+
+  return "";
+}
+
+function authHeaders(): HeadersInit {
+  const token = getAuthToken();
+
+  return {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+}
+
+function getSessionRole(session: any): UserRole {
+  const rawRole = String(session?.role || getStoredRole() || "").toLowerCase();
+
+  if (rawRole.includes("photographer")) return "photographer";
+  if (rawRole.includes("photo")) return "photographer";
+
+  return "customer";
+}
+
+function getSessionEmail(session: any) {
+  return (
+    session?.email ||
+    session?.user?.email ||
+    session?.data?.email ||
+    getStoredEmail() ||
+    ""
+  );
+}
+
+function getSessionFullName(session: any, role: UserRole) {
+  return (
+    session?.fullName ||
+    session?.full_name ||
+    session?.name ||
+    session?.user?.fullName ||
+    session?.user?.full_name ||
+    getStoredFullName() ||
+    (role === "photographer" ? "Photographer" : "Khách hàng")
+  );
+}
+
+function getSessionUserId(session: any) {
+  return (
+    session?.userId ||
+    session?.user_id ||
+    session?.id ||
+    session?.user?.id ||
+    session?.user?.userId ||
+    getStoredUserId() ||
+    ""
+  );
+}
+
+function getSessionPhotographerId(session: any) {
+  return (
+    session?.photographerId ||
+    session?.photographer_id ||
+    session?.photographerRecordId ||
+    session?.photographer_record_id ||
+    session?.user?.photographerId ||
+    session?.user?.photographer_id ||
+    getStoredPhotographerId() ||
+    ""
+  );
+}
+
+function normalizeBooking(raw: any): BackendBooking | null {
+  if (!raw || typeof raw !== "object") return null;
+
+  const bookingCode = String(
+    raw.booking_code ||
+      raw.bookingCode ||
+      raw.code ||
+      raw.id ||
+      raw.booking_id ||
+      ""
+  ).trim();
+
+  if (!bookingCode) return null;
+
+  return {
+    id: Number(raw.id || raw.booking_id || 0),
+    booking_code: bookingCode,
+
+    photographer_id: String(
+      raw.photographer_id ||
+        raw.photographerId ||
+        raw.photographer_user_id ||
+        ""
+    ),
+    photographer_name:
+      raw.photographer_name ||
+      raw.photographerName ||
+      raw.photographer_full_name ||
+      "Photographer",
+
+    service_name:
+      raw.service_name ||
+      raw.serviceName ||
+      raw.service ||
+      raw.package_name ||
+      "Dịch vụ chụp ảnh",
+
+    shoot_date: raw.shoot_date || raw.shootDate || raw.booking_date || null,
+    shoot_time: raw.shoot_time || raw.shootTime || raw.time || null,
+
+    status: raw.status || "awaiting_payment",
+
+    customer_full_name:
+      raw.customer_full_name ||
+      raw.customerFullName ||
+      raw.customer_name ||
+      raw.full_name ||
+      raw.name ||
+      "Khách hàng",
+
+    customer_email:
+      raw.customer_email ||
+      raw.customerEmail ||
+      raw.email ||
+      raw.user_email ||
+      "",
+
+    customer_phone:
+      raw.customer_phone ||
+      raw.customerPhone ||
+      raw.phone ||
+      raw.customer_tel ||
+      "",
+
+    created_at: raw.created_at || raw.createdAt || "",
+    updated_at: raw.updated_at || raw.updatedAt || "",
+  };
+}
+
+function normalizeBookingList(input: any): BackendBooking[] {
+  const candidates = [
+    input,
+    input?.data,
+    input?.data?.data,
+    input?.data?.bookings,
+    input?.data?.items,
+    input?.data?.rows,
+    input?.bookings,
+    input?.items,
+    input?.rows,
+  ];
+
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) {
+      return candidate
+        .map((item) => normalizeBooking(item))
+        .filter(Boolean) as BackendBooking[];
+    }
+  }
+
+  return [];
+}
+
+async function fetchBookingListFromEndpoints(endpoints: string[]) {
+  let lastMessage = "";
+
+  for (const endpoint of endpoints) {
+    try {
+      const response = await fetch(`${API_URL}${endpoint}`, {
+        method: "GET",
+        headers: authHeaders(),
+        cache: "no-store",
+      });
+
+      const json = await response.json().catch(() => null);
+
+      if (response.ok && json?.success !== false) {
+        return normalizeBookingList(json);
+      }
+
+      lastMessage = json?.message || `Không gọi được API ${endpoint}.`;
+    } catch (error) {
+      lastMessage =
+        error instanceof Error
+          ? error.message
+          : `Không gọi được API ${endpoint}.`;
+    }
+  }
+
+  throw new Error(lastMessage || "Không thể lấy lịch sử chat.");
+}
+
+async function getBookingHistoryForCurrentUser(role: UserRole, session: any) {
+  const endpoints: string[] = [];
+  const token = getAuthToken();
+
+  if (role === "photographer") {
+    if (token) {
+      endpoints.push("/bookings/photographer/me");
+    }
+
+    const photographerId = getSessionPhotographerId(session);
+
+    if (photographerId) {
+      endpoints.push(
+        `/bookings/photographer/${encodeURIComponent(photographerId)}`
+      );
+    }
+
+    if (!endpoints.length) {
+      throw new Error("Vui lòng đăng nhập bằng tài khoản photographer.");
+    }
+
+    return fetchBookingListFromEndpoints(endpoints);
+  }
+
+  const email = getSessionEmail(session);
+
+  if (token) {
+    endpoints.push("/bookings/customer/me");
+    endpoints.push("/bookings/me");
+  }
+
+  if (email) {
+    endpoints.push(`/bookings/customer/${encodeURIComponent(email)}`);
+    endpoints.push(`/bookings/customer?email=${encodeURIComponent(email)}`);
+    endpoints.push(`/bookings?customer_email=${encodeURIComponent(email)}`);
+    endpoints.push(`/bookings?email=${encodeURIComponent(email)}`);
+  }
+
+  if (!endpoints.length) {
+    throw new Error("Vui lòng đăng nhập để xem lịch sử chat.");
+  }
+
+  return fetchBookingListFromEndpoints(endpoints);
+}
+
+async function getBooking(bookingCode: string) {
+  const response = await fetch(
+    `${API_URL}/bookings/${encodeURIComponent(bookingCode)}`,
+    {
+      method: "GET",
+      headers: authHeaders(),
+      cache: "no-store",
+    }
+  );
+
+  const json: ApiResponse<BackendBooking> = await response.json();
+
+  if (!response.ok || !json.success) {
+    throw new Error(json.message || "Không thể lấy thông tin booking.");
+  }
+
+  return normalizeBooking(json.data) || json.data;
+}
+
+async function getMessages(bookingCode: string) {
+  const response = await fetch(
+    `${API_URL}/messages/${encodeURIComponent(bookingCode)}`,
+    {
+      method: "GET",
+      headers: authHeaders(),
+      cache: "no-store",
+    }
+  );
+
+  const json: ApiResponse<ChatMessage[]> = await response.json();
+
+  if (!response.ok || !json.success) {
+    throw new Error(json.message || "Không thể lấy tin nhắn.");
+  }
+
+  return json.data || [];
+}
+
+async function sendMessage(payload: {
+  bookingCode: string;
+  senderId: string;
+  senderName: string;
+  senderRole: "customer" | "photographer";
+  receiverId?: string | null;
+  message: string;
+}) {
+  const response = await fetch(`${API_URL}/messages`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify(payload),
+  });
+
+  const json: ApiResponse<ChatMessage> = await response.json();
+
+  if (!response.ok || !json.success) {
+    throw new Error(json.message || "Không thể gửi tin nhắn.");
+  }
+
+  return json.data;
+}
+
+export default function MessagesPage() {
+  return (
+    <Suspense fallback={<LoadingScreen />}>
+      <MessagesContent />
+    </Suspense>
+  );
+}
+
+function MessagesContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const toast = useToast();
+  const { session } = useAuth();
+
+  const queryBookingCode = searchParams.get("booking") || "";
+
+  const [activeBookingCode, setActiveBookingCode] = useState(queryBookingCode);
+
+  const [bookingHistory, setBookingHistory] = useState<BackendBooking[]>([]);
+  const [historyQuery, setHistoryQuery] = useState("");
+  const [historyStatus, setHistoryStatus] = useState("all");
+
+  const [booking, setBooking] = useState<BackendBooking | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+
+  const [messageText, setMessageText] = useState("");
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [chatLoading, setChatLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [pageError, setPageError] = useState("");
+
+  const bottomRef = useRef<HTMLDivElement | null>(null);
+
+  const currentRole = getSessionRole(session);
+  const senderName = getSessionFullName(session, currentRole);
+
+  const senderId =
+    currentRole === "photographer"
+      ? getSessionPhotographerId(session) ||
+        getSessionUserId(session) ||
+        "photographer"
+      : getSessionEmail(session) || getSessionUserId(session) || "guest";
+
+  const canChat = canChatByStatus(booking?.status);
+
+  const statusInfo = useMemo(() => {
+    return getStatusInfo(booking?.status || "awaiting_payment");
+  }, [booking?.status]);
+
+  const otherSideName = useMemo(() => {
+    if (!booking) return "";
+
+    return currentRole === "photographer"
+      ? booking.customer_full_name
+      : booking.photographer_name;
+  }, [booking, currentRole]);
+
+  const receiverId = useMemo(() => {
+    if (!booking) return null;
+
+    return currentRole === "photographer"
+      ? booking.customer_email
+      : booking.photographer_id;
+  }, [booking, currentRole]);
+
+  const filteredHistory = useMemo(() => {
+    const search = historyQuery.trim().toLowerCase();
+
+    return bookingHistory.filter((item) => {
+      const matchStatus =
+        historyStatus === "all" || String(item.status) === historyStatus;
+
+      const haystack = [
+        item.booking_code,
+        item.service_name,
+        item.photographer_name,
+        item.customer_full_name,
+        item.customer_email,
+        item.customer_phone,
+        getStatusInfo(String(item.status)).label,
+      ]
+        .join(" ")
+        .toLowerCase();
+
+      const matchSearch = !search || haystack.includes(search);
+
+      return matchStatus && matchSearch;
+    });
+  }, [bookingHistory, historyQuery, historyStatus]);
+
+  async function openBookingChat(bookingCode: string, replace = false) {
+    const code = bookingCode.trim();
+    if (!code) return;
+
+    setActiveBookingCode(code);
+
+    const url = `/messages?booking=${encodeURIComponent(code)}`;
+
+    if (replace) {
+      router.replace(url);
+    } else {
+      router.push(url);
+    }
+  }
+
+  async function loadHistory(autoOpen = true) {
+    try {
+      setHistoryLoading(true);
+      setPageError("");
+
+      const data = await getBookingHistoryForCurrentUser(currentRole, session);
+
+      setBookingHistory(data);
+
+      const queryCode = queryBookingCode.trim();
+      const currentCode = activeBookingCode.trim();
+
+      if (autoOpen && !queryCode && !currentCode && data[0]?.booking_code) {
+        await openBookingChat(data[0].booking_code, true);
+      }
+    } catch (error) {
+      console.error("Lỗi tải lịch sử chat:", error);
+
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Không thể tải lịch sử chat.";
+
+      setPageError(message);
+      setBookingHistory([]);
+    } finally {
+      setHistoryLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    setActiveBookingCode(queryBookingCode);
+  }, [queryBookingCode]);
+
+  useEffect(() => {
+    void loadHistory(true);
+
+    const timer = window.setInterval(() => {
+      void loadHistory(false);
+    }, HISTORY_REFRESH_MS);
+
+    return () => window.clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentRole, session?.email, session?.userId, session?.photographerId]);
+
+  useEffect(() => {
+    if (!activeBookingCode) {
+      setBooking(null);
+      setMessages([]);
+      return;
+    }
+
+    let ignore = false;
+
+    async function loadData(showLoading = true) {
+      try {
+        if (showLoading) {
+          setChatLoading(true);
+        } else {
+          setRefreshing(true);
+        }
+
+        setPageError("");
+
+        const [bookingData, messageData] = await Promise.all([
+          getBooking(activeBookingCode),
+          getMessages(activeBookingCode),
+        ]);
+
+        if (ignore) return;
+
+        setBooking(bookingData);
+        setMessages(messageData);
+      } catch (error) {
+        if (ignore) return;
+
+        console.error("Lỗi tải chat:", error);
+
+        if (showLoading) {
+          setBooking(null);
+          setMessages([]);
+
+          const message =
+            error instanceof Error
+              ? error.message
+              : "Không thể tải phòng chat.";
+
+          setPageError(message);
+          toast.error("Không thể tải phòng chat", message);
+        }
+      } finally {
+        if (!ignore) {
+          setChatLoading(false);
+          setRefreshing(false);
+        }
+      }
+    }
+
+    void loadData(true);
+
+    const timer = window.setInterval(() => {
+      void loadData(false);
+    }, AUTO_REFRESH_MS);
+
+    return () => {
+      ignore = true;
+      window.clearInterval(timer);
+    };
+  }, [activeBookingCode, toast]);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages.length]);
+
+  async function handleSend(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!booking) {
+      setPageError("Chưa có booking để gửi tin nhắn.");
+      toast.warning("Chưa có booking", "Vui lòng chọn booking trước khi chat.");
+      return;
+    }
+
+    if (!canChat) {
+      setPageError("Chỉ có thể chat sau khi khách đã thanh toán cọc.");
+      toast.warning(
+        "Chat chưa mở",
+        "Khách cần thanh toán cọc trước khi nhắn tin."
+      );
+      return;
+    }
+
+    const cleanMessage = messageText.trim();
+
+    if (!cleanMessage) {
+      setPageError("Vui lòng nhập nội dung tin nhắn.");
+      return;
+    }
+
+    try {
+      setSending(true);
+      setPageError("");
+
+      const newMessage = await sendMessage({
+        bookingCode: booking.booking_code,
+        senderId: String(senderId),
+        senderName,
+        senderRole: currentRole,
+        receiverId,
+        message: cleanMessage,
+      });
+
+      setMessages((current) => [...current, newMessage]);
+      setMessageText("");
+
+      toast.success("Đã gửi tin nhắn", "Tin nhắn của bạn đã được gửi.");
+    } catch (error) {
+      console.error("Lỗi gửi tin nhắn:", error);
+
+      const message =
+        error instanceof Error ? error.message : "Không thể gửi tin nhắn.";
+
+      setPageError(message);
+      toast.error("Gửi tin nhắn thất bại", message);
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <main className="min-h-screen bg-[#f8fafc] text-[#0f172a]">
+      <section className="mx-auto w-full max-w-[1380px] px-5 py-10 sm:px-6 lg:px-8 lg:py-14">
+        <div className="overflow-hidden rounded-[32px] border border-[#e2e8f0] bg-white shadow-[0_24px_80px_rgba(15,23,42,0.07)]">
+          <ChatTopHeader
+            currentRole={currentRole}
+            senderName={senderName}
+            activeBookingCode={activeBookingCode}
+            historyCount={bookingHistory.length}
+            onRefresh={() => void loadHistory(false)}
+            historyLoading={historyLoading}
+          />
+
+          {booking ? (
+            <BookingInfoBar
+              booking={booking}
+              otherSideName={otherSideName}
+              statusInfo={statusInfo}
+              refreshing={refreshing}
+            />
+          ) : null}
+
+          <div className="grid gap-5 px-5 py-6 sm:px-6 lg:grid-cols-[360px_minmax(0,1fr)] lg:px-8">
+            <HistoryPanel
+              bookings={filteredHistory}
+              allBookings={bookingHistory}
+              activeBookingCode={activeBookingCode}
+              loading={historyLoading}
+              query={historyQuery}
+              status={historyStatus}
+              currentRole={currentRole}
+              onQueryChange={setHistoryQuery}
+              onStatusChange={setHistoryStatus}
+              onSelectBooking={(code) => void openBookingChat(code)}
+              onRefresh={() => void loadHistory(false)}
+            />
+
+            <div className="min-w-0">
+              {pageError ? (
+                <div className="mb-4 rounded-[18px] border border-red-200 bg-red-50 px-4 py-3 text-[13px] font-bold text-red-600">
+                  {pageError}
+                </div>
+              ) : null}
+
+              {!activeBookingCode ? (
+                <EmptyChatState hasHistory={bookingHistory.length > 0} />
+              ) : chatLoading ? (
+                <ChatSkeleton />
+              ) : !booking ? (
+                <EmptyChatState hasHistory={bookingHistory.length > 0} />
+              ) : (
+                <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_330px]">
+                  <section className="overflow-hidden rounded-[26px] border border-[#e2e8f0] bg-white">
+                    <ChatHeader
+                      otherSideName={otherSideName}
+                      currentRole={currentRole}
+                      canChat={canChat}
+                      refreshing={refreshing}
+                    />
+
+                    <div className="h-[560px] overflow-y-auto bg-[#f8fafc] px-4 py-5 sm:px-5">
+                      {messages.length === 0 ? (
+                        <NoMessageState canChat={canChat} />
+                      ) : (
+                        <div className="grid gap-3">
+                          {messages.map((item) => {
+                            const isMine =
+                              item.sender_role === currentRole &&
+                              (String(item.sender_id || "") ===
+                                String(senderId) ||
+                                item.sender_name === senderName);
+
+                            return (
+                              <MessageBubble
+                                key={item.id}
+                                message={item}
+                                isMine={isMine}
+                              />
+                            );
+                          })}
+
+                          <div ref={bottomRef} />
+                        </div>
+                      )}
+                    </div>
+
+                    <ChatComposer
+                      value={messageText}
+                      canChat={canChat}
+                      sending={sending}
+                      onChange={setMessageText}
+                      onSubmit={handleSend}
+                    />
+                  </section>
+
+                  <ChatSidebar
+                    booking={booking}
+                    statusInfo={statusInfo}
+                    canChat={canChat}
+                    currentRole={currentRole}
+                  />
+                </div>
+              )}
+            </div>
           </div>
         </div>
-
-        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="rounded-3xl border border-slate-200 bg-slate-50 p-6 text-center text-sm text-slate-600">
-            Chưa có tin nhắn mới. Tất cả hội thoại sẽ hiển thị ở đây.
-          </div>
-        </section>
-      </div>
+      </section>
     </main>
+  );
+}
+
+function ChatTopHeader({
+  currentRole,
+  senderName,
+  activeBookingCode,
+  historyCount,
+  historyLoading,
+  onRefresh,
+}: {
+  currentRole: UserRole;
+  senderName: string;
+  activeBookingCode: string;
+  historyCount: number;
+  historyLoading: boolean;
+  onRefresh: () => void;
+}) {
+  return (
+    <div className="relative overflow-hidden bg-[#111827] px-6 py-8 text-white sm:px-8 lg:px-10">
+      <div className="absolute right-[-110px] top-[-110px] h-[300px] w-[300px] rounded-full bg-[#ff8d28]/25 blur-3xl" />
+      <div className="absolute bottom-[-140px] left-[25%] h-[280px] w-[280px] rounded-full bg-white/10 blur-3xl" />
+
+      <div className="relative grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-end">
+        <div>
+          <p className="text-[12px] font-black uppercase tracking-[0.18em] text-[#ffb267]">
+            Booking messenger
+          </p>
+
+          <h1 className="mt-3 max-w-[760px] text-[34px] font-black leading-[1.05] tracking-[-0.04em] sm:text-[46px]">
+            Tin nhắn booking
+          </h1>
+
+          <p className="mt-4 max-w-[760px] text-[14px] font-medium leading-7 text-white/70">
+            Không cần nhập ID hay mã booking thủ công. Hệ thống tự lấy lịch sử
+            chat theo tài khoản đang đăng nhập.
+          </p>
+        </div>
+
+        <div className="rounded-[22px] border border-white/10 bg-white/10 p-4 backdrop-blur-md">
+          <p className="text-[12px] font-black uppercase tracking-[0.14em] text-white/70">
+            Tài khoản hiện tại
+          </p>
+
+          <div className="mt-3 grid gap-2 text-[13px] font-bold text-white/80">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-white/55">Tên</span>
+              <span className="max-w-[190px] truncate rounded-full bg-white/15 px-3 py-1 text-white">
+                {senderName}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-white/55">Vai trò</span>
+              <span className="rounded-full bg-[#ff8d28] px-3 py-1 text-white">
+                {currentRole === "photographer" ? "Photographer" : "Khách hàng"}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-white/55">Lịch sử</span>
+              <span className="rounded-full bg-white/15 px-3 py-1 text-white">
+                {historyCount} booking
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-white/55">Đang mở</span>
+              <span className="max-w-[180px] truncate rounded-full bg-white/15 px-3 py-1 text-white">
+                {activeBookingCode || "—"}
+              </span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={onRefresh}
+            disabled={historyLoading}
+            className="mt-4 w-full rounded-[14px] bg-[#ff8d28] px-4 py-3 text-[13px] font-black text-white shadow-[0_10px_24px_rgba(255,141,40,0.3)] transition-all hover:bg-[#e0751b] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {historyLoading ? "Đang tải..." : "Làm mới lịch sử"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function HistoryPanel({
+  bookings,
+  allBookings,
+  activeBookingCode,
+  loading,
+  query,
+  status,
+  currentRole,
+  onQueryChange,
+  onStatusChange,
+  onSelectBooking,
+  onRefresh,
+}: {
+  bookings: BackendBooking[];
+  allBookings: BackendBooking[];
+  activeBookingCode: string;
+  loading: boolean;
+  query: string;
+  status: string;
+  currentRole: UserRole;
+  onQueryChange: (value: string) => void;
+  onStatusChange: (value: string) => void;
+  onSelectBooking: (bookingCode: string) => void;
+  onRefresh: () => void;
+}) {
+  return (
+    <aside className="h-fit overflow-hidden rounded-[26px] border border-[#e2e8f0] bg-white">
+      <div className="border-b border-[#eef2f7] bg-[#fbfcff] px-5 py-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-[18px] font-black tracking-[-0.02em]">
+              Lịch sử chat
+            </h2>
+
+            <p className="mt-1 text-[12px] font-bold text-[#64748b]">
+              {currentRole === "photographer"
+                ? "Các booking khách đã đặt bạn"
+                : "Các booking bạn đã đặt"}
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={onRefresh}
+            className="rounded-full border border-[#e2e8f0] bg-white px-3 py-2 text-[11px] font-black text-[#64748b] hover:border-[#ffcfaa] hover:text-[#ff8d28]"
+          >
+            Refresh
+          </button>
+        </div>
+
+        <input
+          value={query}
+          onChange={(event) => onQueryChange(event.target.value)}
+          placeholder="Tìm booking, tên, email..."
+          className="mt-4 h-11 w-full rounded-[14px] border border-[#e2e8f0] bg-white px-4 text-[13px] font-bold outline-none transition focus:border-[#ff8d28]"
+        />
+
+        <select
+          value={status}
+          onChange={(event) => onStatusChange(event.target.value)}
+          className="mt-3 h-11 w-full rounded-[14px] border border-[#ffd2ad] bg-white px-4 text-[13px] font-bold text-[#ff8d28] outline-none transition focus:border-[#ff8d28]"
+        >
+          {statusTabs.map((tab) => (
+            <option key={tab.id} value={tab.id}>
+              {tab.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="max-h-[680px] overflow-y-auto p-3">
+        {loading ? (
+          <div className="grid gap-3">
+            {[1, 2, 3, 4].map((item) => (
+              <div
+                key={item}
+                className="h-[112px] animate-pulse rounded-[18px] bg-[#eef2f7]"
+              />
+            ))}
+          </div>
+        ) : allBookings.length === 0 ? (
+          <div className="rounded-[18px] border border-dashed border-[#dbe1ea] bg-[#fbfcff] px-4 py-8 text-center">
+            <p className="text-[15px] font-black text-[#0f172a]">
+              Chưa có lịch sử chat
+            </p>
+
+            <p className="mt-2 text-[12px] font-semibold leading-5 text-[#64748b]">
+              Khi có booking đủ điều kiện chat, lịch sử sẽ hiện ở đây.
+            </p>
+          </div>
+        ) : bookings.length === 0 ? (
+          <div className="rounded-[18px] border border-dashed border-[#dbe1ea] bg-[#fbfcff] px-4 py-8 text-center">
+            <p className="text-[15px] font-black text-[#0f172a]">
+              Không tìm thấy booking
+            </p>
+
+            <p className="mt-2 text-[12px] font-semibold leading-5 text-[#64748b]">
+              Thử đổi từ khóa hoặc trạng thái lọc.
+            </p>
+          </div>
+        ) : (
+          <div className="grid gap-3">
+            {bookings.map((booking) => {
+              const active = booking.booking_code === activeBookingCode;
+              const statusInfo = getStatusInfo(String(booking.status));
+              const chatOpen = canChatByStatus(booking.status);
+              const displayName =
+                currentRole === "photographer"
+                  ? booking.customer_full_name
+                  : booking.photographer_name;
+
+              return (
+                <button
+                  key={booking.booking_code}
+                  type="button"
+                  onClick={() => onSelectBooking(booking.booking_code)}
+                  className={`w-full rounded-[18px] border p-4 text-left transition ${
+                    active
+                      ? "border-[#ff8d28] bg-[#fff7ed] shadow-[0_12px_28px_rgba(255,141,40,0.12)]"
+                      : "border-[#e2e8f0] bg-white hover:border-[#ffcfaa] hover:bg-[#fffaf5]"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-[13px] font-black text-[#ff8d28]">
+                        {booking.booking_code}
+                      </p>
+
+                      <p className="mt-1 truncate text-[15px] font-black text-[#0f172a]">
+                        {displayName || "Không rõ tên"}
+                      </p>
+                    </div>
+
+                    <span
+                      className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-black ${
+                        chatOpen
+                          ? "bg-emerald-50 text-emerald-700"
+                          : "bg-amber-50 text-amber-700"
+                      }`}
+                    >
+                      {chatOpen ? "Mở" : "Khóa"}
+                    </span>
+                  </div>
+
+                  <p className="mt-2 truncate text-[12px] font-semibold text-[#64748b]">
+                    {booking.service_name}
+                  </p>
+
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <StatusBadge
+                      label={statusInfo.label}
+                      className={statusInfo.className}
+                      dot={statusInfo.dot}
+                    />
+
+                    <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-black text-slate-500">
+                      {formatDate(booking.shoot_date)}
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </aside>
+  );
+}
+
+function BookingInfoBar({
+  booking,
+  otherSideName,
+  statusInfo,
+  refreshing,
+}: {
+  booking: BackendBooking;
+  otherSideName: string;
+  statusInfo: StatusInfo;
+  refreshing: boolean;
+}) {
+  return (
+    <div className="grid gap-4 border-b border-[#eef2f7] bg-[#fbfcff] px-5 py-5 sm:grid-cols-2 lg:grid-cols-4 lg:px-8">
+      <InfoBox label="Mã booking" value={booking.booking_code} />
+      <InfoBox label="Đang chat với" value={otherSideName} />
+      <InfoBox label="Dịch vụ" value={booking.service_name} />
+
+      <div className="rounded-[18px] border border-[#eef2f7] bg-white p-4">
+        <p className="text-[11px] font-black uppercase tracking-[0.12em] text-[#94a3b8]">
+          Trạng thái
+        </p>
+
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <StatusBadge
+            label={statusInfo.label}
+            className={statusInfo.className}
+            dot={statusInfo.dot}
+          />
+
+          {refreshing ? (
+            <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-black text-slate-500">
+              Đang cập nhật
+            </span>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ChatHeader({
+  otherSideName,
+  currentRole,
+  canChat,
+  refreshing,
+}: {
+  otherSideName: string;
+  currentRole: UserRole;
+  canChat: boolean;
+  refreshing: boolean;
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[#eef2f7] bg-white px-5 py-4">
+      <div className="flex items-center gap-3">
+        <div className="grid h-11 w-11 place-items-center rounded-full bg-[#111827] text-[14px] font-black text-white">
+          {otherSideName ? otherSideName.charAt(0).toUpperCase() : "S"}
+        </div>
+
+        <div>
+          <h2 className="text-[18px] font-black tracking-[-0.02em]">
+            {otherSideName || "Cuộc trò chuyện"}
+          </h2>
+
+          <p className="mt-1 text-[12px] font-bold text-[#64748b]">
+            Bạn đang dùng vai trò:{" "}
+            {currentRole === "photographer" ? "Photographer" : "Khách hàng"}
+          </p>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2">
+        {refreshing ? (
+          <span className="rounded-full bg-slate-100 px-3 py-2 text-[11px] font-black text-slate-500">
+            Sync...
+          </span>
+        ) : null}
+
+        <span
+          className={`rounded-full px-3 py-2 text-[12px] font-black ${
+            canChat
+              ? "bg-emerald-50 text-emerald-700"
+              : "bg-amber-50 text-amber-700"
+          }`}
+        >
+          {canChat ? "Chat đang mở" : "Chat chưa mở"}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function ChatComposer({
+  value,
+  canChat,
+  sending,
+  onChange,
+  onSubmit,
+}: {
+  value: string;
+  canChat: boolean;
+  sending: boolean;
+  onChange: (value: string) => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+}) {
+  return (
+    <form onSubmit={onSubmit} className="border-t border-[#eef2f7] bg-white p-4">
+      <div className="flex gap-3">
+        <textarea
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder={
+            canChat
+              ? "Nhập tin nhắn..."
+              : "Chat chỉ mở sau khi khách thanh toán cọc"
+          }
+          disabled={!canChat || sending}
+          rows={1}
+          className="min-h-[50px] flex-1 resize-none rounded-[16px] border border-[#e2e8f0] bg-[#fbfcff] px-4 py-3 text-[14px] font-semibold leading-6 text-[#111827] outline-none transition focus:border-[#ff8d28] focus:bg-white disabled:cursor-not-allowed disabled:opacity-60"
+        />
+
+        <button
+          type="submit"
+          disabled={!canChat || sending}
+          className="rounded-[16px] bg-[#ff8d28] px-5 text-[13px] font-black text-white shadow-[0_10px_24px_rgba(255,141,40,0.22)] transition hover:bg-[#e0751b] disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {sending ? "Đang gửi" : "Gửi"}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function ChatSidebar({
+  booking,
+  statusInfo,
+  canChat,
+  currentRole,
+}: {
+  booking: BackendBooking;
+  statusInfo: StatusInfo;
+  canChat: boolean;
+  currentRole: UserRole;
+}) {
+  return (
+    <aside className="grid h-fit gap-4 rounded-[26px] border border-[#e2e8f0] bg-[#fbfcff] p-5">
+      <div>
+        <p className="text-[12px] font-black uppercase tracking-[0.16em] text-[#94a3b8]">
+          Thông tin lịch
+        </p>
+
+        <div className="mt-4 grid gap-3">
+          <InfoLine label="Ngày chụp" value={formatDate(booking.shoot_date)} />
+          <InfoLine label="Giờ chụp" value={formatTime(booking.shoot_time)} />
+          <InfoLine label="Khách hàng" value={booking.customer_full_name} />
+          <InfoLine label="Photographer" value={booking.photographer_name} />
+        </div>
+      </div>
+
+      <div className={`rounded-[18px] border p-4 ${statusInfo.className}`}>
+        <p className="text-[13px] font-black">{statusInfo.label}</p>
+        <p className="mt-2 text-[13px] font-semibold leading-6 opacity-90">
+          {statusInfo.description}
+        </p>
+      </div>
+
+      {canChat ? (
+        <div className="rounded-[18px] border border-emerald-200 bg-emerald-50 px-4 py-3 text-[13px] font-bold leading-6 text-emerald-700">
+          Chat đang mở. Hai bên có thể trao đổi sau khi khách đã thanh toán cọc.
+        </div>
+      ) : (
+        <div className="rounded-[18px] border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] font-bold leading-6 text-amber-700">
+          Booking cần ở trạng thái{" "}
+          <span className="font-black">Đã thanh toán cọc</span> thì mới chat
+          được.
+        </div>
+      )}
+
+      <div className="grid gap-2">
+        {currentRole === "photographer" ? (
+          <Link
+            href="/profilephotographer/bookings"
+            className="rounded-[14px] border border-[#e2e8f0] bg-white px-4 py-3 text-center text-[13px] font-black text-[#334155] transition hover:border-[#ffcfaa] hover:text-[#ff8d28]"
+          >
+            Về lịch đặt của tôi
+          </Link>
+        ) : (
+          <Link
+            href="/bookings"
+            className="rounded-[14px] border border-[#e2e8f0] bg-white px-4 py-3 text-center text-[13px] font-black text-[#334155] transition hover:border-[#ffcfaa] hover:text-[#ff8d28]"
+          >
+            Về booking của tôi
+          </Link>
+        )}
+
+        <Link
+          href="/photographer"
+          className="rounded-[14px] border border-[#e2e8f0] bg-white px-4 py-3 text-center text-[13px] font-black text-[#334155] transition hover:border-[#ffcfaa] hover:text-[#ff8d28]"
+        >
+          Danh sách photographer
+        </Link>
+      </div>
+    </aside>
+  );
+}
+
+function MessageBubble({
+  message,
+  isMine,
+}: {
+  message: ChatMessage;
+  isMine: boolean;
+}) {
+  return (
+    <div className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
+      <div
+        className={`max-w-[82%] rounded-[20px] px-4 py-3 shadow-sm ${
+          isMine
+            ? "rounded-br-[7px] bg-[#ff8d28] text-white"
+            : "rounded-bl-[7px] border border-[#e2e8f0] bg-white text-[#0f172a]"
+        }`}
+      >
+        <div className="mb-1 flex flex-wrap items-center gap-2">
+          <span
+            className={`text-[11px] font-black ${
+              isMine ? "text-white/90" : "text-[#ff8d28]"
+            }`}
+          >
+            {message.sender_name}
+          </span>
+
+          <span
+            className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+              isMine
+                ? "bg-white/15 text-white/70"
+                : "bg-slate-100 text-[#94a3b8]"
+            }`}
+          >
+            {message.sender_role === "photographer"
+              ? "Photographer"
+              : "Khách hàng"}
+          </span>
+        </div>
+
+        <p className="whitespace-pre-line break-words text-[14px] font-semibold leading-6">
+          {message.message}
+        </p>
+
+        <p
+          className={`mt-2 text-right text-[10px] font-bold ${
+            isMine ? "text-white/70" : "text-[#94a3b8]"
+          }`}
+        >
+          {formatDateTime(message.created_at)}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function StatusBadge({
+  label,
+  className,
+  dot,
+}: {
+  label: string;
+  className: string;
+  dot: string;
+}) {
+  return (
+    <span
+      className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-black ${className}`}
+    >
+      <span className={`h-2 w-2 rounded-full ${dot}`} />
+      {label}
+    </span>
+  );
+}
+
+function InfoBox({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-[18px] border border-[#eef2f7] bg-white p-4">
+      <p className="text-[11px] font-black uppercase tracking-[0.12em] text-[#94a3b8]">
+        {label}
+      </p>
+
+      <p className="mt-2 break-words text-[14px] font-black text-[#0f172a]">
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function InfoLine({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-start justify-between gap-3 rounded-[14px] bg-white px-4 py-3">
+      <span className="text-[12px] font-bold text-[#64748b]">{label}</span>
+
+      <span className="text-right text-[12px] font-black text-[#0f172a]">
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function NoMessageState({ canChat }: { canChat: boolean }) {
+  return (
+    <div className="grid h-full place-items-center text-center">
+      <div>
+        <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-white text-[22px] font-black text-[#ff8d28] shadow-sm">
+          💬
+        </div>
+
+        <p className="mt-4 text-[18px] font-black text-[#0f172a]">
+          Chưa có tin nhắn
+        </p>
+
+        <p className="mt-2 max-w-[430px] text-[13px] font-semibold leading-6 text-[#64748b]">
+          {canChat
+            ? "Bạn có thể bắt đầu cuộc trò chuyện đầu tiên tại đây."
+            : "Sau khi khách thanh toán cọc, khách và photographer có thể trao đổi tại đây."}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function EmptyChatState({ hasHistory }: { hasHistory: boolean }) {
+  return (
+    <div className="rounded-[24px] border border-dashed border-[#dbe1ea] bg-[#fbfcff] px-6 py-16 text-center">
+      <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-white text-[22px] font-black text-[#ff8d28] shadow-sm">
+        BK
+      </div>
+
+      <p className="mt-4 text-[18px] font-black text-[#0f172a]">
+        {hasHistory
+          ? "Chọn một booking bên trái để mở chat"
+          : "Chưa có lịch sử chat"}
+      </p>
+
+      <p className="mx-auto mt-2 max-w-[520px] text-[14px] font-semibold leading-6 text-[#64748b]">
+        {hasHistory
+          ? "Lịch sử chat của bạn nằm ở cột bên trái. Bấm vào booking để xem tin nhắn."
+          : "Khi có booking đủ điều kiện chat, cuộc trò chuyện sẽ hiện tại đây."}
+      </p>
+    </div>
+  );
+}
+
+function LoadingScreen() {
+  return (
+    <main className="min-h-screen bg-[#f8fafc] px-5 py-12">
+      <section className="mx-auto max-w-[1380px]">
+        <div className="overflow-hidden rounded-[32px] border border-[#e2e8f0] bg-white shadow-[0_24px_80px_rgba(15,23,42,0.07)]">
+          <div className="h-[250px] animate-pulse bg-[#111827]" />
+
+          <div className="grid gap-5 p-6 lg:grid-cols-[360px_minmax(0,1fr)] sm:p-8">
+            <div className="h-[680px] animate-pulse rounded-[26px] bg-[#eef2f7]" />
+            <div className="h-[680px] animate-pulse rounded-[26px] bg-[#eef2f7]" />
+          </div>
+        </div>
+      </section>
+    </main>
+  );
+}
+
+function ChatSkeleton() {
+  return (
+    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_330px]">
+      <div className="h-[660px] animate-pulse rounded-[26px] bg-[#eef2f7]" />
+      <div className="h-[420px] animate-pulse rounded-[26px] bg-[#eef2f7]" />
+    </div>
   );
 }
