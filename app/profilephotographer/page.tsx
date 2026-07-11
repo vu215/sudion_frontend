@@ -1,9 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useAuth } from "@/app/auth-context";
+import { useToast } from "@/app/toast-context";
 
-/* ─── mock data ─────────────────────────────────────────────── */
-const defaultPerson = {
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+
+function authHeaders() {
+  const token = typeof window !== "undefined" ? window.localStorage.getItem("sudion_token") : null;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+/* ─── default empty-state content ───────────────────────────── */
+const defaultProfileContent = {
   id: "markus-andersen",
   name: "Markus Andersen",
   title: "Nhiếp ảnh gia Thương mại & Kiến trúc",
@@ -17,36 +26,6 @@ const defaultPerson = {
     "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?auto=format&fit=crop&w=900&q=80",
     "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=600&q=80",
     "https://images.unsplash.com/photo-1519125323398-675f0ddb6308?auto=format&fit=crop&w=600&q=80",
-  ],
-  services: [
-    {
-      id: "s1",
-      tag: "Cơ bản",
-      tagColor: "bg-[#e8f5e9] text-[#2e7d32]",
-      name: "Chụp ảnh Bất động sản Cao cấp",
-      price: "$450",
-      unit: "/buổi",
-      desc: "Gói tiêu chuẩn bao gồm 20 ảnh đã qua chỉnh sửa kỹ lưỡng, phù hợp cho căn hộ cao cấp hoặc biệt thự. Thời gian...",
-      delivery: "Giao file trong 48h",
-      deliveryColor: "text-green-600",
-      status: "Đang hoạt động",
-      statusColor: "text-green-600",
-      statusDot: "bg-green-500",
-    },
-    {
-      id: "s2",
-      tag: "Thương mại",
-      tagColor: "bg-[#fff3e0] text-[#e65100]",
-      name: "Chụp ảnh Sản phẩm Editorial",
-      price: "$800",
-      unit: "/ngày",
-      desc: "Dịch vụ cho các chiến dịch quảng cáo, lookbook. Bao gồm setup ánh sáng studio chuyên lực và định hướng nghề...",
-      delivery: "Cần nhập hỗ trợ",
-      deliveryColor: "text-slate-500",
-      status: "Đang hoạt động",
-      statusColor: "text-green-600",
-      statusDot: "bg-green-500",
-    },
   ],
 };
 
@@ -107,14 +86,77 @@ function IconStar({ className }: { className?: string }) {
 
 /* ─── main page ─────────────────────────────────────────────── */
 export default function ProfilePhotographerPage() {
-  const person = defaultPerson;
+  const { session, isLoggedIn } = useAuth();
+  const toast = useToast();
 
-  const [name, setName] = useState(person.name);
-  const [title, setTitle] = useState(person.title);
-  const [bio, setBio] = useState(person.bio);
-  const [equipment, setEquipment] = useState<string[]>(person.equipment);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [bio, setBio] = useState("");
+  const [activeArea, setActiveArea] = useState("");
+  const [startedYear, setStartedYear] = useState<number>(2024);
+  const [photographerType, setPhotographerType] = useState<string>("freelance");
+  const [avatar, setAvatar] = useState("");
+  const [portfolio, setPortfolio] = useState<string[]>([]);
+  const [packages, setPackages] = useState<any[]>([]);
+
+  const [equipment, setEquipment] = useState<string[]>(defaultProfileContent.equipment);
   const [equipmentInput, setEquipmentInput] = useState("");
-  const [languages, setLanguages] = useState<string[]>(person.languages);
+  const [languages, setLanguages] = useState<string[]>(defaultProfileContent.languages);
+
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const portfolioInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!isLoggedIn || !session?.userId) {
+      setLoading(false);
+      return;
+    }
+
+    async function loadProfile() {
+      try {
+        setLoading(true);
+        const meRes = await fetch(`${API_URL}/photographers/me`, {
+          headers: authHeaders(),
+          cache: "no-store",
+        });
+        const meJson = await meRes.json();
+
+        if (!meRes.ok || !meJson.success) {
+          throw new Error(meJson.message || "Không thể tải hồ sơ thợ ảnh.");
+        }
+
+        const photographerId =
+          meJson.data?.photographer_id || meJson.data?.photographer?.id;
+
+        const res = await fetch(`${API_URL}/photographers/${photographerId}/profile`, {
+          cache: "no-store",
+        });
+        if (!res.ok) throw new Error("Không thể tải hồ sơ thợ ảnh.");
+        const json = await res.json();
+        if (json.success && json.data) {
+          const { photographer, portfolio: portfolioImages, packages: pkgs } = json.data;
+          setName(photographer.full_name || "");
+          setPhone(photographer.phone || "");
+          setBio(photographer.bio || "");
+          setActiveArea(photographer.active_area || "TP. Hồ Chí Minh");
+          setStartedYear(Number(photographer.started_year || 2024));
+          setPhotographerType(photographer.photographer_type || "freelance");
+          setAvatar(photographer.avatar_url || defaultProfileContent.image);
+          setPortfolio(portfolioImages || []);
+          setPackages(pkgs || []);
+        }
+      } catch (err) {
+        toast.error("Lỗi", "Không thể lấy thông tin hồ sơ của bạn.");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadProfile();
+  }, [isLoggedIn, session?.userId, toast]);
 
   const removeEquipment = (item: string) =>
     setEquipment((prev) => prev.filter((e) => e !== item));
@@ -128,38 +170,165 @@ export default function ProfilePhotographerPage() {
   const removeLanguage = (lang: string) =>
     setLanguages((prev) => prev.filter((l) => l !== lang));
 
+  const handleAvatarClick = () => {
+    avatarInputRef.current?.click();
+  };
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      toast.success("Đang tải lên", "Đang tải ảnh đại diện lên máy chủ...");
+      const res = await fetch(`${API_URL}/uploads`, {
+        method: "POST",
+        headers: authHeaders(),
+        body: formData,
+      });
+
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.message || "Tải ảnh thất bại.");
+      }
+
+      setAvatar(json.data.url);
+      toast.success("Thành công", "Đã cập nhật ảnh đại diện tạm thời. Vui lòng bấm Lưu thay đổi.");
+    } catch (error: any) {
+      toast.error("Lỗi tải ảnh", error.message || "Có lỗi xảy ra khi tải ảnh.");
+    }
+  };
+
+  const handlePortfolioClick = () => {
+    portfolioInputRef.current?.click();
+  };
+
+  const handlePortfolioChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      toast.success("Đang tải lên", "Đang tải ảnh portfolio lên máy chủ...");
+      const res = await fetch(`${API_URL}/uploads`, {
+        method: "POST",
+        headers: authHeaders(),
+        body: formData,
+      });
+
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.message || "Tải ảnh thất bại.");
+      }
+
+      setPortfolio((prev) => [...prev, json.data.url]);
+      toast.success("Thành công", "Đã thêm ảnh portfolio tạm thời. Vui lòng bấm Lưu thay đổi.");
+    } catch (error: any) {
+      toast.error("Lỗi tải ảnh", error.message || "Có lỗi xảy ra khi tải ảnh.");
+    }
+  };
+
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+      const token = typeof window !== 'undefined' ? window.localStorage.getItem('sudion_token') : null;
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
+      const res = await fetch(`${API_URL}/photographers/profile`, {
+        method: "PUT",
+        headers,
+        body: JSON.stringify({
+          name,
+          phone,
+          avatar_url: avatar,
+          bio,
+          active_area: activeArea,
+          started_year: startedYear,
+          photographer_type: photographerType,
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.message || "Cập nhật hồ sơ thất bại.");
+      }
+
+      toast.success("Thành công", "Đã lưu thay đổi hồ sơ nhiếp ảnh gia.");
+    } catch (error: any) {
+      toast.error("Lỗi lưu hồ sơ", error.message || "Có lỗi xảy ra.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-white text-[#1a1a2e]">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#ff8d28] border-t-transparent" />
+        <p className="mt-4 text-xs font-semibold text-slate-500">Đang tải hồ sơ...</p>
+      </div>
+    );
+  }
+
   return (
     <main className="px-6 py-7 lg:px-8 xl:px-10">
       <div className="mx-auto w-full max-w-[860px] space-y-5 pb-10">
+        
+        {/* Hidden File Inputs */}
+        <input
+          type="file"
+          ref={avatarInputRef}
+          className="hidden"
+          accept="image/*"
+          onChange={handleAvatarChange}
+        />
+        <input
+          type="file"
+          ref={portfolioInputRef}
+          className="hidden"
+          accept="image/*"
+          onChange={handlePortfolioChange}
+        />
 
         {/* ── Header ── */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold text-[#1a1a2e]">Hồ Sơ Nhiếp Ảnh Gia</h1>
             <p className="mt-1 text-[13px] text-slate-500">
-              Quản lý cách bạn xuất hiện trước khách hàng trên Photor AI.
+              Quản lý cách bạn xuất hiện trước khách hàng trên STUDION.
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
+              onClick={() => window.location.reload()}
               className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition"
             >
               Hủy
             </button>
             <button
               type="button"
-              className="flex items-center gap-1.5 rounded-lg bg-[#ff8d28] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#e07820] transition"
+              disabled={saving}
+              onClick={handleSave}
+              className="flex items-center gap-1.5 rounded-lg bg-[#ff8d28] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#e07820] transition disabled:opacity-50"
             >
               <IconUpload className="h-4 w-4" />
-              Lưu thay đổi
+              {saving ? "Đang lưu..." : "Lưu thay đổi"}
             </button>
           </div>
         </div>
 
         {/* ── Thông tin cơ bản ── */}
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          {/* section title */}
           <div className="flex items-center gap-2 mb-5">
             <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-orange-50 text-[#ff8d28]">
               <IconCamera className="h-4 w-4" />
@@ -172,14 +341,15 @@ export default function ProfilePhotographerPage() {
             <div className="flex flex-col items-center gap-2 shrink-0">
               <div className="relative">
                 <img
-                  src={person.image}
-                  alt={person.name}
+                  src={avatar || defaultProfileContent.image}
+                  alt={name || "Nhiếp ảnh gia"}
                   className="h-[100px] w-[100px] rounded-full object-cover border-2 border-orange-100"
                 />
                 <button
                   type="button"
+                  onClick={handleAvatarClick}
                   aria-label="Đổi ảnh đại diện"
-                  className="absolute bottom-0 right-0 flex h-7 w-7 items-center justify-center rounded-full bg-[#ff8d28] text-white shadow"
+                  className="absolute bottom-0 right-0 flex h-7 w-7 items-center justify-center rounded-full bg-[#ff8d28] text-white shadow hover:bg-[#e07820] transition"
                 >
                   <IconCamera className="h-3.5 w-3.5" />
                 </button>
@@ -205,14 +375,14 @@ export default function ProfilePhotographerPage() {
                     className="w-full rounded-lg border border-slate-200 bg-[#f8f8fb] px-3 py-2 text-sm text-slate-900 outline-none focus:border-orange-300 focus:ring-1 focus:ring-orange-100"
                   />
                 </div>
-                {/* chức danh */}
+                {/* Số điện thoại */}
                 <div>
                   <label className="block text-[11px] font-semibold text-slate-500 mb-1">
-                    Chức danh chuyên môn
+                    Số điện thoại
                   </label>
                   <input
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
                     className="w-full rounded-lg border border-slate-200 bg-[#f8f8fb] px-3 py-2 text-sm text-slate-900 outline-none focus:border-orange-300 focus:ring-1 focus:ring-orange-100"
                   />
                 </div>
@@ -288,41 +458,38 @@ export default function ProfilePhotographerPage() {
             </div>
 
             {/* vị trí */}
-            <div>
-              <p className="text-[11px] font-semibold text-slate-500 mb-2">Vị trí hoạt động chính</p>
-              <div className="rounded-lg border border-slate-200 bg-[#f8f8fb] p-3">
-                <div className="flex items-center gap-1.5 text-sm text-slate-700">
-                  <IconPin className="h-4 w-4 text-slate-400 shrink-0" />
-                  <span>{person.location}</span>
-                </div>
-                <div className="mt-3 flex items-center gap-1.5 text-[12px] text-slate-500">
-                  <span className="inline-block h-2 w-2 rounded-full bg-orange-400 shrink-0" />
-                  Sẵn sàng đi công tác xa
-                </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-500 mb-2">Vị trí hoạt động</label>
+                <input
+                  value={activeArea}
+                  onChange={(e) => setActiveArea(e.target.value)}
+                  className="w-full rounded-lg border border-slate-200 bg-[#f8f8fb] px-3 py-2 text-xs text-slate-900 outline-none focus:border-orange-300"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-500 mb-2">Năm bắt đầu</label>
+                <input
+                  type="number"
+                  value={startedYear}
+                  onChange={(e) => setStartedYear(Number(e.target.value))}
+                  className="w-full rounded-lg border border-slate-200 bg-[#f8f8fb] px-3 py-2 text-xs text-slate-900 outline-none focus:border-orange-300"
+                />
               </div>
             </div>
 
-            {/* ngôn ngữ */}
+            {/* Hình thức hoạt động */}
             <div>
-              <p className="text-[11px] font-semibold text-slate-500 mb-2">Ngôn ngữ</p>
-              <div className="rounded-lg border border-slate-200 bg-[#f8f8fb] p-3 flex flex-wrap gap-1.5">
-                {languages.map((lang) => (
-                  <span
-                    key={lang}
-                    className="inline-flex items-center gap-1 rounded-md bg-orange-50 border border-orange-200 px-2.5 py-1 text-xs text-orange-700"
-                  >
-                    {lang}
-                    <button
-                      type="button"
-                      onClick={() => removeLanguage(lang)}
-                      aria-label={`Xóa ${lang}`}
-                      className="ml-0.5 text-orange-400 hover:text-red-400 leading-none"
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))}
-              </div>
+              <label className="block text-[11px] font-semibold text-slate-500 mb-2">Hình thức thợ ảnh</label>
+              <select
+                value={photographerType}
+                onChange={(e) => setPhotographerType(e.target.value)}
+                className="w-full rounded-lg border border-slate-200 bg-[#f8f8fb] px-3 py-2 text-xs text-slate-900 outline-none focus:border-orange-300"
+              >
+                <option value="freelance">Freelance (Tự do)</option>
+                <option value="studio">Studio (Cửa hàng)</option>
+              </select>
             </div>
           </div>
         </section>
@@ -337,60 +504,48 @@ export default function ProfilePhotographerPage() {
               <div>
                 <h2 className="font-bold text-[#1a1a2e]">Ảnh nổi bật (Portfolio)</h2>
                 <p className="text-[12px] text-slate-500">
-                  Chọn 4 bức ảnh ấn tượng nhất để hiển thị ở đầu trang hồ sơ của bạn.
+                  Các bức ảnh làm nổi bật năng lực chụp ảnh của bạn.
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <button
                 type="button"
-                className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition"
-              >
-                <IconSort className="h-3.5 w-3.5" />
-                Sắp xếp
-              </button>
-              <button
-                type="button"
+                onClick={handlePortfolioClick}
                 className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-[#1a1a2e] px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800 transition"
               >
                 <IconUpload className="h-3.5 w-3.5" />
-                Tải lên
+                Tải lên ảnh mới
               </button>
             </div>
           </div>
 
-          {/* grid: 1 ảnh lớn bên trái, 2 ảnh nhỏ bên phải */}
-          <div className="grid gap-3 sm:grid-cols-[1.5fr_1fr]">
-            <div className="relative overflow-hidden rounded-xl bg-slate-100">
-              <img
-                src={person.portfolio[0]}
-                alt="Portfolio chính"
-                className="h-full w-full object-cover"
-                style={{ minHeight: 260 }}
-              />
-              <span className="absolute left-3 top-3 rounded-md bg-black/50 px-2 py-0.5 text-[11px] font-bold text-white backdrop-blur-sm">
-                Ảnh chính
-              </span>
+          {/* grid hiển thị portfolio */}
+          {portfolio.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-slate-300 py-8 text-center text-xs text-slate-400 bg-slate-50">
+              Chưa có ảnh portfolio nào được tải lên.
             </div>
-            <div className="flex flex-col gap-3">
-              <div className="overflow-hidden rounded-xl bg-slate-100 flex-1">
-                <img
-                  src={person.portfolio[1]}
-                  alt="Portfolio 2"
-                  className="h-full w-full object-cover"
-                  style={{ minHeight: 124 }}
-                />
-              </div>
-              <div className="overflow-hidden rounded-xl bg-slate-100 flex-1">
-                <img
-                  src={person.portfolio[2]}
-                  alt="Portfolio 3"
-                  className="h-full w-full object-cover"
-                  style={{ minHeight: 124 }}
-                />
-              </div>
+          ) : (
+            <div className="grid gap-3 grid-cols-2 sm:grid-cols-4">
+              {portfolio.map((imgUrl, idx) => (
+                <div key={idx} className="relative overflow-hidden rounded-xl bg-slate-100 aspect-square border border-slate-200">
+                  <img
+                    src={imgUrl}
+                    alt={`Portfolio ${idx + 1}`}
+                    className="h-full w-full object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setPortfolio((prev) => prev.filter((_, i) => i !== idx))}
+                    className="absolute right-2 top-2 grid h-6 w-6 place-items-center rounded-full bg-red-500 text-white text-xs font-black shadow hover:bg-red-600 transition"
+                    title="Xóa ảnh"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
             </div>
-          </div>
+          )}
         </section>
 
         {/* ── Gói dịch vụ ── */}
@@ -402,60 +557,46 @@ export default function ProfilePhotographerPage() {
               </span>
               <h2 className="font-bold text-[#1a1a2e]">Các gói dịch vụ</h2>
             </div>
-            <button
-              type="button"
-              className="text-sm font-semibold text-[#ff8d28] hover:text-orange-600 transition"
-            >
-              + Thêm dịch vụ mới
-            </button>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            {defaultPerson.services.map((service) => (
-              <div
-                key={service.id}
-                className="rounded-xl border border-slate-200 bg-[#f8f8fb] p-4 flex flex-col gap-3 shadow-sm"
-              >
-                {/* top row */}
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1 min-w-0">
-                    <span
-                      className={`inline-block rounded-md px-2 py-0.5 text-[10px] font-bold mb-1.5 ${service.tagColor}`}
-                    >
-                      {service.tag}
-                    </span>
-                    <h3 className="text-sm font-bold text-[#1a1a2e] leading-snug">{service.name}</h3>
-                    <p className="mt-0.5 text-[#ff8d28] font-bold text-base">
-                      {service.price}
-                      <span className="text-[11px] font-medium text-slate-500">{service.unit}</span>
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    aria-label="Tùy chọn"
-                    className="text-slate-400 hover:text-slate-600 shrink-0 mt-0.5"
-                  >
-                    <IconDots className="h-5 w-5" />
-                  </button>
-                </div>
-
-                {/* desc */}
-                <p className="text-[12px] text-slate-500 leading-relaxed line-clamp-2">
-                  {service.desc}
-                </p>
-
-                {/* footer */}
-                <div className="flex items-center justify-between text-[11px] font-semibold">
-                  <span className={service.deliveryColor}>
-                    📦 {service.delivery}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <span className={`inline-block h-1.5 w-1.5 rounded-full ${service.statusDot}`} />
-                    <span className={service.statusColor}>{service.status}</span>
-                  </span>
-                </div>
+            {packages.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-slate-300 py-8 text-center text-xs text-slate-400 bg-slate-50 col-span-2">
+                Chưa có gói dịch vụ nào được tạo.
               </div>
-            ))}
+            ) : (
+              packages.map((service) => (
+                <div
+                  key={service.id}
+                  className="rounded-xl border border-slate-200 bg-[#f8f8fb] p-4 flex flex-col gap-3 shadow-sm"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <span
+                        className="inline-block rounded-md bg-[#e8f5e9] text-[#2e7d32] px-2 py-0.5 text-[10px] font-bold mb-1.5"
+                      >
+                        {service.category_name || "Dịch vụ"}
+                      </span>
+                      <h3 className="text-sm font-bold text-[#1a1a2e] leading-snug">{service.name}</h3>
+                      <p className="mt-0.5 text-[#ff8d28] font-bold text-base">
+                        {Number(service.price).toLocaleString("vi-VN")}
+                        <span className="text-[11px] font-medium text-slate-500"> VND/buổi</span>
+                      </p>
+                    </div>
+                  </div>
+
+                  <p className="text-[12px] text-slate-500 leading-relaxed line-clamp-2">
+                    {service.description}
+                  </p>
+
+                  <div className="flex items-center justify-between text-[11px] font-semibold">
+                    <span className="text-slate-500">
+                      ⏱ Thời lượng: {service.duration || 120} phút
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </section>
 

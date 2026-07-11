@@ -56,25 +56,25 @@ const PAYMENT_METHODS: {
   desc: string;
   mark: string;
 }[] = [
-  {
-    id: "momo",
-    label: "MoMo",
-    desc: "Ví điện tử MoMo",
-    mark: "M",
-  },
-  {
-    id: "vnpay",
-    label: "VNPay",
-    desc: "Quét mã QR ngân hàng",
-    mark: "QR",
-  },
-  {
-    id: "bank",
-    label: "Chuyển khoản",
-    desc: "Chuyển khoản thủ công",
-    mark: "TK",
-  },
-];
+    {
+      id: "momo",
+      label: "MoMo",
+      desc: "Ví điện tử MoMo",
+      mark: "M",
+    },
+    {
+      id: "vnpay",
+      label: "VNPay",
+      desc: "Quét mã QR ngân hàng",
+      mark: "QR",
+    },
+    {
+      id: "bank",
+      label: "Chuyển khoản",
+      desc: "Chuyển khoản thủ công",
+      mark: "TK",
+    },
+  ];
 
 const STATUS_MAP: Record<
   string,
@@ -123,8 +123,8 @@ const STATUS_MAP: Record<
 
 const FALLBACK_BANK = {
   id: "TCB",
-  account: "19031234567",
-  name: "CONG TY TNHH STUDION",
+  account: "19075748293011",
+  name: "TRAN THIEN VU",
   bankName: "Techcombank",
 };
 
@@ -170,9 +170,16 @@ function formatTime(value: string | null | undefined) {
 }
 
 async function fetchPaymentInfo(code: string): Promise<PaymentInfo> {
+  const token = typeof window !== 'undefined' ? window.localStorage.getItem('sudion_token') : null;
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
   const res = await fetch(`${API_URL}/payments/${code}`, {
     method: "GET",
     cache: "no-store",
+    headers,
   });
 
   const json: ApiResponse<PaymentInfo> = await res.json();
@@ -285,51 +292,19 @@ export default function DepositPaymentPage({
       }
 
       const depositPayload = paymentInfo.secure_payloads?.deposit;
-
-      const res = await fetch(
-        `${API_URL}/payments/${paymentInfo.booking_code}/status`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            paymentType: "deposit",
-            status: "paid",
-            amount: paymentInfo.deposit_amount,
-            paymentMethod: method,
-            provider: "manual",
-            transactionCode: `DEPOSIT-${Date.now()}`,
-            idempotencyKey: `${paymentInfo.booking_code}-deposit-${Date.now()}`,
-            signature: depositPayload?.signature,
-            changedBy: "customer",
-          }),
-        }
-      );
-
-      const json = await res.json();
-
-      if (!res.ok || !json.success) {
-        throw new Error(json.message || "Thanh toán cọc thất bại.");
+      if (!depositPayload) {
+        throw new Error("Không tìm thấy chữ ký bảo mật từ hệ thống.");
       }
 
-      toast.success(
-        "Thanh toán thành công",
-        `Booking ${paymentInfo.booking_code} đã được thanh toán cọc.`
+      router.push(
+        `/checkout-gateway?bookingCode=${paymentInfo.booking_code}&paymentType=deposit&amount=${paymentInfo.deposit_amount}&method=${method}&signature=${depositPayload.signature}`
       );
-
-      await loadPageData();
-
-      setTimeout(() => {
-        router.push("/bookings");
-      }, 800);
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Thanh toán cọc thất bại.";
 
       setError(message);
       toast.error("Lỗi thanh toán", message);
-    } finally {
       setPaying(false);
     }
   }
@@ -411,11 +386,10 @@ export default function DepositPaymentPage({
                     </span>
 
                     <span
-                      className={`text-[13px] font-black ${
-                        paymentInfo.deposit_status === "paid"
+                      className={`text-[13px] font-black ${paymentInfo.deposit_status === "paid"
                           ? "text-emerald-600"
                           : "text-amber-600"
-                      }`}
+                        }`}
                     >
                       {paymentInfo.deposit_status}
                     </span>
@@ -431,18 +405,16 @@ export default function DepositPaymentPage({
                     key={item.id}
                     type="button"
                     onClick={() => setMethod(item.id)}
-                    className={`rounded-xl border p-3 text-left transition-all ${
-                      method === item.id
+                    className={`rounded-xl border p-3 text-left transition-all ${method === item.id
                         ? "border-[#ff8d28] bg-[#fff7ed]"
                         : "border-[#e2e8f0] bg-white hover:border-[#ffcfaa]"
-                    }`}
+                      }`}
                   >
                     <span
-                      className={`grid h-8 w-8 place-items-center rounded-full text-[11px] font-black ${
-                        method === item.id
+                      className={`grid h-8 w-8 place-items-center rounded-full text-[11px] font-black ${method === item.id
                           ? "bg-[#ff8d28] text-white"
                           : "bg-[#f1f5f9] text-[#64748b]"
-                      }`}
+                        }`}
                     >
                       {item.mark}
                     </span>
@@ -539,8 +511,8 @@ export default function DepositPaymentPage({
                 {paying
                   ? "Đang xử lý..."
                   : paymentInfo.deposit_status === "paid"
-                  ? "Đã thanh toán cọc"
-                  : "Xác nhận thanh toán cọc"}
+                    ? "Đã thanh toán cọc"
+                    : "Xác nhận thanh toán cọc"}
               </button>
 
               <Link
@@ -599,20 +571,18 @@ export default function DepositPaymentPage({
               return (
                 <div
                   key={step.status}
-                  className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 text-[12.5px] transition-all ${
-                    active
+                  className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 text-[12.5px] transition-all ${active
                       ? "border-[#ffcfaa] bg-[#fff7ed] font-black text-[#0f172a]"
                       : "border-[#eef2f7] font-semibold text-[#94a3b8]"
-                  }`}
+                    }`}
                 >
                   <span
-                    className={`grid h-5 w-5 shrink-0 place-items-center rounded-full text-[10px] font-black ${
-                      done
+                    className={`grid h-5 w-5 shrink-0 place-items-center rounded-full text-[10px] font-black ${done
                         ? "bg-[#ff8d28] text-white"
                         : active
-                        ? "border border-[#ff8d28] text-[#ff8d28]"
-                        : "bg-[#e2e8f0] text-[#94a3b8]"
-                    }`}
+                          ? "border border-[#ff8d28] text-[#ff8d28]"
+                          : "bg-[#e2e8f0] text-[#94a3b8]"
+                      }`}
                   >
                     {done ? "✓" : index + 1}
                   </span>
@@ -697,24 +667,21 @@ function MoneyBox({
 }) {
   return (
     <div
-      className={`flex items-center justify-between rounded-xl border px-4 py-3 ${
-        highlight
+      className={`flex items-center justify-between rounded-xl border px-4 py-3 ${highlight
           ? "border-[#ffedd5] bg-[#fff7ed]"
           : "border-[#e2e8f0] bg-[#f8fafc]"
-      }`}
+        }`}
     >
       <span
-        className={`text-[13px] font-semibold ${
-          highlight ? "text-[#92400e]" : "text-[#64748b]"
-        }`}
+        className={`text-[13px] font-semibold ${highlight ? "text-[#92400e]" : "text-[#64748b]"
+          }`}
       >
         {label}
       </span>
 
       <span
-        className={`font-black ${
-          highlight ? "text-[18px] text-[#ff8d28]" : "text-[15px] text-[#0f172a]"
-        }`}
+        className={`font-black ${highlight ? "text-[18px] text-[#ff8d28]" : "text-[15px] text-[#0f172a]"
+          }`}
       >
         {value}
       </span>
@@ -736,9 +703,8 @@ function SRow({
       <span className="font-semibold text-[#64748b]">{label}</span>
 
       <span
-        className={`text-right font-black ${
-          strong ? "text-[#ff8d28]" : "text-[#0f172a]"
-        }`}
+        className={`text-right font-black ${strong ? "text-[#ff8d28]" : "text-[#0f172a]"
+          }`}
       >
         {value}
       </span>

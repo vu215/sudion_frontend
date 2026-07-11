@@ -1,4 +1,5 @@
 "use client";
+import Image from "next/image";
 import Link from "next/link";
 
 
@@ -9,9 +10,13 @@ export default function AboutPage() {
 
         {/* Hero */}
         <section className="relative h-[89vh] min-h-[480px] flex flex-col items-center justify-center text-center overflow-hidden">
-          <div
-            className="absolute inset-0 bg-cover bg-center"
-            style={{ backgroundImage: "url('/screen%201.png')" }}
+          <Image
+            src="/screen 1.png"
+            alt=""
+            fill
+            priority
+            sizes="100vw"
+            className="absolute inset-0 object-cover object-center"
           />
           <div className="absolute inset-0 bg-black/65" />
           <div className="relative z-10 px-4">
@@ -68,10 +73,10 @@ export default function AboutPage() {
               <div>
                 <h3 className="text-lg font-bold text-gray-900">Tôi là Nhiếp ảnh gia</h3>
                 <p className="text-gray-500 text-sm mt-2">
-                  Gia nhập cộng đồng nhiếp ảnh gia tài năng, quản lý lịch trình và phát triển sự nghiệpcùng Lumina Studio.
+                  Gia nhập cộng đồng nhiếp ảnh gia tài năng, quản lý lịch trình và phát triển sự nghiệp cùng STUDION.
                 </p>
               </div>
-              <Link href="/profilephotographer" className="bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium px-5 py-2.5 rounded-full transition-colors mt-auto">
+              <Link href="/profile?tab=photographer" className="bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium px-5 py-2.5 rounded-full transition-colors mt-auto">
               GIA NHẬP ĐỘI NGŨ
               </Link>
             </div>
@@ -83,15 +88,21 @@ export default function AboutPage() {
           <div className="max-w-5xl mx-auto px-4 grid md:grid-cols-[1.1fr_0.9fr] gap-12 items-start">
             {/* Images */}
             <div className="relative overflow-visible">
-              <img
+              <Image
                 src="/Overlay+Shadow.png"
                 alt="Hình ảnh chính"
+                width={720}
+                height={900}
+                sizes="(min-width: 768px) 48vw, 100vw"
                 className="w-full h-[28rem] md:h-[34rem] rounded-[2rem] object-cover shadow-[0_32px_64px_rgba(15,23,42,0.08)]"
               />
               <div className="absolute -bottom-8 -right-8 w-44 h-44 md:w-52 md:h-52 rounded-[1.75rem] overflow-hidden shadow-2xl z-10">
-                <img
+                <Image
                   src="/Overlay+Border+Shadow.png"
                   alt="Hình ảnh phụ"
+                  width={260}
+                  height={260}
+                  sizes="(min-width: 768px) 208px, 176px"
                   className="w-[110%] h-[110%] object-cover -translate-x-1 -translate-y-1"
                 />
               </div>

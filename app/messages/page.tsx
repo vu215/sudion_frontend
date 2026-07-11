@@ -12,9 +12,15 @@ import {
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/app/auth-context";
 import { useToast } from "@/app/toast-context";
+import { io, Socket } from "socket.io-client";
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+
+function authHeaders() {
+  const token = typeof window !== "undefined" ? window.localStorage.getItem("sudion_token") : null;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
 
 const AUTO_REFRESH_MS = 3000;
 
@@ -178,6 +184,7 @@ async function getMessages(bookingCode: string) {
     {
       method: "GET",
       cache: "no-store",
+      headers: authHeaders(),
     }
   );
 
@@ -202,6 +209,7 @@ async function sendMessage(payload: {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      ...authHeaders(),
     },
     body: JSON.stringify(payload),
   });
@@ -244,6 +252,7 @@ function MessagesContent() {
   const [pageError, setPageError] = useState("");
 
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  const socketRef = useRef<Socket | null>(null);
 
   const currentRole: "customer" | "photographer" =
     session?.role === "photographer" ? "photographer" : "customer";
@@ -285,18 +294,59 @@ function MessagesContent() {
   }, [queryBookingCode]);
 
   useEffect(() => {
+    const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:5000";
+    const socket = io(socketUrl, {
+      transports: ["websocket"],
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      timeout: 8000,
+    });
+    socketRef.current = socket;
+
+    socket.on("connect", () => {
+      if (process.env.NODE_ENV !== "production") {
+        console.log("Connected to WebSocket server");
+      }
+    });
+
+    socket.on("connect_error", (err) => {
+      console.error("Socket connection error:", err);
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
+
+  useEffect(() => {
+    const socket = socketRef.current;
+    if (!socket || !activeBookingCode) return;
+
+    // Join room
+    socket.emit("join_room", activeBookingCode);
+
+    // Listen for new messages
+    const handleNewMessage = (msg: ChatMessage) => {
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === msg.id)) return prev;
+        return [...prev, msg];
+      });
+    };
+
+    socket.on("new_message", handleNewMessage);
+
+    return () => {
+      socket.emit("leave_room", activeBookingCode);
+      socket.off("new_message", handleNewMessage);
+    };
+  }, [activeBookingCode]);
+
+  useEffect(() => {
     if (!activeBookingCode) return;
 
-    let ignore = false;
-
-    async function loadData(showLoading = true) {
+    async function loadData() {
       try {
-        if (showLoading) {
-          setLoading(true);
-        } else {
-          setRefreshing(true);
-        }
-
+        setLoading(true);
         setPageError("");
 
         const [bookingData, messageData] = await Promise.all([
@@ -304,45 +354,26 @@ function MessagesContent() {
           getMessages(activeBookingCode),
         ]);
 
-        if (ignore) return;
-
         setBooking(bookingData);
         setMessages(messageData);
       } catch (error) {
-        if (ignore) return;
-
         console.error("Lỗi tải chat:", error);
+        setBooking(null);
+        setMessages([]);
 
-        if (showLoading) {
-          setBooking(null);
-          setMessages([]);
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Không thể tải phòng chat.";
 
-          const message =
-            error instanceof Error
-              ? error.message
-              : "Không thể tải phòng chat.";
-
-          setPageError(message);
-          toast.error("Không thể tải phòng chat", message);
-        }
+        setPageError(message);
+        toast.error("Không thể tải phòng chat", message);
       } finally {
-        if (!ignore) {
-          setLoading(false);
-          setRefreshing(false);
-        }
+        setLoading(false);
       }
     }
 
-    void loadData(true);
-
-    const timer = window.setInterval(() => {
-      void loadData(false);
-    }, AUTO_REFRESH_MS);
-
-    return () => {
-      ignore = true;
-      window.clearInterval(timer);
-    };
+    void loadData();
   }, [activeBookingCode, toast]);
 
   useEffect(() => {

@@ -8,6 +8,11 @@ import { useToast } from "@/app/toast-context";
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
+function authHeaders() {
+  const token = typeof window !== "undefined" ? window.localStorage.getItem("sudion_token") : null;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 type Booking = {
   booking_code: string;
   photographer_id?: string | number;
@@ -135,6 +140,7 @@ async function payFinal(bookingCode: string, paymentMethod: string) {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
+        ...authHeaders(),
       },
       body: JSON.stringify({ paymentMethod }),
     }
@@ -239,6 +245,7 @@ export default function FinalPaymentPage({
     return { sameCategory: uniqueSameCategory, otherCategory };
   }, [photographerDetail, booking]);
   const [pageError, setPageError] = useState("");
+  const [paymentInfo, setPaymentInfo] = useState<any>(null);
 
   useEffect(() => {
     async function loadBooking() {
@@ -250,8 +257,19 @@ export default function FinalPaymentPage({
         setLoading(true);
         setPageError("");
 
-        const data = await getBooking(bookingCode);
+        const token = typeof window !== 'undefined' ? window.localStorage.getItem('sudion_token') : null;
+        const headers: Record<string, string> = {};
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        const [data, payData] = await Promise.all([
+          getBooking(bookingCode),
+          fetch(`${API_URL}/payments/${bookingCode}`, { headers }).then(r => r.json().then(j => j.success ? j.data : null))
+        ]);
+
         setBooking(data);
+        setPaymentInfo(payData);
       } catch (error) {
         const message =
           error instanceof Error ? error.message : "Không thể lấy booking.";
@@ -276,23 +294,20 @@ export default function FinalPaymentPage({
   }, [paymentMethod]);
 
   async function handlePay() {
-    if (!booking) return;
+    if (!booking || !paymentInfo) return;
 
     try {
       setPaying(true);
       setPageError("");
 
-      const updatedBooking = await payFinal(
-        booking.booking_code,
-        paymentMethod
-      );
+      const finalPayload = paymentInfo.secure_payloads?.final;
+      if (!finalPayload) {
+        throw new Error("Không tìm thấy chữ ký bảo mật từ hệ thống.");
+      }
 
-      toast.success(
-        "Thanh toán hoàn tất",
-        `Booking ${updatedBooking.booking_code} đã được thanh toán đủ.`
+      router.push(
+        `/checkout-gateway?bookingCode=${booking.booking_code}&paymentType=final&amount=${booking.remaining_amount}&method=${paymentMethod}&signature=${finalPayload.signature}`
       );
-
-      router.push("/bookings");
     } catch (error) {
       const message =
         error instanceof Error
@@ -301,7 +316,6 @@ export default function FinalPaymentPage({
 
       setPageError(message);
       toast.error("Thanh toán thất bại", message);
-    } finally {
       setPaying(false);
     }
   }
@@ -779,7 +793,7 @@ function PaymentPreview({
   amount: number;
 }) {
   const bankId = "TCB"; // Techcombank
-  const accountNo = "0762682989";
+  const accountNo = "19075748293011";
   const accountName = "TRAN THIEN VU";
   
   // URL to generate VietQR image dynamically

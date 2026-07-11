@@ -39,14 +39,12 @@ export function AiConsultantWidget() {
 
   const chatEndRef = useRef<HTMLDivElement>(null);
 
-  // Load configuration and photographers
+  // Load lightweight client-only configuration.
   useEffect(() => {
-    // Hide tooltip after 6 seconds
     const timer = setTimeout(() => {
       setShowTooltip(false);
     }, 6000);
 
-    // Fetch config from localStorage
     const saved = localStorage.getItem("studion-ai-settings");
     if (saved) {
       try {
@@ -56,19 +54,34 @@ export function AiConsultantWidget() {
       }
     }
 
-    // Fetch photographers from backend API
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Fetch photographers only when the user opens chat.
+  useEffect(() => {
+    if (!isOpen || photographers.length > 0) {
+      return;
+    }
+
+    let cancelled = false;
+
     async function loadPhotographers() {
       try {
         const data = await getPhotographers();
-        setPhotographers(data);
+        if (!cancelled) {
+          setPhotographers(data);
+        }
       } catch (err) {
         console.error("Lỗi tải danh sách nhiếp ảnh gia cho chatbot:", err);
       }
     }
+
     loadPhotographers();
 
-    return () => clearTimeout(timer);
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, photographers.length]);
 
   // Initialize chat history on first open
   useEffect(() => {

@@ -1,10 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Inter } from "next/font/google";
 import { api } from "@/lib/api";
-
-const inter = Inter({ subsets: ["latin", "vietnamese"], weight: ["400", "500", "600", "700"] });
+import { useAuth } from "@/app/auth-context";
+import { useRouter } from "next/navigation";
 
 const navItems = [
   ["Dashboard", "/admin", "M3 10.5L12 3l9 7.5M5 10v9h5v-5h4v5h5v-9"],
@@ -14,6 +13,7 @@ const navItems = [
   ["Booking", "/admin/booking", "M7 3v3M17 3v3M4 8h16M6 5h12a2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V7a2 2 0 012-2z"],
   ["Thanh toán", "/admin/payments", "M3 7h18v10H3zM3 10h18M7 15h3"],
   ["Hoàn tiền", "/admin/refunds", "M9 14l-4-4 4-4M5 10h10a4 4 0 010 8h-2M19 6v4h-4"],
+  ["Banner Quảng cáo", "/admin/banners", "M4 5h16a1 1 0 011 1v12a1 1 0 01-1 1H4a1 1 0 01-1-1V6a1 1 0 011-1z M4 9h16"],
   ["Report / Khiếu nại", "/admin/reports", "M6 3h9l3 3v15H6zM15 3v4h4M9 12h6"],
   ["AI Moderation", "/admin/ai-moderation", "M12 3l8 4v6c0 4-3.5 7-8 8s-8-4-8-8V7zM9 12l2 2 4-5"],
   ["Đánh giá", "/admin/reviews", "M12 3l2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.4 6.4 20.2l1.1-6.2L3 9.6l6.2-.9z"],
@@ -33,10 +33,25 @@ export default function AdminLayout({
   search?: string;
   onSearch?: (value: string) => void;
 }) {
+  const { isLoggedIn, isAdmin, isLoading } = useAuth();
+  const router = useRouter();
+
   const [collapsed, setCollapsed] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
+    if (!isLoading) {
+      if (!isLoggedIn) {
+        router.push("/login");
+      } else if (!isAdmin) {
+        router.push("/");
+      }
+    }
+  }, [isLoggedIn, isAdmin, isLoading, router]);
+
+  useEffect(() => {
+    if (!isLoggedIn || !isAdmin) return;
+
     async function loadUnreadCount() {
       try {
         const result = await api.notifications.getStats();
@@ -48,10 +63,19 @@ export default function AdminLayout({
       }
     }
     loadUnreadCount();
-  }, []);
+  }, [isLoggedIn, isAdmin]);
+
+  if (isLoading || !isLoggedIn || !isAdmin) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-[#f7f7fb]">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#ff8d28] border-t-transparent" />
+        <p className="mt-4 text-xs font-semibold text-slate-500">Đang kiểm tra quyền truy cập...</p>
+      </div>
+    );
+  }
 
   return (
-    <main className={`${inter.className} min-h-screen overflow-x-hidden bg-[#f7f7fb] text-[13px] text-[#0f172a]`}>
+    <main className="min-h-screen overflow-x-hidden bg-[#f7f7fb] text-[13px] text-[#0f172a]">
       <aside className={`fixed inset-y-0 left-0 z-30 hidden border-r border-[#e6e9f1] bg-white text-[#0f172a] shadow-[18px_0_45px_rgba(12,18,32,0.06)] transition-all lg:block ${collapsed ? "w-[80px]" : "w-[252px]"}`}>
         <div className={`flex h-[72px] items-center ${collapsed ? "justify-center px-3" : "px-5"}`}>
           {!collapsed ? <b className="text-[23px] tracking-normal text-[#0f172a]">STUD<span className="text-[#ff8d28]">ION</span></b> : <img src="/logo_sudion_remove.png" alt="Studion" className="h-11 w-11 rounded-xl bg-[#fff3e8] p-1" />}

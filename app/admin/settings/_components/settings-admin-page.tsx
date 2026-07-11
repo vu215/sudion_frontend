@@ -558,7 +558,7 @@ function AssetPicker({ id, kind, value, onChange, notify }: { id: string; kind: 
   const [open, setOpen] = useState(false);
   const [url, setUrl] = useState(value);
 
-  function useFile(file?: File) {
+  function handleFile(file?: File) {
     if (!file) return;
     if (!file.type.startsWith("image/")) {
       notify("Vui lòng chọn file ảnh.");
@@ -578,7 +578,7 @@ function AssetPicker({ id, kind, value, onChange, notify }: { id: string; kind: 
     const file = event.dataTransfer.files[0];
     const url = event.dataTransfer.getData("text/uri-list") || event.dataTransfer.getData("text/plain");
     if (file) {
-      useFile(file);
+      handleFile(file);
       return;
     }
     if (url?.trim()) {
@@ -625,7 +625,7 @@ function AssetPicker({ id, kind, value, onChange, notify }: { id: string; kind: 
               </div>
               <p className="mt-3 !text-[12px] !font-normal text-[#697086]">Kéo thả file ảnh hoặc URL vào đây</p>
               <label htmlFor={id} className="mx-auto mt-3 !inline-flex !h-10 min-w-[126px] cursor-pointer flex-row items-center justify-center gap-2 rounded-xl bg-[#ff8d28] px-4 !py-0 !text-[12px] !font-normal leading-none text-white shadow-[0_10px_20px_rgba(255,141,40,0.18)]"><AdminIcon name="add" className="h-3.5 w-3.5 shrink-0" /><span className="whitespace-nowrap">Chọn file</span></label>
-              <input id={id} type="file" accept="image/*,.ico" className="hidden" onChange={(event: ChangeEvent<HTMLInputElement>) => useFile(event.target.files?.[0])} />
+              <input id={id} type="file" accept="image/*,.ico" className="hidden" onChange={(event: ChangeEvent<HTMLInputElement>) => handleFile(event.target.files?.[0])} />
             </div>
             <div className="mt-4">
               <label className="!block !text-[12px] !font-normal text-[#536078]">Hoặc nhập URL ảnh</label>

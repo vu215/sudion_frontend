@@ -1,14 +1,18 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useRef, useEffect, type ReactNode } from "react";
 import { useAuth } from "@/app/auth-context";
-import { AiConsultantWidget } from "./ai-consultant-widget";
 import { ScrollToTop } from "./scroll-to-top";
 import { ErrorBoundary } from "./error-boundary";
 
 const containerClass = "w-full max-w-[1440px] mx-auto px-6 md:px-12 lg:px-20";
+const AiConsultantWidget = dynamic(
+  () => import("./ai-consultant-widget").then((module) => module.AiConsultantWidget),
+  { ssr: false, loading: () => null },
+);
 
 const headerLinks = [
   { href: "/", label: "Trang chủ" },
@@ -500,15 +504,23 @@ function Footer() {
               {column.title}
             </p>
             <div className="mt-4 space-y-3.5">
-              {column.links.map((link) => (
-                <Link
-                  key={link}
-                  href={column.title === "Dịch vụ" ? "/services" : column.title === "Công ty" ? "/about" : "/support"}
-                  className="block text-[14px] font-semibold text-gray-400 transition-colors hover:text-white"
-                >
-                  {link}
-                </Link>
-              ))}
+              {column.links.map((link) => {
+                let href = "/";
+                if (column.title === "Dịch vụ") href = "/services";
+                else if (column.title === "Công ty") href = "/about";
+                else if (link === "Điều khoản dịch vụ" || link === "Chính sách bảo mật") href = "/terms";
+                else href = "/support";
+
+                return (
+                  <Link
+                    key={link}
+                    href={href}
+                    className="block text-[14px] font-semibold text-gray-400 transition-colors hover:text-white"
+                  >
+                    {link}
+                  </Link>
+                );
+              })}
             </div>
           </div>
         ))}

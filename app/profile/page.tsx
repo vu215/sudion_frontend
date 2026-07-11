@@ -1,14 +1,59 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import Link from "next/link";
 import { useAuth } from "@/app/auth-context";
 
-type Tab = "Thông tin" | "Đổi mật khẩu" | "Thông báo";
+type Tab = "Thông tin" | "Đổi mật khẩu" | "Thông báo" | "Đăng ký thợ ảnh";
+
+type ServiceCategory = {
+  id: number;
+  name: string;
+  slug: string;
+};
+
+type PhotographerApplication = {
+  verification_status?: "pending" | "verified" | "rejected" | string;
+  active_area?: string;
+  bio?: string;
+  photographer_type?: string;
+  min_price?: number;
+  started_year?: number;
+  documents?: string[];
+};
+
+type ServicePackageForm = {
+  id: string;
+  categoryId: string;
+  name: string;
+  price: string;
+  description: string;
+  duration: string;
+  workerCount: string;
+  maxCustomerCount: string;
+  addOns: string[];
+  addOnDraft: string;
+};
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+const ASSET_URL = API_URL.replace(/\/api\/?$/, "");
+
+function authHeaders() {
+  const token = typeof window !== "undefined" ? window.localStorage.getItem("sudion_token") : null;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+function resolveAssetUrl(url: string) {
+  if (!url) return "";
+  if (/^https?:\/\//i.test(url) || url.startsWith("data:")) return url;
+  return `${ASSET_URL}${url.startsWith("/") ? url : `/${url}`}`;
+}
 
 export default function ProfilePage() {
-  const { session } = useAuth();
+  const { session, refresh } = useAuth();
   const fileRef = useRef<HTMLInputElement>(null);
+  const loadedPhotoProfileForRef = useRef("");
+  const loadingPhotoProfileForRef = useRef("");
 
   const [avatar, setAvatar]     = useState<string | null>(null);
   const [fullName, setFullName] = useState(session?.fullName ?? "Người dùng");
@@ -31,10 +76,222 @@ export default function ProfilePage() {
   const [tab, setTab]     = useState<Tab>("Thông tin");
   const [toast, setToast] = useState("");
 
+  const [photoProfile, setPhotoProfile] = useState<PhotographerApplication | null>(null);
+  const [loadingProfile, setLoadingProfile] = useState(true);
+  const [categories, setCategories] = useState<ServiceCategory[]>([]);
+
+  // Form states for photographer registration
+  const [regActiveArea, setRegActiveArea] = useState("TP. Hồ Chí Minh");
+  const [regBio, setRegBio] = useState("");
+  const [regType, setRegType] = useState("freelance");
+  const [regMinPrice, setRegMinPrice] = useState("1500000");
+  const [regStartedYear, setRegStartedYear] = useState(new Date().getFullYear().toString());
+  const [regCategories, setRegCategories] = useState<string[]>([]);
+  const [regPackages, setRegPackages] = useState<ServicePackageForm[]>([]);
+  const [regDocuments, setRegDocuments] = useState<string[]>([]);
+  const [uploadingDoc, setUploadingDoc] = useState(false);
+  const [submittingReg, setSubmittingReg] = useState(false);
+
+  const isPhotographerAccount = session?.role === "photographer";
+  const accountRoleLabel =
+    session?.role === "admin"
+      ? "Quản trị viên"
+      : isPhotographerAccount
+        ? "Photographer"
+        : "Khách hàng";
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const params = new URLSearchParams(window.location.search);
+    const requestedTab = params.get("tab");
+
+    if (requestedTab === "photographer") {
+      setTab("Đăng ký thợ ảnh");
+    }
+  }, []);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  useEffect(() => {
+    if (session?.fullName) {
+      setFullName(session.fullName);
+    }
+  }, [session?.fullName]);
+
+  useEffect(() => {
+    if (!session?.userId) return;
+
+    const userKey = String(session.userId);
+
+    if (
+      loadedPhotoProfileForRef.current === userKey ||
+      loadingPhotoProfileForRef.current === userKey
+    ) {
+      return;
+    }
+
+    loadingPhotoProfileForRef.current = userKey;
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 8000);
+    
+    async function loadPhotoProfile() {
+      try {
+        const response = await fetch(`${API_URL}/auth/photographer-application`, {
+          headers: authHeaders(),
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        const json = await response.json();
+        if (json.success && json.data) {
+          setPhotoProfile(json.data);
+          setRegActiveArea(json.data.active_area || "TP. Hồ Chí Minh");
+          setRegBio(json.data.bio || "");
+          setRegType(json.data.photographer_type || "freelance");
+          setRegMinPrice(String(json.data.min_price || 1500000));
+          setRegStartedYear(String(json.data.started_year || new Date().getFullYear()));
+          setRegDocuments(
+            Array.isArray(json.data.documents)
+              ? json.data.documents.map((url: string) => resolveAssetUrl(url))
+              : []
+          );
+        }
+        loadedPhotoProfileForRef.current = userKey;
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") {
+          return;
+        }
+
+        loadedPhotoProfileForRef.current = "";
+        console.error("Error loading photo profile:", err);
+      } finally {
+        if (loadingPhotoProfileForRef.current === userKey) {
+          loadingPhotoProfileForRef.current = "";
+        }
+        window.clearTimeout(timeoutId);
+        setLoadingProfile(false);
+      }
+    }
+    
+    loadPhotoProfile();
+
+    return () => {
+      if (loadingPhotoProfileForRef.current === userKey) {
+        loadingPhotoProfileForRef.current = "";
+      }
+      window.clearTimeout(timeoutId);
+      controller.abort();
+    };
+  }, [session?.userId]);
+
+  useEffect(() => {
+    async function loadCategories() {
+      try {
+        const response = await fetch(`${API_URL}/services`, { cache: "no-store" });
+        const json = await response.json();
+        if (json.success && Array.isArray(json.data)) {
+          setCategories(json.data);
+        }
+      } catch (err) {
+        console.error("Error loading service categories:", err);
+      }
+    }
+
+    loadCategories();
+  }, []);
+
   function notify(msg: string) { setToast(msg); setTimeout(() => setToast(""), 2200); }
 
   const initials = fullName.split(" ").filter(Boolean)
     .map((w) => w[0]).join("").toUpperCase().slice(0, 2);
+
+  function createPackageForm(categoryId: string): ServicePackageForm {
+    const category = categories.find((item) => String(item.id) === categoryId);
+    const categoryName = category?.name || "Dịch vụ";
+
+    return {
+      id: `pkg-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      categoryId,
+      name: `Gói cơ bản - ${categoryName}`,
+      price: regMinPrice || "1500000",
+      description: "",
+      duration: "120",
+      workerCount: "1",
+      maxCustomerCount: "1",
+      addOns: [],
+      addOnDraft: "",
+    };
+  }
+
+  function toggleRegistrationCategory(category: ServiceCategory) {
+    const categoryId = String(category.id);
+    const selectedCategory = regCategories.includes(categoryId);
+
+    if (selectedCategory) {
+      setRegCategories((prev) => prev.filter((id) => id !== categoryId));
+      setRegPackages((prev) => prev.filter((item) => item.categoryId !== categoryId));
+      return;
+    }
+
+    setRegCategories((prev) => [...prev, categoryId]);
+    setRegPackages((prev) =>
+      prev.some((item) => item.categoryId === categoryId)
+        ? prev
+        : [...prev, createPackageForm(categoryId)]
+    );
+  }
+
+  function addRegistrationPackage() {
+    if (!regCategories.length) {
+      notify("Vui lòng chọn danh mục trước khi tạo gói dịch vụ.");
+      return;
+    }
+
+    setRegPackages((prev) => [...prev, createPackageForm(regCategories[0])]);
+  }
+
+  function updateRegistrationPackage(
+    packageId: string,
+    updates: Partial<ServicePackageForm>
+  ) {
+    setRegPackages((prev) =>
+      prev.map((item) => (item.id === packageId ? { ...item, ...updates } : item))
+    );
+  }
+
+  function addPackageAddOn(packageId: string) {
+    setRegPackages((prev) =>
+      prev.map((item) => {
+        if (item.id !== packageId) return item;
+
+        const addOn = item.addOnDraft.trim();
+        if (!addOn || item.addOns.includes(addOn)) {
+          return { ...item, addOnDraft: "" };
+        }
+
+        return {
+          ...item,
+          addOns: [...item.addOns, addOn],
+          addOnDraft: "",
+        };
+      })
+    );
+  }
+
+  function removePackageAddOn(packageId: string, addOnIndex: number) {
+    setRegPackages((prev) =>
+      prev.map((item) =>
+        item.id === packageId
+          ? {
+              ...item,
+              addOns: item.addOns.filter((_, index) => index !== addOnIndex),
+            }
+          : item
+      )
+    );
+  }
 
   function handleAvatar(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -49,6 +306,127 @@ export default function ProfilePage() {
     if (newPw !== cfPw) { notify("Mật khẩu xác nhận chưa khớp."); return; }
     setOldPw(""); setNewPw(""); setCfPw("");
     notify("Đã cập nhật mật khẩu thành công.");
+  }
+
+  async function handleDocumentUpload(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setUploadingDoc(true);
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch(`${API_URL}/uploads`, {
+        method: "POST",
+        headers: authHeaders(),
+        body: formData,
+      });
+
+      const json = await response.json();
+
+      if (!response.ok || !json.success) {
+        throw new Error(json.message || "Không thể tải tài liệu.");
+      }
+
+      setRegDocuments((prev) => [...prev, resolveAssetUrl(json.data.url)]);
+      notify("Đã tải tài liệu lên.");
+      event.target.value = "";
+    } catch (error) {
+      notify(error instanceof Error ? error.message : "Không thể tải tài liệu.");
+    } finally {
+      setUploadingDoc(false);
+    }
+  }
+
+  async function handleSubmitPhotographerApplication() {
+    if (!session) {
+      notify("Vui lòng đăng nhập để gửi hồ sơ.");
+      return;
+    }
+
+    if (!regBio.trim()) {
+      notify("Vui lòng nhập phần giới thiệu kinh nghiệm.");
+      return;
+    }
+
+    if (!regCategories.length) {
+      notify("Vui lòng chọn ít nhất một danh mục dịch vụ.");
+      return;
+    }
+
+    const validPackages = regPackages
+      .map((item) => ({
+        categoryId: Number(item.categoryId),
+        name: item.name.trim(),
+        price: Number(item.price),
+        description: item.description.trim(),
+        duration: Number(item.duration || 120),
+        workerCount: Number(item.workerCount || 1),
+        maxCustomerCount: Number(item.maxCustomerCount || 1),
+        addOns: item.addOns.map((addOn) => addOn.trim()).filter(Boolean),
+      }))
+      .filter(
+        (item) =>
+          Number.isFinite(item.categoryId) &&
+          item.categoryId > 0 &&
+          item.name &&
+          Number.isFinite(item.price) &&
+          item.price > 0
+      );
+
+    if (!validPackages.length) {
+      notify("Vui lòng tạo ít nhất một gói dịch vụ có danh mục, tên và giá.");
+      return;
+    }
+
+    if (!regDocuments.length) {
+      notify("Vui lòng tải lên giấy tờ cá nhân hoặc portfolio.");
+      return;
+    }
+
+    try {
+      setSubmittingReg(true);
+
+      const response = await fetch(`${API_URL}/auth/become-photographer`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...authHeaders(),
+        },
+        body: JSON.stringify({
+          activeArea: regActiveArea,
+          bio: regBio,
+          photographerType: regType,
+          minPrice: Number(regMinPrice || 1500000),
+          startedYear: Number(regStartedYear || new Date().getFullYear()),
+          categoryIds: regCategories.map(Number),
+          packages: validPackages,
+          documents: regDocuments,
+        }),
+      });
+
+      const json = await response.json();
+
+      if (!response.ok || !json.success) {
+        throw new Error(json.message || "Không thể gửi hồ sơ.");
+      }
+
+      notify("Đã gửi hồ sơ. Vui lòng chờ admin duyệt.");
+      setPhotoProfile({
+        verification_status: "pending",
+        active_area: regActiveArea,
+        bio: regBio,
+        photographer_type: regType,
+        min_price: Number(regMinPrice || 1500000),
+        started_year: Number(regStartedYear || new Date().getFullYear()),
+        documents: regDocuments,
+      });
+    } catch (error) {
+      notify(error instanceof Error ? error.message : "Không thể gửi hồ sơ.");
+    } finally {
+      setSubmittingReg(false);
+    }
   }
 
   return (
@@ -102,7 +480,13 @@ export default function ProfilePage() {
             <div className="min-w-0 flex-1 pb-1">
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className="text-[22px] font-black tracking-[-0.02em] text-[#0e111d]">{fullName}</h1>
-                <span className="rounded-full bg-orange-100 px-2.5 py-0.5 text-[11px] font-bold text-orange-600">Khách hàng</span>
+                <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ${
+                  isPhotographerAccount
+                    ? "bg-emerald-100 text-emerald-700"
+                    : session?.role === "admin"
+                      ? "bg-slate-100 text-slate-700"
+                      : "bg-orange-100 text-orange-600"
+                }`}>{accountRoleLabel}</span>
               </div>
               <p className="mt-0.5 text-[13px] text-[#6b7280]">{session?.email ?? "user@email.com"}</p>
               {bio && <p className="mt-2 max-w-[560px] text-[13px] leading-5 text-[#475569]">{bio}</p>}
@@ -152,7 +536,7 @@ export default function ProfilePage() {
 
         {/* Tabs */}
         <div className="mt-6 flex gap-1 rounded-2xl border border-[#e8eaf1] bg-white p-1.5 shadow-sm w-fit">
-          {(["Thông tin", "Đổi mật khẩu", "Thông báo"] as Tab[]).map((t) => (
+          {(["Thông tin", "Đổi mật khẩu", "Thông báo", "Đăng ký thợ ảnh"] as Tab[]).map((t) => (
             <button key={t} onClick={() => setTab(t)}
               className={`rounded-xl px-5 py-2.5 text-[13px] font-bold transition-all ${
                 tab === t ? "bg-[#ff8d28] text-white shadow-[0_6px_16px_rgba(255,141,40,0.3)]" : "text-[#6b7280] hover:text-[#ff8d28]"
@@ -227,7 +611,9 @@ export default function ProfilePage() {
                 <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-[#ff8d28]/20 blur-2xl" />
                 <div className="relative">
                   <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#ff8d28]">Gói thành viên</p>
-                  <p className="mt-1 text-[20px] font-black tracking-tight">Khách hàng Thường</p>
+                  <p className="mt-1 text-[20px] font-black tracking-tight">
+                    {isPhotographerAccount ? "Tài khoản Photographer" : "Khách hàng Thường"}
+                  </p>
                   <p className="mt-1.5 text-[12px] leading-5 text-white/60">Tích lũy thêm booking để lên hạng Bạc và nhận ưu đãi.</p>
                   <div className="mt-4">
                     <div className="mb-1 flex justify-between text-[11px] font-bold text-white/50">
@@ -380,6 +766,349 @@ export default function ProfilePage() {
           </div>
         )}
 
+        {/* ── Tab: Đăng ký thợ ảnh ── */}
+        {tab === "Đăng ký thợ ảnh" && (
+          <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(280px,0.8fr)]">
+            <div className="rounded-[24px] border border-[#e8eaf1] bg-white p-6 shadow-sm sm:p-7">
+              <div className="flex flex-col gap-3 border-b border-[#f0f2f7] pb-5 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <h2 className="flex items-center gap-2 text-[15px] font-black text-[#0e111d]">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-orange-50 text-[#ff8d28]">
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                        <circle cx="12" cy="13" r="3" />
+                      </svg>
+                    </span>
+                    Hồ sơ trở thành photographer
+                  </h2>
+                  <p className="mt-2 text-[13px] leading-6 text-[#6b7280]">
+                    Hồ sơ sau khi gửi sẽ ở trạng thái chờ duyệt. Admin xác minh giấy tờ và portfolio trước khi mở dashboard photographer cho bạn.
+                  </p>
+                </div>
+                <ApplicationBadge status={photoProfile?.verification_status} loading={loadingProfile} />
+              </div>
+
+              <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                <RegField label="Khu vực hoạt động" value={regActiveArea} onChange={setRegActiveArea} placeholder="TP. Hồ Chí Minh" />
+                <RegField label="Giá khởi điểm" value={regMinPrice} onChange={setRegMinPrice} placeholder="1500000" type="number" />
+                <RegField label="Năm bắt đầu" value={regStartedYear} onChange={setRegStartedYear} placeholder="2022" type="number" />
+                <div>
+                  <label className="mb-1.5 block text-[11px] font-black uppercase tracking-wider text-[#9ca3af]">Hình thức làm việc</label>
+                  <select
+                    value={regType}
+                    onChange={(event) => setRegType(event.target.value)}
+                    className="h-11 w-full rounded-xl border border-[#e0e3ec] bg-[#fafbfc] px-3.5 text-[13px] font-semibold text-[#0e111d] outline-none transition-all focus:border-[#ff8d28] focus:bg-white"
+                  >
+                    <option value="freelance">Freelance</option>
+                    <option value="studio">Studio</option>
+                    <option value="agency">Agency</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="mt-4">
+                <label className="mb-1.5 block text-[11px] font-black uppercase tracking-wider text-[#9ca3af]">Kinh nghiệm và phong cách</label>
+                <textarea
+                  value={regBio}
+                  onChange={(event) => setRegBio(event.target.value)}
+                  rows={5}
+                  className="w-full resize-none rounded-xl border border-[#e0e3ec] bg-[#fafbfc] px-3.5 py-3 text-[13px] font-semibold leading-6 text-[#0e111d] outline-none transition-all focus:border-[#ff8d28] focus:bg-white"
+                  placeholder="Mô tả kinh nghiệm chụp ảnh, phong cách, thiết bị, các dự án từng thực hiện..."
+                />
+              </div>
+
+              <div className="mt-4">
+                <label className="mb-2 block text-[11px] font-black uppercase tracking-wider text-[#9ca3af]">Danh mục dịch vụ muốn nhận</label>
+                <div className="flex flex-wrap gap-2">
+                  {categories.map((category) => {
+                    const selectedCategory = regCategories.includes(String(category.id));
+                    return (
+                      <button
+                        key={category.id}
+                        type="button"
+                        onClick={() => toggleRegistrationCategory(category)}
+                        className={`rounded-full border px-3.5 py-2 text-[12px] font-bold transition ${
+                          selectedCategory
+                            ? "border-[#ff8d28] bg-[#ff8d28] text-white"
+                            : "border-[#e8eaf1] bg-white text-[#536078] hover:border-[#ff8d28] hover:text-[#ff8d28]"
+                        }`}
+                      >
+                        {category.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="mt-5">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <label className="block text-[11px] font-black uppercase tracking-wider text-[#9ca3af]">Gói dịch vụ</label>
+                  <button
+                    type="button"
+                    onClick={addRegistrationPackage}
+                    className="inline-flex items-center gap-2 rounded-xl border border-[#ffd2ad] bg-[#fff8f1] px-3.5 py-2 text-[12px] font-bold text-[#ff8d28] transition hover:bg-[#fff3e8]"
+                  >
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                    </svg>
+                    Thêm gói
+                  </button>
+                </div>
+
+                <div className="mt-3 grid gap-3">
+                  {regPackages.map((servicePackage, index) => (
+                    <div key={servicePackage.id} className="rounded-2xl border border-[#e8eaf1] bg-[#fafbfc] p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-[13px] font-black text-[#0e111d]">Gói {index + 1}</p>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setRegPackages((prev) =>
+                              prev.filter((item) => item.id !== servicePackage.id)
+                            )
+                          }
+                          className="grid h-8 w-8 place-items-center rounded-full border border-red-100 bg-white text-[18px] leading-none text-red-500 transition hover:bg-red-50"
+                          aria-label="Xóa gói dịch vụ"
+                        >
+                          ×
+                        </button>
+                      </div>
+
+                      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                        <div>
+                          <label className="mb-1.5 block text-[11px] font-black uppercase tracking-wider text-[#9ca3af]">Danh mục</label>
+                          <select
+                            value={servicePackage.categoryId}
+                            onChange={(event) =>
+                              updateRegistrationPackage(servicePackage.id, {
+                                categoryId: event.target.value,
+                              })
+                            }
+                            className="h-11 w-full rounded-xl border border-[#e0e3ec] bg-white px-3.5 text-[13px] font-semibold text-[#0e111d] outline-none transition-all focus:border-[#ff8d28]"
+                          >
+                            {regCategories.map((categoryId) => {
+                              const category = categories.find(
+                                (item) => String(item.id) === categoryId
+                              );
+
+                              return (
+                                <option key={categoryId} value={categoryId}>
+                                  {category?.name || "Danh mục dịch vụ"}
+                                </option>
+                              );
+                            })}
+                          </select>
+                        </div>
+                        <RegField
+                          label="Tên gói"
+                          value={servicePackage.name}
+                          onChange={(value) =>
+                            updateRegistrationPackage(servicePackage.id, { name: value })
+                          }
+                          placeholder="Gói chụp cơ bản"
+                        />
+                        <RegField
+                          label="Giá gói"
+                          value={servicePackage.price}
+                          onChange={(value) =>
+                            updateRegistrationPackage(servicePackage.id, { price: value })
+                          }
+                          placeholder="1500000"
+                          type="number"
+                        />
+                        <RegField
+                          label="Thời lượng phút"
+                          value={servicePackage.duration}
+                          onChange={(value) =>
+                            updateRegistrationPackage(servicePackage.id, {
+                              duration: value,
+                            })
+                          }
+                          placeholder="120"
+                          type="number"
+                        />
+                        <RegField
+                          label="Số thợ"
+                          value={servicePackage.workerCount}
+                          onChange={(value) =>
+                            updateRegistrationPackage(servicePackage.id, {
+                              workerCount: value,
+                            })
+                          }
+                          placeholder="1"
+                          type="number"
+                        />
+                        <RegField
+                          label="Số khách tối đa"
+                          value={servicePackage.maxCustomerCount}
+                          onChange={(value) =>
+                            updateRegistrationPackage(servicePackage.id, {
+                              maxCustomerCount: value,
+                            })
+                          }
+                          placeholder="1"
+                          type="number"
+                        />
+                      </div>
+
+                      <div className="mt-3">
+                        <label className="mb-1.5 block text-[11px] font-black uppercase tracking-wider text-[#9ca3af]">Mô tả gói</label>
+                        <textarea
+                          value={servicePackage.description}
+                          onChange={(event) =>
+                            updateRegistrationPackage(servicePackage.id, {
+                              description: event.target.value,
+                            })
+                          }
+                          rows={3}
+                          className="w-full resize-none rounded-xl border border-[#e0e3ec] bg-white px-3.5 py-3 text-[13px] font-semibold leading-6 text-[#0e111d] outline-none transition-all focus:border-[#ff8d28]"
+                          placeholder="Ví dụ: chụp 2 giờ, chỉnh màu cơ bản, giao ảnh online..."
+                        />
+                      </div>
+
+                      <div className="mt-3">
+                        <label className="mb-1.5 block text-[11px] font-black uppercase tracking-wider text-[#9ca3af]">Dịch vụ đi kèm</label>
+                        <div className="flex gap-2">
+                          <input
+                            value={servicePackage.addOnDraft}
+                            onChange={(event) =>
+                              updateRegistrationPackage(servicePackage.id, {
+                                addOnDraft: event.target.value,
+                              })
+                            }
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter") {
+                                event.preventDefault();
+                                addPackageAddOn(servicePackage.id);
+                              }
+                            }}
+                            placeholder="Trang điểm, flycam, album in..."
+                            className="h-11 min-w-0 flex-1 rounded-xl border border-[#e0e3ec] bg-white px-3.5 text-[13px] font-semibold text-[#0e111d] outline-none transition-all focus:border-[#ff8d28]"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => addPackageAddOn(servicePackage.id)}
+                            className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#ff8d28] text-white shadow-[0_8px_20px_rgba(255,141,40,0.2)] transition hover:bg-[#e0751b]"
+                            aria-label="Thêm dịch vụ đi kèm"
+                          >
+                            <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                            </svg>
+                          </button>
+                        </div>
+                        {!!servicePackage.addOns.length && (
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {servicePackage.addOns.map((addOn, addOnIndex) => (
+                              <span
+                                key={`${addOn}-${addOnIndex}`}
+                                className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-[12px] font-bold text-[#536078] ring-1 ring-[#e8eaf1]"
+                              >
+                                {addOn}
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    removePackageAddOn(servicePackage.id, addOnIndex)
+                                  }
+                                  className="text-[#9ca3af] transition hover:text-red-500"
+                                  aria-label="Xóa dịch vụ đi kèm"
+                                >
+                                  ×
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+
+                  {!regPackages.length && (
+                    <div className="rounded-2xl border border-dashed border-[#dfe3ec] bg-[#fafbfc] px-4 py-8 text-center text-[13px] font-semibold text-[#9ca3af]">
+                      Chưa có gói dịch vụ nào.
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-5">
+                <div className="flex items-center justify-between gap-3">
+                  <label className="block text-[11px] font-black uppercase tracking-wider text-[#9ca3af]">Giấy tờ và portfolio</label>
+                  <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-[#ffd2ad] bg-[#fff8f1] px-3.5 py-2 text-[12px] font-bold text-[#ff8d28] hover:bg-[#fff3e8]">
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                    </svg>
+                    {uploadingDoc ? "Đang tải..." : "Tải ảnh"}
+                    <input type="file" accept="image/*" className="hidden" disabled={uploadingDoc} onChange={handleDocumentUpload} />
+                  </label>
+                </div>
+                <p className="mt-1 text-[12px] leading-5 text-[#8a93a5]">
+                  Tải CCCD/CMND, giấy phép studio nếu có, hoặc ảnh portfolio chứng minh năng lực. Hỗ trợ JPG, PNG, WEBP.
+                </p>
+
+                <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                  {regDocuments.map((doc, index) => (
+                    <div key={`${doc}-${index}`} className="group relative overflow-hidden rounded-2xl border border-[#e8eaf1] bg-[#fafbfc]">
+                      <img src={resolveAssetUrl(doc)} alt={`Tài liệu ${index + 1}`} className="h-32 w-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => setRegDocuments((prev) => prev.filter((_, idx) => idx !== index))}
+                        className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-full bg-black/60 text-white opacity-0 transition group-hover:opacity-100"
+                        aria-label="Xóa tài liệu"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                  {!regDocuments.length && (
+                    <div className="col-span-full rounded-2xl border border-dashed border-[#dfe3ec] bg-[#fafbfc] px-4 py-8 text-center text-[13px] font-semibold text-[#9ca3af]">
+                      Chưa có tài liệu nào được tải lên.
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <button
+                type="button"
+                disabled={submittingReg || photoProfile?.verification_status === "verified"}
+                onClick={handleSubmitPhotographerApplication}
+                className="mt-6 w-full rounded-xl bg-[#ff8d28] py-3 text-[13px] font-black text-white shadow-[0_8px_20px_rgba(255,141,40,0.25)] transition-all hover:bg-[#e0751b] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {submittingReg
+                  ? "Đang gửi hồ sơ..."
+                  : photoProfile?.verification_status === "pending"
+                    ? "Cập nhật hồ sơ chờ duyệt"
+                    : photoProfile?.verification_status === "verified"
+                      ? "Hồ sơ đã được duyệt"
+                      : "Gửi hồ sơ cho admin duyệt"}
+              </button>
+            </div>
+
+            <div className="rounded-[24px] border border-[#e8eaf1] bg-white p-6 shadow-sm">
+              <h3 className="text-[15px] font-black text-[#0e111d]">Quy trình duyệt</h3>
+              <div className="mt-4 space-y-4">
+                {[
+                  ["1", "Gửi hồ sơ", "Điền thông tin nghề nghiệp và tải giấy tờ cá nhân."],
+                  ["2", "Admin xác minh", "Admin kiểm tra danh tính, portfolio và thông tin dịch vụ."],
+                  ["3", "Mở dashboard", "Khi được duyệt, tài khoản chuyển sang photographer."],
+                ].map(([step, title, desc]) => (
+                  <div key={step} className="flex gap-3">
+                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-orange-50 text-[12px] font-black text-[#ff8d28]">{step}</span>
+                    <div>
+                      <p className="text-[13px] font-black text-[#0e111d]">{title}</p>
+                      <p className="mt-1 text-[12px] leading-5 text-[#6b7280]">{desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {photoProfile?.verification_status === "rejected" && (
+                <div className="mt-5 rounded-2xl border border-red-100 bg-red-50 p-4 text-[12px] leading-5 text-red-600">
+                  Hồ sơ trước đó bị từ chối. Bạn có thể cập nhật thông tin và gửi lại để admin duyệt.
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
       </div>
     </main>
   );
@@ -439,6 +1168,47 @@ function Toggle({ value, onChange }: { value: boolean; onChange: (v: boolean) =>
       <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform duration-200 ${value ? "translate-x-6" : "translate-x-1"}`} />
     </button>
   );
+}
+
+function RegField({ label, value, onChange, placeholder, type = "text" }: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+  type?: string;
+}) {
+  return (
+    <div>
+      <label className="mb-1.5 block text-[11px] font-black uppercase tracking-wider text-[#9ca3af]">{label}</label>
+      <input
+        type={type}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        className="h-11 w-full rounded-xl border border-[#e0e3ec] bg-[#fafbfc] px-3.5 text-[13px] font-semibold text-[#0e111d] outline-none transition-all focus:border-[#ff8d28] focus:bg-white"
+      />
+    </div>
+  );
+}
+
+function ApplicationBadge({ status, loading }: { status?: string; loading: boolean }) {
+  if (loading) {
+    return <span className="rounded-full bg-slate-100 px-3 py-1.5 text-[11px] font-black text-slate-500">Đang tải</span>;
+  }
+
+  if (status === "verified") {
+    return <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-[11px] font-black text-emerald-600">Đã duyệt</span>;
+  }
+
+  if (status === "pending") {
+    return <span className="rounded-full bg-orange-50 px-3 py-1.5 text-[11px] font-black text-orange-600">Chờ admin duyệt</span>;
+  }
+
+  if (status === "rejected") {
+    return <span className="rounded-full bg-red-50 px-3 py-1.5 text-[11px] font-black text-red-600">Bị từ chối</span>;
+  }
+
+  return <span className="rounded-full bg-slate-100 px-3 py-1.5 text-[11px] font-black text-slate-500">Chưa gửi</span>;
 }
 
 function CameraDecor() {

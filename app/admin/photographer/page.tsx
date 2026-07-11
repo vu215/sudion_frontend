@@ -39,6 +39,12 @@ export default function PhotographerPage() {
   const [toast, setToast] = useState("");
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState<any>(null);
+  const [detailData, setDetailData] = useState<{
+    portfolio: string[];
+    services: any[];
+    reviews: any[];
+    bookings: any[];
+  }>({ portfolio: [], services: [], reviews: [], bookings: [] });
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
@@ -92,34 +98,43 @@ export default function PhotographerPage() {
           pageSize: 10,
         };
         
-        console.log('Requesting with params:', params); // Debug
-        
-        const result = await api.photographers.getAll(params);
-        
-        console.log('API Response:', result); // Debug
+        const result = await api.photographerApprovals.getAll({
+          status: "all",
+          keyword: query,
+        });
         
         if (result.success && result.data) {
           const transformedData = (result.data as any).map((p: any) => ({
             id: p.id,
-            studio: p.name || "N/A", // Use name as studio
-            name: p.name,
-            email: p.email,
+            studio: p.full_name || p.name || p.user_full_name || "N/A",
+            name: p.full_name || p.name || p.user_full_name || "N/A",
+            email: p.email || p.user_email || "N/A",
             phone: p.phone || "N/A",
             region: p.region || p.active_area || "N/A",
             avatar: p.avatar_url || "/logo_sudion.jpg",
-            services: [], // Empty array for now
-            rating: parseFloat(p.rating) || 0,
+            services: String(p.categories || "")
+              .split(",")
+              .map((item) => item.trim())
+              .filter(Boolean),
+            rating: parseFloat(p.rating || p.avg_rating) || 0,
             reviews: 0, // Not available
-            bookings: parseInt(p.bookings) || 0,
-            status: mapStatus(p.status || "pending"),
-            joined: p.joined ? new Date(p.joined).toLocaleDateString("vi-VN") : "N/A",
+            bookings: parseInt(p.bookings || "0") || 0,
+            status: mapStatus(p.verification_status || p.status || "pending"),
+            joined: p.joined || p.created_at ? new Date(p.joined || p.created_at).toLocaleDateString("vi-VN") : "N/A",
             birthday: "N/A",
             gender: "N/A",
             bio: p.bio || "",
-            documents: [],
+            documents: (() => {
+              try {
+                if (!p.documents) return [];
+                const parsed = JSON.parse(p.documents);
+                return Array.isArray(parsed) ? parsed : [p.documents];
+              } catch (_) {
+                return typeof p.documents === "string" ? [p.documents] : [];
+              }
+            })(),
           }));
           
-          console.log('Transformed photographers:', transformedData.length, transformedData);
           setItems(transformedData);
           setPagination(result.pagination);
         } else {
@@ -132,7 +147,7 @@ export default function PhotographerPage() {
     }
 
     loadPhotographers();
-  }, [page, query, status, region]); // Add all dependencies
+  }, [page, query, status, region]);
 
   // Load stats
   useEffect(() => {
@@ -145,6 +160,43 @@ export default function PhotographerPage() {
     loadStats();
   }, []);
 
+  useEffect(() => {
+    if (!selectedId) return;
+
+    let alive = true;
+
+    async function loadDetailData() {
+      try {
+        const [portfolio, services, reviews, bookings] = await Promise.all([
+          api.photographers.getPortfolio(selectedId),
+          api.photographers.getServices(selectedId),
+          api.photographers.getReviews(selectedId),
+          api.photographers.getBookings(selectedId),
+        ]);
+
+        if (!alive) return;
+
+        setDetailData({
+          portfolio: portfolio.success && Array.isArray(portfolio.data) ? portfolio.data as string[] : [],
+          services: services.success && Array.isArray(services.data) ? services.data as any[] : [],
+          reviews: reviews.success && Array.isArray(reviews.data) ? reviews.data as any[] : [],
+          bookings: bookings.success && Array.isArray(bookings.data) ? bookings.data as any[] : [],
+        });
+      } catch (error) {
+        console.error("Error loading photographer detail tabs:", error);
+        if (alive) {
+          setDetailData({ portfolio: [], services: [], reviews: [], bookings: [] });
+        }
+      }
+    }
+
+    void loadDetailData();
+
+    return () => {
+      alive = false;
+    };
+  }, [selectedId]);
+
   function notify(message: string) {
     setToast(message);
     setTimeout(() => setToast(""), 1800);
@@ -155,6 +207,7 @@ export default function PhotographerPage() {
   }
 
   async function handleUpdateStatus(id: number, newStatus: Status) {
+    const oldStatus = items.find((item) => item.id === id)?.status;
     const backendStatusMap: Record<Status, string> = {
       "Đã xác minh": "verified",
       "Chờ duyệt": "pending",
@@ -162,10 +215,33 @@ export default function PhotographerPage() {
       "Bị khóa": "locked",
     };
 
-    const result = await api.photographers.updateStatus(id, backendStatusMap[newStatus]);
+    const result =
+      newStatus === "Đã xác minh"
+        ? await api.photographerApprovals.approve(id)
+        : newStatus === "Bị từ chối"
+          ? await api.photographerApprovals.reject(id)
+          : await api.photographers.updateStatus(id, backendStatusMap[newStatus]);
     
     if (result.success) {
       patch(id, { status: newStatus });
+      setStats((current: any) => {
+        if (!current || !oldStatus || oldStatus === newStatus) return current;
+
+        const keyByStatus: Record<Status, string> = {
+          "Đã xác minh": "verified",
+          "Chờ duyệt": "pending",
+          "Bị từ chối": "rejected",
+          "Bị khóa": "locked",
+        };
+        const oldKey = keyByStatus[oldStatus];
+        const newKey = keyByStatus[newStatus];
+
+        return {
+          ...current,
+          [oldKey]: Math.max(0, Number(current[oldKey] || 0) - 1),
+          [newKey]: Number(current[newKey] || 0) + 1,
+        };
+      });
       notify(`Đã cập nhật trạng thái photographer.`);
     } else {
       notify(`Lỗi: ${result.error || "Không thể cập nhật"}`);
@@ -269,7 +345,13 @@ export default function PhotographerPage() {
                         <td className="px-3 py-3 text-[#f59e0b]">★ <b className="text-[#111827]">{item.rating}</b><p className="text-[#697086]">({item.reviews})</p></td>
                         <td className="px-3 py-3 font-semibold">{item.bookings}</td>
                         <td className="px-3 py-3"><Badge text={item.status} /></td>
-                        <td className="px-3 py-3"><div className="flex gap-2"><IconButton label="Xem chi tiết" icon="eye" onClick={(e) => { e.stopPropagation(); openDetail(item.id); }} /><IconButton label="Duyệt" icon="check" onClick={(e) => { e.stopPropagation(); handleUpdateStatus(item.id, "Đã xác minh"); }} /></div></td>
+                        <td className="px-3 py-3">
+                          <div className="flex gap-2">
+                            <IconButton label="Xem chi tiết" icon="eye" onClick={(e) => { e.stopPropagation(); openDetail(item.id); }} />
+                            <IconButton label="Duyệt" icon="check" onClick={(e) => { e.stopPropagation(); handleUpdateStatus(item.id, "Đã xác minh"); }} />
+                            <IconButton label="Từ chối" icon="close" tone="danger" onClick={(e) => { e.stopPropagation(); handleUpdateStatus(item.id, "Bị từ chối"); }} />
+                          </div>
+                        </td>
                       </tr>
                     ))
                   )}
@@ -310,8 +392,60 @@ export default function PhotographerPage() {
               <Info label="Khu vực hoạt động" value={selected.region} />
               <div><p className="mb-2 text-[#697086]">Dịch vụ chính</p>{selected.services.map((s) => <span key={s} className="mr-1 rounded-lg bg-[#f0f2f8] px-2.5 py-1">{s}</span>)}</div>
               {selected.bio && <div><p className="text-[#697086]">Tiểu sử</p><p className="mt-1 leading-5">{selected.bio}</p></div>}
+              
+              {selected.documents && selected.documents.length > 0 && (
+                <div className="mt-4 pt-3 border-t">
+                  <p className="text-[#697086] font-semibold mb-2">Tài liệu xác minh (CCCD / Portfolio)</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {selected.documents.map((docUrl, idx) => (
+                      <a key={idx} href={docUrl} target="_blank" rel="noopener noreferrer" className="block border rounded-lg overflow-hidden bg-gray-50 hover:opacity-90 transition-opacity">
+                        {docUrl.match(/\.(jpeg|jpg|gif|png|webp)/i) ? (
+                          <img src={docUrl} alt={`Tài liệu ${idx + 1}`} className="h-24 w-full object-cover" />
+                        ) : (
+                          <div className="p-3 text-center text-[11px] text-blue-600 font-bold truncate">Tệp đính kèm {idx + 1}</div>
+                        )}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
-          ) : <div className="py-10 text-center text-[#697086]">Nội dung {tab} chưa có từ API.</div>}
+          ) : tab === "Portfolio" ? (
+            <div className="mt-5 grid grid-cols-2 gap-2">
+              {detailData.portfolio.length ? detailData.portfolio.map((url, index) => (
+                <a key={`${url}-${index}`} href={url} target="_blank" rel="noopener noreferrer" className="overflow-hidden rounded-lg border bg-gray-50">
+                  <img src={url} alt={`Portfolio ${index + 1}`} className="h-28 w-full object-cover" />
+                </a>
+              )) : <EmptyDetail text="Photographer này chưa có ảnh portfolio." />}
+            </div>
+          ) : tab === "Dịch vụ" ? (
+            <div className="mt-5 space-y-2 text-[12px]">
+              {detailData.services.length ? detailData.services.map((service) => (
+                <div key={service.id} className="rounded-xl border border-[#edf0f5] bg-[#fafbfc] p-3">
+                  <p className="font-semibold">{service.name || service.package_name || "Gói dịch vụ"}</p>
+                  <p className="mt-1 text-[#697086]">{service.category_name || "Chưa phân loại"} · {Number(service.price || service.base_price || 0).toLocaleString("vi-VN")}đ</p>
+                </div>
+              )) : <EmptyDetail text="Photographer này chưa có gói dịch vụ." />}
+            </div>
+          ) : tab === "Đánh giá" ? (
+            <div className="mt-5 space-y-2 text-[12px]">
+              {detailData.reviews.length ? detailData.reviews.map((review) => (
+                <div key={review.id || review.booking_code} className="rounded-xl border border-[#edf0f5] bg-[#fafbfc] p-3">
+                  <p className="font-semibold">★ {review.rating || 0} · {review.customer_full_name || "Khách hàng"}</p>
+                  <p className="mt-1 text-[#697086]">{review.comment || review.content || "Không có nhận xét."}</p>
+                </div>
+              )) : <EmptyDetail text="Chưa có đánh giá." />}
+            </div>
+          ) : (
+            <div className="mt-5 space-y-2 text-[12px]">
+              {detailData.bookings.length ? detailData.bookings.slice(0, 8).map((booking) => (
+                <div key={booking.booking_code || booking.id} className="rounded-xl border border-[#edf0f5] bg-[#fafbfc] p-3">
+                  <p className="font-semibold">{booking.booking_code || `Booking #${booking.id}`}</p>
+                  <p className="mt-1 text-[#697086]">{booking.service_name || "Dịch vụ"} · {booking.customer_full_name || "Khách hàng"} · {booking.status || "unknown"}</p>
+                </div>
+              )) : <EmptyDetail text="Chưa có lịch sử booking." />}
+            </div>
+          )}
           <div className="mt-6 flex justify-end gap-2">
             <IconButton label="Khóa" icon="lock" onClick={() => handleUpdateStatus(selected.id, "Bị khóa")} />
             <IconButton label="Từ chối" icon="close" onClick={() => handleUpdateStatus(selected.id, "Bị từ chối")} />
@@ -446,4 +580,5 @@ function Stat({ title, value, note, tone }: { title: string; value: string; note
 function Select({ value, options, onChange }: { value: string; options: string[]; onChange: (v: string) => void }) { return <select value={value} onChange={(e) => onChange(e.target.value)} className="!h-10 !min-h-0 !w-full rounded-xl !border !border-[#ffd2ad] bg-white !px-3 !py-0 !text-[12px] !font-normal text-[#ff8d28] !shadow-none outline-none focus:!border-[#ff8d28] focus:ring-2 focus:ring-[#ff8d28]/10">{options.map((o) => <option key={o}>{o}</option>)}</select>; }
 function Badge({ text }: { text: string }) { return <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium ${text === "Đã xác minh" ? "bg-emerald-50 text-emerald-700" : text === "Chờ duyệt" ? "bg-orange-50 text-orange-700" : "bg-red-50 text-red-600"}`}>{text}</span>; }
 function Info({ label, value }: { label: string; value: string }) { return <div className="grid grid-cols-[118px_minmax(0,1fr)] gap-3"><span className="text-[#697086]">{label}</span><b className="font-medium">{value}</b></div>; }
+function EmptyDetail({ text }: { text: string }) { return <div className="col-span-full rounded-xl border border-dashed border-[#dfe3ec] bg-[#fafbfc] p-5 text-center text-[12px] text-[#697086]">{text}</div>; }
 function Toast({ text }: { text: string }) { return <div className="fixed right-6 top-20 z-50 rounded-xl border bg-white px-4 py-3 font-medium text-emerald-700 shadow-xl">{text}</div>; }

@@ -61,13 +61,17 @@ function makeSession(user: AuthUser): AuthSession {
   };
 }
 
-function writeCompatStorage(user: AuthUser, session: AuthSession) {
+function writeCompatStorage(user: AuthUser, session: AuthSession, token?: string) {
   if (typeof window === "undefined") return;
 
   window.localStorage.setItem(SESSION_KEY, JSON.stringify(session));
   window.localStorage.setItem("sudion_user", JSON.stringify(user));
   window.localStorage.setItem("sudion_auth_user", JSON.stringify(user));
   window.localStorage.setItem("sudion_booking_email", user.email);
+
+  if (token) {
+    window.localStorage.setItem("sudion_token", token);
+  }
 
   if (user.role === "photographer" && user.photographerId) {
     window.localStorage.setItem("sudion_photographer_id", user.photographerId);
@@ -85,6 +89,11 @@ export function getSession(): AuthSession | null {
   }
 }
 
+export function getToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return window.localStorage.getItem("sudion_token");
+}
+
 export function setSession(session: AuthSession) {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(SESSION_KEY, JSON.stringify(session));
@@ -97,6 +106,7 @@ export function clearSession() {
   window.localStorage.removeItem("sudion_user");
   window.localStorage.removeItem("sudion_auth_user");
   window.localStorage.removeItem("sudion_photographer_id");
+  window.localStorage.removeItem("sudion_token");
 }
 
 export async function registerUser(params: {
@@ -123,6 +133,7 @@ export async function registerUser(params: {
 
     const result = (await response.json()) as ApiResponse<{
       user: AuthUser;
+      token?: string;
     }>;
 
     if (!response.ok || !result.success) {
@@ -134,8 +145,9 @@ export async function registerUser(params: {
 
     const user = normalizeUser(result.data?.user);
     const session = makeSession(user);
+    const token = result.data?.token;
 
-    writeCompatStorage(user, session);
+    writeCompatStorage(user, session, token);
 
     return {
       ok: true as const,
@@ -167,6 +179,7 @@ export async function loginUser(emailInput: string, password: string) {
 
     const result = (await response.json()) as ApiResponse<{
       user: AuthUser;
+      token?: string;
     }>;
 
     if (!response.ok || !result.success) {
@@ -178,8 +191,9 @@ export async function loginUser(emailInput: string, password: string) {
 
     const user = normalizeUser(result.data?.user);
     const session = makeSession(user);
+    const token = result.data?.token;
 
-    writeCompatStorage(user, session);
+    writeCompatStorage(user, session, token);
 
     return {
       ok: true as const,
@@ -193,5 +207,38 @@ export async function loginUser(emailInput: string, password: string) {
         error?.message ||
         "Không thể kết nối backend. Vui lòng kiểm tra server.",
     };
+  }
+}
+
+export async function refreshSessionFromServer() {
+  try {
+    const token = getToken();
+
+    if (!token) {
+      return getSession();
+    }
+
+    const response = await fetch(`${API_URL}/auth/me`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      cache: "no-store",
+    });
+
+    const result = (await response.json()) as ApiResponse<{
+      user: AuthUser;
+    }>;
+
+    if (!response.ok || !result.success || !result.data?.user) {
+      return getSession();
+    }
+
+    const user = normalizeUser(result.data.user);
+    const session = makeSession(user);
+    writeCompatStorage(user, session);
+
+    return session;
+  } catch {
+    return getSession();
   }
 }

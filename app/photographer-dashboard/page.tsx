@@ -4,8 +4,15 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/app/auth-context";
 import { useToast } from "@/app/toast-context";
+import { useRouter } from "next/navigation";
+import { api } from "@/lib/api";
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+
+function authHeaders() {
+  const token = typeof window !== "undefined" ? window.localStorage.getItem("sudion_token") : null;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
 
 const AUTO_REFRESH_MS = 8000;
 
@@ -177,6 +184,7 @@ async function getBookingsByPhotographer(photographerId: string) {
     {
       method: "GET",
       cache: "no-store",
+      headers: authHeaders(),
     }
   );
 
@@ -194,6 +202,7 @@ async function updateBookingStatus(bookingCode: string, status: string) {
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",
+      ...authHeaders(),
     },
     body: JSON.stringify({ status }),
   });
@@ -208,33 +217,62 @@ async function updateBookingStatus(bookingCode: string, status: string) {
 }
 
 export default function PhotographerDashboardPage() {
-  const { session, isPhotographer } = useAuth();
+  const { session, isLoggedIn, isPhotographer, isAdmin, isLoading } = useAuth();
+  const router = useRouter();
   const toast = useToast();
   const [photographerId, setPhotographerId] = useState("");
   const [bookings, setBookings] = useState<BackendBooking[]>([]);
   const [activeStatus, setActiveStatus] = useState("all");
+  const [mainTab, setMainTab] = useState<"bookings" | "promotion">("bookings");
+  const [profile, setProfile] = useState<any>(null);
 
   const [loading, setLoading] = useState(false);
   const [updatingCode, setUpdatingCode] = useState("");
   const [pageError, setPageError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
-  useEffect(() => {
-    const sessionPhotographerId =
-      isPhotographer && session?.photographerId ? session.photographerId : "";
+  async function loadProfile(id: string) {
+    try {
+      const response = await fetch(`${API_URL}/photographers/${id}`);
+      const json = await response.json();
+      if (json.success) {
+        setProfile(json.data);
+      }
+    } catch (error) {
+      console.error("Error loading photographer profile:", error);
+    }
+  }
 
-    const savedId = window.localStorage.getItem("sudion_photographer_id") || "";
-    const finalId = sessionPhotographerId || savedId;
+  useEffect(() => {
+    if (!isLoading) {
+      if (!isLoggedIn) {
+        router.push("/login");
+      } else if (!isPhotographer && !isAdmin) {
+        router.push("/");
+      }
+    }
+  }, [isLoggedIn, isPhotographer, isAdmin, isLoading, router]);
+
+  useEffect(() => {
+    if (isLoading) return;
+    if (!isLoggedIn || (!isPhotographer && !isAdmin)) return;
+
+    // Secure: normal thợ ảnh cannot query arbitrary IDs, admins can.
+    const finalId = isAdmin 
+      ? (photographerId || session?.photographerId || session?.userId || "79")
+      : (session?.photographerId || session?.userId || "");
 
     if (!finalId) return;
 
     setPhotographerId(finalId);
     void handleLoadBookings(finalId);
+    void loadProfile(finalId);
 
     const timer = window.setInterval(async () => {
       try {
         const data = await getBookingsByPhotographer(finalId);
         setBookings(data);
+        await loadProfile(finalId);
         window.localStorage.setItem("sudion_photographer_id", finalId);
       } catch (error) {
         console.error("Auto refresh photographer dashboard failed:", error);
@@ -242,7 +280,7 @@ export default function PhotographerDashboardPage() {
     }, AUTO_REFRESH_MS);
 
     return () => window.clearInterval(timer);
-  }, [isPhotographer, session?.photographerId]);
+  }, [isLoading, isLoggedIn, isPhotographer, isAdmin, session]);
 
   const stats = useMemo(() => {
     return {
@@ -297,6 +335,10 @@ export default function PhotographerDashboardPage() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!isAdmin) {
+      toast.warning("Hành động bị chặn", "Chỉ admin mới có quyền đổi ID thợ ảnh.");
+      return;
+    }
     await handleLoadBookings();
   }
 
@@ -341,6 +383,25 @@ export default function PhotographerDashboardPage() {
     setUpdatingCode("");
   }
 }
+
+  async function handleBuyPromotion(packageType: "7_days" | "30_days") {
+    try {
+      setLoading(true);
+      const result = (await api.promotion.createPayment(packageType)) as any;
+      if (result.success && result.data) {
+        const { bookingCode, paymentType, amount, signature } = result.data;
+        router.push(
+          `/checkout-gateway?bookingCode=${bookingCode}&paymentType=${paymentType}&amount=${amount}&signature=${signature}`
+        );
+      } else {
+        alert(result.message || "Lỗi tạo thông tin thanh toán.");
+      }
+    } catch (err: any) {
+      alert("Lỗi kết nối: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <main className="min-h-screen bg-[#f8fafc] text-[#0f172a]">
@@ -396,85 +457,185 @@ export default function PhotographerDashboardPage() {
             </div>
           </div>
 
-          <div className="grid gap-4 border-b border-[#eef2f7] bg-[#fbfcff] px-6 py-5 sm:grid-cols-2 lg:grid-cols-6 lg:px-8">
-            <StatCard label="Tổng đơn" value={stats.total} />
-            <StatCard label="Chờ xác nhận" value={stats.awaiting} />
-            <StatCard label="Chờ khách cọc" value={stats.accepted} />
-            <StatCard label="Đã cọc" value={stats.confirmed} />
-            <StatCard label="Chờ trả còn lại" value={stats.completed} />
-            <StatCard label="Đã thanh toán đủ" value={stats.fullyPaid} />
+          {/* Main Tabs */}
+          <div className="flex border-b border-[#eef2f7] bg-white px-6">
+            <button
+              onClick={() => setMainTab("bookings")}
+              className={`pb-4 pt-5 px-4 text-[14px] font-bold border-b-2 transition-all ${
+                mainTab === "bookings"
+                  ? "border-[#ff8d28] text-[#ff8d28]"
+                  : "border-transparent text-[#64748b] hover:text-[#0f172a]"
+              }`}
+            >
+              Quản lý Đặt lịch ({stats.total})
+            </button>
+            <button
+              onClick={() => setMainTab("promotion")}
+              className={`pb-4 pt-5 px-4 text-[14px] font-bold border-b-2 transition-all ${
+                mainTab === "promotion"
+                  ? "border-[#ff8d28] text-[#ff8d28]"
+                  : "border-transparent text-[#64748b] hover:text-[#0f172a]"
+              }`}
+            >
+              Quảng cáo & Nổi bật hồ sơ
+            </button>
           </div>
 
-          <div className="px-6 py-6 lg:px-8">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <h2 className="text-[24px] font-black tracking-[-0.03em] text-[#0f172a]">
-                  Danh sách đơn được book
-                </h2>
-
-                <p className="mt-1 text-[13px] font-semibold text-[#64748b]">
-                  Trang này tự cập nhật sau mỗi 8 giây.
-                </p>
+          {mainTab === "bookings" ? (
+            <>
+              <div className="grid gap-4 border-b border-[#eef2f7] bg-[#fbfcff] px-6 py-5 sm:grid-cols-2 lg:grid-cols-6 lg:px-8">
+                <StatCard label="Tổng đơn" value={stats.total} />
+                <StatCard label="Chờ xác nhận" value={stats.awaiting} />
+                <StatCard label="Chờ khách cọc" value={stats.accepted} />
+                <StatCard label="Đã cọc" value={stats.confirmed} />
+                <StatCard label="Chờ trả còn lại" value={stats.completed} />
+                <StatCard label="Đã thanh toán đủ" value={stats.fullyPaid} />
               </div>
 
-              <Link
-                href="/photographer"
-                className="inline-flex w-fit items-center justify-center rounded-[12px] border border-[#e2e8f0] bg-white px-4 py-3 text-[13px] font-black text-[#334155] transition-all hover:border-[#ffcfaa] hover:text-[#ff8d28]"
-              >
-                Quay lại danh sách photographer
-              </Link>
-            </div>
+              <div className="px-6 py-6 lg:px-8">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <h2 className="text-[24px] font-black tracking-[-0.03em] text-[#0f172a]">
+                      Danh sách đơn được book
+                    </h2>
 
-            <div className="mt-5 flex gap-2 overflow-x-auto pb-2">
-              {statusTabs.map((tab) => {
-                const active = tab.id === activeStatus;
+                    <p className="mt-1 text-[13px] font-semibold text-[#64748b]">
+                      Trang này tự cập nhật sau mỗi 8 giây.
+                    </p>
+                  </div>
 
-                return (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => setActiveStatus(tab.id)}
-                    className={`shrink-0 rounded-full border px-4 py-2 text-[12px] font-black transition-all ${
-                      active
-                        ? "border-[#ff8d28] bg-[#fff7ed] text-[#ff8d28]"
-                        : "border-[#e2e8f0] bg-white text-[#64748b] hover:border-[#ffcfaa] hover:text-[#ff8d28]"
-                    }`}
+                  <Link
+                    href="/photographer"
+                    className="inline-flex w-fit items-center justify-center rounded-[12px] border border-[#e2e8f0] bg-white px-4 py-3 text-[13px] font-black text-[#334155] transition-all hover:border-[#ffcfaa] hover:text-[#ff8d28]"
                   >
-                    {tab.label}
-                  </button>
-                );
-              })}
+                    Quay lại danh sách photographer
+                  </Link>
+                </div>
+
+                <div className="mt-5 flex gap-2 overflow-x-auto pb-2">
+                  {statusTabs.map((tab) => {
+                    const active = tab.id === activeStatus;
+
+                    return (
+                      <button
+                        key={tab.id}
+                        type="button"
+                        onClick={() => setActiveStatus(tab.id)}
+                        className={`shrink-0 rounded-full border px-4 py-2 text-[12px] font-black transition-all ${
+                          active
+                            ? "border-[#ff8d28] bg-[#fff7ed] text-[#ff8d28]"
+                            : "border-transparent bg-white text-[#64748b] hover:text-[#ff8d28]"
+                        }`}
+                      >
+                        {tab.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {pageError ? (
+                  <div className="mt-4 rounded-[16px] border border-red-200 bg-red-50 px-4 py-3 text-[13px] font-bold text-red-600">
+                    {pageError}
+                  </div>
+                ) : null}
+
+                {successMessage ? (
+                  <div className="mt-4 rounded-[16px] border border-emerald-200 bg-emerald-50 px-4 py-3 text-[13px] font-bold text-emerald-700">
+                    {successMessage}
+                  </div>
+                ) : null}
+
+                {loading ? (
+                  <DashboardSkeleton />
+                ) : filteredBookings.length === 0 ? (
+                  <EmptyState hasPhotographerId={Boolean(photographerId.trim())} />
+                ) : (
+                  <div className="mt-5 grid gap-4">
+                    {filteredBookings.map((booking) => (
+                      <DashboardBookingCard
+                        key={booking.booking_code}
+                        booking={booking}
+                        updatingCode={updatingCode}
+                        onUpdateStatus={handleUpdateStatus}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="p-6 lg:p-8">
+              <div className="max-w-[720px] mx-auto bg-white rounded-3xl border border-[#e2e8f0] p-6 md:p-8 shadow-sm">
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="grid h-12 w-12 place-items-center rounded-2xl bg-[#fff3e8] text-[#ff8d28]">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                  </div>
+                  <div>
+                    <h2 className="text-[20px] font-black text-[#0f172a] tracking-tight">Đăng ký vị trí Nổi bật (Featured)</h2>
+                    <p className="text-[13px] text-[#64748b] font-medium mt-1">Đưa hồ sơ của bạn lên đầu kết quả tìm kiếm của khách hàng</p>
+                  </div>
+                </div>
+
+                {profile?.is_featured ? (
+                  <div className="mb-8 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-emerald-800">
+                    <p className="text-[14px] font-bold flex items-center gap-2">
+                      <span className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                      Hồ sơ của bạn đang ở trạng thái NỔI BẬT!
+                    </p>
+                    <p className="text-[12px] font-semibold text-emerald-700/90 mt-1">
+                      Hết hạn vào ngày: {new Date(profile.featured_until).toLocaleDateString("vi-VN")} lúc {new Date(profile.featured_until).toLocaleTimeString("vi-VN")}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="mb-8 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 text-slate-700">
+                    <p className="text-[14px] font-bold">Trạng thái hồ sơ: Thông thường</p>
+                    <p className="text-[12px] font-medium text-slate-500 mt-1">Đăng ký một trong các gói bên dưới để tiếp cận hàng ngàn khách hàng tiềm năng mới.</p>
+                  </div>
+                )}
+
+                <h3 className="text-[15px] font-bold text-[#0f172a] mb-4">Lựa chọn gói Quảng cáo:</h3>
+                
+                <div className="grid gap-5 md:grid-cols-2">
+                  <div className="rounded-2xl border border-[#e2e8f0] p-5 flex flex-col justify-between hover:border-[#ff8d28] transition-all">
+                    <div>
+                      <span className="text-[11px] font-black uppercase text-[#ff8d28] tracking-wider">Gói Vàng</span>
+                      <h4 className="text-[18px] font-black text-gray-800 mt-1">Nổi bật 7 ngày</h4>
+                      <p className="text-[12px] text-gray-500 mt-2 font-medium">Lý tưởng để thử nghiệm hiệu quả hiển thị và tăng nhanh lượng khách hàng trong tuần.</p>
+                    </div>
+                    <div className="mt-6">
+                      <p className="text-[20px] font-black text-gray-900">200.000đ</p>
+                      <button
+                        onClick={() => handleBuyPromotion("7_days")}
+                        disabled={loading}
+                        className="w-full mt-4 rounded-xl bg-[#ff8d28] hover:bg-[#e0751b] py-2.5 text-[13px] font-black text-white text-center transition-all disabled:opacity-55"
+                      >
+                        Thanh toán ngay
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border-2 border-[#ff8d28] bg-[#fffbf7] p-5 flex flex-col justify-between relative">
+                    <span className="absolute top-[-12px] right-4 bg-[#ff8d28] text-white text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md">Phổ biến nhất</span>
+                    <div>
+                      <span className="text-[11px] font-black uppercase text-[#ff8d28] tracking-wider">Gói Kim Cương</span>
+                      <h4 className="text-[18px] font-black text-gray-800 mt-1">Nổi bật 30 ngày</h4>
+                      <p className="text-[12px] text-gray-500 mt-2 font-medium">Tối ưu chi phí và duy trì thứ hạng nổi bật liên tục trên trang chủ trong suốt một tháng.</p>
+                    </div>
+                    <div className="mt-6">
+                      <p className="text-[20px] font-black text-gray-900">700.000đ <span className="text-[11px] font-bold text-gray-400 line-through">800.000đ</span></p>
+                      <button
+                        onClick={() => handleBuyPromotion("30_days")}
+                        disabled={loading}
+                        className="w-full mt-4 rounded-xl bg-[#111827] hover:bg-black py-2.5 text-[13px] font-black text-white text-center transition-all disabled:opacity-55"
+                      >
+                        Thanh toán ngay
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
-
-            {pageError ? (
-              <div className="mt-4 rounded-[16px] border border-red-200 bg-red-50 px-4 py-3 text-[13px] font-bold text-red-600">
-                {pageError}
-              </div>
-            ) : null}
-
-            {successMessage ? (
-              <div className="mt-4 rounded-[16px] border border-emerald-200 bg-emerald-50 px-4 py-3 text-[13px] font-bold text-emerald-700">
-                {successMessage}
-              </div>
-            ) : null}
-
-            {loading ? (
-              <DashboardSkeleton />
-            ) : filteredBookings.length === 0 ? (
-              <EmptyState hasPhotographerId={Boolean(photographerId.trim())} />
-            ) : (
-              <div className="mt-5 grid gap-4">
-                {filteredBookings.map((booking) => (
-                  <DashboardBookingCard
-                    key={booking.booking_code}
-                    booking={booking}
-                    updatingCode={updatingCode}
-                    onUpdateStatus={handleUpdateStatus}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
+          )}
         </div>
       </section>
     </main>

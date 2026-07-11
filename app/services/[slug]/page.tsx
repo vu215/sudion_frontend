@@ -302,7 +302,7 @@ function ServiceListingPage({
             </div>
 
             <h1
-              className="mt-5 max-w-[15ch] text-[40px] font-black leading-[1.18] text-[#0e111d] sm:text-[48px] lg:text-[56px]"
+              className="mt-5 max-w-[14ch] text-[38px] font-black leading-[1.12] text-[#0e111d] sm:max-w-[18ch] sm:text-[46px] lg:max-w-[720px] lg:text-[56px]"
               style={fadeUpStyle(isReady, 180)}
             >
               {serviceTitle}

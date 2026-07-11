@@ -20,12 +20,19 @@ interface ApiResponse<T = any> {
 
 async function request<T>(endpoint: string, options?: RequestInit): Promise<ApiResponse<T>> {
   try {
+    const token = typeof window !== 'undefined' ? window.localStorage.getItem('sudion_token') : null;
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...((options?.headers as Record<string, string>) || {}),
+    };
+    
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...options?.headers,
-      },
+      headers,
     });
 
     const data = await response.json();
@@ -90,6 +97,24 @@ export const api = {
     getBookings: (id: number) => request(`/admin/photographers/${id}/bookings`),
   },
 
+  photographerApprovals: {
+    getAll: (params?: Record<string, any>) => {
+      const query = params ? '?' + new URLSearchParams(params).toString() : '';
+      return request(`/admin/photographer-approvals${query}`);
+    },
+    getById: (id: number) => request(`/admin/photographer-approvals/${id}`),
+    approve: (id: number, note?: string) =>
+      request(`/admin/photographer-approvals/${id}/approve`, {
+        method: 'POST',
+        body: JSON.stringify({ note }),
+      }),
+    reject: (id: number, reason?: string) =>
+      request(`/admin/photographer-approvals/${id}/reject`, {
+        method: 'POST',
+        body: JSON.stringify({ reason }),
+      }),
+  },
+
   // Admin Notification APIs
   notifications: {
     getAll: (params?: Record<string, any>) => {
@@ -126,6 +151,12 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ amount, reason })
       }),
+    getPayouts: (params?: Record<string, any>) => {
+      const query = params ? '?' + new URLSearchParams(params).toString() : '';
+      return request(`/admin/payments/payouts${query}`);
+    },
+    confirmPayout: (bookingCode: string) =>
+      request(`/admin/payments/payouts/${bookingCode}/pay`, { method: 'POST' }),
   },
 
   // Admin Report APIs
@@ -292,5 +323,32 @@ export const api = {
     getByKey: (key: string) => request(`/admin/settings/${key}`),
     update: (key: string, value: any) => request(`/admin/settings/${key}`, { method: 'PUT', body: JSON.stringify({ value }) }),
     delete: (key: string) => request(`/admin/settings/${key}`, { method: 'DELETE' }),
+  },
+
+  // Banner APIs
+  banners: {
+    getActive: () => request('/banners/active'),
+    getAll: () => request('/admin/banners'),
+    create: (data: any) => request('/admin/banners', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: number, data: any) => request(`/admin/banners/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (id: number) => request(`/admin/banners/${id}`, { method: 'DELETE' }),
+  },
+
+  // Promotion APIs
+  promotion: {
+    createPayment: (packageType: '7_days' | '30_days') =>
+      request('/payments/promote', {
+        method: 'POST',
+        body: JSON.stringify({ packageType }),
+      }),
+  },
+
+  // Profile APIs
+  profile: {
+    becomePhotographer: (data: any) =>
+      request('/auth/become-photographer', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
   },
 };
