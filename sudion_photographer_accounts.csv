@@ -1,97 +1,97 @@
 ﻿STT,user_id_cu_photographerId,email_tai_khoan,mat_khau_de_nho,ten_photographer,phone
-1,2,binhnguyen@test.com,photo2123,Hào Lê,0911111111
-2,3,hungtrinh@test.com,photo3123,Bình Nguyễn,0922222222
-3,4,minhanh@test.com,photo4123,Hoàng Anh,0933333333
-4,5,tuankiet@test.com,photo5123,Tuấn Kiệt,0944444444
-5,6,seed_wedding_01@sudion.test,photo6123,Photo Cưới 01,0900000101
-6,7,seed_family_01@sudion.test,photo7123,Photo Gia Đình 01,0900000201
-7,8,seed_event_01@sudion.test,photo8123,Minh Anh,0900000301
-8,9,seed_commercial_01@sudion.test,photo9123,Photo Thương Mại 01,0900000401
-9,10,seed_portrait_01@sudion.test,photo10123,Photo Cá Nhân 01,0900000501
-10,11,seed_couple_01@sudion.test,photo11123,Hưng Trịnh,0900000601
-11,12,seed_yearbook_01@sudion.test,photo12123,Photo Kỉ Yếu 01,0900000701
-12,13,seed_food_01@sudion.test,photo13123,Nhà Bếp Studio,0900000801
-13,14,seed_travel_01@sudion.test,photo14123,Anh Travel,0900000901
-14,15,seed_wedding_02@sudion.test,photo15123,Photo Cưới 02,0900000102
-15,16,seed_family_02@sudion.test,photo16123,Photo Gia Đình 02,0900000202
-16,17,seed_event_02@sudion.test,photo17123,Linh Hoa,0900000302
-17,18,seed_commercial_02@sudion.test,photo18123,Photo Thương Mại 02,0900000402
-18,19,seed_portrait_02@sudion.test,photo19123,Photo Cá Nhân 02,0900000502
-19,20,seed_couple_02@sudion.test,photo20123,Studio K,0900000602
-20,21,seed_yearbook_02@sudion.test,photo21123,Photo Kỉ Yếu 02,0900000702
-21,22,seed_food_02@sudion.test,photo22123,Photo Food Product 02,0900000802
-22,23,seed_travel_02@sudion.test,photo23123,Photo Travel 02,0900000902
-23,24,seed_wedding_03@sudion.test,photo24123,Photo Cưới 03,0900000103
-24,25,seed_family_03@sudion.test,photo25123,Photo Gia Đình 03,0900000203
-25,26,seed_event_03@sudion.test,photo26123,Photo Sự Kiện 03,0900000303
-26,27,seed_commercial_03@sudion.test,photo27123,Photo Thương Mại 03,0900000403
-27,28,seed_portrait_03@sudion.test,photo28123,May Studio,0900000503
-28,29,seed_couple_03@sudion.test,photo29123,Photo Couple 03,0900000603
-29,30,seed_yearbook_03@sudion.test,photo30123,Photo Kỉ Yếu 03,0900000703
-30,31,seed_food_03@sudion.test,photo31123,Photo Food Product 03,0900000803
-31,32,seed_travel_03@sudion.test,photo32123,Photo Travel 03,0900000903
-32,33,seed_wedding_04@sudion.test,photo33123,Photo Cưới 04,0900000104
-33,34,seed_family_04@sudion.test,photo34123,Photo Gia Đình 04,0900000204
-34,35,seed_event_04@sudion.test,photo35123,Photo Sự Kiện 04,0900000304
-35,36,seed_commercial_04@sudion.test,photo36123,Photo Thương Mại 04,0900000404
-36,37,seed_portrait_04@sudion.test,photo37123,Photo Cá Nhân 04,0900000504
-37,38,seed_couple_04@sudion.test,photo38123,Photo Couple 04,0900000604
-38,39,seed_yearbook_04@sudion.test,photo39123,Photo Kỉ Yếu 04,0900000704
-39,40,seed_food_04@sudion.test,photo40123,Photo Food Product 04,0900000804
-40,41,seed_travel_04@sudion.test,photo41123,Photo Travel 04,0900000904
-41,42,seed_wedding_05@sudion.test,photo42123,Photo Cưới 05,0900000105
-42,43,seed_family_05@sudion.test,photo43123,Photo Gia Đình 05,0900000205
-43,44,seed_event_05@sudion.test,photo44123,Photo Sự Kiện 05,0900000305
-44,45,seed_commercial_05@sudion.test,photo45123,Photo Thương Mại 05,0900000405
-45,46,seed_portrait_05@sudion.test,photo46123,Photo Cá Nhân 05,0900000505
-46,47,seed_couple_05@sudion.test,photo47123,Photo Couple 05,0900000605
-47,48,seed_yearbook_05@sudion.test,photo48123,Photo Kỉ Yếu 05,0900000705
-48,49,seed_food_05@sudion.test,photo49123,Photo Food Product 05,0900000805
-49,50,seed_travel_05@sudion.test,photo50123,Photo Travel 05,0900000905
-50,51,seed_wedding_06@sudion.test,photo51123,Photo Cưới 06,0900000106
-51,52,seed_family_06@sudion.test,photo52123,Photo Gia Đình 06,0900000206
-52,53,seed_event_06@sudion.test,photo53123,Photo Sự Kiện 06,0900000306
-53,54,seed_commercial_06@sudion.test,photo54123,Photo Thương Mại 06,0900000406
-54,55,seed_portrait_06@sudion.test,photo55123,Photo Cá Nhân 06,0900000506
-55,56,seed_couple_06@sudion.test,photo56123,Photo Couple 06,0900000606
-56,57,seed_yearbook_06@sudion.test,photo57123,Photo Kỉ Yếu 06,0900000706
-57,58,seed_food_06@sudion.test,photo58123,Photo Food Product 06,0900000806
-58,59,seed_travel_06@sudion.test,photo59123,Photo Travel 06,0900000906
-59,60,seed_wedding_07@sudion.test,photo60123,Photo Cưới 07,0900000107
-60,61,seed_family_07@sudion.test,photo61123,Photo Gia Đình 07,0900000207
-61,62,seed_event_07@sudion.test,photo62123,Photo Sự Kiện 07,0900000307
-62,63,seed_commercial_07@sudion.test,photo63123,Photo Thương Mại 07,0900000407
-63,64,seed_portrait_07@sudion.test,photo64123,Photo Cá Nhân 07,0900000507
-64,65,seed_couple_07@sudion.test,photo65123,Photo Couple 07,0900000607
-65,66,seed_yearbook_07@sudion.test,photo66123,Photo Kỉ Yếu 07,0900000707
-66,67,seed_food_07@sudion.test,photo67123,Photo Food Product 07,0900000807
-67,68,seed_travel_07@sudion.test,photo68123,Photo Travel 07,0900000907
-68,69,seed_wedding_08@sudion.test,photo69123,Photo Cưới 08,0900000108
-69,70,seed_family_08@sudion.test,photo70123,Photo Gia Đình 08,0900000208
-70,71,seed_event_08@sudion.test,photo71123,Photo Sự Kiện 08,0900000308
-71,72,seed_commercial_08@sudion.test,photo72123,Photo Thương Mại 08,0900000408
-72,73,seed_portrait_08@sudion.test,photo73123,Photo Cá Nhân 08,0900000508
-73,74,seed_couple_08@sudion.test,photo74123,Photo Couple 08,0900000608
-74,75,seed_yearbook_08@sudion.test,photo75123,Photo Kỉ Yếu 08,0900000708
-75,76,seed_food_08@sudion.test,photo76123,Photo Food Product 08,0900000808
-76,77,seed_travel_08@sudion.test,photo77123,Photo Travel 08,0900000908
-77,78,seed_wedding_09@sudion.test,photo78123,Photo Cưới 09,0900000109
-78,79,seed_family_09@sudion.test,photo79123,Photo Gia Đình 09,0900000209
-79,80,seed_event_09@sudion.test,photo80123,Photo Sự Kiện 09,0900000309
-80,81,seed_commercial_09@sudion.test,photo81123,Photo Thương Mại 09,0900000409
-81,82,seed_portrait_09@sudion.test,photo82123,Photo Cá Nhân 09,0900000509
-82,83,seed_couple_09@sudion.test,photo83123,Photo Couple 09,0900000609
-83,84,seed_yearbook_09@sudion.test,photo84123,Photo Kỉ Yếu 09,0900000709
-84,85,seed_food_09@sudion.test,photo85123,Photo Food Product 09,0900000809
-85,86,seed_travel_09@sudion.test,photo86123,Photo Travel 09,0900000909
-86,87,seed_wedding_10@sudion.test,photo87123,Photo Cưới 10,0900000110
-87,88,seed_family_10@sudion.test,photo88123,Photo Gia Đình 10,0900000210
-88,89,seed_event_10@sudion.test,photo89123,Photo Sự Kiện 10,0900000310
-89,90,seed_commercial_10@sudion.test,photo90123,Photo Thương Mại 10,0900000410
-90,91,seed_portrait_10@sudion.test,photo91123,Photo Cá Nhân 10,0900000510
-91,92,seed_couple_10@sudion.test,photo92123,Photo Couple 10,0900000610
-92,93,seed_yearbook_10@sudion.test,photo93123,Photo Kỉ Yếu 10,0900000710
-93,94,seed_food_10@sudion.test,photo94123,Photo Food Product 10,0900000810
-94,95,seed_travel_10@sudion.test,photo95123,Photo Travel 10,0900000910
+1,2,binhnguyen@test.com,photo2123,Hào Lê,911111111
+2,3,hungtrinh@test.com,photo3123,Bình Nguyễn,922222222
+3,4,minhanh@test.com,photo4123,Hoàng Anh,933333333
+4,5,tuankiet@test.com,photo5123,Tuấn Kiệt,944444444
+5,6,seed_wedding_01@sudion.test,photo6123,Photo Cưới 01,900000101
+6,7,seed_family_01@sudion.test,photo7123,Photo Gia Đình 01,900000201
+7,8,seed_event_01@sudion.test,photo8123,Minh Anh,900000301
+8,9,seed_commercial_01@sudion.test,photo9123,Photo Thương Mại 01,900000401
+9,10,seed_portrait_01@sudion.test,photo10123,Photo Cá Nhân 01,900000501
+10,11,seed_couple_01@sudion.test,photo11123,Hưng Trịnh,900000601
+11,12,seed_yearbook_01@sudion.test,photo12123,Photo Kỉ Yếu 01,900000701
+12,13,seed_food_01@sudion.test,photo13123,Nhà Bếp Studio,900000801
+13,14,seed_travel_01@sudion.test,photo14123,Anh Travel,900000901
+14,15,seed_wedding_02@sudion.test,photo15123,Photo Cưới 02,900000102
+15,16,seed_family_02@sudion.test,photo16123,Photo Gia Đình 02,900000202
+16,17,seed_event_02@sudion.test,photo17123,Linh Hoa,900000302
+17,18,seed_commercial_02@sudion.test,photo18123,Photo Thương Mại 02,900000402
+18,19,seed_portrait_02@sudion.test,photo19123,Photo Cá Nhân 02,900000502
+19,20,seed_couple_02@sudion.test,photo20123,Studio K,900000602
+20,21,seed_yearbook_02@sudion.test,photo21123,Photo Kỉ Yếu 02,900000702
+21,22,seed_food_02@sudion.test,photo22123,Photo Food Product 02,900000802
+22,23,seed_travel_02@sudion.test,photo23123,Photo Travel 02,900000902
+23,24,seed_wedding_03@sudion.test,photo24123,Photo Cưới 03,900000103
+24,25,seed_family_03@sudion.test,photo25123,Photo Gia Đình 03,900000203
+25,26,seed_event_03@sudion.test,photo26123,Photo Sự Kiện 03,900000303
+26,27,seed_commercial_03@sudion.test,photo27123,Photo Thương Mại 03,900000403
+27,28,seed_portrait_03@sudion.test,photo28123,May Studio,900000503
+28,29,seed_couple_03@sudion.test,photo29123,Photo Couple 03,900000603
+29,30,seed_yearbook_03@sudion.test,photo30123,Photo Kỉ Yếu 03,900000703
+30,31,seed_food_03@sudion.test,photo31123,Photo Food Product 03,900000803
+31,32,seed_travel_03@sudion.test,photo32123,Photo Travel 03,900000903
+32,33,seed_wedding_04@sudion.test,photo33123,Photo Cưới 04,900000104
+33,34,seed_family_04@sudion.test,photo34123,Photo Gia Đình 04,900000204
+34,35,seed_event_04@sudion.test,photo35123,Photo Sự Kiện 04,900000304
+35,36,seed_commercial_04@sudion.test,photo36123,Photo Thương Mại 04,900000404
+36,37,seed_portrait_04@sudion.test,photo37123,Photo Cá Nhân 04,900000504
+37,38,seed_couple_04@sudion.test,photo38123,Photo Couple 04,900000604
+38,39,seed_yearbook_04@sudion.test,photo39123,Photo Kỉ Yếu 04,900000704
+39,40,seed_food_04@sudion.test,photo40123,Photo Food Product 04,900000804
+40,41,seed_travel_04@sudion.test,photo41123,Photo Travel 04,900000904
+41,42,seed_wedding_05@sudion.test,photo42123,Photo Cưới 05,900000105
+42,43,seed_family_05@sudion.test,photo43123,Photo Gia Đình 05,900000205
+43,44,seed_event_05@sudion.test,photo44123,Photo Sự Kiện 05,900000305
+44,45,seed_commercial_05@sudion.test,photo45123,Photo Thương Mại 05,900000405
+45,46,seed_portrait_05@sudion.test,photo46123,Photo Cá Nhân 05,900000505
+46,47,seed_couple_05@sudion.test,photo47123,Photo Couple 05,900000605
+47,48,seed_yearbook_05@sudion.test,photo48123,Photo Kỉ Yếu 05,900000705
+48,49,seed_food_05@sudion.test,photo49123,Photo Food Product 05,900000805
+49,50,seed_travel_05@sudion.test,photo50123,Photo Travel 05,900000905
+50,51,seed_wedding_06@sudion.test,photo51123,Photo Cưới 06,900000106
+51,52,seed_family_06@sudion.test,photo52123,Photo Gia Đình 06,900000206
+52,53,seed_event_06@sudion.test,photo53123,Photo Sự Kiện 06,900000306
+53,54,seed_commercial_06@sudion.test,photo54123,Photo Thương Mại 06,900000406
+54,55,seed_portrait_06@sudion.test,photo55123,Photo Cá Nhân 06,900000506
+55,56,seed_couple_06@sudion.test,photo56123,Photo Couple 06,900000606
+56,57,seed_yearbook_06@sudion.test,photo57123,Photo Kỉ Yếu 06,900000706
+57,58,seed_food_06@sudion.test,photo58123,Photo Food Product 06,900000806
+58,59,seed_travel_06@sudion.test,photo59123,Photo Travel 06,900000906
+59,60,seed_wedding_07@sudion.test,photo60123,Photo Cưới 07,900000107
+60,61,seed_family_07@sudion.test,photo61123,Photo Gia Đình 07,900000207
+61,62,seed_event_07@sudion.test,photo62123,Photo Sự Kiện 07,900000307
+62,63,seed_commercial_07@sudion.test,photo63123,Photo Thương Mại 07,900000407
+63,64,seed_portrait_07@sudion.test,photo64123,Photo Cá Nhân 07,900000507
+64,65,seed_couple_07@sudion.test,photo65123,Photo Couple 07,900000607
+65,66,seed_yearbook_07@sudion.test,photo66123,Photo Kỉ Yếu 07,900000707
+66,67,seed_food_07@sudion.test,photo67123,Photo Food Product 07,900000807
+67,68,seed_travel_07@sudion.test,photo68123,Photo Travel 07,900000907
+68,69,seed_wedding_08@sudion.test,photo69123,Photo Cưới 08,900000108
+69,70,seed_family_08@sudion.test,photo70123,Photo Gia Đình 08,900000208
+70,71,seed_event_08@sudion.test,photo71123,Photo Sự Kiện 08,900000308
+71,72,seed_commercial_08@sudion.test,photo72123,Photo Thương Mại 08,900000408
+72,73,seed_portrait_08@sudion.test,photo73123,Photo Cá Nhân 08,900000508
+73,74,seed_couple_08@sudion.test,photo74123,Photo Couple 08,900000608
+74,75,seed_yearbook_08@sudion.test,photo75123,Photo Kỉ Yếu 08,900000708
+75,76,seed_food_08@sudion.test,photo76123,Photo Food Product 08,900000808
+76,77,seed_travel_08@sudion.test,photo77123,Photo Travel 08,900000908
+77,78,seed_wedding_09@sudion.test,photo78123,Photo Cưới 09,900000109
+78,79,seed_family_09@sudion.test,photo79123,Photo Gia Đình 09,900000209
+79,80,seed_event_09@sudion.test,photo80123,Photo Sự Kiện 09,900000309
+80,81,seed_commercial_09@sudion.test,photo81123,Photo Thương Mại 09,900000409
+81,82,seed_portrait_09@sudion.test,photo82123,Photo Cá Nhân 09,900000509
+82,83,seed_couple_09@sudion.test,photo83123,Photo Couple 09,900000609
+83,84,seed_yearbook_09@sudion.test,photo84123,Photo Kỉ Yếu 09,900000709
+84,85,seed_food_09@sudion.test,photo85123,Photo Food Product 09,900000809
+85,86,seed_travel_09@sudion.test,photo86123,Photo Travel 09,900000909
+86,87,seed_wedding_10@sudion.test,photo87123,Photo Cưới 10,900000110
+87,88,seed_family_10@sudion.test,photo88123,Photo Gia Đình 10,900000210
+88,89,seed_event_10@sudion.test,photo89123,Photo Sự Kiện 10,900000310
+89,90,seed_commercial_10@sudion.test,photo90123,Photo Thương Mại 10,900000410
+90,91,seed_portrait_10@sudion.test,photo91123,Photo Cá Nhân 10,900000510
+91,92,seed_couple_10@sudion.test,photo92123,Photo Couple 10,900000610
+92,93,seed_yearbook_10@sudion.test,photo93123,Photo Kỉ Yếu 10,900000710
+93,94,seed_food_10@sudion.test,photo94123,Photo Food Product 10,900000810
+94,95,seed_travel_10@sudion.test,photo95123,Photo Travel 10,900000910
 95,134,zz,photo134123,zz,zz123123
 96,135,datlich1@gmail.com,photo135123,Hong Cóng Hôn,AUTO1782720071260828
