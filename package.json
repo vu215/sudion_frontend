@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "predev": "node scripts/clean-next-dev-cache.mjs .next-dev",
     "dev": "next dev",
+    "prebuild": "node scripts/clean-next-dev-cache.mjs .next",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
@@ -11,7 +13,8 @@
   "dependencies": {
     "next": "15.3.3",
     "react": "19.0.0",
-    "react-dom": "19.0.0"
+    "react-dom": "19.0.0",
+    "socket.io-client": "^4.8.3"
   },
   "devDependencies": {
     "@react-trace/core": "^0.0.6",

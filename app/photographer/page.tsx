@@ -3,14 +3,8 @@
 /* eslint-disable @next/next/no-img-element */
 
 import { Suspense, useEffect, useMemo, useState, type CSSProperties } from "react";
-import { Inter } from "next/font/google";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-
-const inter = Inter({
-  subsets: ["latin", "vietnamese"],
-  weight: ["400", "500", "600", "700"],
-});
 
 const styleOptions = [
   "Chân dung cá nhân",
@@ -771,7 +765,7 @@ function FilterSidebar({
     <aside
       data-reveal
       data-reveal-delay="0"
-      className={`${inter.className} rounded-[18px] border border-[#e5deed] bg-white px-5 py-7 shadow-[0_16px_42px_rgba(42,32,62,0.045)] md:sticky md:top-[112px] md:self-start xl:px-6`}
+      className="rounded-[18px] border border-[#e5deed] bg-white px-5 py-7 shadow-[0_16px_42px_rgba(42,32,62,0.045)] md:sticky md:top-[112px] md:self-start xl:px-6"
     >
       <div className="flex items-center justify-between">
         <h2 className="!text-[24px] !font-bold leading-none text-[#24242d]">
@@ -901,7 +895,13 @@ function PhotographerCard({
       className="group overflow-hidden rounded-2xl border border-[#ebe6f1] bg-white shadow-[0_12px_32px_rgba(45,35,70,0.04)]"
     >
       <div className="relative h-[220px] overflow-hidden bg-[#eeeaf5]">
-        <img src={person.image} alt={person.name} className="h-full w-full object-cover" />
+        <img
+          src={person.image}
+          alt={person.name}
+          loading={index < 4 ? "eager" : "lazy"}
+          decoding="async"
+          className="h-full w-full object-cover"
+        />
 
         {aiSuggested ? (
           <span className="absolute left-4 top-4 inline-flex items-center gap-1.5 rounded-full bg-[#ffb06a] px-3 py-1.5 text-xs font-extrabold text-white">
@@ -982,6 +982,8 @@ function PhotographerCard({
                 key={`${person.id}-${thumbIndex}-${thumb}`}
                 src={thumb}
                 alt=""
+                loading="lazy"
+                decoding="async"
                 className="-ml-2 h-8 w-8 rounded-md border-2 border-white object-cover first:ml-0"
               />
             ))}

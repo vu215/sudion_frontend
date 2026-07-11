@@ -7,6 +7,11 @@ import { useToast } from "@/app/toast-context";
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
+function authHeaders() {
+  const token = typeof window !== "undefined" ? window.localStorage.getItem("sudion_token") : null;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 const AUTO_REFRESH_MS = 8000;
 
 type BookingStatus =
@@ -177,6 +182,7 @@ async function getBookingsByPhotographer(photographerId: string) {
     {
       method: "GET",
       cache: "no-store",
+      headers: authHeaders(),
     }
   );
 
@@ -194,6 +200,7 @@ async function updateBookingStatus(bookingCode: string, status: string) {
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",
+      ...authHeaders(),
     },
     body: JSON.stringify({ status }),
   });

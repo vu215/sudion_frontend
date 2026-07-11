@@ -4,8 +4,14 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/app/auth-context";
 import { useToast } from "@/app/toast-context";
+import { useRouter } from "next/navigation";
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+
+function authHeaders() {
+  const token = typeof window !== "undefined" ? window.localStorage.getItem("sudion_token") : null;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
 
 const AUTO_REFRESH_MS = 8000;
 
@@ -212,6 +218,7 @@ async function getBookingsByCustomer(email: string) {
     {
       method: "GET",
       cache: "no-store",
+      headers: authHeaders(),
     }
   );
 
@@ -229,6 +236,7 @@ async function cancelBooking(bookingCode: string, cancelReason: string) {
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",
+      ...authHeaders(),
     },
     body: JSON.stringify({
       cancelledBy: "customer",
@@ -246,7 +254,8 @@ async function cancelBooking(bookingCode: string, cancelReason: string) {
 }
 
 export default function BookingsPage() {
-  const { session, isCustomer } = useAuth();
+  const { session, isLoggedIn, isLoading } = useAuth();
+  const router = useRouter();
   const toast = useToast();
   const [email, setEmail] = useState("");
   const [bookings, setBookings] = useState<BackendBooking[]>([]);
@@ -261,10 +270,19 @@ export default function BookingsPage() {
   const [isCancelling, setIsCancelling] = useState(false);
 
   useEffect(() => {
-    const sessionEmail = isCustomer ? session?.email || "" : "";
-    const savedEmail = window.localStorage.getItem("sudion_booking_email") || "";
-    const finalEmail = sessionEmail || savedEmail;
+    if (!isLoading) {
+      if (!isLoggedIn) {
+        router.push("/login");
+      }
+    }
+  }, [isLoggedIn, isLoading, router]);
 
+  useEffect(() => {
+    if (isLoading) return;
+    if (!isLoggedIn) return;
+
+    // Secure: customers can only view their own bookings
+    const finalEmail = session?.email || "";
     if (!finalEmail) return;
 
     setEmail(finalEmail);
@@ -281,7 +299,7 @@ export default function BookingsPage() {
     }, AUTO_REFRESH_MS);
 
     return () => window.clearInterval(timer);
-  }, [isCustomer, session?.email]);
+  }, [isLoading, isLoggedIn, session]);
 
   const stats = useMemo(() => {
     return {
@@ -308,7 +326,7 @@ export default function BookingsPage() {
       const finalEmail = targetEmail.trim();
 
       if (!finalEmail) {
-        setPageError("Vui lòng nhập email đã dùng khi đặt lịch.");
+        setPageError("Vui lòng đăng nhập để xem lịch đặt.");
         return;
       }
 
@@ -336,7 +354,7 @@ export default function BookingsPage() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    await handleLoadBookings();
+    toast.warning("Hành động bị chặn", "Bạn chỉ có thể xem lịch đặt gắn liền với email đăng nhập của mình.");
   }
 
 async function handleCancelBooking() {

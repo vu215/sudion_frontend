@@ -20,15 +20,20 @@ type Payment = {
 };
 
 export default function PaymentsPage() {
+  const [activeTab, setActiveTab] = useState<"payments" | "payouts">("payments");
   const [items, setItems] = useState<Payment[]>([]);
+  const [payouts, setPayouts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [payoutsLoading, setPayoutsLoading] = useState(false);
   const [stats, setStats] = useState<any>(null);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<PayStatus | "Tất cả">("Tất cả");
+  const [payoutStatus, setPayoutStatus] = useState<string>("Tất cả");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [toast, setToast] = useState("");
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState<any>(null);
+  const [payoutPagination, setPayoutPagination] = useState<any>(null);
 
   const mapStatus = (backendStatus: string): PayStatus => {
     const statusMap: Record<string, PayStatus> = {
@@ -52,17 +57,31 @@ export default function PaymentsPage() {
     });
   }, [items, query, status]);
 
+  const filteredPayouts = useMemo(() => {
+    return payouts.filter((item) => {
+      const text = [item.booking_code, item.photographer_name, item.customer_full_name]
+        .join(" ")
+        .toLowerCase();
+      const statusText = item.payout_status === "paid" ? "Đã thanh toán" : "Chờ thanh toán";
+      return (
+        text.includes(query.toLowerCase()) &&
+        (payoutStatus === "Tất cả" || statusText === payoutStatus)
+      );
+    });
+  }, [payouts, query, payoutStatus]);
+
   const selected = items.find((item) => item.id === selectedId) ?? filtered[0];
 
   // Load payments from API
   useEffect(() => {
+    if (activeTab !== "payments") return;
     async function loadPayments() {
       setLoading(true);
       try {
-        const result = await api.payments.getAll({ page, pageSize: 20 });
+        const result = (await api.payments.getAll({ page, pageSize: 20 })) as any;
 
         if (result.success && result.data) {
-          const transformedData = (result.data as any).map((payment: any) => ({
+          const transformedData = result.data.map((payment: any) => ({
             ...payment,
             status: mapStatus(payment.status),
           }));
@@ -76,12 +95,31 @@ export default function PaymentsPage() {
     }
 
     loadPayments();
-  }, [page, query, status]);
+  }, [page, activeTab]);
+
+  // Load payouts
+  useEffect(() => {
+    if (activeTab !== "payouts") return;
+    async function loadPayouts() {
+      setPayoutsLoading(true);
+      try {
+        const result = (await api.payments.getPayouts({ page, pageSize: 20 })) as any;
+        if (result.success && result.data) {
+          setPayouts(result.data);
+          setPayoutPagination(result.pagination);
+        }
+      } catch (error) {
+        console.error("Error loading payouts:", error);
+      }
+      setPayoutsLoading(false);
+    }
+    loadPayouts();
+  }, [page, activeTab]);
 
   // Load stats
   useEffect(() => {
     async function loadStats() {
-      const result = await api.payments.getStats();
+      const result = (await api.payments.getStats()) as any;
       if (result.success) {
         setStats(result.data);
       }
@@ -89,17 +127,36 @@ export default function PaymentsPage() {
     loadStats();
   }, []);
 
+  async function handleConfirmPayout(bookingCode: string) {
+    if (!window.confirm(`Xác nhận đã chuyển khoản thanh toán đối soát cho thợ ảnh của booking ${bookingCode}?`)) return;
+    try {
+      const result = (await api.payments.confirmPayout(bookingCode)) as any;
+      if (result.success) {
+        notify("Đối soát thanh toán thành công!");
+        // Refresh payouts list
+        const res = (await api.payments.getPayouts({ page, pageSize: 20 })) as any;
+        if (res.success && res.data) {
+          setPayouts(res.data);
+        }
+      } else {
+        alert(result.message || "Lỗi khi thực hiện đối soát.");
+      }
+    } catch (err: any) {
+      alert("Lỗi kết nối: " + err.message);
+    }
+  }
+
   function notify(text: string) {
     setToast(text);
     setTimeout(() => setToast(""), 1800);
   }
 
-  if (loading && items.length === 0) {
+  if (loading && items.length === 0 && activeTab === "payments") {
     return (
       <AdminLayout active="Thanh toán" search={query} onSearch={setQuery}>
         <div className="flex min-h-[400px] items-center justify-center">
           <div className="text-center">
-            <div className="mb-4 text-2xl">🔄</div>
+            <div className="mb-4 text-2xl"></div>
             <p className="text-gray-600">Đang tải dữ liệu...</p>
           </div>
         </div>
@@ -113,135 +170,300 @@ export default function PaymentsPage() {
       <div className="min-w-0">
         <PageHead />
 
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-          <Stat title="Tổng giao dịch" value={stats?.total?.toString() || "0"} />
-          <Stat title="Thành công" value={stats?.completed?.toString() || "0"} />
-          <Stat title="Thất bại" value={stats?.failed?.toString() || "0"} />
-          <Stat title="Đang xử lý" value={stats?.pending?.toString() || "0"} />
-          <Stat title="Hoàn tiền" value={stats?.refunded?.toString() || "0"} />
+        {/* Tab switching buttons */}
+        <div className="mb-6 flex border-b border-[#edf0f5]">
+          <button
+            onClick={() => {
+              setActiveTab("payments");
+              setQuery("");
+              setPage(1);
+            }}
+            className={`pb-3.5 px-4 text-[14px] font-extrabold transition-all border-b-2 ${
+              activeTab === "payments"
+                ? "border-[#ff8d28] text-[#ff8d28]"
+                : "border-transparent text-[#697086] hover:text-[#0e111d]"
+            }`}
+          >
+            Lịch sử Giao dịch
+          </button>
+          <button
+            onClick={() => {
+              setActiveTab("payouts");
+              setQuery("");
+              setPage(1);
+            }}
+            className={`pb-3.5 px-4 text-[14px] font-extrabold transition-all border-b-2 ${
+              activeTab === "payouts"
+                ? "border-[#ff8d28] text-[#ff8d28]"
+                : "border-transparent text-[#697086] hover:text-[#0e111d]"
+            }`}
+          >
+            Đối soát & Hoa hồng Thợ ảnh
+          </button>
         </div>
 
-        <Panel className="mt-4">
-          <div className="mb-3 grid gap-2 md:grid-cols-[minmax(0,1fr)_150px_40px]">
-            <label className="relative !block">
-              <AdminIcon
-                name="search"
-                className="pointer-events-none absolute left-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#8a93a5]"
-              />
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                className="!h-10 !min-h-0 w-full rounded-xl border border-[#dfe3ec] !py-0 !pl-10 !pr-3 !text-[12px] !font-normal outline-none focus:border-[#ff8d28]"
-                placeholder="Tìm kiếm theo mã giao dịch, booking..."
-              />
-            </label>
-            <Select
-              value={status}
-              options={["Tất cả", "Thành công", "Thất bại", "Đang xử lý", "Hoàn tiền"]}
-              onChange={(v) => setStatus(v as PayStatus | "Tất cả")}
-            />
-            <IconButton
-              label="Đặt lại"
-              icon="filter"
-              size="md"
-              onClick={() => {
-                setQuery("");
-                setStatus("Tất cả");
-              }}
-            />
-          </div>
+        {activeTab === "payments" ? (
+          <>
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+              <Stat title="Tổng giao dịch" value={stats?.total?.toString() || "0"} />
+              <Stat title="Thành công" value={stats?.completed?.toString() || "0"} />
+              <Stat title="Thất bại" value={stats?.failed?.toString() || "0"} />
+              <Stat title="Đang xử lý" value={stats?.pending?.toString() || "0"} />
+              <Stat title="Hoàn tiền" value={stats?.refunded?.toString() || "0"} />
+            </div>
 
-          <div className="overflow-x-auto rounded-xl border border-[#e6e9f1]">
-            <table className="w-full min-w-[1000px] text-left text-[12px]">
-              <thead className="bg-[#fbfcfe] text-[#536078]">
-                <tr>
-                  {[
-                    "Mã GD",
-                    "Booking",
-                    "Số tiền",
-                    "Phí nền tảng",
-                    "Thực nhận",
-                    "Phương thức",
-                    "Loại",
-                    "Trạng thái",
-                    "Ngày GD",
-                  ].map((h) => (
-                    <th key={h} className="px-3 py-3 font-semibold">
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#edf0f5]">
-                {filtered.length === 0 ? (
-                  <tr>
-                    <td colSpan={9} className="px-3 py-8 text-center text-gray-500">
-                      Không có giao dịch nào
-                    </td>
-                  </tr>
-                ) : (
-                  filtered.map((item) => (
-                    <tr
-                      key={item.id}
-                      onClick={() => setSelectedId(item.id)}
-                      className={`cursor-pointer hover:bg-[#fff8f1] ${
-                        selectedId === item.id ? "bg-[#fff3e8]" : "bg-white"
-                      }`}
+            <Panel className="mt-4">
+              <div className="mb-3 grid gap-2 md:grid-cols-[minmax(0,1fr)_150px_40px]">
+                <label className="relative !block">
+                  <AdminIcon
+                    name="search"
+                    className="pointer-events-none absolute left-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#8a93a5]"
+                  />
+                  <input
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    className="!h-10 !min-h-0 w-full rounded-xl border border-[#dfe3ec] !py-0 !pl-10 !pr-3 !text-[12px] !font-normal outline-none focus:border-[#ff8d28]"
+                    placeholder="Tìm kiếm theo mã giao dịch, booking..."
+                  />
+                </label>
+                <Select
+                  value={status}
+                  options={["Tất cả", "Thành công", "Thất bại", "Đang xử lý", "Hoàn tiền"]}
+                  onChange={(v) => setStatus(v as PayStatus | "Tất cả")}
+                />
+                <IconButton
+                  label="Đặt lại"
+                  icon="filter"
+                  size="md"
+                  onClick={() => {
+                    setQuery("");
+                    setStatus("Tất cả");
+                  }}
+                />
+              </div>
+
+              <div className="overflow-x-auto rounded-xl border border-[#e6e9f1]">
+                <table className="w-full min-w-[1000px] text-left text-[12px]">
+                  <thead className="bg-[#fbfcfe] text-[#536078]">
+                    <tr>
+                      {[
+                        "Mã GD",
+                        "Booking",
+                        "Số tiền",
+                        "Phí nền tảng",
+                        "Thực nhận",
+                        "Phương thức",
+                        "Loại",
+                        "Trạng thái",
+                        "Ngày GD",
+                      ].map((h) => (
+                        <th key={h} className="px-3 py-3 font-semibold">
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#edf0f5]">
+                    {filtered.length === 0 ? (
+                      <tr>
+                        <td colSpan={9} className="px-3 py-8 text-center text-gray-500">
+                          Không có giao dịch nào
+                        </td>
+                      </tr>
+                    ) : (
+                      filtered.map((item) => (
+                        <tr
+                          key={item.id}
+                          onClick={() => setSelectedId(item.id)}
+                          className={`cursor-pointer hover:bg-[#fff8f1] ${selectedId === item.id ? "bg-[#fff3e8]" : "bg-white"
+                            }`}
+                        >
+                          <td className="px-3 py-3 font-medium text-[#ff8d28]">
+                            {item.transaction_id}
+                          </td>
+                          <td className="px-3 py-3">{item.booking_code || "N/A"}</td>
+                          <td className="px-3 py-3 font-semibold">{money(item.amount)}</td>
+                          <td className="px-3 py-3">{money(item.platform_fee)}</td>
+                          <td className="px-3 py-3 font-semibold text-emerald-600">
+                            {money(item.net_amount)}
+                          </td>
+                          <td className="px-3 py-3">{item.payment_method}</td>
+                          <td className="px-3 py-3">{item.payment_type}</td>
+                          <td className="px-3 py-3">
+                            <Badge text={item.status} />
+                          </td>
+                          <td className="px-3 py-3">
+                            {new Date(item.created_at).toLocaleDateString("vi-VN")}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="mt-4 flex items-center justify-between text-[12px] text-[#697086]">
+                <span>
+                  Hiển thị {filtered.length} của {pagination?.total || items.length} giao dịch
+                </span>
+                <div className="flex gap-2">
+                  {pagination && pagination.page > 1 && (
+                    <button
+                      onClick={() => setPage(page - 1)}
+                      className="rounded-xl border px-3 py-2 hover:bg-gray-50"
                     >
-                      <td className="px-3 py-3 font-medium text-[#ff8d28]">
-                        {item.transaction_id}
-                      </td>
-                      <td className="px-3 py-3">{item.booking_code || "N/A"}</td>
-                      <td className="px-3 py-3 font-semibold">{money(item.amount)}</td>
-                      <td className="px-3 py-3">{money(item.platform_fee)}</td>
-                      <td className="px-3 py-3 font-semibold text-emerald-600">
-                        {money(item.net_amount)}
-                      </td>
-                      <td className="px-3 py-3">{item.payment_method}</td>
-                      <td className="px-3 py-3">{item.payment_type}</td>
-                      <td className="px-3 py-3">
-                        <Badge text={item.status} />
-                      </td>
-                      <td className="px-3 py-3">
-                        {new Date(item.created_at).toLocaleDateString("vi-VN")}
+                      Trước
+                    </button>
+                  )}
+                  <span className="rounded-xl border px-3 py-2">
+                    Trang {pagination?.page || 1} / {pagination?.totalPages || 1}
+                  </span>
+                  {pagination && pagination.page < pagination.totalPages && (
+                    <button
+                      onClick={() => setPage(page + 1)}
+                      className="rounded-xl border px-3 py-2 hover:bg-gray-50"
+                    >
+                      Sau
+                    </button>
+                  )}
+                </div>
+              </div>
+            </Panel>
+          </>
+        ) : (
+          <Panel>
+            <div className="mb-3 grid gap-2 md:grid-cols-[minmax(0,1fr)_160px_40px]">
+              <label className="relative !block">
+                <AdminIcon
+                  name="search"
+                  className="pointer-events-none absolute left-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#8a93a5]"
+                />
+                <input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  className="!h-10 !min-h-0 w-full rounded-xl border border-[#dfe3ec] !py-0 !pl-10 !pr-3 !text-[12px] !font-normal outline-none focus:border-[#ff8d28]"
+                  placeholder="Tìm kiếm theo mã booking, thợ ảnh, khách hàng..."
+                />
+              </label>
+              <Select
+                value={payoutStatus}
+                options={["Tất cả", "Chờ thanh toán", "Đã thanh toán"]}
+                onChange={(v) => setPayoutStatus(v)}
+              />
+              <IconButton
+                label="Đặt lại"
+                icon="filter"
+                size="md"
+                onClick={() => {
+                  setQuery("");
+                  setPayoutStatus("Tất cả");
+                }}
+              />
+            </div>
+
+            <div className="overflow-x-auto rounded-xl border border-[#e6e9f1]">
+              <table className="w-full min-w-[1000px] text-left text-[12px]">
+                <thead className="bg-[#fbfcfe] text-[#536078]">
+                  <tr>
+                    {[
+                      "Mã Booking",
+                      "Thợ chụp hình",
+                      "Khách hàng",
+                      "Tổng số tiền",
+                      "Hoa hồng sàn",
+                      "Thực trả thợ ảnh",
+                      "Trạng thái đối soát",
+                      "Thao tác",
+                    ].map((h) => (
+                      <th key={h} className="px-3 py-3 font-semibold">
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#edf0f5]">
+                  {payoutsLoading ? (
+                    <tr>
+                      <td colSpan={8} className="px-3 py-8 text-center text-gray-500">
+                        Đang tải danh sách đối soát...
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="mt-4 flex items-center justify-between text-[12px] text-[#697086]">
-            <span>
-              Hiển thị {filtered.length} của {pagination?.total || items.length} giao dịch
-            </span>
-            <div className="flex gap-2">
-              {pagination && pagination.page > 1 && (
-                <button
-                  onClick={() => setPage(page - 1)}
-                  className="rounded-xl border px-3 py-2 hover:bg-gray-50"
-                >
-                  Trước
-                </button>
-              )}
-              <span className="rounded-xl border px-3 py-2">
-                Trang {pagination?.page || 1} / {pagination?.totalPages || 1}
-              </span>
-              {pagination && pagination.page < pagination.totalPages && (
-                <button
-                  onClick={() => setPage(page + 1)}
-                  className="rounded-xl border px-3 py-2 hover:bg-gray-50"
-                >
-                  Sau
-                </button>
-              )}
+                  ) : filteredPayouts.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="px-3 py-8 text-center text-gray-500">
+                        Không có lịch sử đối soát nào
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredPayouts.map((item) => (
+                      <tr key={item.id} className="hover:bg-[#fff8f1]">
+                        <td className="px-3 py-3 font-medium text-[#ff8d28]">
+                          {item.booking_code}
+                        </td>
+                        <td className="px-3 py-3 font-semibold text-gray-800">{item.photographer_name}</td>
+                        <td className="px-3 py-3">{item.customer_full_name}</td>
+                        <td className="px-3 py-3 font-semibold">{money(item.estimated_total)}</td>
+                        <td className="px-3 py-3 text-red-600 font-medium">-{money(item.commission_amount)}</td>
+                        <td className="px-3 py-3 font-bold text-emerald-600">
+                          {money(item.net_payout)}
+                        </td>
+                        <td className="px-3 py-3">
+                          <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium ${
+                            item.payout_status === "paid" ? "bg-emerald-50 text-emerald-700" : "bg-orange-50 text-orange-700"
+                          }`}>
+                            {item.payout_status === "paid" ? "Đã thanh toán" : "Chờ thanh toán"}
+                          </span>
+                        </td>
+                        <td className="px-3 py-3">
+                          {item.payout_status === "paid" ? (
+                            <span className="text-gray-400 font-medium">Hoàn tất</span>
+                          ) : (
+                            <button
+                              onClick={() => handleConfirmPayout(item.booking_code)}
+                              className="rounded-lg bg-[#ff8d28] hover:bg-[#e0751b] px-3 py-1.5 font-bold text-white transition-colors"
+                            >
+                              Đã chuyển tiền
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
-          </div>
-        </Panel>
+
+            <div className="mt-4 flex items-center justify-between text-[12px] text-[#697086]">
+              <span>
+                Hiển thị {filteredPayouts.length} của {payoutPagination?.total || payouts.length} buổi chụp
+              </span>
+              <div className="flex gap-2">
+                {payoutPagination && payoutPagination.page > 1 && (
+                  <button
+                    onClick={() => setPage(page - 1)}
+                    className="rounded-xl border px-3 py-2 hover:bg-gray-50"
+                  >
+                    Trước
+                  </button>
+                )}
+                <span className="rounded-xl border px-3 py-2">
+                  Trang {payoutPagination?.page || 1} / {payoutPagination?.totalPages || 1}
+                </span>
+                {payoutPagination && payoutPagination.page < payoutPagination.totalPages && (
+                  <button
+                    onClick={() => setPage(page + 1)}
+                    className="rounded-xl border px-3 py-2 hover:bg-gray-50"
+                  >
+                    Sau
+                  </button>
+                )}
+              </div>
+            </div>
+          </Panel>
+        )}
 
         {/* Detail Sidebar */}
-        {selectedId !== null && selected ? (
+        {selectedId !== null && selected && activeTab === "payments" ? (
           <div
             className="fixed inset-0 z-50 bg-[#0f172a]/35 backdrop-blur-[2px]"
             onClick={() => setSelectedId(null)}
@@ -361,9 +583,8 @@ function Badge({ text }: { text: string }) {
   };
   return (
     <span
-      className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium ${
-        statusColors[text] || "bg-gray-50 text-gray-700"
-      }`}
+      className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium ${statusColors[text] || "bg-gray-50 text-gray-700"
+        }`}
     >
       {text}
     </span>

@@ -239,7 +239,7 @@ export default function PhotographerPage() {
               <div><p className="mb-2 text-[#697086]">Dịch vụ chính</p>{selected.services.map((s) => <span key={s} className="mr-1 rounded-lg bg-[#f0f2f8] px-2.5 py-1">{s}</span>)}</div>
               {selected.bio && <div><p className="text-[#697086]">Tiểu sử</p><p className="mt-1 leading-5">{selected.bio}</p></div>}
             </div>
-          ) : <div className="py-10 text-center text-[#697086]">Nội dung {tab} chưa có từ API.</div>}
+          ) : <div className="py-10 text-center text-[#697086]">Chưa có dữ liệu hiển thị cho mục {tab}.</div>}
           <div className="mt-6 flex justify-end gap-2">
             <IconButton label="Khóa" icon="lock" onClick={() => handleUpdateStatus(selected.id, "Bị khóa")} />
             <IconButton label="Từ chối" icon="close" onClick={() => handleUpdateStatus(selected.id, "Bị từ chối")} />

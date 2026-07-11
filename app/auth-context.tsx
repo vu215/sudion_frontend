@@ -16,6 +16,7 @@ import {
   type AuthSession,
   type AuthUser,
   loginUser,
+  refreshSessionFromServer,
   registerUser,
   setSession,
 } from "./auth-store";
@@ -34,7 +35,7 @@ type AuthContextValue = {
   isCustomer: boolean;
   isPhotographer: boolean;
   isAdmin: boolean;
-  refresh: () => void;
+  refresh: () => Promise<void>;
   logout: () => void;
   login: (emailInput: string, passwordInput: string) => Promise<AuthResult>;
   register: (params: {
@@ -55,9 +56,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isTransitioning, setIsTransitioning] = useState(false);
   const router = useRouter();
 
-  const refresh = useCallback(() => {
-    setSessionState(getSession());
+  const refresh = useCallback(async () => {
+    const localSession = getSession();
+    setSessionState(localSession);
     setIsLoading(false);
+
+    const serverSession = await refreshSessionFromServer();
+    setSessionState(serverSession);
   }, []);
 
   const logout = useCallback(() => {
@@ -120,7 +125,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [router]);
 
   useEffect(() => {
-    refresh();
+    void refresh();
   }, [refresh]);
 
   const value = useMemo<AuthContextValue>(() => {

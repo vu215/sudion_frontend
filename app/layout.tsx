@@ -1,16 +1,10 @@
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { AppShell } from "./components/app-shell";
 import { MotionEffects } from "./motion";
 import { AuthProvider } from "./auth-context";
 import { ToastProvider } from "./toast-context";
 // import { ReactTrace } from "./components/react-trace"; // Disabled: dev tool causing module resolution issues
-
-const plusJakartaSans = Plus_Jakarta_Sans({
-  subsets: ["latin", "vietnamese"],
-  weight: ["400", "500", "600", "700", "800"],
-});
 
 export const metadata: Metadata = {
   title: "Sudion Studio | Booking chụp hình",
@@ -25,7 +19,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="vi" className="h-full antialiased">
-      <body className={`${plusJakartaSans.className} min-h-full flex flex-col`} suppressHydrationWarning>
+      <head>
+        <link rel="preconnect" href="http://localhost:5000" />
+        <link rel="preconnect" href="https://i.pinimg.com" crossOrigin="" />
+        <link rel="preconnect" href="https://images.unsplash.com" crossOrigin="" />
+        <link rel="dns-prefetch" href="https://images.pexels.com" />
+      </head>
+      <body className="min-h-full flex flex-col" suppressHydrationWarning>
         <MotionEffects />
 
         <AuthProvider>
