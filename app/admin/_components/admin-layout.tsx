@@ -11,6 +11,8 @@ const navItems = [
   ["Photographer", "/admin/photographer", "M4 8h3l1.5-2h7L17 8h3v10H4zM12 16a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM7 8V6"],
   ["Dịch vụ", "/admin/services", "M20 13.5V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2h7.5M8 8h8M8 12h5M17 17l2 2 3-4"],
   ["Booking", "/admin/booking", "M7 3v3M17 3v3M4 8h16M6 5h12a2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V7a2 2 0 012-2z"],
+  ["Bán Máy ảnh", "/admin/products", "M20 7h-4V4c0-1.1-.9-2-2-2h-4c-1.1 0-2 .9-2 2v3H4c-1.1 0-2 .9-2 2v11c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V9c0-1.1-.9-2-2-2zM10 4h4v3h-4V4z"],
+  ["Đơn hàng Máy ảnh", "/admin/orders", "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2"],
   ["Thanh toán", "/admin/payments", "M3 7h18v10H3zM3 10h18M7 15h3"],
   ["Hoàn tiền", "/admin/refunds", "M9 14l-4-4 4-4M5 10h10a4 4 0 010 8h-2M19 6v4h-4"],
   ["Banner Quảng cáo", "/admin/banners", "M4 5h16a1 1 0 011 1v12a1 1 0 01-1 1H4a1 1 0 01-1-1V6a1 1 0 011-1z M4 9h16"],
@@ -76,11 +78,11 @@ export default function AdminLayout({
 
   return (
     <main className="min-h-screen overflow-x-hidden bg-[#f7f7fb] text-[13px] text-[#0f172a]">
-      <aside className={`fixed inset-y-0 left-0 z-30 hidden border-r border-[#e6e9f1] bg-white text-[#0f172a] shadow-[18px_0_45px_rgba(12,18,32,0.06)] transition-all lg:block ${collapsed ? "w-[80px]" : "w-[252px]"}`}>
-        <div className={`flex h-[72px] items-center ${collapsed ? "justify-center px-3" : "px-5"}`}>
+      <aside className={`fixed inset-y-0 left-0 z-30 hidden border-r border-[#e6e9f1] bg-white text-[#0f172a] shadow-[18px_0_45px_rgba(12,18,32,0.06)] transition-all lg:flex lg:flex-col ${collapsed ? "w-[80px]" : "w-[252px]"}`}>
+        <div className={`flex h-[72px] items-center shrink-0 ${collapsed ? "justify-center px-3" : "px-5"}`}>
           {!collapsed ? <b className="text-[23px] tracking-normal text-[#0f172a]">STUD<span className="text-[#ff8d28]">ION</span></b> : <img src="/logo_sudion_remove.png" alt="Studion" className="h-11 w-11 rounded-xl bg-[#fff3e8] p-1" />}
         </div>
-        <nav className="space-y-1 overflow-y-auto px-3 pb-24">
+        <nav className="flex-1 overflow-y-auto px-3 pb-4 space-y-1">
           {navItems.map(([label, href, path]) => (
             <a key={label} href={href} title={collapsed ? label : undefined} className={`flex h-11 items-center rounded-xl text-[14px] font-medium transition ${active === label ? "bg-[#ff8d28] text-white shadow-[0_12px_24px_rgba(255,141,40,0.22)]" : "text-[#162033] hover:bg-[#fff3e8] hover:text-[#ff8d28]"} ${collapsed ? "justify-center px-0" : "gap-3 px-3"}`}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" className="h-[18px] w-[18px] shrink-0"><path d={path} /></svg>
@@ -88,7 +90,7 @@ export default function AdminLayout({
             </a>
           ))}
         </nav>
-        <div className="absolute inset-x-0 bottom-0 border-t border-[#e6e9f1] bg-white p-3">
+        <div className="border-t border-[#e6e9f1] bg-white p-3 shrink-0">
           <div className={`flex items-center rounded-2xl bg-[#f7f8fb] p-3 ${collapsed ? "justify-center" : "gap-3"}`}>
             <img src="/Overlay+Shadow.png" alt="Admin" className="h-9 w-9 rounded-full object-cover" />
             {!collapsed ? <div><b className="text-[13px] text-[#0f172a]">Admin</b><p className="text-[11px] text-[#697086]">Super Admin</p><p className="text-[10px] text-emerald-500">● Online</p></div> : null}

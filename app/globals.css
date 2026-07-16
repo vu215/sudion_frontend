@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&family=Playfair+Display:ital,wght@1,400;1,600;1,700;1,900&family=Dancing+Script:wght@400;500;600;700&display=swap');
+@import url('https://db.onlinewebfonts.com/c/1c612f34290f0bf286d14167343686b3?family=Neography+DEMO');
 @import "tailwindcss";
 
 :root {
@@ -16,9 +18,11 @@
   --edge: rgba(17, 17, 17, 0.2);
   --shadow-paper: 0 10px 28px rgba(17, 17, 17, 0.08);
   --shadow-small: 0 6px 16px rgba(17, 17, 17, 0.06);
-  --font-body: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --font-display: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --font-mono: "PT Mono", "Courier New", monospace;
+  --font-body: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-highlight: "Playfair Display", serif;
+  --font-script: "Dancing Script", cursive;
+  --font-mono: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
 }
 
 @theme inline {
@@ -26,6 +30,8 @@
   --color-foreground: var(--paper-ink);
   --font-sans: var(--font-body);
   --font-serif: var(--font-display);
+  --font-highlight: var(--font-highlight);
+  --font-script: var(--font-script);
   --font-mono: var(--font-mono);
 }
 

@@ -7,7 +7,9 @@ export type AuthUser = {
   email: string;
   phone?: string;
   role: UserRole;
+  avatar_url?: string;
   photographerId?: string;
+  kyc_verified?: number | boolean;
 };
 
 export type AuthSession = {
@@ -15,7 +17,10 @@ export type AuthSession = {
   fullName: string;
   email: string;
   role: UserRole;
+  avatar_url?: string;
   photographerId?: string;
+  phone?: string;
+  kyc_verified?: number | boolean;
 };
 
 type ApiResponse<T> = {
@@ -43,11 +48,13 @@ function normalizeUser(raw: any): AuthUser {
     email: String(raw?.email || ""),
     phone: raw?.phone ? String(raw.phone) : "",
     role: normalizeRole(raw?.role),
+    avatar_url: raw?.avatar_url || "",
     photographerId: raw?.photographerId
       ? String(raw.photographerId)
       : raw?.photographer_id
         ? String(raw.photographer_id)
         : undefined,
+    kyc_verified: raw?.kyc_verified ? Number(raw.kyc_verified) : 0,
   };
 }
 
@@ -57,7 +64,10 @@ function makeSession(user: AuthUser): AuthSession {
     fullName: user.fullName,
     email: user.email,
     role: user.role,
+    avatar_url: user.avatar_url,
     photographerId: user.photographerId,
+    phone: user.phone,
+    kyc_verified: user.kyc_verified,
   };
 }
 

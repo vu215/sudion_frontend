@@ -33,6 +33,13 @@ const tabTextClass = "pb-4 !text-[12px] !font-bold leading-none";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
+function resolveAssetUrl(url: string | null) {
+  if (!url) return "";
+  if (/^https?:\/\//i.test(url) || url.startsWith("data:")) return url;
+  const backendHost = API_URL.replace(/\/api\/?$/, "");
+  return `${backendHost}${url.startsWith("/") ? url : `/${url}`}`;
+}
+
 const PHOTOGRAPHERS_PER_PAGE = 12;
 
 const fallbackImages = [
@@ -294,7 +301,7 @@ function mapApiToCard(item: ApiPhotographer, index: number): PhotographerCardDat
     rating: Number(item.avg_rating || 0).toFixed(1),
     match: index < 2 ? "98%" : "92%",
     price: formatPrice(item.min_price),
-    image: item.avatar_url || fallbackImages[index % fallbackImages.length],
+    image: resolveAssetUrl(item.avatar_url) || fallbackImages[index % fallbackImages.length],
     tags: getTagsFromCategories(categories),
     thumbs: fallbackThumbs,
     extra: `+${item.package_count || 1}`,

@@ -1,1139 +1,848 @@
 "use client";
 
 /* eslint-disable @next/next/no-img-element */
-import {
-  useEffect,
-  useRef,
-  useState,
-  type CSSProperties,
-  type ReactNode,
-} from "react";
 import Link from "next/link";
-import { api } from "@/lib/api";
+import { useEffect, useState, useRef } from "react";
 
-const assets = {
-  photographer: "https://i.pinimg.com/1200x/94/93/63/94936335f2639081d5ab76217e01159e.jpg",
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+
+function resolveAssetUrl(url: string | null) {
+  if (!url) return "";
+  if (/^https?:\/\//i.test(url) || url.startsWith("data:")) return url;
+  const backendHost = API_URL.replace(/\/api\/?$/, "");
+  return `${backendHost}${url.startsWith("/") ? url : `/${url}`}`;
+}
+
+const photos = {
+  hero: "https://images.unsplash.com/photo-1502982720700-bfff97f2ecac?auto=format&fit=crop&w=2000&q=90",
   wedding: "https://i.pinimg.com/1200x/f2/a5/5a/f2a55a5b607de167875d9e3b85668f1a.jpg",
-  weddingDetail: "https://i.pinimg.com/736x/c1/1e/62/c11e625dff2d6c16556d4bf313b15bbb.jpg",
-  couple: "https://i.pinimg.com/736x/a4/ff/df/a4ffdf7dce679f05f8b0636aef47d43c.jpg",
-  coupleDetail: "https://i.pinimg.com/736x/87/28/56/87285639f8ddd169b2e0914c2d09d131.jpg",
-  yearbook: "https://i.pinimg.com/1200x/7b/6c/7b/7b6c7b1537a916718a498bc29bbfa2e2.jpg",
-  yearbookDetail: "https://i.pinimg.com/736x/35/83/91/358391171213dd117b586f3e948c05fc.jpg",
+  portrait: "https://i.pinimg.com/736x/c1/1e/62/c11e625dff2d6c16556d4bf313b15bbb.jpg",
   event: "https://i.pinimg.com/1200x/7b/c0/52/7bc0529f686c1f7b26f364cf57c57be6.jpg",
-  eventDetail: "https://i.pinimg.com/736x/2b/ee/41/2bee41386778a3c1d532ec3e9e3a8829.jpg",
+  travel: "https://i.pinimg.com/1200x/c4/68/6d/c4686d3523a99172767d64f8177e62bd.jpg",
+  product: "https://i.pinimg.com/1200x/3b/a2/c5/3ba2c5ae61f152bde93c84c22cabb7ea.jpg",
+  family: "https://i.pinimg.com/736x/87/28/56/87285639f8ddd169b2e0914c2d09d131.jpg",
   food: "https://i.pinimg.com/736x/86/20/43/862043dfe5e28d68633eb4290a90d8e1.jpg",
-  foodDetail: "https://i.pinimg.com/1200x/3b/a2/c5/3ba2c5ae61f152bde93c84c22cabb7ea.jpg",
-  travel: "https://i.pinimg.com/1200x/fb/e6/02/fbe6028082c2a58f3381eceea2b92bc1.jpg",
-  travelDetail: "https://i.pinimg.com/1200x/c4/68/6d/c4686d3523a99172767d64f8177e62bd.jpg",
+  couple: "https://i.pinimg.com/736x/a4/ff/df/a4ffdf7dce679f05f8b0636aef47d43c.jpg",
 };
 
-const serviceSections = [
+const fallbackPhotographers = [
+  { id: 1, name: "Luxe Studio", specialty: "Chuyên chụp ảnh cưới cao cấp", rating: 4.9, reviews: 256, min_price: 3500000, image_url: photos.wedding },
+  { id: 2, name: "Urban Click", specialty: "Chụp ảnh chân dung & Street style", rating: 4.8, reviews: 198, min_price: 2200000, image_url: photos.portrait },
+  { id: 3, name: "Sunset Capture", specialty: "Chụp ảnh du lịch & thiên nhiên", rating: 4.9, reviews: 203, min_price: 2500000, image_url: photos.travel },
+  { id: 4, name: "Foodie Shot", specialty: "Chuyên chụp ảnh ẩm thực", rating: 4.8, reviews: 142, min_price: 1800000, image_url: photos.food },
+];
+
+const services = [
+  ["Chụp ảnh cưới", "Lưu giữ khoảnh khắc trọn đời", photos.wedding, "wedding"],
+  ["Chụp chân dung", "Thể hiện cá tính riêng", photos.portrait, "portrait"],
+  ["Chụp sự kiện", "Ghi lại mọi khoảnh khắc", photos.event, "event"],
+  ["Chụp du lịch", "Khám phá thế giới", photos.travel, "travel"],
+  ["Chụp sản phẩm", "Nâng tầm thương hiệu", photos.product, "product"],
+  ["Chụp gia đình", "Yêu thương trọn vẹn", photos.family, "family"],
+];
+
+const deals = [
+  ["-20%", "Gói chụp cưới ngoại cảnh", "Mai Wedding", "3.200.000đ", "4.000.000đ", photos.wedding],
+  ["-15%", "Gói chụp kỷ yếu nhóm", "Lynh Photography", "1.700.000đ", "2.000.000đ", photos.event],
+  ["-10%", "Gói chụp sản phẩm cơ bản", "Tony Media", "900.000đ", "1.000.000đ", photos.product],
+  ["-20%", "Gói chụp gia đình cuối tuần", "Nắng Studio", "1.600.000đ", "2.000.000đ", photos.family],
+];
+
+const promoSlides = [
   {
-    id: "wedding",
-    eyebrow: "WEDDING PHOTOGRAPHY",
-    title: "Chụp ảnh cưới",
-    description:
-      "Lưu giữ khoảnh khắc thiêng liêng và cảm xúc chân thật nhất trong ngày trọng đại của bạn.",
-    price: "Từ 5.000.000 VND",
-    network: "1.200+ Thợ ảnh",
-    tags: ["Makeup", "Video", "Flycam", "Album", "Retouching"],
-    cta: " Xem chi tiết",
-    mainImage: assets.wedding,
-    detailImage: assets.weddingDetail,
-    badgeTitle: "Top Pick",
-    badgeText: "Tỷ lệ match cao",
+    eyebrow: "KHOẢNH KHẮC GIA ĐÌNH",
+    title: "TẶNG THÊM 30 ẢNH",
+    description: "Khi đặt gói chụp gia đình cuối tuần",
+    image: photos.family,
+    href: "/services/family",
   },
   {
-    id: "couple",
-    eyebrow: "COUPLE PHOTOGRAPHY",
-    title: "Chụp ảnh đôi",
-    description:
-      "Kể lại câu chuyện tình yêu của hai bạn qua những khung hình lãng mạn và tự nhiên nhất.",
-    price: "Từ 1.500.000 VND",
-    network: "850+ Thợ ảnh",
-    tags: ["Makeup", "Video", "Flycam", "Album", "Chỉnh sửa"],
-    cta: " Xem chi tiết ",
-    mainImage: assets.couple,
-    detailImage: assets.coupleDetail,
-    badgeTitle: "Yêu thích nhất",
-    badgeText: "Đánh giá 4.9+",
-    reverse: true,
-    muted: true,
+    eyebrow: "ƯU ĐÃI MÙA CƯỚI",
+    title: "GIẢM ĐẾN 20%",
+    description: "Cho các gói chụp cưới ngoại cảnh",
+    image: photos.wedding,
+    href: "/services/wedding",
   },
   {
-    id: "yearbook",
-    eyebrow: "YEARBOOK PHOTOGRAPHY",
-    title: "Chụp kỉ yếu",
-    description:
-      "Lưu giữ những kỉ niệm rực rỡ của thời học sinh, sinh viên bên bạn bè và thầy cô giáo.",
-    price: "Từ 2.000.000 VND",
-    network: "640+ Thợ ảnh",
-    tags: ["Makeup", "Video", "Flycam", "Album", "Chỉnh sửa"],
-    cta: " Xem chi tiết ",
-    mainImage: assets.yearbook,
-    detailImage: assets.yearbookDetail,
-    badgeTitle: "Kỉ yếu trọn gói",
-    badgeText: "Nhiều ưu đãi nhóm",
-  },
-  {
-    id: "event",
-    eyebrow: "EVENT PHOTOGRAPHY",
-    title: "Chụp sự kiện",
-    description:
-      "Ghi lại mọi khoảnh khắc quan trọng trong các sự kiện doanh nghiệp, hội nghị và tiệc cá nhân.",
-    price: "Từ 1.000.000 VND/giờ",
-    network: "920+ Thợ ảnh",
-    tags: ["Makeup", "Video", "Album", "Chỉnh sửa"],
-    cta: " Xem chi tiết",
-    mainImage: assets.event,
-    detailImage: assets.eventDetail,
-    badgeTitle: "Nhận lịch gấp",
-    badgeText: "Có mặt trong 2 giờ",
-    reverse: true,
-    muted: true,
-  },
-  {
-    id: "food",
-    eyebrow: "FOOD & PRODUCT",
-    title: "Chụp food & product",
-    description:
-      "Tôn vinh giá trị và vẻ đẹp của món ăn, sản phẩm để thu hút khách hàng từ cái nhìn đầu tiên.",
-    price: "Từ 1.200.000 VND/concept",
-    network: "450+ Thợ ảnh",
-    tags: ["Makeup", "Video", "Flycam", "Album", "Chỉnh sửa"],
-    cta: " Xem chi tiết ",
-    mainImage: assets.food,
-    detailImage: assets.foodDetail,
-    badgeTitle: "Stylist chuyên nghiệp",
-    badgeText: "Hỗ trợ lên ý tưởng",
-  },
-  {
-    id: "travel",
-    eyebrow: "TRAVEL PHOTOGRAPHY",
-    title: "Chụp travel",
-    description:
-      "Lưu lại những kỷ niệm đáng nhớ trong các chuyến hành trình khám phá thế giới đầy màu sắc của bạn.",
-    price: "Từ 1.200.000 VND",
-    network: "530+ Thợ ảnh",
-    tags: ["Makeup", "Video", "Album", "Chỉnh sửa"],
-    cta: " Xem chi tiết ",
-    mainImage: assets.travel,
-    detailImage: assets.travelDetail,
-    badgeTitle: "Đặt lịch toàn quốc",
-    badgeText: "Hỗ trợ 24/7",
-    reverse: true,
-    muted: true,
+    eyebrow: "NÂNG TẦM THƯƠNG HIỆU",
+    title: "ƯU ĐÃI 15%",
+    description: "Dành cho khách hàng chụp sản phẩm lần đầu",
+    image: photos.product,
+    href: "/services/product",
   },
 ];
 
-const containerClass = "w-full max-w-[1440px] mx-auto px-6 md:px-12 lg:px-20";
+const testimonials = [
+  ["Dễ dàng tìm được Photographer phù hợp. Chất lượng dịch vụ rất tốt!", "Nguyễn Hoàng Anh", "Hà Nội"],
+  ["Đặt lịch nhanh chóng, Photographer nhiệt tình và chuyên nghiệp.", "Trần Minh Thư", "TP. HCM"],
+  ["Ảnh đẹp vượt mong đợi, sẽ tiếp tục ủng hộ PIXORA AI!", "Lê Quang Huy", "Đà Nẵng"],
+  ["Giao diện dễ dùng, nhiều ưu đãi hấp dẫn. Rất hài lòng!", "Phạm Kim Ngân", "Đà Lạt"],
+];
 
-function heroRevealStyle(isReady: boolean, delay = 0): CSSProperties {
-  return {
-    opacity: isReady ? 1 : 0,
-    transform: isReady
-      ? "translate3d(0, 0, 0) scale(1)"
-      : "translate3d(0, 56px, 0) scale(0.96)",
-    transition:
-      "opacity 1000ms cubic-bezier(0.16, 1, 0.3, 1), transform 1000ms cubic-bezier(0.16, 1, 0.3, 1)",
-    transitionDelay: `${delay}ms`,
-    willChange: isReady ? "auto" : "opacity, transform",
-  };
+type Photographer = Record<string, unknown>;
+
+const money = (value: unknown) => Number(value || 0).toLocaleString("vi-VN") + "đ";
+const pick = (item: Photographer, keys: string[], fallback: unknown) => {
+  for (const key of keys) if (item[key] !== undefined && item[key] !== null && item[key] !== "") return item[key];
+  return fallback;
+};
+
+function getCategoryIcon(slug: string) {
+  if (slug === "wedding" || slug === "couple") {
+    return (
+      <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+      </svg>
+    );
+  }
+  if (slug === "portrait" || slug === "personal") {
+    return (
+      <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+      </svg>
+    );
+  }
+  if (slug === "event") {
+    return (
+      <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+      </svg>
+    );
+  }
+  if (slug === "travel") {
+    return (
+      <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+        <circle cx="12" cy="11" r="3" />
+      </svg>
+    );
+  }
+  if (slug === "product" || slug === "food") {
+    return (
+      <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+      </svg>
+    );
+  }
+  return (
+    <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 035.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+    </svg>
+  );
 }
 
 export default function Home() {
-  const [banners, setBanners] = useState<any[]>([]);
-  const [featuredPhotographers, setFeaturedPhotographers] = useState<any[]>([]);
+  const [photographers, setPhotographers] = useState<Photographer[]>(fallbackPhotographers);
 
   useEffect(() => {
-    async function loadBanners() {
-      try {
-        const result = (await api.banners.getActive()) as any;
-        if (result.success && result.data) {
-          setBanners(result.data);
-        }
-      } catch (err) {
-        console.error("Lỗi load banners:", err);
-      }
-    }
-    async function loadFeatured() {
-      try {
-        const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
-        const res = await fetch(`${API_URL}/photographers/featured?limit=8`);
-        const json = await res.json();
-        if (json.success && json.data) {
-          setFeaturedPhotographers(json.data);
-        }
-      } catch (err) {
-        console.error("Lỗi load featured photographers:", err);
-      }
-    }
-    loadBanners();
-    loadFeatured();
+    fetch(`${API_URL}/photographers/featured?limit=4`)
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success && Array.isArray(json.data) && json.data.length) setPhotographers(json.data.slice(0, 4));
+      })
+      .catch(() => undefined);
   }, []);
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-[#fafbfc] text-[#0e111d] font-sans antialiased selection:bg-[#ff8d28]/20">
-      <main className="w-full">
-        <HeroSection />
+    <main className="bg-white font-sans text-[#111827]">
+      <div className="mx-auto w-full max-w-[1440px] px-6 pb-10 pt-3 md:px-12 lg:px-20">
+        <Hero />
 
-        {banners.length > 0 && <BannerSlider banners={banners} />}
+        <Section title="Photographer được tài trợ" action="/photographer" badge="Được tài trợ">
+          <SponsoredGrid photographers={photographers} />
+        </Section>
 
-        {featuredPhotographers.length > 0 && (
-          <FeaturedPhotographersSection photographers={featuredPhotographers} />
-        )}
+        <PromoBanner />
 
-        <ServicesGrid />
-      </main>
-    </div>
+        <Section title="Dịch vụ được đặt nhiều" action="/services">
+          <div className="flex snap-x gap-3 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:grid md:grid-cols-6 md:overflow-visible">
+            {services.map(([name, desc, image, slug]) => (
+              <Link key={name} href={`/services/${slug}`} className="group relative w-[160px] shrink-0 snap-start overflow-hidden rounded-2xl bg-slate-900 shadow-sm sm:w-[185px] md:w-auto" style={{ aspectRatio: "0.5" }}>
+                <img src={image} alt={name} className="transition duration-500 group-hover:scale-105" style={{ height: "100%", width: "100%", objectFit: "cover" }} />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/15 to-transparent" />
+                <div className="absolute inset-x-0 bottom-0 p-4 text-white flex items-end gap-2.5">
+                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-white/70 bg-black/25 text-sm">
+                    {getCategoryIcon(slug)}
+                  </span>
+                  <div className="min-w-0">
+                    <h3 className="text-sm font-extrabold sm:text-base leading-tight truncate">{name}</h3>
+                    <p className="mt-0.5 line-clamp-1 text-[10px] text-white/75 sm:text-[11px] leading-tight">{desc}</p>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </Section>
+
+        <Section title="Gói dịch vụ ưu đãi" action="/services">
+          <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4">
+            {deals.map(([discount, name, studio, price, oldPrice, image]) => (
+              <article key={name} className="flex overflow-hidden rounded-xl border border-slate-200 bg-white font-sans shadow-[0_5px_18px_rgba(15,23,42,.06)] transition duration-300 hover:shadow-md" style={{ height: "clamp(145px, 11vw, 180px)" }}>
+                <div className="relative w-[43%] shrink-0 bg-slate-100">
+                  <img src={image} alt={name} className="h-full w-full object-cover" style={{ height: "100%", width: "100%", objectFit: "cover" }} />
+                  <span className="absolute left-2 top-2 rounded-md bg-[#ff8d28] px-2 py-0.5 text-[10px] font-black text-white shadow-sm">{discount}</span>
+                </div>
+                <div className="flex min-w-0 flex-1 flex-col justify-center p-3">
+                  <div>
+                    <h3 className="line-clamp-2 text-xs font-black text-slate-800 leading-snug">{name}</h3>
+                    <p className="mt-1 text-[10px] font-semibold text-slate-400">{studio}</p>
+                  </div>
+                  <div className="mt-2">
+                    <p className="whitespace-nowrap text-sm font-black text-[#ff8d28]">
+                      {price}
+                      <del className="ml-1 text-[9px] font-medium text-slate-400">{oldPrice}</del>
+                    </p>
+                    <Link href="/services" className="mt-2 block rounded-lg border border-[#ff8d28]/35 py-1.5 text-center text-[10px] font-black text-[#ff8d28] transition hover:border-[#ff8d28] hover:bg-[#fff4e8]">
+                      Xem chi tiết
+                    </Link>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        </Section>
+
+        <AiBanner />
+        <BookingSteps />
+
+        <Section title="Khách hàng nói gì về chúng tôi" action="/review">
+          <div className="relative">
+            {/* Left navigation chevron */}
+            <button className="absolute left-[-18px] top-1/2 -translate-y-1/2 z-10 hidden md:grid h-9 w-9 place-items-center rounded-full bg-white shadow border border-slate-200 text-slate-500 hover:text-slate-900 transition-all font-black hover:bg-slate-50" aria-label="Previous testimonials">
+              <svg className="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+
+            <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
+              {testimonials.slice(0, 3).map(([quote, name, city]) => (
+                <article key={name} className="rounded-2xl border border-slate-100 bg-gradient-to-br from-white to-[#f7f7ff] p-6 shadow-[0_5px_18px_rgba(15,23,42,.05)]" style={{ minHeight: 210, aspectRatio: "1.4" }}>
+                  <div className="text-lg tracking-wider text-[#ff8d28]">★★★★★</div>
+                  <p className="mt-3 min-h-12 text-sm leading-6 text-slate-700">{quote}</p>
+                  <div className="mt-5 flex items-center gap-3"><div className="grid h-9 w-9 place-items-center rounded-full bg-[#fff1e5] text-xs font-black text-[#ff8d28]">{name.charAt(0)}</div><div><p className="text-xs font-extrabold">{name}</p><p className="text-[10px] text-slate-500">{city}</p></div></div>
+                </article>
+              ))}
+            </div>
+
+            {/* Right navigation chevron */}
+            <button className="absolute right-[-18px] top-1/2 -translate-y-1/2 z-10 hidden md:grid h-9 w-9 place-items-center rounded-full bg-white shadow border border-slate-200 text-slate-500 hover:text-slate-900 transition-all font-black hover:bg-slate-50" aria-label="Next testimonials">
+              <svg className="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+        </Section>
+
+        <TrustBar />
+      </div>
+    </main>
   );
 }
 
-function HeroSection() {
-  const [isReady, setIsReady] = useState(false);
+const categories = {
+  all: "Thể loại",
+  wedding: "Chụp ảnh cưới",
+  portrait: "Chụp chân dung",
+  event: "Chụp sự kiện",
+};
+
+const locations = {
+  all: "Địa điểm",
+  "Hà Nội, Việt Nam": "Hà Nội",
+  "TP. Hồ Chí Minh": "TP. Hồ Chí Minh",
+  "Đà Nẵng": "Đà Nẵng",
+  "Đà Lạt": "Đà Lạt",
+};
+
+const slides = [
+  {
+    id: "travel",
+    image: "https://images.unsplash.com/photo-1528127269322-539801943592?auto=format&fit=crop&w=2000&q=90", // Vietnam nature
+    gradient: "from-[#fff8f1]/95 via-[#f7efe8]/75 to-black/10",
+    slogan1: "Đặt lịch chụp hình",
+    slogan2: "CÙNG SUDION",
+    slogan3: "ngay hôm nay",
+    slogan1Color: "text-slate-800",
+    slogan2Color: "text-[#ff8d28]",
+    slogan3Color: "text-slate-800",
+    description: "Khám phá, so sánh và đặt lịch với những Photographer uy tín, chuyên nghiệp trên toàn quốc."
+  },
+  {
+    id: "event",
+    image: "https://images.unsplash.com/photo-1513151233558-d860c5398176?auto=format&fit=crop&w=2000&q=90", // Party light
+    gradient: "from-[#fff8f1]/95 via-[#f7efe8]/75 to-black/10",
+    slogan1: "Lưu giữ khoảnh khắc",
+    slogan2: "TRỌN VẸN YÊU THƯƠNG",
+    slogan3: "ngày đặc biệt",
+    slogan1Color: "text-slate-800",
+    slogan2Color: "text-[#ff8d28]",
+    slogan3Color: "text-slate-800",
+    description: "Ghi lại những giây phút đong đầy hạnh phúc bên gia đình và bạn bè trong ngày đặc biệt."
+  },
+  {
+    id: "wedding",
+    image: "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=2000&q=90", // Wedding
+    gradient: "from-[#fff8f1]/95 via-[#f7efe8]/75 to-black/10",
+    slogan1: "Viết câu chuyện tình",
+    slogan2: "ĐẸP NHƯ CỔ TÍCH",
+    slogan3: "trong ngày cưới",
+    slogan1Color: "text-slate-800",
+    slogan2Color: "text-[#ff8d28]",
+    slogan3Color: "text-slate-800",
+    description: "Dịch vụ chụp ảnh cưới chuyên nghiệp, tinh tế, đồng hành cùng tình yêu đôi lứa."
+  }
+];
+
+function Hero() {
+  const [location, setLocation] = useState("all");
+  const [category, setCategory] = useState("all");
+  const [date, setDate] = useState("");
+  const [openDropdown, setOpenDropdown] = useState<"category" | "location" | null>(null);
+  const dateInputRef = useRef<HTMLInputElement>(null);
+  const [activeSlide, setActiveSlide] = useState(0);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setIsReady(true);
-    }, 80);
-
-    return () => window.clearTimeout(timer);
+    const handleOutsideClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest(".search-bar-container")) {
+        setOpenDropdown(null);
+      }
+    };
+    document.addEventListener("click", handleOutsideClick);
+    return () => document.removeEventListener("click", handleOutsideClick);
   }, []);
 
-  return (
-    <section className="w-full overflow-hidden bg-white">
-      <div
-        className={`${containerClass} grid gap-10 py-14 lg:grid-cols-[1.15fr_0.75fr] lg:items-center lg:gap-12 lg:py-16`}
-      >
-        <div className="pt-2">
-          <div
-            className="inline-flex items-center gap-1.5 rounded-full bg-[#fcf2e9] px-4 py-1.5 text-[12px] font-extrabold text-[#ff8d28]"
-            style={heroRevealStyle(isReady, 0)}
-          >
-            <SparkGlyph className="h-4 w-4" />
-            AI Creative Match
-          </div>
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setActiveSlide((prev) => (prev + 1) % slides.length);
+    }, 6000);
+    return () => clearInterval(timer);
+  }, []);
 
-          <h1
-            className="mt-5 max-w-[12ch] text-[38px] font-black leading-[1.12] tracking-normal text-[#0e111d] sm:max-w-[16ch] sm:text-[46px] md:max-w-[18ch] md:text-[52px] lg:max-w-[760px] lg:text-[58px] xl:text-[64px]"
-            style={heroRevealStyle(isReady, 120)}
-          >
-            Tìm photographer phù hợp cho mọi khoảnh khắc
-          </h1>
-
-          <p
-            className="mt-6 max-w-[520px] text-[16px] sm:text-[17px] md:text-[18px] leading-[1.7] text-[#4b5563] font-medium"
-            style={heroRevealStyle(isReady, 240)}
-          >
-            Tìm kiếm thông minh và kết nối trực tiếp với hàng ngàn nhiếp ảnh gia
-            chuyên nghiệp tại Việt Nam.
-          </p>
-
-          <div
-            className="mt-7 max-w-[720px]"
-            style={heroRevealStyle(isReady, 360)}
-          >
-            <SearchBar />
-          </div>
-
-          <div
-            className="mt-10 flex items-start gap-12"
-            style={heroRevealStyle(isReady, 480)}
-          >
-            <Stat value="500+" label="Photographers" />
-            <Stat value="10K+" label="Buổi chụp" />
-          </div>
-        </div>
-
-        <div style={heroRevealStyle(isReady, 320)}>
-          <PhotographerCard />
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function SearchBar() {
-  const [service, setService] = useState("Tất cả");
-  const [location, setLocation] = useState("Hồ Chí Minh");
-
-  const [date, setDate] = useState(() => {
-    const today = new Date();
-    const day = String(today.getDate()).padStart(2, "0");
-    const month = String(today.getMonth() + 1).padStart(2, "0");
-    const year = today.getFullYear();
-
-    return `${day}/${month}/${year}`;
-  });
-
-  const serviceOptions = [
-    "Tất cả",
-    "Chụp ảnh cưới",
-    "Chụp ảnh đôi",
-    "Chụp kỉ yếu",
-    "Chụp sự kiện",
-    "Chụp food & product",
-    "Chụp travel",
-  ];
-
-  const serviceSlugMap: Record<string, string> = {
-    "Tất cả": "all",
-    "Chụp ảnh cưới": "wedding",
-    "Chụp ảnh đôi": "couple",
-    "Chụp kỉ yếu": "yearbook",
-    "Chụp sự kiện": "event",
-    "Chụp food & product": "food",
-    "Chụp travel": "travel",
+  const handlePrev = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setActiveSlide((prev) => (prev - 1 + slides.length) % slides.length);
   };
 
-  const locationOptions = [
-    "Hồ Chí Minh",
-    "Hà Nội",
-    "Đà Nẵng",
-    "Đà Lạt",
-    "Nha Trang",
-    "Cần Thơ",
-  ];
-
-  const locationMap: Record<string, string> = {
-    "Hồ Chí Minh": "Ho Chi Minh City, VN",
-    "Hà Nội": "Hà Nội, VN",
-    "Đà Nẵng": "Đà Nẵng, VN",
-    "Đà Lạt": "Đà Lạt, VN",
-    "Nha Trang": "Nha Trang, VN",
-    "Cần Thơ": "Cần Thơ, Việt Nam",
+  const handleNext = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setActiveSlide((prev) => (prev + 1) % slides.length);
   };
 
-  const selectedCategory = serviceSlugMap[service] || "all";
-  const selectedLocation = locationMap[location] || location;
-
   return (
-    <div className="rounded-[14px] bg-white/95 p-1.5 shadow-[0_12px_30px_rgba(0,0,0,0.08)] ring-1 ring-black/5">
-      <div className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-[1.2fr_1fr_1fr_112px] lg:items-stretch">
-        <SearchSelect
-          icon={<CameraGlyph />}
-          helper="Dịch vụ chụp"
-          options={serviceOptions}
-          selected={service}
-          onChange={setService}
-        />
+    <div className="relative mb-10 md:mb-12">
+      <section className="relative min-h-[580px] overflow-hidden rounded-[26px] bg-slate-900 shadow-sm md:min-h-[380px] md:aspect-[2.25]">
+        {slides.map((slide, index) => {
+          const isActive = index === activeSlide;
+          return (
+            <div
+              key={slide.id}
+              className={`absolute inset-0 w-full h-full transition-opacity duration-700 ease-in-out ${
+                isActive ? "opacity-100 z-10" : "opacity-0 pointer-events-none z-0"
+              }`}
+            >
+              {/* Background Image */}
+              <img
+                src={slide.image}
+                alt="Banner background"
+                className="absolute inset-0 h-full w-full object-cover object-center"
+              />
+              {/* Gradient Overlay */}
+              <div className={`absolute inset-0 bg-gradient-to-r ${slide.gradient}`} />
+              
+              {/* Slide Content */}
+              <div className="relative h-full flex items-center px-12 pt-10 pb-20 sm:px-16 md:px-20 lg:px-24 lg:pb-20">
+                <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+                  {/* Left Column (Text) */}
+                  <div className="lg:col-span-9 flex flex-col justify-center">
+                    <h1 className="flex flex-col items-start leading-[1.25] md:leading-[1.2] tracking-tight gap-1 md:gap-2">
+                      <span className={`font-script text-2xl sm:text-3xl lg:text-[38px] font-medium normal-case ${slide.slogan1Color}`}>
+                        {slide.slogan1}
+                      </span>
+                      <span className={`font-sans text-3xl sm:text-4xl lg:text-[54px] font-black uppercase tracking-wide ${slide.slogan2Color}`}>
+                        {slide.slogan2}
+                      </span>
+                      <span className={`font-script text-2xl sm:text-3xl lg:text-[38px] font-medium normal-case ${slide.slogan3Color}`}>
+                        {slide.slogan3}
+                      </span>
+                    </h1>
+                    <p className="mt-4 max-w-[550px] text-sm font-medium leading-7 text-slate-800 sm:text-[16px]">
+                      {slide.description}
+                    </p>
+                  </div>
 
-        <SearchSelect
-          icon={<PinGlyph />}
-          helper="Địa điểm"
-          options={locationOptions}
-          selected={location}
-          onChange={setLocation}
-        />
+                  {/* Right Column (Left empty intentionally so characters on custom banner background design can shine through) */}
+                  <div className="lg:col-span-3 relative hidden lg:block h-[280px]" />
+                </div>
+              </div>
+            </div>
+          );
+        })}
 
-        <SearchInput
-          icon={<CalendarGlyph className="h-8 w-8" />}
-          helper="Ngày chụp"
-          value={date}
-          placeholder={date}
-          onChange={setDate}
-        />
-
-        <Link
-          href={`/photographer?category=${selectedCategory}&location=${encodeURIComponent(
-            selectedLocation,
-          )}`}
-          className="inline-flex min-h-[42px] items-center justify-center rounded-[10px] bg-[#ff8d28] px-4 text-[14px] font-extrabold text-white shadow-[0_8px_18px_rgba(255,141,40,0.22)] transition-all hover:bg-[#e0751b] sm:col-span-2 lg:col-span-1 lg:min-h-full"
+        {/* Slide navigation arrows */}
+        <button
+          onClick={handlePrev}
+          className="absolute left-4 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-white/70 hover:bg-white text-slate-800 flex items-center justify-center shadow-md transition hover:scale-110 active:scale-95 cursor-pointer"
+          aria-label="Previous slide"
         >
-          Tìm Kiếm
-        </Link>
-      </div>
-    </div>
-  );
-}
-
-function SearchSelect({
-  icon,
-  helper,
-  options,
-  selected,
-  onChange,
-}: {
-  icon: ReactNode;
-  helper: string;
-  options: string[];
-  selected: string;
-  onChange: (value: string) => void;
-}) {
-  return (
-    <label className="group !flex min-h-[42px] min-w-0 items-center gap-2 rounded-[10px] px-3 py-1.5 transition-colors hover:bg-[#fff7ef] lg:border-r lg:border-dashed lg:border-[#d9dce6]">
-      <span className="grid h-7 w-7 shrink-0 place-items-center text-[#ff8d28]">
-        {icon}
-      </span>
-
-      <span className="min-w-0 flex-1">
-        <select
-          value={selected}
-          onChange={(event) => onChange(event.target.value)}
-          className="block !h-5 !min-h-0 w-full truncate !border-0 bg-transparent !p-0 text-[13px] font-bold leading-4 text-[#0e111d] !shadow-none outline-none"
-          aria-label={helper}
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.8">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+        <button
+          onClick={handleNext}
+          className="absolute right-4 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-white/70 hover:bg-white text-slate-800 flex items-center justify-center shadow-md transition hover:scale-110 active:scale-95 cursor-pointer"
+          aria-label="Next slide"
         >
-          {options.map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.8">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+
+        {/* Slide indicators (dots) */}
+        <div className="absolute bottom-12 left-1/2 -translate-x-1/2 z-20 flex gap-2">
+          {slides.map((_, index) => (
+            <button
+              key={index}
+              onClick={(e) => {
+                e.stopPropagation();
+                setActiveSlide(index);
+              }}
+              className={`w-2 h-2 rounded-full transition-all cursor-pointer ${
+                index === activeSlide ? "bg-[#ff8d28] w-4" : "bg-slate-400/50 hover:bg-slate-400"
+              }`}
+              aria-label={`Go to slide ${index + 1}`}
+            />
           ))}
-        </select>
-
-        <span className="mt-0.5 block truncate text-[11px] font-semibold leading-3 text-[#4b5563]">
-          {helper}
-        </span>
-      </span>
-    </label>
-  );
-}
-
-function SearchInput({
-  icon,
-  helper,
-  value,
-  placeholder,
-  onChange,
-}: {
-  icon: ReactNode;
-  helper: string;
-  value: string;
-  placeholder: string;
-  onChange: (value: string) => void;
-}) {
-  return (
-    <label className="group !flex min-h-[42px] min-w-0 items-center gap-2 rounded-[10px] px-3 py-1.5 transition-colors hover:bg-[#fff7ef] lg:border-r lg:border-dashed lg:border-[#d9dce6]">
-      <span className="grid h-7 w-7 shrink-0 place-items-center text-[#ff8d28]">
-        {icon}
-      </span>
-
-      <span className="min-w-0 flex-1">
-        <input
-          type="text"
-          inputMode="numeric"
-          value={value}
-          placeholder={placeholder}
-          onChange={(event) => onChange(event.target.value)}
-          className="block !h-4 !min-h-0 w-full !border-0 bg-transparent !p-0 text-[13px] font-bold leading-4 text-[#0e111d] placeholder:text-[#0e111d] !shadow-none outline-none"
-          aria-label={helper}
-        />
-
-        <span className="mt-0.5 block truncate text-[11px] font-semibold leading-3 text-[#4b5563]">
-          {helper}
-        </span>
-      </span>
-    </label>
-  );
-}
-
-function PhotographerCard() {
-  return (
-    <div className="relative mx-auto w-full max-w-[360px] pt-2 sm:max-w-[390px] lg:max-w-[410px] lg:pt-0">
-      <article className="group ml-auto overflow-hidden rounded-[22px] border border-[#e6e8ef]/80 bg-white shadow-[0_18px_36px_rgba(0,0,0,0.04)] transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_28px_56px_rgba(0,0,0,0.12)]">
-        <div className="aspect-[1.08/1]">
-          <img
-            src={assets.photographer}
-            alt="Đức Anh"
-            fetchPriority="high"
-            decoding="async"
-            className="h-full w-full object-cover transition-all duration-700 ease-out group-hover:scale-110 group-hover:brightness-105"
-          />
         </div>
+      </section>
 
-        <div className="-mt-28 bg-gradient-to-t from-[rgba(0,0,0,0.85)] via-[rgba(0,0,0,0.4)] to-transparent px-7 pb-7 pt-24 text-white">
-          <h2 className="text-[26px] sm:text-[30px] font-extrabold leading-tight">
-            Đức Anh
-          </h2>
-
-          <p className="mt-1.5 text-[14px] text-white/80 font-bold">
-            Premium Wedding Photographer
-          </p>
-        </div>
-      </article>
-
-      <div className="absolute z-10 bottom-5 -left-4 w-[225px] rounded-[14px] border border-[#e8e9ef]/60 bg-white/95 backdrop-blur-md px-4 py-3 shadow-[0_12px_28px_rgba(0,0,0,0.06)]">
-        <div className="flex items-center gap-3.5">
-          <div className="grid h-9 w-9 place-items-center rounded-full bg-[#fcf2e9] shrink-0">
-            <SparkGlyph className="h-4.5 w-4.5 text-[#ff8d28]" />
+      {/* Search Bar - positioned absolutely inside the bottom edge of the banner */}
+      <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-20 w-[calc(100%-48px)] sm:w-[calc(100%-80px)] md:w-[calc(100%-96px)] lg:w-[calc(100%-112px)] max-w-[920px]">
+        <div className="search-bar-container w-full bg-white rounded-[24px] md:rounded-full p-1.5 md:p-0 md:pl-6 shadow-[0_12px_35px_rgba(0,0,0,0.06)] border border-slate-100/80 flex flex-col md:flex-row md:items-center md:justify-between gap-2.5 md:gap-0 md:h-[48px] md:overflow-visible">
+          {/* Thể loại */}
+          <div className="flex-1 min-w-0 relative">
+            <SearchField
+              icon={<HeroFieldIcon type="camera" />}
+              labelText={categories[category as keyof typeof categories] || "Thể loại"}
+              onClick={() => setOpenDropdown(openDropdown === "category" ? null : "category")}
+            />
+            {openDropdown === "category" && (
+              <div className="absolute top-[calc(100%+12px)] left-0 w-full bg-white rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.12)] border border-slate-100 py-1.5 z-30 min-w-[200px]">
+                {Object.entries(categories).map(([key, val]) => (
+                  <button
+                    key={key}
+                    onClick={() => {
+                      setCategory(key);
+                      setOpenDropdown(null);
+                    }}
+                    className={`w-full text-left px-4 py-2 text-sm font-semibold transition cursor-pointer block ${
+                      category === key ? "text-[#ff4f00] bg-slate-50" : "text-slate-700 hover:bg-slate-50 hover:text-[#ff4f00]"
+                    }`}
+                  >
+                    {val}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          
+          {/* Thời gian */}
+          <div className="flex-1 min-w-0 relative">
+            <SearchField
+              icon={<HeroFieldIcon type="calendar" />}
+              labelText={date ? date.split("-").reverse().join("/") : "Thời gian"}
+              onClick={() => dateInputRef.current?.showPicker()}
+            />
+            <input
+              ref={dateInputRef}
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="absolute pointer-events-none opacity-0 w-0 h-0"
+            />
           </div>
 
-          <div>
-            <p className="text-[13px] font-extrabold text-[#0e111d]">
-              98% Match
-            </p>
+          {/* Địa điểm */}
+          <div className="flex-1 min-w-0 relative">
+            <SearchField
+              icon={<HeroFieldIcon type="location" />}
+              labelText={locations[location as keyof typeof locations] || "Địa điểm"}
+              onClick={() => setOpenDropdown(openDropdown === "location" ? null : "location")}
+            />
+            {openDropdown === "location" && (
+              <div className="absolute top-[calc(100%+12px)] left-0 w-full bg-white rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.12)] border border-slate-100 py-1.5 z-30 min-w-[200px]">
+                {Object.entries(locations).map(([key, val]) => (
+                  <button
+                    key={key}
+                    onClick={() => {
+                      setLocation(key);
+                      setOpenDropdown(null);
+                    }}
+                    className={`w-full text-left px-4 py-2 text-sm font-semibold transition cursor-pointer block ${
+                      location === key ? "text-[#ff4f00] bg-slate-50" : "text-slate-700 hover:bg-slate-50 hover:text-[#ff4f00]"
+                    }`}
+                  >
+                    {val}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
-            <p className="text-[11px] leading-normal text-[#8a8fa1] font-bold mt-0.5">
-              Phù hợp phong cách & ngân sách
-            </p>
+          <div className="p-0.5 md:p-0">
+            <Link href={`/photographer?category=${category === "all" ? "" : category}&location=${encodeURIComponent(location === "all" ? "" : location)}&date=${date}`} className="flex h-[46px] md:h-[48px] items-center justify-center gap-2 rounded-[20px] md:rounded-r-full md:rounded-l-none bg-gradient-to-r from-[#ff5e00] to-[#ff3c00] px-8 text-[15px] font-extrabold text-white transition hover:scale-[1.02] active:scale-[0.98] whitespace-nowrap w-full md:w-auto">
+              <svg className="h-4.5 w-4.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.8">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+              </svg>
+              Đặt lịch
+            </Link>
           </div>
         </div>
       </div>
     </div>
   );
 }
+function SearchField({ icon, labelText, onClick }: { icon: React.ReactNode; labelText: string; onClick?: () => void }) {
+  return (
+    <div onClick={onClick} className="flex min-h-[46px] md:min-h-[40px] items-center gap-2.5 px-4 bg-white md:bg-transparent rounded-full md:rounded-none border border-slate-100 md:border-0 w-full cursor-pointer select-none">
+      <span className="grid h-5 w-5 shrink-0 place-items-center text-slate-800">{icon}</span>
+      <span className="min-w-0 flex-1 text-sm font-bold text-slate-800 truncate">
+        {labelText}
+      </span>
+    </div>
+  );
+}
 
-function ServiceSection({
-  id,
-  eyebrow,
-  title,
-  description,
-  price,
-  network,
-  tags,
-  cta,
-  mainImage,
-  detailImage,
-  badgeTitle,
-  badgeText,
-  clusterLabel,
-  reverse,
-  muted,
-}: {
-  id: string;
-  eyebrow: string;
-  title: string;
-  description: string;
-  price: string;
-  network: string;
-  tags: string[];
-  cta: string;
-  mainImage: string;
-  detailImage: string;
-  badgeTitle: string;
-  badgeText: string;
-  clusterLabel?: string;
-  reverse?: boolean;
-  muted?: boolean;
-}) {
+function HeroFieldIcon({ type }: { type: "location" | "camera" | "calendar" }) {
+  if (type === "location") return <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z" /><circle cx="12" cy="10" r="2.5" /></svg>;
+  if (type === "camera") return <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 7h3l1.5-2h7L17 7h3v12H4Z" /><circle cx="12" cy="13" r="4" /></svg>;
+  return <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M7 3v4m10-4v4M3 10h18" /></svg>;
+}
+
+function PromoBanner() {
+  const [activePromo, setActivePromo] = useState(0);
+  const promo = promoSlides[activePromo];
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setActivePromo((current) => (current + 1) % promoSlides.length);
+    }, 3000);
+
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const movePromo = (direction: number) => {
+    setActivePromo((current) => (current + direction + promoSlides.length) % promoSlides.length);
+  };
+
   return (
     <section
-      className={`w-full ${
-        muted ? "bg-[#f8f9fd]" : "bg-white"
-      } overflow-hidden`}
+      aria-label="Chương trình khuyến mãi"
+      aria-roledescription="carousel"
+      className="relative mt-7 min-h-[210px] overflow-hidden rounded-2xl border border-orange-100 bg-gradient-to-r from-[#fff5e7] to-[#ffedd1] shadow-sm sm:min-h-[170px]"
     >
       <div
-        className={`${containerClass} grid gap-16 py-20 sm:py-24 lg:grid-cols-2 lg:items-center lg:gap-24 lg:py-28`}
+        className="absolute inset-y-0 right-0 w-[76%] sm:w-[52%]"
+        style={{
+          WebkitMaskImage: "linear-gradient(to right, transparent 0%, rgba(0,0,0,.25) 14%, #000 34%)",
+          maskImage: "linear-gradient(to right, transparent 0%, rgba(0,0,0,.25) 14%, #000 34%)",
+        }}
       >
-        <div className={reverse ? "lg:order-2" : ""}>
-          <ServiceCopy
-            id={id}
-            eyebrow={eyebrow}
-            title={title}
-            description={description}
-            price={price}
-            network={network}
-            tags={tags}
-            cta={cta}
+        {promoSlides.map((slide, index) => (
+          <img
+            key={slide.image}
+            src={slide.image}
+            alt=""
+            aria-hidden={activePromo !== index}
+            className={`absolute inset-0 h-full w-full object-cover object-center transition-[opacity,transform] duration-1000 ease-[cubic-bezier(0.4,0,0.2,1)] motion-reduce:transition-none ${activePromo === index ? "scale-100 opacity-100" : "scale-[1.025] opacity-0"
+              }`}
           />
-        </div>
-
-        <div className={reverse ? "lg:order-1" : ""}>
-          <PhotoCluster
-            mainImage={mainImage}
-            detailImage={detailImage}
-            badgeTitle={badgeTitle}
-            badgeText={badgeText}
-            clusterLabel={clusterLabel}
-            reverse={reverse}
-            muted={muted}
-          />
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function ServiceCopy({
-  id,
-  eyebrow,
-  title,
-  description,
-  price,
-  network,
-  tags,
-  cta,
-}: {
-  id: string;
-  eyebrow: string;
-  title: string;
-  description: string;
-  price: string;
-  network: string;
-  tags: string[];
-  cta: string;
-}) {
-  return (
-    <div className="max-w-[540px] lg:max-w-none">
-      <p
-        data-reveal
-        data-reveal-delay="0"
-        className="text-[11px] sm:text-[12px] font-black uppercase tracking-[0.18em] text-[#ff8d28]"
-      >
-        {eyebrow}
-      </p>
-
-      <h2
-        data-reveal
-        data-reveal-delay="80"
-        className="mt-3 text-[32px] sm:text-[38px] md:text-[42px] lg:text-[46px] font-black leading-[1.08] tracking-[-0.03em] text-[#0e111d]"
-      >
-        {title}
-      </h2>
-
-      <p
-        data-reveal
-        data-reveal-delay="160"
-        className="mt-5 text-[15px] sm:text-[16px] md:text-[17px] leading-[1.7] text-[#4b5563] font-medium"
-      >
-        {description}
-      </p>
-
-      <div
-        data-reveal
-        data-reveal-delay="240"
-        className="mt-8 grid grid-cols-2 gap-5 border-t border-[#f1f3f7] pt-7 max-w-[420px] lg:max-w-none"
-      >
-        <div>
-          <p className="text-[11px] font-bold leading-4 text-[#8a8fa1] uppercase tracking-wider">
-            Giá khởi điểm
-          </p>
-
-          <p className="mt-1 text-[22px] sm:text-[26px] md:text-[28px] font-extrabold leading-none tracking-[-0.02em] text-[#ff8d28]">
-            {price}
-          </p>
-        </div>
-
-        <div>
-          <p className="text-[11px] font-bold leading-4 text-[#8a8fa1] uppercase tracking-wider">
-            Mạng lưới
-          </p>
-
-          <p className="mt-1 text-[22px] sm:text-[26px] md:text-[28px] font-extrabold leading-none tracking-[-0.02em] text-[#0e111d]">
-            {network}
-          </p>
-        </div>
-      </div>
-
-      <div
-        data-reveal
-        data-reveal-delay="320"
-        className="mt-7 flex flex-wrap gap-2.5"
-      >
-        {tags.map((tag) => (
-          <span
-            key={tag}
-            className="rounded-full bg-[#f0f3fe] px-4 py-2 text-[11px] sm:text-[12px] font-bold text-[#556080]"
-          >
-            {tag}
-          </span>
         ))}
       </div>
 
-      <Link
-        data-reveal
-        data-reveal-delay="400"
-        href={`/photographer?category=${id}`}
-        className="mt-8 inline-flex rounded-lg bg-[#ff8d28] hover:bg-[#e0751b] px-7 py-3.5 text-[13px] sm:text-[14px] font-bold text-white shadow-[0_8px_16px_rgba(255,141,40,0.12)] transition-all hover:translate-y-[-1px]"
-      >
-        {cta}
-      </Link>
-    </div>
-  );
-}
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#fff5e7] via-[#fff5e7]/45 to-transparent sm:via-[42%]" />
 
-function PhotoCluster({
-  mainImage,
-  detailImage,
-  badgeTitle,
-  badgeText,
-  clusterLabel,
-  reverse,
-  muted,
-}: {
-  mainImage: string;
-  detailImage: string;
-  badgeTitle: string;
-  badgeText: string;
-  clusterLabel?: string;
-  reverse?: boolean;
-  muted?: boolean;
-}) {
-  const clusterRef = useRef<HTMLDivElement>(null);
-  const [isVisible, setIsVisible] = useState(false);
-
-  useEffect(() => {
-    const node = clusterRef.current;
-
-    if (!node) {
-      return;
-    }
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setIsVisible(true);
-          observer.disconnect();
-        }
-      },
-      { rootMargin: "0px 0px -10% 0px", threshold: 0.12 },
-    );
-
-    observer.observe(node);
-
-    return () => observer.disconnect();
-  }, []);
-
-  const visibleOpacity = isVisible ? 1 : 0;
-
-  const clusterReveal = isVisible
-    ? "translate3d(0, 0, 0) scale(1)"
-    : "translate3d(0, 72px, 0) scale(0.96)";
-
-  const labelReveal = isVisible
-    ? "translateX(-50%) translateY(0) scale(1)"
-    : "translateX(-50%) translateY(28px) scale(0.96)";
-
-  const badgeReveal = isVisible
-    ? "translateY(0) scale(1)"
-    : "translateY(38px) scale(0.96)";
-
-  const mainReveal = isVisible
-    ? "translateY(0) scale(1)"
-    : "translateY(76px) scale(0.96)";
-
-  const detailReveal = isVisible
-    ? "translateY(0) scale(1)"
-    : "translateY(92px) scale(0.94)";
-
-  return (
-    <div
-      ref={clusterRef}
-      data-tilt
-      className="relative w-full aspect-[1.18/1] max-w-[500px] lg:max-w-[520px] mx-auto select-none group"
-      style={{
-        opacity: visibleOpacity,
-        transform: clusterReveal,
-        transition:
-          "opacity 1050ms cubic-bezier(0.16, 1, 0.3, 1), transform 1050ms cubic-bezier(0.16, 1, 0.3, 1)",
-        willChange: isVisible ? "auto" : "opacity, transform",
-      }}
-    >
-      {clusterLabel ? (
-        <p
-          className="absolute -top-6 left-1/2 text-[14px] font-bold text-[#ff8d28] tracking-widest z-30 uppercase"
-          style={{
-            opacity: visibleOpacity,
-            transform: labelReveal,
-            transition:
-              "opacity 850ms cubic-bezier(0.16, 1, 0.3, 1) 100ms, transform 850ms cubic-bezier(0.16, 1, 0.3, 1) 100ms",
-          }}
-        >
-          {clusterLabel}
-        </p>
-      ) : null}
-
-      <div
-        className="absolute z-30 w-[48%] rounded-[12px] border border-[#ececf1] bg-white/95 backdrop-blur px-4 py-3 shadow-[0_10px_25px_rgba(0,0,0,0.05)]"
-        style={{
-          top: reverse ? "12%" : "12%",
-          left: reverse ? "4%" : "18%",
-          opacity: visibleOpacity,
-          transform: `translate3d(calc(var(--mx, 0) * 28px), calc(var(--my, 0) * 22px), 0) ${badgeReveal}`,
-          transition:
-            "opacity 1050ms cubic-bezier(0.16, 1, 0.3, 1) 260ms, transform 1050ms cubic-bezier(0.16, 1, 0.3, 1) 260ms",
-        }}
-      >
-        <div className="flex items-center gap-2.5">
-          <div className="grid h-7.5 w-7.5 place-items-center rounded-full bg-[#fcf2e9] shrink-0">
-            <SparkGlyph className="h-4.5 w-4.5 text-[#ff8d28]" />
-          </div>
-
-          <div className="min-w-0">
-            <p className="truncate text-[12px] sm:text-[13px] font-extrabold text-[#0e111d] leading-none">
-              {badgeTitle}
-            </p>
-
-            {badgeText ? (
-              <p className="truncate text-[10px] sm:text-[11px] text-[#8a8fa1] mt-1 leading-none font-medium">
-                {badgeText}
-              </p>
-            ) : null}
-          </div>
-        </div>
-      </div>
-
-      <div
-        className="absolute z-10 overflow-hidden rounded-[24px] shadow-[0_24px_48px_rgba(0,0,0,0.06)]"
-        style={{
-          left: reverse ? "0" : "15%",
-          right: reverse ? "15%" : "0",
-          top: "8%",
-          bottom: "4%",
-          opacity: visibleOpacity,
-          transform: `translate3d(calc(var(--mx, 0) * 8px), calc(var(--my, 0) * 6px), 0) ${mainReveal} ${
-            reverse ? "rotate(-1deg)" : "rotate(1deg)"
-          }`,
-          transition:
-            "opacity 1150ms cubic-bezier(0.16, 1, 0.3, 1), transform 1150ms cubic-bezier(0.16, 1, 0.3, 1)",
-        }}
-      >
-        <img
-          src={mainImage}
-          alt=""
-          loading="lazy"
-          decoding="async"
-          className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
-        />
-      </div>
-
-      <div
-        className={`absolute z-20 w-[42%] aspect-square overflow-hidden rounded-[18px] border-[4px] shadow-[0_16px_32px_rgba(0,0,0,0.1)] ${
-          muted ? "border-[#f8f9fd]" : "border-white"
-        }`}
-        style={{
-          bottom: "0",
-          left: reverse ? "auto" : "0",
-          right: reverse ? "0" : "auto",
-          opacity: visibleOpacity,
-          transform: `translate3d(calc(var(--mx, 0) * -16px), calc(var(--my, 0) * -12px), 0) ${detailReveal} ${
-            reverse ? "rotate(2deg)" : "rotate(-2deg)"
-          }`,
-          transition:
-            "opacity 1150ms cubic-bezier(0.16, 1, 0.3, 1) 160ms, transform 1150ms cubic-bezier(0.16, 1, 0.3, 1) 160ms",
-        }}
-      >
-        <img
-          src={detailImage}
-          alt=""
-          loading="lazy"
-          decoding="async"
-          className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
-        />
-      </div>
-    </div>
-  );
-}
-
-function Stat({ value, label }: { value: string; label: string }) {
-  return (
-    <div>
-      <p className="text-[36px] sm:text-[40px] font-black leading-none tracking-[-0.03em] text-[#0e111d]">
-        {value}
-      </p>
-
-      <p className="mt-2 text-[12px] font-extrabold text-[#8a8fa1] uppercase tracking-wider">
-        {label}
-      </p>
-    </div>
-  );
-}
-
-function CalendarGlyph({ className }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 20 20"
-      className={className || "h-4 w-4"}
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      aria-hidden="true"
-    >
-      <path
-        d="M5.5 3V6M14.5 3V6M4 8H16M5 5H15C15.8 5 16.5 5.7 16.5 6.5V15C16.5 15.8 15.8 16.5 15 16.5H5C4.2 16.5 3.5 15.8 3.5 15V6.5C3.5 5.7 4.2 5 5 5Z"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function CameraGlyph({ className }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 20 20"
-      className={className || "h-8 w-8"}
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      aria-hidden="true"
-    >
-      <path
-        d="M6.2 6L7.6 4.3H12.4L13.8 6H15.2C16.1 6 16.8 6.7 16.8 7.6V14.2C16.8 15.1 16.1 15.8 15.2 15.8H4.8C3.9 15.8 3.2 15.1 3.2 14.2V7.6C3.2 6.7 3.9 6 4.8 6H6.2Z"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-
-      <circle cx="10" cy="10.8" r="2.35" stroke="currentColor" strokeWidth="1.8" />
-    </svg>
-  );
-}
-
-function PinGlyph({ className }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 20 20"
-      className={className || "h-8 w-8"}
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      aria-hidden="true"
-    >
-      <path
-        d="M15.5 8.4C15.5 12.1 10 16.8 10 16.8S4.5 12.1 4.5 8.4A5.5 5.5 0 1115.5 8.4Z"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-
-      <circle cx="10" cy="8.4" r="1.8" stroke="currentColor" strokeWidth="1.8" />
-    </svg>
-  );
-}
-
-function SparkGlyph({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 20 20"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      aria-hidden="true"
-    >
-      <path
-        d="M10 2.5L11.9 8.1L17.5 10L11.9 11.9L10 17.5L8.1 11.9L2.5 10L8.1 8.1L10 2.5Z"
-        fill="currentColor"
-      />
-    </svg>
-  );
-}
-
-function FeaturedPhotographersSection({ photographers }: { photographers: any[] }) {
-  return (
-    <section className="w-full bg-white py-16 lg:py-20 border-b border-[#e8ecf4]">
-      <div className="w-full max-w-[1440px] mx-auto px-6 md:px-12 lg:px-20">
-        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-10">
-          <div>
-            <div className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#fff7ed] to-[#fef3c7] px-4 py-1.5 text-[11px] font-black uppercase tracking-[0.15em] text-[#f59e0b] mb-3">
-              <svg viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5"><polygon points="10 1 12.6 7.1 19.1 7.6 14.1 11.9 15.5 18.2 10 15 4.5 18.2 5.9 11.9 0.9 7.6 7.4 7.1" /></svg>
-              PHOTOGRAPHER NỔI BẬT
+      <div className="relative z-10 flex min-h-[210px] items-center px-8 py-8 sm:min-h-[170px] sm:px-16 lg:px-24">
+        <div key={activePromo} className="w-full animate-fade-in-up text-center motion-reduce:animate-none sm:w-[58%] sm:text-left">
+          <p className="text-[10px] font-black tracking-[0.24em] text-[#ff8d28] sm:text-xs">
+            {promo.eyebrow}
+          </p>
+          <div className="mt-2 flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:gap-8">
+            <div className="min-w-0">
+              <h3 className="text-[26px] font-black leading-none tracking-tight text-[#ff8d28] sm:text-[30px] lg:text-[36px]">
+                {promo.title}
+              </h3>
+              <p className="mt-2 text-xs font-semibold text-orange-950/75 sm:text-sm">{promo.description}</p>
             </div>
-            <h2 className="text-[28px] sm:text-[34px] font-black tracking-[-0.03em] text-[#0e111d] leading-tight">
-              Thợ ảnh đang được quảng cáo
-            </h2>
-            <p className="mt-2 text-[14px] text-[#4b5563] font-medium max-w-[520px]">
-              Những nhiếp ảnh gia chuyên nghiệp đã đăng ký gói nổi bật — ưu tiên hiển thị và được khách hàng tin tưởng.
-            </p>
-          </div>
-          <Link
-            href="/photographer"
-            className="inline-flex items-center gap-1.5 rounded-full border border-[#e2e8f0] bg-white px-5 py-2.5 text-[13px] font-bold text-[#334155] hover:border-[#ff8d28] hover:text-[#ff8d28] transition-all shrink-0"
-          >
-            Xem tất cả
-            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M7 4l6 6-6 6"/></svg>
-          </Link>
-        </div>
-
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {photographers.map((p) => (
             <Link
-              key={p.id}
-              href={`/photographer/${p.id}`}
-              className="group relative overflow-hidden rounded-[20px] border border-[#e8ecf4] bg-white shadow-[0_6px_20px_rgba(0,0,0,0.03)] transition-all duration-300 hover:-translate-y-1.5 hover:shadow-[0_16px_40px_rgba(0,0,0,0.09)]"
+              href={promo.href}
+              className="shrink-0 rounded-full border border-[#ff8d28] bg-[#ff8d28] px-7 py-3 text-xs font-extrabold text-white shadow-md shadow-[#ff8d28]/30 transition hover:-translate-y-0.5 hover:bg-[#ed7c18]"
             >
-              {/* Avatar / Photo area */}
-              <div className="aspect-[1.25/1] overflow-hidden bg-gradient-to-br from-[#f8fafc] to-[#e2e8f0] relative">
-                {p.avatar_url ? (
-                  <img
-                    src={p.avatar_url}
-                    alt={p.full_name}
-                    loading="lazy"
-                    decoding="async"
-                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                  />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center text-[48px] font-black text-[#cbd5e1]">
-                    {p.full_name?.charAt(0) || "?"}
-                  </div>
-                )}
-
-                {/* Featured badge */}
-                <div className="absolute top-3 left-3 flex items-center gap-1.5 rounded-full bg-gradient-to-r from-[#f59e0b] to-[#f97316] px-3 py-1 shadow-sm">
-                  <svg viewBox="0 0 16 16" fill="currentColor" className="h-3 w-3 text-white"><polygon points="8 1 10 6 15.5 6.5 11.3 10 12.5 15 8 12.5 3.5 15 4.7 10 0.5 6.5 6 6" /></svg>
-                  <span className="text-[9px] font-black text-white uppercase tracking-wider">Nổi bật</span>
-                </div>
-
-                {/* Rating */}
-                {p.avg_rating > 0 && (
-                  <div className="absolute bottom-3 right-3 flex items-center gap-1 rounded-full bg-white/90 backdrop-blur-sm px-2.5 py-1 shadow-sm">
-                    <svg viewBox="0 0 16 16" fill="#f59e0b" className="h-3 w-3"><polygon points="8 1 10 6 15.5 6.5 11.3 10 12.5 15 8 12.5 3.5 15 4.7 10 0.5 6.5 6 6" /></svg>
-                    <span className="text-[11px] font-black text-[#0e111d]">{p.avg_rating.toFixed(1)}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Info */}
-              <div className="p-4">
-                <h3 className="text-[15px] font-black text-[#0e111d] truncate">{p.full_name}</h3>
-                {p.active_area && (
-                  <p className="mt-1 text-[11px] font-semibold text-[#64748b] truncate flex items-center gap-1">
-                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-3 w-3 shrink-0"><path d="M12.5 6.8C12.5 9.8 8 13.5 8 13.5S3.5 9.8 3.5 6.8a4.5 4.5 0 019 0z" strokeLinecap="round" strokeLinejoin="round"/><circle cx="8" cy="6.8" r="1.4"/></svg>
-                    {p.active_area}
-                  </p>
-                )}
-                {p.categories && (
-                  <div className="mt-2.5 flex flex-wrap gap-1">
-                    {p.categories.split(", ").slice(0, 2).map((cat: string) => (
-                      <span key={cat} className="rounded-full bg-[#f0f3fe] px-2 py-0.5 text-[9px] font-bold text-[#556080]">
-                        {cat}
-                      </span>
-                    ))}
-                  </div>
-                )}
-                <div className="mt-3 pt-3 border-t border-[#f1f3f7] flex items-center justify-between">
-                  <div>
-                    <span className="text-[9px] font-bold text-[#8a8fa1] uppercase tracking-wider block">Từ</span>
-                    <span className="text-[14px] font-black text-[#ff8d28]">
-                      {p.min_price > 0 ? `${p.min_price.toLocaleString("vi-VN")}đ` : "Liên hệ"}
-                    </span>
-                  </div>
-                  <span className="inline-flex h-8 items-center justify-center rounded-full bg-[#111827] group-hover:bg-[#ff8d28] px-3.5 text-[10px] font-black text-white transition-colors">
-                    Xem hồ sơ →
-                  </span>
-                </div>
-              </div>
+              Xem ưu đãi ngay
             </Link>
-          ))}
+          </div>
         </div>
+      </div>
+
+      <div className="absolute right-4 top-4 z-20 flex gap-2">
+        <button
+          type="button"
+          onClick={() => movePromo(-1)}
+          aria-label="Khuyến mãi trước"
+          className="grid h-9 w-9 place-items-center rounded-lg border border-white/70 bg-white/80 text-lg font-bold text-slate-600 shadow-sm backdrop-blur-md transition hover:bg-white hover:text-[#ff8d28]"
+        >
+          ‹
+        </button>
+        <button
+          type="button"
+          onClick={() => movePromo(1)}
+          aria-label="Khuyến mãi tiếp theo"
+          className="grid h-9 w-9 place-items-center rounded-lg border border-white/70 bg-white/80 text-lg font-bold text-slate-600 shadow-sm backdrop-blur-md transition hover:bg-white hover:text-[#ff8d28]"
+        >
+          ›
+        </button>
+      </div>
+
+      <div className="absolute bottom-3 right-5 z-20 flex items-center gap-2">
+        {promoSlides.map((slide, index) => (
+          <button
+            type="button"
+            key={slide.title}
+            onClick={() => setActivePromo(index)}
+            aria-label={`Xem khuyến mãi ${index + 1}`}
+            aria-current={activePromo === index}
+            className={`h-2 rounded-full shadow-sm transition-all duration-500 ${activePromo === index ? "w-6 bg-white/90" : "w-2 bg-white/45 hover:bg-white/70"}`}
+          />
+        ))}
       </div>
     </section>
   );
 }
 
-function BannerSlider({ banners }: { banners: any[] }) {
-  const [currentIndex, setCurrentIndex] = useState(0);
+function Section({ title, action, children, badge }: { title: string; action: string; children: React.ReactNode; badge?: string }) {
+  return <section className="pt-7"><div className="mb-3 flex items-center justify-between"><div className="flex items-center gap-3"><h2 className="text-lg font-black tracking-tight sm:text-xl">{title}</h2>{badge && <span className="hidden rounded-full bg-[#fff1e5] px-3 py-1 text-[10px] font-extrabold text-[#ff8d28] sm:inline">{badge}</span>}</div><Link href={action} className="text-[11px] font-bold text-slate-700 transition hover:text-[#ff8d28]">Xem tất cả →</Link></div>{children}</section>;
+}
 
-  useEffect(() => {
-    if (banners.length <= 1) return;
-    const interval = setInterval(() => {
-      setCurrentIndex((prev) => (prev + 1) % banners.length);
-    }, 6000);
-    return () => clearInterval(interval);
-  }, [banners]);
+function SponsoredGrid({ photographers }: { photographers: Photographer[] }) {
+  return (
+    <div className="grid items-start gap-3 md:grid-cols-[.8fr_1.2fr]">
+      <SponsoredCard item={photographers[0] || fallbackPhotographers[0]} index={0} featured />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="sm:col-span-2">
+          <SponsoredCard item={photographers[1] || fallbackPhotographers[1]} index={1} wide />
+        </div>
+        <SponsoredCard item={photographers[2] || fallbackPhotographers[2]} index={2} />
+        <SponsoredCard item={photographers[3] || fallbackPhotographers[3]} index={3} />
+      </div>
+    </div>
+  );
+}
 
-  if (banners.length === 0) return null;
-
-  const currentBanner = banners[currentIndex];
+function SponsoredCard({ item, index, featured = false, wide = false }: { item: Photographer; index: number; featured?: boolean; wide?: boolean }) {
+  const rawImage = String(pick(item, ["avatar_url", "image_url", "profile_image", "avatar"], fallbackPhotographers[index]?.image_url));
+  const image = resolveAssetUrl(rawImage);
+  const name = String(pick(item, ["full_name", "name", "studio_name"], fallbackPhotographers[index]?.name));
+  const specialty = String(pick(item, ["specialty", "bio", "photographer_type"], fallbackPhotographers[index]?.specialty));
+  const price = pick(item, ["min_price", "starting_price", "price"], fallbackPhotographers[index]?.min_price);
+  const id = String(pick(item, ["id", "user_id", "photographer_id"], index + 1));
+  const rating = String(pick(item, ["rating", "average_rating"], 4.9));
+  const reviewCount = String(pick(item, ["reviews", "review_count"], 128));
 
   return (
-    <section className="w-full bg-[#f8fafc] py-8 border-b border-[#e2e8f0]">
-      <div className="w-full max-w-[1440px] mx-auto px-6 md:px-12 lg:px-20">
-        <div className="relative h-[200px] md:h-[260px] w-full overflow-hidden rounded-[24px] shadow-[0_12px_28px_rgba(0,0,0,0.06)] group">
-          <Link href={currentBanner.link_url || "/photographer"}>
-            <div className="absolute inset-0 bg-black/40 z-10 transition-colors group-hover:bg-black/30" />
-            <img
-              src={currentBanner.image_url}
-              alt={currentBanner.title}
-              loading="lazy"
-              decoding="async"
-              className="h-full w-full object-cover transition-transform duration-1000 scale-100 group-hover:scale-105"
-            />
-            <div className="absolute bottom-6 left-6 md:bottom-8 md:left-8 z-20 text-white max-w-[80%]">
-              <span className="inline-block rounded-full bg-[#ff8d28] px-3 py-1 text-[10px] font-black uppercase tracking-[0.05em] mb-2.5">
-                Quảng cáo tài trợ
+    <Link href={`/photographer-profile/${id}`} className="group relative block w-full overflow-hidden rounded-2xl bg-slate-900 shadow-[0_5px_18px_rgba(15,23,42,.06)] transition duration-300" style={{ aspectRatio: featured ? "0.86" : wide ? "2.72" : "1.32" }}>
+      <img src={image} alt={name} className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
+
+      {/* Sponsored tag top left */}
+      <span className="absolute left-3 top-3 rounded bg-[#ff8d28] px-2 py-0.5 text-[9px] font-black italic tracking-wide text-white uppercase shadow-sm">
+        Sponsored
+      </span>
+
+      {/* Details overlay bottom */}
+      <div className="absolute inset-x-0 bottom-0 p-4 flex flex-col justify-end min-h-[120px] text-white">
+        <div className="flex items-end justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1">
+              <h3 className="text-sm md:text-base font-black truncate">{name}</h3>
+              <svg className="h-4 w-4 shrink-0 text-[#ff8d28]" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+              </svg>
+            </div>
+            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-white/80 font-medium">
+              <span className="flex items-center gap-0.5"><span className="text-[#ff8d28]">★</span> {rating} ({reviewCount})</span>
+              <span className="text-white/40">•</span>
+              <span className="truncate">Chuyên: {specialty.replace("Chuyên chụp ", "").replace("Chuyên: ", "")}</span>
+            </div>
+          </div>
+          <div className="shrink-0 text-right">
+            <span className="block text-[9px] text-white/60 font-black uppercase tracking-wider">Từ</span>
+            <strong className="block text-sm font-black text-[#ff8d28] md:text-base">{money(price)}</strong>
+          </div>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+function AiBanner() {
+  return (
+    <section className="relative mt-7 flex min-h-[150px] flex-col items-center justify-between gap-5 overflow-hidden rounded-2xl bg-gradient-to-r from-[#0d0d45] via-[#1b0c6a] to-[#22056f] px-7 font-sans text-white shadow-sm sm:flex-row sm:px-10">
+      <div className="absolute -right-8 -top-12 h-32 w-32 rounded-full border-[18px] border-white/10" />
+      <div className="relative flex items-center gap-6">
+        <RobotMark />
+        <div>
+          <h2 className="text-xl font-black text-white sm:text-2xl">Chưa biết chọn Photographer nào?</h2>
+          <p className="mt-2 max-w-2xl text-xs font-semibold leading-6 text-white/80 sm:text-sm">Hãy để AI gợi ý cho bạn Photographer phù hợp nhất với phong cách,<br className="hidden lg:block" /> ngân sách và địa điểm bạn mong muốn.</p>
+        </div>
+      </div>
+      <button onClick={() => window.dispatchEvent(new CustomEvent("open-ai-consultant"))} className="relative flex shrink-0 items-center gap-2 rounded-xl bg-[#ff8d28] px-8 py-3.5 text-sm font-extrabold text-white shadow-lg shadow-black/20 transition hover:-translate-y-0.5 hover:bg-[#ed7c18] hover:shadow-xl">
+        <svg className="h-4.5 w-4.5 fill-current text-white" viewBox="0 0 24 24">
+          <path d="M12 2L9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2z" />
+        </svg>
+        Nhận gợi ý từ AI
+      </button>
+    </section>
+  );
+}
+
+function RobotMark() {
+  return (
+    <div className="relative hidden h-[135px] w-[145px] shrink-0 self-end sm:block">
+      <div className="absolute bottom-2 left-5 h-20 w-24 rounded-[36px] bg-gradient-to-br from-white to-blue-200 shadow-lg" />
+      <div className="absolute left-7 top-1 h-20 w-24 rounded-[30px] border-[7px] border-white bg-gradient-to-b from-blue-100 to-blue-300 shadow-xl">
+        <div className="absolute inset-2 rounded-[18px] bg-gradient-to-b from-[#3b8cff] to-[#162f87]">
+          <i className="absolute left-4 top-4 h-3 w-3 rounded-full bg-cyan-200 shadow-[0_0_9px_#67e8f9]" />
+          <i className="absolute right-4 top-4 h-3 w-3 rounded-full bg-cyan-200 shadow-[0_0_9px_#67e8f9]" />
+        </div>
+      </div>
+      <i className="absolute left-[72px] top-0 h-3 w-3 rounded-full bg-amber-300 shadow-[0_0_12px_#fcd34d]" />
+    </div>
+  );
+}
+
+function BookingSteps() {
+  const steps = [
+    {
+      icon: (
+        <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+      ),
+      color: "bg-indigo-50 text-indigo-600 border-indigo-100",
+      title: "Tìm Photographer",
+      desc: "Tìm kiếm và chọn Photographer phù hợp với nhu cầu."
+    },
+    {
+      icon: (
+        <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+        </svg>
+      ),
+      color: "bg-blue-50 text-blue-600 border-blue-100",
+      title: "Chọn gói dịch vụ",
+      desc: "Chọn gói dịch vụ và thời gian chụp phù hợp."
+    },
+    {
+      icon: (
+        <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+        </svg>
+      ),
+      color: "bg-violet-50 text-violet-600 border-violet-100",
+      title: "Đặt lịch & Thanh toán",
+      desc: "Xác nhận lịch và thanh toán để giữ chỗ."
+    },
+    {
+      icon: (
+        <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      ),
+      color: "bg-emerald-50 text-emerald-600 border-emerald-100",
+      title: "Hoàn thành & Đánh giá",
+      desc: "Hoàn thành buổi chụp và đánh giá dịch vụ."
+    }
+  ];
+
+  return (
+    <section className="py-7" style={{ minHeight: 170 }}>
+      <h2 className="mb-5 text-xl font-black">Quy trình đặt lịch đơn giản</h2>
+      <div className="grid gap-5 sm:grid-cols-2 md:grid-cols-4">
+        {steps.map(({ icon, color, title, desc }, i) => (
+          <div key={title} className="relative flex items-start gap-4">
+            <span className={`grid h-14 w-14 shrink-0 place-items-center rounded-full border text-2xl ${color}`}>
+              {icon}
+            </span>
+            <div>
+              <h3 className="text-sm font-extrabold">{title}</h3>
+              <p className="mt-1 text-xs leading-5 text-slate-500">{desc}</p>
+            </div>
+            {i < 3 && (
+              <span className="absolute -right-3 top-3.5 hidden text-slate-300 md:block">
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
               </span>
-              <h2 className="text-[18px] md:text-[24px] font-black leading-tight tracking-tight drop-shadow-sm">
-                {currentBanner.title}
-              </h2>
-              <p className="mt-2 text-[12px] text-white/90 font-medium hidden md:block">
-                Bấm vào đây để tìm hiểu ngay chương trình của đối tác
-              </p>
-            </div>
-          </Link>
-
-          {banners.length > 1 && (
-            <div className="absolute bottom-6 right-6 z-20 flex gap-1.5">
-              {banners.map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() => setCurrentIndex(i)}
-                  className={`h-2 rounded-full transition-all duration-300 ${
-                    i === currentIndex ? "w-5 bg-white" : "w-2 bg-white/50"
-                  }`}
-                  aria-label={`Slide ${i + 1}`}
-                />
-              ))}
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        ))}
       </div>
     </section>
   );
 }
 
-function ServicesGrid() {
+function TrustBar() {
+  const items = [
+    {
+      title: "Thanh toán an toàn",
+      desc: "Bảo mật tuyệt đối",
+      icon: (
+        <svg className="h-6 w-6 text-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+        </svg>
+      )
+    },
+    {
+      title: "Không phí ẩn",
+      desc: "Minh bạch giá cả",
+      icon: (
+        <svg className="h-6 w-6 text-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      )
+    },
+    {
+      title: "Đặt lịch dễ dàng",
+      desc: "Xác nhận nhanh chóng",
+      icon: (
+        <svg className="h-6 w-6 text-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+      )
+    },
+    {
+      title: "Hỗ trợ 24/7",
+      desc: "Luôn sẵn sàng giúp đỡ",
+      icon: (
+        <svg className="h-6 w-6 text-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z" />
+        </svg>
+      )
+    }
+  ];
+
   return (
-    <section id="services" className="w-full bg-[#f8fafc] py-20 lg:py-24 border-y border-[#e2e8f0]">
-      <div className="w-full max-w-[1440px] mx-auto px-6 md:px-12 lg:px-20">
-        <div className="text-center max-w-[680px] mx-auto mb-16">
-          <p className="text-[12px] font-black uppercase tracking-[0.18em] text-[#ff8d28]">
-            DỊCH VỤ CỦA CHÚNG TÔI
-          </p>
-          <h2 className="mt-3 text-[30px] sm:text-[38px] font-black tracking-[-0.03em] text-[#0e111d]">
-            Khám phá dịch vụ nhiếp ảnh nổi bật
-          </h2>
-          <p className="mt-4 text-[15px] leading-[1.7] text-[#4b5563] font-medium">
-            Từ những ngày cưới hạnh phúc đến những bộ ảnh kỉ yếu lưu giữ thanh xuân, chúng tôi giúp bạn kết nối với thợ chụp hình ưng ý nhất.
-          </p>
+    <section className="mt-8 grid gap-4 rounded-2xl border border-slate-100 bg-gradient-to-r from-[#fffaf7] to-[#faf9ff] px-5 py-8 shadow-[0_4px_18px_rgba(15,23,42,.03)] sm:grid-cols-2 md:grid-cols-4">
+      {items.map(({ icon, title, desc }) => (
+        <div key={title} className="flex items-center justify-center gap-3">
+          <span className="grid h-10 w-10 place-items-center bg-white shadow-sm border border-slate-100 rounded-full shrink-0">{icon}</span>
+          <div>
+            <p className="text-xs font-extrabold text-slate-800">{title}</p>
+            <p className="text-[11px] text-slate-500 font-semibold">{desc}</p>
+          </div>
         </div>
-
-        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-          {serviceSections.map((section) => (
-            <article key={section.id} className="group overflow-hidden rounded-[22px] border border-[#e8ecf4] bg-white shadow-[0_8px_24px_rgba(0,0,0,0.03)] transition-all duration-300 hover:-translate-y-1.5 hover:shadow-[0_16px_36px_rgba(0,0,0,0.08)] flex flex-col">
-              <div className="aspect-[1.6/1] overflow-hidden relative">
-                <img
-                  src={section.mainImage}
-                  alt={section.title}
-                  loading="lazy"
-                  decoding="async"
-                  className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                />
-                <span className="absolute top-4 left-4 rounded-full bg-white/90 backdrop-blur-sm px-3.5 py-1.5 text-[10px] font-black text-[#ff8d28] uppercase tracking-[0.05em] shadow-sm">
-                  {section.badgeTitle}
-                </span>
-              </div>
-              <div className="p-6 flex-1 flex flex-col justify-between">
-                <div>
-                  <h3 className="text-[18px] font-black text-[#0e111d] tracking-tight">{section.title}</h3>
-                  <p className="mt-2.5 text-[13px] leading-[1.6] text-[#4b5563] font-medium line-clamp-3">{section.description}</p>
-                  
-                  <div className="mt-4 flex flex-wrap gap-1.5">
-                    {section.tags.slice(0, 3).map((tag) => (
-                      <span key={tag} className="rounded-full bg-[#f0f3fe] px-2.5 py-1 text-[10px] font-bold text-[#556080]">
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="mt-6 pt-4 border-t border-[#f1f3f7] flex items-center justify-between">
-                  <div>
-                    <span className="text-[10px] font-bold text-[#8a8fa1] uppercase tracking-wider block">Giá khởi điểm</span>
-                    <span className="text-[15px] font-black text-[#ff8d28]">{section.price}</span>
-                  </div>
-                  <Link
-                    href={`/photographer?category=${section.id}`}
-                    className="inline-flex h-9 items-center justify-center rounded-full bg-[#111827] hover:bg-[#ff8d28] px-4 text-[12px] font-black text-white shadow-sm transition-all"
-                  >
-                    Xem thợ ảnh →
-                  </Link>
-                </div>
-              </div>
-            </article>
-          ))}
-        </div>
-      </div>
+      ))}
     </section>
   );
 }
