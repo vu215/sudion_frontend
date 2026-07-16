@@ -6,6 +6,14 @@ import { getSession, getToken, type AuthSession } from "../auth-store";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
+function resolveProductImageUrl(path: string) {
+  if (!path) return "/default-product.png";
+  if (path.startsWith("http") || path.startsWith("data:")) return path;
+  const backendHost = API_URL.replace(/\/api\/?$/, "");
+  if (path.startsWith("/")) return `${backendHost}${path}`;
+  return `${backendHost}/uploads/${path}`;
+}
+
 type Booking = {
   id: number;
   booking_code: string;
@@ -35,6 +43,7 @@ function formatDate(value?: string | null) {
 export default function UserPage() {
   const [session, setSession] = useState<AuthSession | null>(null);
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -52,6 +61,8 @@ export default function UserPage() {
       try {
         setLoading(true);
         setError("");
+        
+        // Load bookings
         const response = await fetch(
           `${API_URL}/bookings/customer/${encodeURIComponent(current.email)}`,
           {
@@ -61,11 +72,19 @@ export default function UserPage() {
         );
         const json = await response.json();
 
-        if (!response.ok || !json.success) {
-          throw new Error(json.message || "Không thể tải lịch đặt.");
+        if (response.ok && json.success) {
+          setBookings(Array.isArray(json.data) ? json.data : []);
         }
 
-        setBookings(Array.isArray(json.data) ? json.data : []);
+        // Load orders
+        const ordersResponse = await fetch(`${API_URL}/orders/my-orders`, {
+          headers: authHeaders(),
+          cache: "no-store",
+        });
+        const ordersJson = await ordersResponse.json();
+        if (ordersResponse.ok) {
+          setOrders(Array.isArray(ordersJson) ? ordersJson : []);
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Không thể tải lịch đặt.");
       } finally {
@@ -187,6 +206,93 @@ export default function UserPage() {
                 ) : (
                   <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-sm text-slate-500">
                     Bạn chưa có booking nào. Hãy chọn photographer để bắt đầu đặt lịch.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-orange-500">Mua sắm</p>
+                  <h3 className="text-lg font-semibold text-slate-900">Đơn mua hàng của bạn</h3>
+                </div>
+              </div>
+
+              <div className="mt-4">
+                {loading ? (
+                  <div className="grid gap-2">
+                    {Array.from({ length: 2 }).map((_, index) => (
+                      <div key={index} className="h-16 animate-pulse rounded-lg bg-slate-100" />
+                    ))}
+                  </div>
+                ) : orders.length ? (
+                  <ul className="space-y-4">
+                    {orders.slice(0, 5).map((order) => {
+                      const statusMap: Record<string, { label: string; cls: string }> = {
+                        pending: { label: "Chờ xử lý", cls: "bg-amber-100 text-amber-700" },
+                        shipping: { label: "Đang giao", cls: "bg-blue-100 text-blue-700" },
+                        completed: { label: "Đã hoàn thành", cls: "bg-emerald-100 text-emerald-700" },
+                        cancelled: { label: "Đã hủy", cls: "bg-rose-100 text-rose-700" }
+                      };
+                      const statusInfo = statusMap[order.status || "pending"] || { label: order.status, cls: "bg-slate-100 text-slate-700" };
+                      
+                      return (
+                        <li
+                          key={order.id}
+                          className="rounded-xl border border-slate-100 bg-slate-50 p-4"
+                        >
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-slate-200/60 pb-2 mb-3">
+                            <div>
+                              <p className="text-xs font-semibold text-slate-500">MÃ ĐƠN HÀNG: <span className="text-slate-900">#DH{order.id}</span></p>
+                              <p className="text-[11px] text-slate-400 mt-0.5">Đặt ngày: {new Date(order.created_at).toLocaleDateString("vi-VN")}</p>
+                            </div>
+                            <div className="mt-2 sm:mt-0 flex items-center gap-2">
+                              <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ${statusInfo.cls}`}>
+                                {statusInfo.label}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            {order.items?.map((item: any, idx: number) => (
+                              <div key={idx} className="flex gap-3 items-center">
+                                {item.hinh_anh ? (
+                                  <img 
+                                    src={resolveProductImageUrl(item.hinh_anh)} 
+                                    alt="" 
+                                    className="h-10 w-10 rounded-lg object-cover bg-slate-100"
+                                  />
+                                ) : (
+                                  <div className="h-10 w-10 rounded-lg bg-slate-200 flex items-center justify-center text-[10px] text-slate-400 font-bold">IMAGE</div>
+                                )}
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs font-bold text-slate-800 truncate">{item.ten_san_pham}</p>
+                                  {item.bien_the && <p className="text-[10px] text-slate-400 font-medium">{item.bien_the}</p>}
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-xs font-bold text-slate-700">{formatCurrency(item.gia_ban)}</p>
+                                  <p className="text-[10px] text-slate-400 font-bold">x{item.so_luong}</p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+
+                          <div className="mt-3 pt-2.5 border-t border-slate-200/60 flex items-center justify-between">
+                            <div className="text-[11px] text-slate-500 max-w-[70%] truncate">
+                              Địa chỉ: <span className="font-semibold text-slate-700">{order.customerInfo?.address}</span>
+                            </div>
+                            <div className="text-xs font-black text-[#ff8d28] whitespace-nowrap">
+                              Tổng cộng: {formatCurrency(order.total_amount)}
+                            </div>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : (
+                  <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-sm text-slate-500">
+                    Bạn chưa có đơn đặt hàng sản phẩm nào. Hãy mua sắm máy ảnh hoặc phụ kiện ngay!
                   </div>
                 )}
               </div>

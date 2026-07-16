@@ -19,6 +19,7 @@ const headerLinks = [
   { href: "/about", label: "Về chúng tôi" },
   { href: "/photographer", label: "Photographer" },
   { href: "/services", label: "Dịch vụ" },
+  { href: "/products", label: "Mua máy ảnh" },
   { href: "/news", label: "Tin tức" },
 ];
 
@@ -60,14 +61,27 @@ export function AppShell({ children }: { children: ReactNode }) {
   );
 }
 
+import { getCartCount } from "@/app/cart-store";
+
 function Header({ pathname }: { pathname: string }) {
   const router = useRouter();
   const { session, logout } = useAuth();
   const [mounted, setMounted] = useState(false);
+  const [cartCount, setCartCount] = useState(0);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    setCartCount(getCartCount());
+    const handleCartUpdate = () => {
+      setCartCount(getCartCount());
+    };
+    window.addEventListener("cartUpdated", handleCartUpdate);
+    return () => window.removeEventListener("cartUpdated", handleCartUpdate);
+  }, []);
+
   const [mobileOpen, setMobileOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -208,6 +222,24 @@ function Header({ pathname }: { pathname: string }) {
             </form>
           </div>
 
+          {/* Cart Icon */}
+          {mounted && (
+            <Link
+              href="/cart"
+              className="relative inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#e8eaf1] text-[#4b5563] hover:border-[#ff8d28] hover:text-[#ff8d28] transition-colors"
+              aria-label="Giỏ hàng"
+            >
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+              {cartCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-[#ff8d28] text-[10px] font-black text-white border-2 border-white animate-pulse">
+                  {cartCount}
+                </span>
+              )}
+            </Link>
+          )}
+
           {mounted && !session ? (
             <Link
               href="/login"
@@ -258,6 +290,13 @@ function Header({ pathname }: { pathname: string }) {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                     </svg>
                     Hồ sơ của tôi
+                  </Link>
+                  <Link href="/user" onClick={() => setDropdownOpen(false)}
+                    className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                    </svg>
+                    Lịch sử đặt hàng
                   </Link>
                   <Link href="/bookings" onClick={() => setDropdownOpen(false)}
                     className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
@@ -447,6 +486,16 @@ function Header({ pathname }: { pathname: string }) {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
                 Hồ sơ của tôi
+              </Link>
+              <Link
+                href="/user"
+                onClick={() => setMobileOpen(false)}
+                className="flex items-center gap-2.5 rounded-xl px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                </svg>
+                Lịch sử đặt hàng
               </Link>
               <Link
                 href="/bookings"

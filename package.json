@@ -11,6 +11,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "canvas-confetti": "^1.9.4",
     "next": "15.3.3",
     "react": "19.0.0",
     "react-dom": "19.0.0",
@@ -22,6 +23,7 @@
     "@react-trace/plugin-open-editor": "^0.0.7",
     "@react-trace/plugin-preview": "^0.0.6",
     "@tailwindcss/postcss": "^4",
+    "@types/canvas-confetti": "^1.9.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

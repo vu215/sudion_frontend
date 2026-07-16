@@ -3,6 +3,15 @@
 import { useEffect, useState, use } from "react";
 import Link from "next/link";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+
+function resolveAssetUrl(url: string) {
+  if (!url) return "";
+  if (/^https?:\/\//i.test(url) || url.startsWith("data:")) return url;
+  const backendHost = API_URL.replace(/\/api\/?$/, "");
+  return `${backendHost}${url.startsWith("/") ? url : `/${url}`}`;
+}
+
 const photographers = [
   {
     id: "binh-nguyen",
@@ -606,11 +615,11 @@ function PhotographerProfileContent({ id }: { id: string }) {
               rating: String(data.photographer.avg_rating || "4.8"),
               reviewCount: data.packages?.reduce((acc: number, p: any) => acc + (p.review_count || 0), 0) || 45,
               badge: data.photographer.verification_status === "verified" ? "Top Rated Photographer" : "Professional Photographer",
-              image: data.photographer.avatar_url || "https://i.pinimg.com/736x/a0/b0/00/a0b000947356b75df1e4ec794477fc49.jpg",
-              avatar: data.photographer.avatar_url || "https://i.pinimg.com/736x/9c/44/0c/9c440c4652d4e4476a5c61d25efbef1e.jpg",
-              cover: data.photographer.avatar_url || "https://i.pinimg.com/736x/bb/cc/37/bbcc37f0caa97bdff1f08ad8355ac9f4.jpg",
+              image: resolveAssetUrl(data.photographer.avatar_url) || "https://i.pinimg.com/736x/a0/b0/00/a0b000947356b75df1e4ec794477fc49.jpg",
+              avatar: resolveAssetUrl(data.photographer.avatar_url) || "https://i.pinimg.com/736x/9c/44/0c/9c440c4652d4e4476a5c61d25efbef1e.jpg",
+              cover: resolveAssetUrl(data.photographer.avatar_url) || "https://i.pinimg.com/736x/bb/cc/37/bbcc37f0caa97bdff1f08ad8355ac9f4.jpg",
               bio: data.photographer.bio || "Chưa có giới thiệu tiểu sử.",
-              portfolio: data.packages?.map((p: any) => p.image_url).filter(Boolean).slice(0, 5) || [],
+              portfolio: data.packages?.map((p: any) => resolveAssetUrl(p.image_url)).filter(Boolean).slice(0, 5) || [],
               equipment: ["Máy ảnh chuyên nghiệp"],
               services: data.packages?.map((p: any) => ({
                 name: p.name,

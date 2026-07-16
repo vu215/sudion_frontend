@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import { useAuth } from "@/app/auth-context";
 import { useToast } from "@/app/toast-context";
 
@@ -9,6 +10,13 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 function authHeaders() {
   const token = typeof window !== "undefined" ? window.localStorage.getItem("sudion_token") : null;
   return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+function resolveAssetUrl(url: string) {
+  if (!url) return "";
+  if (/^https?:\/\//i.test(url) || url.startsWith("data:")) return url;
+  const backendHost = API_URL.replace(/\/api\/?$/, "");
+  return `${backendHost}${url.startsWith("/") ? url : `/${url}`}`;
 }
 
 /* ─── default empty-state content ───────────────────────────── */
@@ -341,7 +349,7 @@ export default function ProfilePhotographerPage() {
             <div className="flex flex-col items-center gap-2 shrink-0">
               <div className="relative">
                 <img
-                  src={avatar || defaultProfileContent.image}
+                  src={resolveAssetUrl(avatar) || defaultProfileContent.image}
                   alt={name || "Nhiếp ảnh gia"}
                   className="h-[100px] w-[100px] rounded-full object-cover border-2 border-orange-100"
                 />

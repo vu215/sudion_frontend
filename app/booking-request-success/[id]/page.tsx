@@ -103,9 +103,34 @@ function fmtDate(v: string | null) {
 function fmtTime(v: string | null) { return v ? String(v).slice(0, 5) : "Chưa chọn"; }
 
 async function fetchBooking(code: string): Promise<Booking> {
-  const res = await fetch(`${API_URL}/bookings/${code}`, { cache: "no-store" });
-  const json: ApiResponse<Booking> = await res.json();
+  const isRental = code.startsWith("RENT-");
+  const endpoint = isRental ? `${API_URL}/equipment-bookings/${code}` : `${API_URL}/bookings/${code}`;
+  const res = await fetch(endpoint, { cache: "no-store" });
+  const json: ApiResponse<any> = await res.json();
   if (!res.ok || !json.success) throw new Error(json.message || "Không thể tải booking.");
+  
+  if (isRental) {
+    const r = json.data;
+    let mappedStatus = r.status;
+    if (r.status === "paid_deposit") mappedStatus = "confirmed";
+    if (r.status === "active") mappedStatus = "confirmed";
+
+    return {
+      booking_code: r.booking_code,
+      photographer_name: "Giao dịch Cho thuê thiết bị",
+      service_name: r.equipment_name,
+      shoot_date: r.start_date,
+      shoot_time: r.end_date,
+      estimated_total: Number(r.total_price),
+      deposit_amount: Number(r.deposit_amount),
+      remaining_amount: Number(r.total_price),
+      status: mappedStatus,
+      location: r.equipment_location,
+      customer_full_name: r.customer_name,
+      customer_phone: r.customer_phone,
+      customer_email: r.customer_email,
+    };
+  }
   return json.data;
 }
 
@@ -298,11 +323,26 @@ export default function BookingRequestSuccessPage({ params }: { params: Promise<
 
             {/* Info grid */}
             <div className="grid gap-3 sm:grid-cols-2">
-              <Field title="Photographer"  value={booking.photographer_name}     />
-              <Field title="Dịch vụ"       value={booking.service_name}          />
-              <Field title="Ngày chụp"     value={fmtDate(booking.shoot_date)}   />
-              <Field title="Giờ chụp"      value={fmtTime(booking.shoot_time)}   />
-              <Field title="Địa điểm"      value={displayLoc}                    />
+              <Field 
+                title={booking.booking_code.startsWith("RENT-") ? "Phân loại" : "Photographer"}  
+                value={booking.photographer_name}     
+              />
+              <Field 
+                title={booking.booking_code.startsWith("RENT-") ? "Thiết bị" : "Dịch vụ"}       
+                value={booking.service_name}          
+              />
+              <Field 
+                title={booking.booking_code.startsWith("RENT-") ? "Ngày nhận máy" : "Ngày chụp"}     
+                value={fmtDate(booking.shoot_date)}   
+              />
+              <Field 
+                title={booking.booking_code.startsWith("RENT-") ? "Ngày trả máy" : "Giờ chụp"}      
+                value={booking.booking_code.startsWith("RENT-") ? fmtDate(booking.shoot_time) : fmtTime(booking.shoot_time)}   
+              />
+              <Field 
+                title={booking.booking_code.startsWith("RENT-") ? "Nơi nhận máy" : "Địa điểm"}      
+                value={displayLoc}                    
+              />
               {photoLink && (
                 <div className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2.5">
                   <p className="text-[10px] font-black uppercase tracking-wider text-blue-400">Ảnh buổi chụp</p>
