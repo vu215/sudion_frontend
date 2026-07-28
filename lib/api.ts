@@ -343,6 +343,18 @@ export const api = {
       }),
   },
 
+  // Admin Voucher APIs
+  vouchers: {
+    getAll: (params?: Record<string, any>) => {
+      const query = params ? '?' + new URLSearchParams(params).toString() : '';
+      return request(`/admin/vouchers${query}`);
+    },
+    getById: (id: number) => request(`/admin/vouchers/${id}`),
+    create: (data: any) => request('/admin/vouchers', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: number, data: any) => request(`/admin/vouchers/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (id: number) => request(`/admin/vouchers/${id}`, { method: 'DELETE' }),
+  },
+
   // Profile APIs
   profile: {
     becomePhotographer: (data: any) =>
