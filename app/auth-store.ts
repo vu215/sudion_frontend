@@ -240,6 +240,10 @@ export async function refreshSessionFromServer() {
     }>;
 
     if (!response.ok || !result.success || !result.data?.user) {
+      if (response.status === 401) {
+        clearSession();
+        return null;
+      }
       return getSession();
     }
 

@@ -47,22 +47,29 @@ export default function SystemLogPage() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [toast, setToast] = useState("");
   const [stats, setStats] = useState({ total: 0, error: 0, warning: 0, info: 0 });
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState<any>(null);
+
+  useEffect(() => {
+    setPage(1);
+  }, [level, category, query]);
 
   useEffect(() => {
     loadLogs();
     loadStats();
-  }, [level, category]);
+  }, [level, category, page]);
 
   async function loadLogs() {
     setLoading(true);
     try {
-      const params: Record<string, any> = { page: 1, pageSize: 100 };
+      const params: Record<string, any> = { page, pageSize: 20 };
       if (level !== "Tất cả") params.level = level;
       if (category !== "Tất cả") params.category = category;
       
       const result = await api.logs.getAll(params);
       if (result.success && result.data) {
         setItems(result.data as Log[]);
+        setPagination(result.pagination);
       }
     } catch (error) {
       console.error("Failed to load logs:", error);
@@ -162,7 +169,7 @@ export default function SystemLogPage() {
           <div className="mb-3 grid items-center gap-2 xl:grid-cols-[minmax(280px,1.25fr)_160px_160px_160px_40px]">
             <label className="relative !block min-w-0">
               <AdminIcon name="search" className="pointer-events-none absolute left-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#8a93a5]" />
-              <input value={query} onChange={(e) => setQuery(e.target.value)} className="!h-10 !min-h-0 w-full rounded-xl border border-[#dfe3ec] bg-white !py-0 !pl-10 !pr-3 !text-[12px] !font-normal outline-none focus:border-[#ff8d28] focus:ring-2 focus:ring-[#ff8d28]/10" placeholder="Tìm theo message, IP, user, ID..." />
+              <input value={query} onChange={(e) => setQuery(e.target.value)} className="!h-10 !min-h-0 w-full rounded-xl border border-[#dfe3ec] bg-white !py-0 !pl-10 !pr-3 !text-[12px] !font-normal outline-none focus:border-[#ff8d28] focus:ring-2 focus:ring-[#ff8d28]/10" style={{ paddingLeft: '38px' }} placeholder="Tìm theo message, IP, user, ID..." />
             </label>
             <Select value={level} options={["Tất cả", "ERROR", "WARNING", "INFO", "DEBUG"]} onChange={(v) => setLevel(v as LogLevel | "Tất cả")} prefix="Level:" />
             <Select value={category} options={["Tất cả", "Auth", "Booking", "Payment", "User", "System", "API", "AI"]} onChange={(v) => setCategory(v as LogCategory | "Tất cả")} prefix="Module:" />
@@ -228,10 +235,34 @@ export default function SystemLogPage() {
               </table>
             </div>
           )}
-          <div className="mt-4 flex items-center justify-between text-[12px] text-[#697086]">
-            <span>Hiển thị 1 - {filtered.length} của {items.length} log</span>
-            <span className="rounded-xl border border-[#dfe3ec] px-3 py-2">100 / trang</span>
-          </div>
+          {pagination && pagination.totalPages > 1 && (
+            <div className="mt-4 flex items-center justify-between text-[12px] text-[#697086]">
+              <span>
+                Hiển thị {filtered.length} logs của trang {pagination.page} (Tổng số {pagination.total})
+              </span>
+              <div className="flex gap-2">
+                {pagination.page > 1 && (
+                  <button
+                    onClick={() => setPage(pagination.page - 1)}
+                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-700 font-semibold hover:bg-slate-50 transition"
+                  >
+                    Trước
+                  </button>
+                )}
+                <span className="rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2 font-bold text-slate-700">
+                  Trang {pagination.page} / {pagination.totalPages}
+                </span>
+                {pagination.page < pagination.totalPages && (
+                  <button
+                    onClick={() => setPage(pagination.page + 1)}
+                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-700 font-semibold hover:bg-slate-50 transition"
+                  >
+                    Sau
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
         </Panel>
       </div>
 
