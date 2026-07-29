@@ -197,14 +197,14 @@ async function getBookingsByPhotographer(photographerId: string) {
   return json.data;
 }
 
-async function updateBookingStatus(bookingCode: string, status: string) {
+async function updateBookingStatus(bookingCode: string, status: string, location?: string) {
   const response = await fetch(`${API_URL}/bookings/${bookingCode}/status`, {
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",
       ...authHeaders(),
     },
-    body: JSON.stringify({ status }),
+    body: JSON.stringify({ status, location }),
   });
 
   const json: ApiResponse<BackendBooking> = await response.json();
@@ -342,13 +342,13 @@ export default function PhotographerDashboardPage() {
     await handleLoadBookings();
   }
 
- async function handleUpdateStatus(bookingCode: string, status: string) {
+ async function handleUpdateStatus(bookingCode: string, status: string, location?: string) {
   try {
     setUpdatingCode(bookingCode);
     setPageError("");
     setSuccessMessage("");
 
-    const updatedBooking = await updateBookingStatus(bookingCode, status);
+    const updatedBooking = await updateBookingStatus(bookingCode, status, location);
 
     setBookings((current) =>
       current.map((item) =>
@@ -663,7 +663,7 @@ function DashboardBookingCard({
 }: {
   booking: BackendBooking;
   updatingCode: string;
-  onUpdateStatus: (bookingCode: string, status: string) => Promise<void>;
+  onUpdateStatus: (bookingCode: string, status: string, location?: string) => Promise<void>;
 }) {
   const [driveLink, setDriveLink] = useState("");
   const statusInfo = getStatusInfo(booking.status);
@@ -679,24 +679,8 @@ function DashboardBookingCard({
       return;
     }
     try {
-      // 1. Cập nhật địa điểm chứa link ảnh vào database qua API Admin
-      const updateRes = await fetch(`${API_URL}/admin/bookings/${booking.booking_code}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          location: `${booking.location || "Chưa chọn"} [Photos: ${driveLink.trim()}]`,
-        }),
-      });
-      
-      if (!updateRes.ok) {
-        const errJson = await updateRes.json();
-        throw new Error(errJson.message || "Không thể cập nhật liên kết Drive.");
-      }
-
-      // 2. Chuyển trạng thái sang completed
-      await onUpdateStatus(booking.booking_code, "completed");
+      const location = `${booking.location || "Chưa chọn"} [Photos: ${driveLink.trim()}]`;
+      await onUpdateStatus(booking.booking_code, "completed", location);
     } catch (error: any) {
       console.error("Lỗi hoàn thành buổi chụp:", error);
       alert(error.message || "Lỗi khi hoàn thành buổi chụp.");

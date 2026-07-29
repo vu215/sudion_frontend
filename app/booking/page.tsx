@@ -403,6 +403,14 @@ function BookingContent() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
 
+  // ── Voucher state ──
+  const [voucherInput, setVoucherInput] = useState("");
+  const [appliedVoucher, setAppliedVoucher] = useState<{ id: number; code: string; name: string; discount_amount: number } | null>(null);
+  const [voucherError, setVoucherError] = useState("");
+  const [isApplyingVoucher, setIsApplyingVoucher] = useState(false);
+  const [activeVouchers, setActiveVouchers] = useState<any[]>([]);
+  const [showVoucherModal, setShowVoucherModal] = useState(false);
+
   // ── Selection state ──
   const [selectedCategory, setSelectedCategory] = useState<string | null>(() => {
     if (typeof window !== "undefined") {
@@ -524,9 +532,13 @@ function BookingContent() {
     return basePrice + subTypeExtra + addOnTotal;
   }, [basePrice, subTypeExtra, addOnTotal]);
 
+  const voucherDiscount = useMemo(() => {
+    return appliedVoucher ? appliedVoucher.discount_amount : 0;
+  }, [appliedVoucher]);
+
   const finalTotal = useMemo(() => {
-    return estimatedTotal;
-  }, [estimatedTotal]);
+    return Math.max(estimatedTotal - voucherDiscount, 0);
+  }, [estimatedTotal, voucherDiscount]);
 
   const depositAmount = useMemo(() => {
     return Math.round(finalTotal * 0.3);
@@ -709,6 +721,80 @@ function BookingContent() {
     setSelectedAddOns((c) => (c.includes(id) ? c.filter((x) => x !== id) : [...c, id]));
   }, []);
 
+  const applyVoucherCode = async (code: string) => {
+    if (!code.trim()) return;
+    setIsApplyingVoucher(true);
+    setVoucherError("");
+    try {
+      const res = await fetch(`${API_URL}/vouchers/apply`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: code.trim(),
+          photographerId: photographer?.id,
+          bookingValue: estimatedTotal,
+          userEmail: email || session?.email
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || "Không thể áp dụng voucher.");
+      }
+      setAppliedVoucher(data.data);
+      setVoucherInput("");
+      setVoucherError("");
+    } catch (err: any) {
+      setVoucherError(err.message || "Lỗi áp dụng voucher.");
+      setAppliedVoucher(null);
+    } finally {
+      setIsApplyingVoucher(false);
+    }
+  };
+
+  const handleApplyVoucher = () => {
+    applyVoucherCode(voucherInput);
+  };
+
+  const handleRemoveVoucher = () => {
+    setAppliedVoucher(null);
+    setVoucherError("");
+    setVoucherInput("");
+  };
+
+  // Fetch active vouchers for selection
+  useEffect(() => {
+    if (!photographer?.id) return;
+    
+    async function loadActiveVouchers() {
+      try {
+        const queryParams = new URLSearchParams({
+          photographerId: String(photographer.id)
+        });
+        const userMail = email || session?.email;
+        if (userMail) {
+          queryParams.append("userEmail", userMail);
+        }
+        const res = await fetch(`${API_URL}/vouchers/active?${queryParams.toString()}`);
+        const result = await res.json();
+        if (result.success && Array.isArray(result.data)) {
+          setActiveVouchers(result.data);
+        }
+      } catch (err) {
+        console.error("Lỗi tải active vouchers:", err);
+      }
+    }
+    
+    loadActiveVouchers();
+  }, [photographer?.id, email, session?.email]);
+
+  // Auto-reset voucher if estimated total or photographer changes
+  useEffect(() => {
+    if (appliedVoucher) {
+      setAppliedVoucher(null);
+      setVoucherError("Lượng tạm tính thay đổi, vui lòng áp dụng lại voucher.");
+    }
+  }, [estimatedTotal, photographerId]);
+
   const handleCalPrev = () => {
     if (calMonth === 0) { setCalMonth(11); setCalYear((y) => y - 1); }
     else setCalMonth((m) => m - 1);
@@ -766,6 +852,7 @@ function BookingContent() {
         budget: String(finalTotal),
         scene: "",
         paymentMethod,
+        voucherCode: appliedVoucher ? appliedVoucher.code : undefined,
         customer: {
           fullName: fullName || session?.fullName || "Khách vãng lai",
           phone,
@@ -1296,6 +1383,64 @@ function BookingContent() {
               )}
             </div>
 
+            {/* Voucher Input */}
+            <div className="mt-4 border-t border-[#f1f3f7] pt-3">
+              <p className="text-[11px] font-black text-[#6b7280] mb-2 uppercase tracking-wider">Mã giảm giá (Voucher)</p>
+              {!appliedVoucher ? (
+                <div>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={voucherInput}
+                      onChange={(e) => setVoucherInput(e.target.value)}
+                      placeholder="Nhập mã voucher..."
+                      className="flex-1 border border-[#e8eaf1] rounded-xl px-3 py-2 text-xs font-semibold focus:border-[#ff8d28] focus:outline-none uppercase"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleApplyVoucher}
+                      disabled={isApplyingVoucher || !voucherInput.trim()}
+                      className="bg-[#ff8d28] text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-[#e67d1f] disabled:opacity-50 transition"
+                    >
+                      {isApplyingVoucher ? "Đang áp..." : "Áp dụng"}
+                    </button>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowVoucherModal(true)}
+                    className="mt-2.5 text-[11.5px] font-black text-[#ff8d28] hover:text-[#e67d1f] hover:underline flex items-center gap-1.5 transition uppercase tracking-wider"
+                  >
+                    <svg className="h-4 w-4 text-[#ff8d28]" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 6v.75m0 3v.75m0 3v.75m0 3V18m-9-5.25h5.25M7.5 15h3M3.375 5.25c-.621 0-1.125.504-1.125 1.125v3.026a2.999 2.999 0 010 5.198v3.026c0 .621.504 1.125 1.125 1.125h17.25c.621 0 1.125-.504 1.125-1.125v-3.026a2.999 2.999 0 010-5.198V6.375c0-.621-.504-1.125-1.125-1.125H3.375z" />
+                    </svg>
+                    Chọn từ danh sách voucher {activeVouchers.length > 0 ? `(${activeVouchers.length})` : ""}
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-xl px-3 py-2">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <svg className="h-4 w-4 text-green-500 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                    <span className="text-xs font-black text-green-800 truncate">{appliedVoucher.code}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleRemoveVoucher}
+                    className="text-xs font-bold text-red-600 hover:text-red-800"
+                  >
+                    Gỡ bỏ
+                  </button>
+                </div>
+              )}
+              {voucherError && (
+                <p className="mt-1.5 text-[10px] font-bold text-red-600">
+                  {voucherError}
+                </p>
+              )}
+            </div>
+
             {/* Price breakdown */}
             <div className="mt-4 border-t border-[#f1f3f7] pt-3 grid gap-2">
               <div className="flex justify-between text-xs">
@@ -1306,6 +1451,12 @@ function BookingContent() {
                 <div className="flex justify-between text-xs">
                   <span className="font-semibold text-[#6b7280]">Phí dịch vụ</span>
                   <span className="font-bold text-[#0e111d]">{formatCurrency(addOnTotal)}</span>
+                </div>
+              )}
+              {appliedVoucher && (
+                <div className="flex justify-between text-xs text-green-600">
+                  <span className="font-semibold">Giảm giá ({appliedVoucher.code})</span>
+                  <span className="font-bold">-{formatCurrency(voucherDiscount)}</span>
                 </div>
               )}
               <div className="flex justify-between text-base border-t border-[#f1f3f7] pt-2">
@@ -1399,6 +1550,152 @@ function BookingContent() {
                 className="rounded-xl bg-[#ff8d28] px-5 py-2.5 text-[11px] font-black text-white shadow-sm transition hover:bg-[#e67d1f]"
               >
                 Đăng nhập ngay
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL CHỌN VOUCHER (POPUP NỔI) ── */}
+      {showVoucherModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/55 p-4 backdrop-blur-sm transition-all duration-300">
+          <div className="w-full max-w-[480px] rounded-2xl border border-[#e5deed] bg-white p-6 shadow-[0_24px_64px_rgba(20,16,35,0.18)] ring-1 ring-black/5 flex flex-col max-h-[85vh]">
+            <div className="flex items-center justify-between border-b border-[#f1eef6] pb-4">
+              <div className="flex items-center gap-2.5">
+                <span className="grid h-9 w-9 place-items-center rounded-full bg-[#fff3eb] text-[#ff8d28]">
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 6v.75m0 3v.75m0 3v.75m0 3V18m-9-5.25h5.25M7.5 15h3M3.375 5.25c-.621 0-1.125.504-1.125 1.125v3.026a2.999 2.999 0 010 5.198v3.026c0 .621.504 1.125 1.125 1.125h17.25c.621 0 1.125-.504 1.125-1.125v-3.026a2.999 2.999 0 010-5.198V6.375c0-.621-.504-1.125-1.125-1.125H3.375z" />
+                  </svg>
+                </span>
+                <h3 className="text-[16px] font-black text-[#14151f]">
+                  Danh sách mã giảm giá (Voucher)
+                </h3>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => setShowVoucherModal(false)}
+                className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition"
+              >
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="mt-4 flex-1 overflow-y-auto pr-1 py-1 space-y-3">
+              {activeVouchers.length === 0 ? (
+                <div className="text-center py-8 text-gray-500 font-semibold text-xs">
+                  Hiện không có mã giảm giá nào khả dụng cho bạn.
+                </div>
+              ) : (
+                activeVouchers.map((v) => {
+                  const isMeetMinVal = estimatedTotal >= Number(v.min_booking_value);
+                  const isUsed = v.has_used;
+                  const isEligible = isMeetMinVal && !isUsed;
+
+                  return (
+                    <div 
+                      key={v.id}
+                      className={`relative flex border rounded-xl overflow-hidden min-h-[96px] transition-all duration-200 ${
+                        isEligible 
+                          ? "border-[#ffe2c4] bg-[#fffbf7] shadow-sm hover:shadow" 
+                          : "border-gray-200 bg-gray-50/50 opacity-65"
+                      }`}
+                    >
+                      {/* Ticket Left Part - Visual Cutout */}
+                      <div className={`w-[8px] flex flex-col justify-between py-2 shrink-0 ${
+                        isEligible ? "bg-[#ff8d28]/10" : "bg-gray-200/50"
+                      }`}>
+                        <div className="w-1.5 h-1.5 rounded-full bg-white -ml-0.5 border border-transparent shadow-[inset_-1px_0_0_rgba(0,0,0,0.05)]" />
+                        <div className="w-1.5 h-1.5 rounded-full bg-white -ml-0.5 border border-transparent shadow-[inset_-1px_0_0_rgba(0,0,0,0.05)]" />
+                        <div className="w-1.5 h-1.5 rounded-full bg-white -ml-0.5 border border-transparent shadow-[inset_-1px_0_0_rgba(0,0,0,0.05)]" />
+                      </div>
+
+                      {/* Main Ticket Card Content */}
+                      <div className="flex-1 p-3 flex items-center justify-between gap-3 min-w-0">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider ${
+                              isEligible 
+                                ? "bg-[#ff8d28] text-white" 
+                                : "bg-gray-300 text-gray-600"
+                            }`}>
+                              {v.code}
+                            </span>
+                            <span className="text-[10px] font-bold text-gray-400">
+                              {v.type === "platform" ? "Sàn" : "Shop"}
+                            </span>
+                          </div>
+                          
+                          <h4 className={`text-xs font-black mt-1.5 truncate ${
+                            isEligible ? "text-[#0e111d]" : "text-gray-500"
+                          }`}>
+                            {v.name}
+                          </h4>
+                          
+                          {v.description && (
+                            <p className="text-[10px] text-gray-500 font-semibold mt-0.5 leading-normal line-clamp-1">
+                              {v.description}
+                            </p>
+                          )}
+                          
+                          <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[9.5px] font-bold text-gray-400">
+                            <span>Đơn tối thiểu: {Number(v.min_booking_value).toLocaleString("vi-VN")}đ</span>
+                            {v.max_discount_amount && (
+                              <>
+                                <span>•</span>
+                                <span>Tối đa: {Number(v.max_discount_amount).toLocaleString("vi-VN")}đ</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Right Part: Value & CTA Button */}
+                        <div className="flex flex-col items-end justify-between shrink-0 gap-2 h-full min-w-[100px]">
+                          <span className={`text-xs font-black text-right ${
+                            isEligible ? "text-[#ff8d28]" : "text-gray-400"
+                          }`}>
+                            {v.discount_type === "percentage" 
+                              ? `Giảm ${Number(v.discount_value)}%` 
+                              : `Giảm ${Number(v.discount_value).toLocaleString("vi-VN")}đ`
+                            }
+                          </span>
+
+                          {isUsed ? (
+                            <span className="rounded-lg bg-gray-200 px-3 py-1 text-[10px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                              Đã dùng
+                            </span>
+                          ) : !isMeetMinVal ? (
+                            <span className="text-[9px] font-bold text-red-500 text-right leading-tight max-w-[90px] whitespace-normal">
+                              Thiếu {(Number(v.min_booking_value) - estimatedTotal).toLocaleString("vi-VN")}đ
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                applyVoucherCode(v.code);
+                                setShowVoucherModal(false);
+                              }}
+                              className="rounded-lg bg-[#ff8d28] px-3.5 py-1 text-[10px] font-black text-white hover:bg-[#e67d1f] shadow-sm transition-all uppercase tracking-wider whitespace-nowrap"
+                            >
+                              Áp dụng
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            <div className="mt-5 flex items-center justify-end gap-2.5 border-t border-[#f1eef6] pt-4">
+              <button
+                type="button"
+                onClick={() => setShowVoucherModal(false)}
+                className="rounded-xl border border-[#ddd8e8] bg-white px-5 py-2.5 text-[11px] font-black text-[#6c6878] transition hover:bg-[#fafbfc]"
+              >
+                Đóng
               </button>
             </div>
           </div>
