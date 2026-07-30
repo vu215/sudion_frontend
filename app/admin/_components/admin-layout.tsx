@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { api } from "@/lib/api";
 import { useAuth } from "@/app/auth-context";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 
 const navItems = [
   ["Dashboard", "/admin", "M3 10.5L12 3l9 7.5M5 10v9h5v-5h4v5h5v-9"],
@@ -40,19 +41,21 @@ export default function AdminLayout({
 }) {
   const { isLoggedIn, isAdmin, isLoading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
+  const isDevPreview = process.env.NODE_ENV === "development";
 
   const [collapsed, setCollapsed] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
-    if (!isLoading) {
+    if (!isLoading && !isDevPreview) {
       if (!isLoggedIn) {
-        router.push("/login");
+        router.push(`/login?redirect=${encodeURIComponent(pathname)}`);
       } else if (!isAdmin) {
         router.push("/");
       }
     }
-  }, [isLoggedIn, isAdmin, isLoading, router]);
+  }, [isLoggedIn, isAdmin, isLoading, router, pathname, isDevPreview]);
 
   useEffect(() => {
     if (!isLoggedIn || !isAdmin) return;
@@ -70,7 +73,16 @@ export default function AdminLayout({
     loadUnreadCount();
   }, [isLoggedIn, isAdmin]);
 
-  if (isLoading || !isLoggedIn || !isAdmin) {
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-[#f7f7fb]">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#ff8d28] border-t-transparent" />
+        <p className="mt-4 text-xs font-semibold text-slate-500">Đang kiểm tra quyền truy cập...</p>
+      </div>
+    );
+  }
+
+  if (!isDevPreview && (!isLoggedIn || !isAdmin)) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-[#f7f7fb]">
         <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#ff8d28] border-t-transparent" />
@@ -87,10 +99,10 @@ export default function AdminLayout({
         </div>
         <nav className="flex-1 overflow-y-auto px-3 pb-4 space-y-1">
           {navItems.map(([label, href, path]) => (
-            <a key={label} href={href} title={collapsed ? label : undefined} className={`flex h-11 items-center rounded-xl text-[14px] font-medium transition ${active === label ? "bg-[#ff8d28] text-white shadow-[0_12px_24px_rgba(255,141,40,0.22)]" : "text-[#162033] hover:bg-[#fff3e8] hover:text-[#ff8d28]"} ${collapsed ? "justify-center px-0" : "gap-3 px-3"}`}>
+            <Link key={label} href={href} scroll={false} title={collapsed ? label : undefined} className={`flex h-11 items-center rounded-xl text-[14px] font-medium transition ${active === label ? "bg-[#ff8d28] text-white shadow-[0_12px_24px_rgba(255,141,40,0.22)]" : "text-[#162033] hover:bg-[#fff3e8] hover:text-[#ff8d28]"} ${collapsed ? "justify-center px-0" : "gap-3 px-3"}`}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" className="h-[18px] w-[18px] shrink-0"><path d={path} /></svg>
               {!collapsed ? <span className="truncate">{label}</span> : null}
-            </a>
+            </Link>
           ))}
         </nav>
         <div className="border-t border-[#e6e9f1] bg-white p-3 shrink-0">
@@ -117,7 +129,7 @@ export default function AdminLayout({
             <div className="hidden sm:block"><b>Admin</b><p className="text-[11px] text-[#697086]">Super Admin</p></div>
           </div>
         </header>
-        <div className="flex-1 overflow-y-auto min-w-0 px-4 py-5 md:px-6">{children}</div>
+        <div id="admin-content-scroll" className="flex-1 overflow-y-auto min-w-0 px-4 py-5 md:px-6">{children}</div>
       </section>
     </main>
   );

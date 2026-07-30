@@ -35,8 +35,9 @@ const API_URL =
 const SESSION_KEY = "sudion_session";
 
 function normalizeRole(role: unknown): UserRole {
-  if (role === "photographer") return "photographer";
-  if (role === "admin") return "admin";
+  const normalized = String(role || "").trim().toLowerCase();
+  if (normalized === "photographer") return "photographer";
+  if (normalized === "admin" || normalized === "administrator" || normalized === "superadmin") return "admin";
   return "customer";
 }
 

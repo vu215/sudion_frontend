@@ -55,13 +55,13 @@ export default function ProfilePage() {
   const loadedPhotoProfileForRef = useRef("");
   const loadingPhotoProfileForRef = useRef("");
 
-  const [avatar, setAvatar]     = useState<string | null>(null);
-  const [fullName, setFullName] = useState(session?.fullName ?? "Người dùng");
-  const [phone, setPhone]       = useState("0901 234 567");
-  const [birthday, setBirthday] = useState("1995-06-15");
-  const [gender, setGender]     = useState("Nữ");
-  const [address, setAddress]   = useState("TP. Hồ Chí Minh");
-  const [bio, setBio]           = useState("Mình yêu thích chụp ảnh cưới và lưu giữ những khoảnh khắc đáng nhớ ✨");
+  const [avatar, setAvatar]     = useState<string | null>(session?.avatar_url || null);
+  const [fullName, setFullName] = useState(session?.fullName || "");
+  const [phone, setPhone]       = useState(session?.phone || "");
+  const [birthday, setBirthday] = useState("");
+  const [gender, setGender]     = useState("");
+  const [address, setAddress]   = useState("");
+  const [bio, setBio]           = useState("");
   const [editMode, setEditMode] = useState(false);
 
   const [oldPw, setOldPw] = useState("");
@@ -116,10 +116,11 @@ export default function ProfilePage() {
   }, [refresh]);
 
   useEffect(() => {
-    if (session?.fullName) {
-      setFullName(session.fullName);
-    }
-  }, [session?.fullName]);
+    if (!session) return;
+    setAvatar(session.avatar_url || null);
+    setFullName(session.fullName || "");
+    setPhone(session.phone || "");
+  }, [session?.avatar_url, session?.fullName, session?.phone]);
 
   useEffect(() => {
     if (!session?.userId) return;
@@ -520,9 +521,18 @@ export default function ProfilePage() {
           {/* Stats */}
           <div className="mt-5 grid grid-cols-3 gap-3 border-t border-[#f0f2f7] pt-5">
             {[
-              { label: "Booking",    value: "12", color: "text-[#ff8d28]", bg: "bg-orange-50" },
-              { label: "Hoàn thành", value: "9",  color: "text-emerald-600", bg: "bg-emerald-50" },
-              { label: "Đánh giá",   value: "8",  color: "text-amber-500", bg: "bg-amber-50" },
+              { label: "Tài khoản", value: accountRoleLabel || "Chưa xác định", color: "text-[#ff8d28]", bg: "bg-orange-50" },
+              { label: "Trạng thái hồ sơ", value: photoProfile
+                  ? photoProfile.verification_status === "verified"
+                    ? "Đã duyệt"
+                    : photoProfile.verification_status === "pending"
+                      ? "Chờ duyệt"
+                      : photoProfile.verification_status === "rejected"
+                        ? "Bị từ chối"
+                        : String(photoProfile.verification_status || "Chưa gửi")
+                  : "Chưa gửi",
+                color: "text-emerald-600", bg: "bg-emerald-50" },
+              { label: "Thông báo", value: notifBooking || notifPromo || notifEmail || notifSms ? "Bật" : "Tắt", color: "text-amber-500", bg: "bg-amber-50" },
             ].map((s) => (
               <div key={s.label} className="flex items-center gap-3 rounded-2xl bg-[#f8f9fc] px-4 py-3">
                 <div className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${s.bg} ${s.color} text-lg font-black`}>

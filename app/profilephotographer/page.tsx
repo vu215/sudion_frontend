@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/app/auth-context";
 import { useToast } from "@/app/toast-context";
@@ -19,23 +20,8 @@ function resolveAssetUrl(url: string) {
   return `${backendHost}${url.startsWith("/") ? url : `/${url}`}`;
 }
 
-/* ─── default empty-state content ───────────────────────────── */
-const defaultProfileContent = {
-  id: "markus-andersen",
-  name: "Markus Andersen",
-  title: "Nhiếp ảnh gia Thương mại & Kiến trúc",
-  location: "TP. Hồ Chí Minh, Việt Nam",
-  image:
-    "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=400&q=80",
-  bio: "Với hơn 10 năm kinh nghiệm trong lĩnh vực nhiếp ảnh thương mại, tôi tập trung vào việc khai thác những khung hình có chiều sâu, tôn vinh ánh sáng tự nhiên và đường nét kiến trúc. Từng cộng tác với nhiều tạp chí thiết kế uy tín.",
-  equipment: ["Sony A7R IV", "Canon 5D Mark IV", "24-70mm f/2.8 GM"],
-  languages: ["Tiếng Việt (bản địa)", "Tiếng Anh (lưu loát)"],
-  portfolio: [
-    "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?auto=format&fit=crop&w=900&q=80",
-    "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=600&q=80",
-    "https://images.unsplash.com/photo-1519125323398-675f0ddb6308?auto=format&fit=crop&w=600&q=80",
-  ],
-};
+const DEFAULT_PROFILE_IMAGE =
+  "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=400&q=80";
 
 /* ─── icons ─────────────────────────────────────────────────── */
 function IconCamera({ className }: { className?: string }) {
@@ -95,6 +81,7 @@ function IconStar({ className }: { className?: string }) {
 /* ─── main page ─────────────────────────────────────────────── */
 export default function ProfilePhotographerPage() {
   const { session, isLoggedIn } = useAuth();
+  const router = useRouter();
   const toast = useToast();
 
   const [loading, setLoading] = useState(true);
@@ -110,9 +97,10 @@ export default function ProfilePhotographerPage() {
   const [portfolio, setPortfolio] = useState<string[]>([]);
   const [packages, setPackages] = useState<any[]>([]);
 
-  const [equipment, setEquipment] = useState<string[]>(defaultProfileContent.equipment);
+  const [equipment, setEquipment] = useState<string[]>([]);
   const [equipmentInput, setEquipmentInput] = useState("");
-  const [languages, setLanguages] = useState<string[]>(defaultProfileContent.languages);
+  const [languages, setLanguages] = useState<string[]>([]);
+  const [languageInput, setLanguageInput] = useState("");
 
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const portfolioInputRef = useRef<HTMLInputElement>(null);
@@ -149,12 +137,14 @@ export default function ProfilePhotographerPage() {
           setName(photographer.full_name || "");
           setPhone(photographer.phone || "");
           setBio(photographer.bio || "");
-          setActiveArea(photographer.active_area || "TP. Hồ Chí Minh");
+          setActiveArea(photographer.active_area || "");
           setStartedYear(Number(photographer.started_year || 2024));
           setPhotographerType(photographer.photographer_type || "freelance");
-          setAvatar(photographer.avatar_url || defaultProfileContent.image);
+          setAvatar(photographer.avatar_url || "");
           setPortfolio(portfolioImages || []);
           setPackages(pkgs || []);
+          setEquipment(Array.isArray(photographer.equipment) ? photographer.equipment : []);
+          setLanguages(Array.isArray(photographer.languages) ? photographer.languages : []);
         }
       } catch (err) {
         toast.error("Lỗi", "Không thể lấy thông tin hồ sơ của bạn.");
@@ -177,6 +167,14 @@ export default function ProfilePhotographerPage() {
 
   const removeLanguage = (lang: string) =>
     setLanguages((prev) => prev.filter((l) => l !== lang));
+
+  const addLanguage = () => {
+    const value = languageInput.trim();
+    if (value && !languages.includes(value)) {
+      setLanguages((prev) => [...prev, value]);
+    }
+    setLanguageInput("");
+  };
 
   const handleAvatarClick = () => {
     avatarInputRef.current?.click();
@@ -262,6 +260,8 @@ export default function ProfilePhotographerPage() {
           active_area: activeArea,
           started_year: startedYear,
           photographer_type: photographerType,
+          equipment,
+          languages,
         }),
       });
 
@@ -318,7 +318,7 @@ export default function ProfilePhotographerPage() {
           <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
-              onClick={() => window.location.reload()}
+              onClick={() => router.back()}
               className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition"
             >
               Hủy
@@ -349,7 +349,7 @@ export default function ProfilePhotographerPage() {
             <div className="flex flex-col items-center gap-2 shrink-0">
               <div className="relative">
                 <img
-                  src={resolveAssetUrl(avatar) || defaultProfileContent.image}
+                  src={resolveAssetUrl(avatar) || DEFAULT_PROFILE_IMAGE}
                   alt={name || "Nhiếp ảnh gia"}
                   className="h-[100px] w-[100px] rounded-full object-cover border-2 border-orange-100"
                 />
@@ -429,22 +429,26 @@ export default function ProfilePhotographerPage() {
               <p className="text-[11px] font-semibold text-slate-500 mb-2">Danh sách thiết bị</p>
               <div className="min-h-[96px] rounded-lg border border-slate-200 bg-[#f8f8fb] p-3 flex flex-col gap-2">
                 <div className="flex flex-wrap gap-1.5">
-                  {equipment.map((item) => (
-                    <span
-                      key={item}
-                      className="inline-flex items-center gap-1 rounded-md bg-white border border-slate-200 px-2.5 py-1 text-xs text-slate-700 shadow-sm"
-                    >
-                      {item}
-                      <button
-                        type="button"
-                        onClick={() => removeEquipment(item)}
-                        aria-label={`Xóa ${item}`}
-                        className="ml-0.5 text-slate-400 hover:text-red-400 leading-none"
+                  {equipment.length > 0 ? (
+                    equipment.map((item) => (
+                      <span
+                        key={item}
+                        className="inline-flex items-center gap-1 rounded-md bg-white border border-slate-200 px-2.5 py-1 text-xs text-slate-700 shadow-sm"
                       >
-                        ×
-                      </button>
-                    </span>
-                  ))}
+                        {item}
+                        <button
+                          type="button"
+                          onClick={() => removeEquipment(item)}
+                          aria-label={`Xóa ${item}`}
+                          className="ml-0.5 text-slate-400 hover:text-red-400 leading-none"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))
+                  ) : (
+                    <p className="text-xs text-slate-400">Chưa có thiết bị nào được nhập.</p>
+                  )}
                 </div>
                 <div className="flex gap-1 mt-auto">
                   <input
@@ -457,6 +461,51 @@ export default function ProfilePhotographerPage() {
                   <button
                     type="button"
                     onClick={addEquipment}
+                    className="rounded border border-orange-200 bg-orange-50 px-2 py-1 text-xs text-orange-600 hover:bg-orange-100 transition"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* ngôn ngữ */}
+            <div>
+              <p className="text-[11px] font-semibold text-slate-500 mb-2">Ngôn ngữ</p>
+              <div className="min-h-[96px] rounded-lg border border-slate-200 bg-[#f8f8fb] p-3 flex flex-col gap-2">
+                <div className="flex flex-wrap gap-1.5">
+                  {languages.length > 0 ? (
+                    languages.map((lang) => (
+                      <span
+                        key={lang}
+                        className="inline-flex items-center gap-1 rounded-md bg-white border border-slate-200 px-2.5 py-1 text-xs text-slate-700 shadow-sm"
+                      >
+                        {lang}
+                        <button
+                          type="button"
+                          onClick={() => removeLanguage(lang)}
+                          aria-label={`Xóa ${lang}`}
+                          className="ml-0.5 text-slate-400 hover:text-red-400 leading-none"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))
+                  ) : (
+                    <p className="text-xs text-slate-400">Chưa có ngôn ngữ nào được nhập.</p>
+                  )}
+                </div>
+                <div className="flex gap-1 mt-auto">
+                  <input
+                    value={languageInput}
+                    onChange={(e) => setLanguageInput(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && addLanguage()}
+                    placeholder="Thêm ngôn ngữ..."
+                    className="flex-1 rounded border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700 outline-none focus:border-orange-300"
+                  />
+                  <button
+                    type="button"
+                    onClick={addLanguage}
                     className="rounded border border-orange-200 bg-orange-50 px-2 py-1 text-xs text-orange-600 hover:bg-orange-100 transition"
                   >
                     +
