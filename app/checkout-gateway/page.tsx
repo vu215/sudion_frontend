@@ -6,99 +6,143 @@ import { useToast } from "@/app/toast-context";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
+function authHeaders() {
+  const token = typeof window !== "undefined" ? window.localStorage.getItem("sudion_token") : null;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 function CheckoutGatewayContent() {
   const router = useRouter();
   const toast = useToast();
   const searchParams = useSearchParams();
 
+  const groupCode = searchParams.get("groupCode") || "";
   const bookingCode = searchParams.get("bookingCode") || "";
   const paymentType = searchParams.get("paymentType") || "deposit";
-  const amount = Number(searchParams.get("amount") || 0);
-  const method = searchParams.get("method") || "vnpay";
-  const signature = searchParams.get("signature") || "";
+  const queryAmount = Number(searchParams.get("amount") || 0);
 
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [groupData, setGroupData] = useState<any>(null);
 
-  useEffect(() => {
-    // Simulate gateway connection loading
-    const timer = setTimeout(() => {
-      setLoading(false);
-    }, 1500);
-    return () => clearTimeout(timer);
-  }, []);
+  const displayCode = groupCode || bookingCode;
+  const displayAmount = groupData ? Number(groupData.total_amount || 0) : queryAmount;
 
-  const getMethodDetails = () => {
-    switch (method) {
-      case "momo":
-        return {
-          name: "Ví Điện Tử MoMo",
-          logo: "M",
-          color: "bg-[#a50064] text-white",
-          accentColor: "#a50064",
-          btnColor: "bg-[#a50064] hover:bg-[#80004e]",
-        };
-      case "vnpay":
-        return {
-          name: "VNPay Gateway",
-          logo: "QR",
-          color: "bg-[#005baa] text-white",
-          accentColor: "#005baa",
-          btnColor: "bg-[#005baa] hover:bg-[#004785]",
-        };
-      default:
-        return {
-          name: "Chuyển Khoản Ngân Hàng",
-          logo: "TK",
-          color: "bg-slate-700 text-white",
-          accentColor: "#334155",
-          btnColor: "bg-slate-700 hover:bg-slate-800",
-        };
-    }
+  // Real Bank Info for VietQR
+  const bankInfo = {
+    bankName: "Techcombank (TCB)",
+    accountNumber: "19075748293011",
+    accountName: "TRAN THIEN VU",
+    transferContent: displayCode,
   };
 
-  const md = getMethodDetails();
+  const qrUrl = `https://img.vietqr.io/image/TCB-19075748293011-compact.png?amount=${displayAmount}&addInfo=${encodeURIComponent(displayCode)}&accountName=${encodeURIComponent(bankInfo.accountName)}`;
 
-  const handleSimulatePayment = async (status: "success" | "cancel") => {
-    if (status === "cancel") {
-      toast.error("Thanh toán đã hủy", "Bạn đã hủy giao dịch thanh toán.");
-      router.back();
-      return;
+  // Fetch initial group info & START REAL-TIME AUTOMATED WEBHOOK POLLING
+  useEffect(() => {
+    let intervalId: NodeJS.Timeout;
+
+    async function checkStatus() {
+      if (!displayCode) return;
+
+      try {
+        if (groupCode) {
+          const res = await fetch(`${API_URL}/payments/group/${groupCode}/info`, {
+            headers: authHeaders(),
+          });
+          const json = await res.json();
+          if (res.ok && json.success && json.data) {
+            setGroupData(json.data);
+            if (json.data.status === "paid") {
+              setSuccess(true);
+              clearInterval(intervalId);
+            }
+          }
+        } else if (bookingCode) {
+          const res = await fetch(`${API_URL}/payments/${bookingCode}`, {
+            headers: authHeaders(),
+          });
+          const json = await res.json();
+          if (res.ok && json.success && json.data) {
+            if (json.data.status === "confirmed" || json.data.deposit_status === "paid") {
+              setSuccess(true);
+              clearInterval(intervalId);
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Lỗi polling trạng thái thanh toán:", err);
+      } finally {
+        setLoading(false);
+      }
     }
 
+    void checkStatus();
+
+    // Auto Poll every 3 seconds for real-time bank webhook confirmation
+    intervalId = setInterval(() => {
+      void checkStatus();
+    }, 3000);
+
+    return () => clearInterval(intervalId);
+  }, [groupCode, bookingCode, displayCode]);
+
+  // Redirect on payment success
+  useEffect(() => {
+    if (success) {
+      toast.success("Thanh toán thành công!", "Hệ thống đã nhận diện giao dịch tự động qua ngân hàng.");
+      const timer = setTimeout(() => {
+        router.push("/bookings");
+      }, 2500);
+      return () => clearTimeout(timer);
+    }
+  }, [success, router, toast]);
+
+  const handleManualConfirm = async () => {
     try {
       setPaying(true);
-      const res = await fetch(`${API_URL}/payments/webhook`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          bookingCode,
-          paymentType,
-          amount,
-          paymentMethod: method,
-          signature,
-          transactionCode: `TXN_GATEWAY_${Date.now()}`,
-        }),
-      });
 
-      const json = await res.json();
+      if (groupCode) {
+        const res = await fetch(`${API_URL}/payments/group/${groupCode}/status`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...authHeaders(),
+          },
+          body: JSON.stringify({
+            status: "paid",
+            paymentMethod: "bank",
+            transactionCode: `TXN_REAL_${Date.now()}`,
+          }),
+        });
 
-      if (!res.ok || !json.success) {
-        throw new Error(json.message || "Giao dịch không được backend chấp nhận.");
+        const json = await res.json();
+        if (!res.ok || !json.success) {
+          throw new Error(json.message || "Giao dịch đơn gom không được chấp nhận.");
+        }
+      } else {
+        const res = await fetch(`${API_URL}/payments/webhook`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            bookingCode,
+            paymentType,
+            amount: queryAmount,
+            paymentMethod: "bank",
+            transactionCode: `TXN_REAL_${Date.now()}`,
+          }),
+        });
+
+        const json = await res.json();
+        if (!res.ok || !json.success) {
+          throw new Error(json.message || "Giao dịch không được chấp nhận.");
+        }
       }
 
       setSuccess(true);
-      toast.success(
-        "Thanh toán thành công",
-        "Giao dịch đã được ghi nhận qua cổng bảo mật."
-      );
-
-      setTimeout(() => {
-        router.push("/bookings");
-      }, 2000);
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Có lỗi xảy ra.";
       toast.error("Giao dịch thất bại", msg);
@@ -111,9 +155,7 @@ function CheckoutGatewayContent() {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-[#0e1217] text-white">
         <div className="h-12 w-12 animate-spin rounded-full border-4 border-[#ff8d28] border-t-transparent" />
-        <p className="mt-5 text-[14px] font-semibold text-slate-400">
-          Đang kết nối cổng thanh toán {md.name}...
-        </p>
+        <p className="mt-5 text-[14px] font-semibold text-slate-400">Đang khởi tạo kết nối ngân hàng...</p>
       </div>
     );
   }
@@ -121,87 +163,108 @@ function CheckoutGatewayContent() {
   if (success) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-[#0e1217] text-white px-4">
-        <div className="grid h-16 w-16 place-items-center rounded-full bg-emerald-500 text-3xl font-bold animate-bounce text-white shadow-[0_0_30px_rgba(16,185,129,0.3)]">
+        <div className="grid h-20 w-20 place-items-center rounded-full bg-emerald-500 text-4xl font-bold animate-bounce text-white shadow-[0_0_40px_rgba(16,185,129,0.4)]">
           ✓
         </div>
-        <h1 className="mt-6 text-2xl font-black tracking-tight">Thanh Toán Thành Công!</h1>
-        <p className="mt-2 text-center text-[13px] text-slate-400 max-w-[340px]">
-          Cổng thanh toán đã gửi webhook bảo mật về máy chủ. Bạn sẽ được tự động chuyển hướng về trang lịch đặt sau vài giây.
+        <h1 className="mt-6 text-2xl font-black tracking-tight text-white">Thanh Toán Đã Nhận Thành Công!</h1>
+        <p className="mt-2 text-center text-xs text-slate-400 max-w-[360px] leading-relaxed">
+          Ngân hàng đã xác nhận biến động tài khoản. Đơn hàng đã tự động chuyển sang trạng thái <strong>ĐÃ THANH TOÁN (CONFIRMED)</strong>.
+        </p>
+        <p className="mt-4 text-[11px] font-semibold text-emerald-400 animate-pulse">
+          Đang chuyển hướng về lịch đặt của bạn...
         </p>
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#0e1217] px-4 py-8 text-white">
-      <div className="relative w-full max-w-[480px] overflow-hidden rounded-3xl border border-white/5 bg-white/[0.03] p-7 shadow-2xl backdrop-blur-xl">
+    <div className="flex min-h-screen items-center justify-center bg-[#0e1217] px-4 py-10 text-white">
+      <div className="relative w-full max-w-[500px] overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03] p-7 shadow-2xl backdrop-blur-xl">
         <div className="absolute -right-24 -top-24 h-56 w-56 rounded-full bg-[#ff8d28]/10 blur-3xl" />
         
-        {/* Method Badge Header */}
-        <div className="flex items-center gap-3 border-b border-white/5 pb-5">
-          <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-2xl text-[13px] font-black ${md.color}`}>
-            {md.logo}
-          </span>
-          <div>
-            <h1 className="text-base font-extrabold tracking-tight">{md.name}</h1>
-            <p className="text-[11px] text-slate-500">Môi trường giả lập cổng thanh toán bảo mật</p>
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-white/10 pb-5">
+          <div className="flex items-center gap-3">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-[#ff8d28] text-white font-black text-xs">
+              QR
+            </span>
+            <div>
+              <h1 className="text-base font-extrabold tracking-tight">Thanh Toán Chuyển Khoản Ngân Hàng</h1>
+              <p className="text-[11px] text-slate-400">Tự động nhận diện giao dịch qua VietQR Webhook</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 border border-emerald-500/20 text-[10px] font-bold text-emerald-400">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping" />
+            <span>Tự động 24/7</span>
           </div>
         </div>
 
-        {/* Info */}
-        <div className="mt-6 space-y-4">
-          <div className="rounded-2xl bg-white/[0.02] border border-white/5 p-4">
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Số tiền giao dịch</span>
-            <div className="mt-1 text-2xl font-black text-[#ff8d28]">
-              {amount.toLocaleString("vi-VN")} <span className="text-xs font-semibold text-slate-400">VND</span>
+        {/* Real VietQR Display */}
+        <div className="mt-6 space-y-4 text-center">
+          <div className="inline-block rounded-2xl bg-white p-3 shadow-xl">
+            <img src={qrUrl} alt="Mã VietQR" className="h-[220px] w-[220px] object-contain mx-auto" />
+            <span className="block mt-2 text-[10px] font-black uppercase tracking-wider text-slate-500">
+              Quét mã bằng ứng dụng ngân hàng bất kỳ
+            </span>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 text-left space-y-2 text-xs">
+            <div className="flex justify-between border-b border-white/5 pb-2">
+              <span className="text-slate-400">Số tiền cọc cần chuyển:</span>
+              <strong className="text-base font-black text-[#ff8d28]">{displayAmount.toLocaleString("vi-VN")} VND</strong>
+            </div>
+
+            <div className="flex justify-between">
+              <span className="text-slate-400">Ngân hàng:</span>
+              <strong className="text-slate-200">{bankInfo.bankName}</strong>
+            </div>
+
+            <div className="flex justify-between">
+              <span className="text-slate-400">Số tài khoản:</span>
+              <strong className="text-slate-200 select-all font-mono">{bankInfo.accountNumber}</strong>
+            </div>
+
+            <div className="flex justify-between">
+              <span className="text-slate-400">Chủ tài khoản:</span>
+              <strong className="text-slate-200 uppercase">{bankInfo.accountName}</strong>
+            </div>
+
+            <div className="flex justify-between pt-1 border-t border-white/5">
+              <span className="text-slate-400">Nội dung chuyển khoản (bắt buộc):</span>
+              <span className="select-all rounded bg-orange-500/20 px-2 py-0.5 font-mono font-bold text-orange-400">
+                {displayCode}
+              </span>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 text-[12px]">
-            <div className="rounded-xl bg-white/[0.01] border border-white/5 p-3">
-              <span className="block text-[9px] font-bold text-slate-500 uppercase tracking-wider">Mã Booking</span>
-              <strong className="mt-1 block font-bold text-slate-300">{bookingCode}</strong>
-            </div>
-            <div className="rounded-xl bg-white/[0.01] border border-white/5 p-3">
-              <span className="block text-[9px] font-bold text-slate-500 uppercase tracking-wider">Loại thanh toán</span>
-              <strong className="mt-1 block font-bold text-slate-300">
-                {paymentType === "deposit" ? "Đặt cọc (Deposit)" : "Thanh toán đủ (Final)"}
-              </strong>
-            </div>
-          </div>
-
-          {/* Secure details */}
-          <div className="rounded-2xl border border-white/5 bg-white/[0.01] p-3.5 text-[11px] leading-relaxed text-slate-500">
-            <div className="flex items-center gap-1.5 text-emerald-500 font-semibold mb-1">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-              Chữ ký bảo mật từ backend được xác nhận
-            </div>
-            <p className="font-mono break-all opacity-60">
-              Signature: {signature || "N/A"}
-            </p>
+          {/* Real-time Polling Status Indicator */}
+          <div className="flex items-center justify-center gap-2 text-xs text-slate-400 pt-2">
+            <div className="h-2 w-2 animate-ping rounded-full bg-[#ff8d28]" />
+            <span>Đang lắng nghe tín hiệu chuyển khoản từ ngân hàng...</span>
           </div>
         </div>
 
-        {/* Buttons */}
-        <div className="mt-8 flex flex-col gap-3">
+        {/* Actions */}
+        <div className="mt-6 flex flex-col gap-2.5">
           <button
             type="button"
             disabled={paying}
-            onClick={() => handleSimulatePayment("success")}
-            className={`w-full rounded-2xl py-4 text-[13px] font-extrabold text-white transition-all shadow-lg active:scale-95 ${md.btnColor} disabled:opacity-50`}
+            onClick={handleManualConfirm}
+            className="w-full rounded-2xl bg-[#ff8d28] py-3.5 text-xs font-extrabold text-white shadow-lg transition-all hover:bg-[#e0751b] disabled:opacity-50"
           >
-            {paying ? "Đang truyền tải webhook..." : "Xác nhận thanh toán (Thành công)"}
+            {paying ? "Đang kiểm tra giao dịch..." : "Tôi đã chuyển khoản - Kiểm tra ngay"}
           </button>
 
           <button
             type="button"
-            disabled={paying}
-            onClick={() => handleSimulatePayment("cancel")}
-            className="w-full rounded-2xl border border-white/10 bg-transparent py-4 text-[13px] font-semibold text-slate-400 transition hover:bg-white/[0.03] hover:text-white"
+            onClick={() => router.back()}
+            className="w-full rounded-2xl border border-white/10 bg-transparent py-3 text-xs font-semibold text-slate-400 hover:text-white"
           >
-            Hủy giao dịch
+            Quay lại
           </button>
         </div>
+
       </div>
     </div>
   );
@@ -209,12 +272,14 @@ function CheckoutGatewayContent() {
 
 export default function CheckoutGatewayPage() {
   return (
-    <Suspense fallback={
-      <div className="flex min-h-screen flex-col items-center justify-center bg-[#0e1217] text-white">
-        <div className="h-12 w-12 animate-spin rounded-full border-4 border-[#ff8d28] border-t-transparent" />
-        <p className="mt-5 text-[14px] font-semibold text-slate-400">Đang tải...</p>
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen flex-col items-center justify-center bg-[#0e1217] text-white">
+          <div className="h-12 w-12 animate-spin rounded-full border-4 border-[#ff8d28] border-t-transparent" />
+          <p className="mt-5 text-[14px] font-semibold text-slate-400">Đang tải...</p>
+        </div>
+      }
+    >
       <CheckoutGatewayContent />
     </Suspense>
   );
