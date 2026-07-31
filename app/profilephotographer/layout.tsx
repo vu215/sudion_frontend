@@ -33,19 +33,6 @@ export default function ProfilePhotographerLayout({ children }: { children: Reac
           <span className="text-white font-black text-[15px] tracking-tight">STUDION</span>
         </div>
 
-        {/* Photographer info */}
-        <div className="px-4 py-4 border-b border-white/5">
-          <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-[#ff8d28] to-[#f97316] flex items-center justify-center text-white text-xs font-black shrink-0">
-              {initials}
-            </div>
-            <div className="min-w-0">
-              <p className="text-white text-[12px] font-bold truncate">{session?.fullName || "Photographer"}</p>
-              <span className="inline-block rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-bold px-2 py-0.5">Đang hoạt động</span>
-            </div>
-          </div>
-        </div>
-
         {/* Nav */}
         <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-0.5">
           {NAV.map(item => {

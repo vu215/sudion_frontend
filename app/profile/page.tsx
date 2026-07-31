@@ -2,6 +2,7 @@
 
 import { useRef, useState, useEffect } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/app/auth-context";
 
 type Tab = "Thông tin" | "Đổi mật khẩu" | "Thông báo" | "Đăng ký thợ ảnh";
@@ -50,18 +51,19 @@ function resolveAssetUrl(url: string) {
 }
 
 export default function ProfilePage() {
+  const searchParams = useSearchParams();
   const { session, refresh } = useAuth();
   const fileRef = useRef<HTMLInputElement>(null);
   const loadedPhotoProfileForRef = useRef("");
   const loadingPhotoProfileForRef = useRef("");
 
-  const [avatar, setAvatar]     = useState<string | null>(session?.avatar_url || null);
-  const [fullName, setFullName] = useState(session?.fullName || "");
-  const [phone, setPhone]       = useState(session?.phone || "");
-  const [birthday, setBirthday] = useState("");
-  const [gender, setGender]     = useState("");
-  const [address, setAddress]   = useState("");
-  const [bio, setBio]           = useState("");
+  const [avatar, setAvatar]     = useState<string | null>(null);
+  const [fullName, setFullName] = useState(session?.fullName ?? "Người dùng");
+  const [phone, setPhone]       = useState("0901 234 567");
+  const [birthday, setBirthday] = useState("1995-06-15");
+  const [gender, setGender]     = useState("Nữ");
+  const [address, setAddress]   = useState("TP. Hồ Chí Minh");
+  const [bio, setBio]           = useState("Mình yêu thích chụp ảnh cưới và lưu giữ những khoảnh khắc đáng nhớ ✨");
   const [editMode, setEditMode] = useState(false);
 
   const [oldPw, setOldPw] = useState("");
@@ -75,6 +77,13 @@ export default function ProfilePage() {
 
   const [tab, setTab]     = useState<Tab>("Thông tin");
   const [toast, setToast] = useState("");
+
+  useEffect(() => {
+    const tabParam = searchParams.get("tab");
+    if (tabParam === "photographer" || tabParam === "Thông tin") {
+      setTab("Thông tin");
+    }
+  }, [searchParams]);
 
   const [photoProfile, setPhotoProfile] = useState<PhotographerApplication | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
@@ -101,26 +110,14 @@ export default function ProfilePage() {
         : "Khách hàng";
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const params = new URLSearchParams(window.location.search);
-    const requestedTab = params.get("tab");
-
-    if (requestedTab === "photographer") {
-      setTab("Đăng ký thợ ảnh");
-    }
-  }, []);
-
-  useEffect(() => {
     void refresh();
   }, [refresh]);
 
   useEffect(() => {
-    if (!session) return;
-    setAvatar(session.avatar_url || null);
-    setFullName(session.fullName || "");
-    setPhone(session.phone || "");
-  }, [session?.avatar_url, session?.fullName, session?.phone]);
+    if (session?.fullName) {
+      setFullName(session.fullName);
+    }
+  }, [session?.fullName]);
 
   useEffect(() => {
     if (!session?.userId) return;
@@ -431,7 +428,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#f7f8fc]">
+    <main className="min-h-screen bg-[#eef2ff]">
 
       {/* Toast */}
       {toast && (
@@ -442,10 +439,10 @@ export default function ProfilePage() {
       )}
 
       {/* Hero banner */}
-      <div className="relative h-52 w-full overflow-hidden bg-gradient-to-br from-[#0e111d] via-[#1a2340] to-[#0e111d]">
-        <div className="absolute -right-24 -top-24 h-80 w-80 rounded-full bg-[#ff8d28]/20 blur-3xl" />
-        <div className="absolute -bottom-20 left-1/3 h-64 w-64 rounded-full bg-[#ff8d28]/10 blur-3xl" />
-        <div className="absolute left-6 top-6 flex items-center gap-2 text-[12px] font-semibold text-white/50 sm:left-10">
+      <div className="relative h-52 w-full overflow-hidden bg-gradient-to-br from-[#0f172a] via-[#111827] to-[#111827]">
+        <div className="absolute -right-24 -top-24 h-80 w-80 rounded-full bg-[#fb923c]/20 blur-3xl" />
+        <div className="absolute -bottom-20 left-1/3 h-64 w-64 rounded-full bg-[#fb923c]/10 blur-3xl" />
+        <div className="absolute left-6 top-6 flex items-center gap-2 text-sm font-semibold text-white/60 sm:left-10">
           <Link href="/" className="hover:text-white transition-colors">Trang chủ</Link>
           <span>/</span>
           <span className="text-white/80">Hồ sơ</span>
@@ -461,10 +458,11 @@ export default function ProfilePage() {
             {/* Avatar */}
             <div className="relative -mt-14 shrink-0 sm:-mt-16">
               <div className="relative h-24 w-24 overflow-hidden rounded-full border-4 border-white bg-gradient-to-br from-[#ff8d28] to-[#f97316] shadow-xl sm:h-28 sm:w-28">
-                {avatar
-                  ? <img src={avatar} alt="" className="h-full w-full object-cover" />
-                  : <span className="flex h-full w-full items-center justify-center text-[30px] font-black text-white">{initials}</span>
-                }
+                {avatar ? (
+                  <img src={avatar} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <div className="h-full w-full bg-white/10" />
+                )}
               </div>
               <button onClick={() => fileRef.current?.click()}
                 className="absolute bottom-0.5 right-0.5 flex h-7 w-7 items-center justify-center rounded-full bg-[#ff8d28] shadow-md hover:bg-[#e0751b] transition-colors"
@@ -518,38 +516,17 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          {/* Stats */}
-          <div className="mt-5 grid grid-cols-3 gap-3 border-t border-[#f0f2f7] pt-5">
-            {[
-              { label: "Tài khoản", value: accountRoleLabel || "Chưa xác định", color: "text-[#ff8d28]", bg: "bg-orange-50" },
-              { label: "Trạng thái hồ sơ", value: photoProfile
-                  ? photoProfile.verification_status === "verified"
-                    ? "Đã duyệt"
-                    : photoProfile.verification_status === "pending"
-                      ? "Chờ duyệt"
-                      : photoProfile.verification_status === "rejected"
-                        ? "Bị từ chối"
-                        : String(photoProfile.verification_status || "Chưa gửi")
-                  : "Chưa gửi",
-                color: "text-emerald-600", bg: "bg-emerald-50" },
-              { label: "Thông báo", value: notifBooking || notifPromo || notifEmail || notifSms ? "Bật" : "Tắt", color: "text-amber-500", bg: "bg-amber-50" },
-            ].map((s) => (
-              <div key={s.label} className="flex items-center gap-3 rounded-2xl bg-[#f8f9fc] px-4 py-3">
-                <div className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${s.bg} ${s.color} text-lg font-black`}>
-                  {s.value}
-                </div>
-                <p className="text-[12px] font-semibold text-[#6b7280]">{s.label}</p>
-              </div>
-            ))}
-          </div>
+          {/* Stats — chỉ hiện khi có dữ liệu thật, không phải mock */}
         </div>
 
         {/* Tabs */}
-        <div className="mt-6 flex gap-1 rounded-2xl border border-[#e8eaf1] bg-white p-1.5 shadow-sm w-fit">
+        <div className="mt-5 flex gap-1 bg-white px-1 py-1 rounded-2xl w-fit shadow-sm border border-[#e8eaf1]">
           {(["Thông tin", "Đổi mật khẩu", "Thông báo", "Đăng ký thợ ảnh"] as Tab[]).map((t) => (
             <button key={t} onClick={() => setTab(t)}
-              className={`rounded-xl px-5 py-2.5 text-[13px] font-bold transition-all ${
-                tab === t ? "bg-[#ff8d28] text-white shadow-[0_6px_16px_rgba(255,141,40,0.3)]" : "text-[#6b7280] hover:text-[#ff8d28]"
+              className={`rounded-xl px-4 py-2 text-[13px] font-bold transition-all ${
+                tab === t
+                  ? "bg-[#ff8d28] text-white"
+                  : "text-[#6b7280] hover:text-[#0e111d]"
               }`}>
               {t}
             </button>
@@ -1094,18 +1071,26 @@ export default function ProfilePage() {
             </div>
 
             <div className="rounded-[24px] border border-[#e8eaf1] bg-white p-6 shadow-sm">
-              <h3 className="text-[15px] font-black text-[#0e111d]">Quy trình duyệt</h3>
-              <div className="mt-4 space-y-4">
+              <h3 className="text-[15px] font-black text-[#0e111d] mb-5">Quy trình duyệt</h3>
+              <div className="relative space-y-0">
                 {[
-                  ["1", "Gửi hồ sơ", "Điền thông tin nghề nghiệp và tải giấy tờ cá nhân."],
-                  ["2", "Admin xác minh", "Admin kiểm tra danh tính, portfolio và thông tin dịch vụ."],
-                  ["3", "Mở dashboard", "Khi được duyệt, tài khoản chuyển sang photographer."],
-                ].map(([step, title, desc]) => (
-                  <div key={step} className="flex gap-3">
-                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-orange-50 text-[12px] font-black text-[#ff8d28]">{step}</span>
-                    <div>
-                      <p className="text-[13px] font-black text-[#0e111d]">{title}</p>
-                      <p className="mt-1 text-[12px] leading-5 text-[#6b7280]">{desc}</p>
+                  ["1", "Gửi hồ sơ",      "Điền thông tin nghề nghiệp và tải giấy tờ cá nhân.",                    "bg-[#ff8d28] text-white"],
+                  ["2", "Admin xác minh", "Admin kiểm tra danh tính, portfolio và thông tin dịch vụ.",               "bg-orange-100 text-[#ff8d28]"],
+                  ["3", "Mở dashboard",   "Khi được duyệt, tài khoản chuyển sang photographer.",                     "bg-orange-100 text-[#ff8d28]"],
+                ].map(([step, title, desc, badgeCls], i, arr) => (
+                  <div key={step} className="relative flex gap-4 pb-5 last:pb-0">
+                    {/* Vertical line */}
+                    {i < arr.length - 1 && (
+                      <div className="absolute left-[15px] top-8 h-full w-px bg-[#f0e8ff]" />
+                    )}
+                    {/* Step badge */}
+                    <span className={`relative z-10 grid h-8 w-8 shrink-0 place-items-center rounded-full text-[12px] font-black shadow-sm ${badgeCls}`}>
+                      {step}
+                    </span>
+                    {/* Content */}
+                    <div className="flex-1 pt-1">
+                      <p className="text-[13px] font-black text-[#0e111d] leading-snug">{title}</p>
+                      <p className="mt-1 text-[12px] leading-5 text-[#9ca3af]">{desc}</p>
                     </div>
                   </div>
                 ))}
