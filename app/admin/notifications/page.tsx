@@ -192,10 +192,25 @@ export default function NotificationsPage() {
     }
   }
 
-  function openDetail(id: string) {
+  async function openDetail(id: string) {
     setSelectedId(id);
-    markRead(id);
+    // Preserve admin content scroll position to avoid jumping when list updates
+    const scrollEl = document.getElementById("admin-content-scroll");
+    const prevScroll = scrollEl ? scrollEl.scrollTop : 0;
+
+    // Open panel first, then mark read and restore scroll
     window.requestAnimationFrame(() => setDetailOpen(true));
+
+    try {
+      await markRead(id);
+    } catch (err) {
+      // ignore
+    }
+
+    // restore scroll after state updates
+    window.requestAnimationFrame(() => {
+      if (scrollEl) scrollEl.scrollTop = prevScroll;
+    });
   }
 
   function closeDetail() {

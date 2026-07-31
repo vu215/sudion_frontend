@@ -581,40 +581,76 @@ const locations = {
 
 const slides = [
   {
-    id: "travel",
-    image: "https://images.unsplash.com/photo-1528127269322-539801943592?auto=format&fit=crop&w=2000&q=90", // Vietnam nature
-    gradient: "from-[#fff8f1]/95 via-[#f7efe8]/75 to-black/10",
-    slogan1: "Đặt lịch chụp hình",
-    slogan2: "CÙNG SUDION",
-    slogan3: "ngay hôm nay",
-    slogan1Color: "text-slate-800",
+    id: "main",
+    image: "https://images.pexels.com/photos/1024960/pexels-photo-1024960.jpeg?auto=compress&cs=tinysrgb&w=2000",
+    gradient: "from-black/60 via-black/30 to-transparent",
+    slogan1: "Kết nối với",
+    slogan2: "PHOTOGRAPHER",
+    slogan3: "chuyên nghiệp",
+    slogan1Color: "text-white/90",
     slogan2Color: "text-[#ff8d28]",
-    slogan3Color: "text-slate-800",
-    description: "Khám phá, so sánh và đặt lịch với những Photographer uy tín, chuyên nghiệp trên toàn quốc."
-  },
-  {
-    id: "event",
-    image: "https://images.unsplash.com/photo-1513151233558-d860c5398176?auto=format&fit=crop&w=2000&q=90", // Party light
-    gradient: "from-[#fff8f1]/95 via-[#f7efe8]/75 to-black/10",
-    slogan1: "Lưu giữ khoảnh khắc",
-    slogan2: "TRỌN VẸN YÊU THƯƠNG",
-    slogan3: "ngày đặc biệt",
-    slogan1Color: "text-slate-800",
-    slogan2Color: "text-[#ff8d28]",
-    slogan3Color: "text-slate-800",
-    description: "Ghi lại những giây phút đong đầy hạnh phúc bên gia đình và bạn bè trong ngày đặc biệt."
+    slogan3Color: "text-white/90",
+    description: "Khám phá, so sánh và đặt lịch với những photographer uy tín, chuyên nghiệp trên toàn quốc."
   },
   {
     id: "wedding",
-    image: "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=2000&q=90", // Wedding
-    gradient: "from-[#fff8f1]/95 via-[#f7efe8]/75 to-black/10",
+    image: "https://images.pexels.com/photos/2253870/pexels-photo-2253870.jpeg?auto=compress&cs=tinysrgb&w=2000",
+    gradient: "from-black/60 via-black/30 to-transparent",
     slogan1: "Viết câu chuyện tình",
-    slogan2: "ĐẸP NHƯ CỔ TÍCH",
-    slogan3: "trong ngày cưới",
-    slogan1Color: "text-slate-800",
+    slogan2: "NGÀY CƯỚI",
+    slogan3: "đẹp như cổ tích",
+    slogan1Color: "text-white/90",
     slogan2Color: "text-[#ff8d28]",
-    slogan3Color: "text-slate-800",
+    slogan3Color: "text-white/90",
     description: "Dịch vụ chụp ảnh cưới chuyên nghiệp, tinh tế, đồng hành cùng tình yêu đôi lứa."
+  },
+  {
+    id: "portrait",
+    image: "https://images.pexels.com/photos/3621234/pexels-photo-3621234.jpeg?auto=compress&cs=tinysrgb&w=2000",
+    gradient: "from-black/60 via-black/30 to-transparent",
+    slogan1: "Lưu giữ mọi",
+    slogan2: "KHOẢNH KHẮC",
+    slogan3: "đáng nhớ",
+    slogan1Color: "text-white/90",
+    slogan2Color: "text-[#ff8d28]",
+    slogan3Color: "text-white/90",
+    description: "Chụp ảnh chân dung, kỷ yếu, couple theo phong cách riêng cùng photographer được chọn lọc."
+  },
+  {
+    id: "yearbook",
+    image: "https://images.pexels.com/photos/1205651/pexels-photo-1205651.jpeg?auto=compress&cs=tinysrgb&w=2000",
+    gradient: "from-black/65 via-black/35 to-transparent",
+    slogan1: "Ghi dấu tuổi thanh xuân",
+    slogan2: "KỶ YẾU",
+    slogan3: "đầy kỷ niệm",
+    slogan1Color: "text-white/90",
+    slogan2Color: "text-[#ff8d28]",
+    slogan3Color: "text-white/90",
+    description: "Bộ ảnh kỷ yếu sáng tạo, cá tính — lưu giữ tuổi học trò đẹp nhất của bạn."
+  },
+  {
+    id: "event",
+    image: "https://images.pexels.com/photos/2774556/pexels-photo-2774556.jpeg?auto=compress&cs=tinysrgb&w=2000",
+    gradient: "from-black/65 via-black/35 to-transparent",
+    slogan1: "Ghi lại từng khoảnh khắc",
+    slogan2: "SỰ KIỆN",
+    slogan3: "chuyên nghiệp",
+    slogan1Color: "text-white/90",
+    slogan2Color: "text-[#ff8d28]",
+    slogan3Color: "text-white/90",
+    description: "Nhiếp ảnh sự kiện, hội nghị, khai trương — bắt trọn không khí và cảm xúc."
+  },
+  {
+    id: "travel",
+    image: "https://images.pexels.com/photos/1271619/pexels-photo-1271619.jpeg?auto=compress&cs=tinysrgb&w=2000",
+    gradient: "from-black/60 via-black/30 to-transparent",
+    slogan1: "Đồng hành cùng",
+    slogan2: "HÀNH TRÌNH",
+    slogan3: "của bạn",
+    slogan1Color: "text-white/90",
+    slogan2Color: "text-[#ff8d28]",
+    slogan3Color: "text-white/90",
+    description: "Chụp ảnh travel, phong cảnh và lifestyle — lưu lại từng chuyến đi đáng nhớ."
   }
 ];
 
