@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/app/auth-context";
 import { saveBooking } from "../booking-store";
+import { addToBookingCart } from "../booking-cart-store";
 import { useToast } from "@/app/toast-context";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
@@ -297,9 +298,9 @@ function getCalendarDays(year: number, month: number): (number | null)[] {
 }
 
 function getAddonImage(id: string, category: string, name = ""): string {
-  const cleanId   = id.toLowerCase();
+  const cleanId = id.toLowerCase();
   const cleanName = name.toLowerCase();
-  const combined  = `${cleanId} ${cleanName}`;
+  const combined = `${cleanId} ${cleanName}`;
 
   if (combined.includes("flycam") || combined.includes("drone") || combined.includes("bay"))
     return "https://images.unsplash.com/photo-1473968512647-3e447244af8f?w=400&q=80&fit=crop";
@@ -764,7 +765,7 @@ function BookingContent() {
   // Fetch active vouchers for selection
   useEffect(() => {
     if (!photographer?.id) return;
-    
+
     async function loadActiveVouchers() {
       try {
         const queryParams = new URLSearchParams({
@@ -783,7 +784,7 @@ function BookingContent() {
         console.error("Lỗi tải active vouchers:", err);
       }
     }
-    
+
     loadActiveVouchers();
   }, [photographer?.id, email, session?.email]);
 
@@ -1409,12 +1410,12 @@ function BookingContent() {
                   <button
                     type="button"
                     onClick={() => setShowVoucherModal(true)}
-                    className="mt-2.5 text-[11.5px] font-black text-[#ff8d28] hover:text-[#e67d1f] hover:underline flex items-center gap-1.5 transition uppercase tracking-wider"
+                    className="mt-2.5 inline-flex items-center gap-1.5 text-xs font-bold text-[#ff8d28] hover:text-[#e67d1f] hover:underline transition whitespace-nowrap cursor-pointer"
                   >
-                    <svg className="h-4 w-4 text-[#ff8d28]" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                    <svg className="h-4 w-4 shrink-0 text-[#ff8d28]" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 6v.75m0 3v.75m0 3v.75m0 3V18m-9-5.25h5.25M7.5 15h3M3.375 5.25c-.621 0-1.125.504-1.125 1.125v3.026a2.999 2.999 0 010 5.198v3.026c0 .621.504 1.125 1.125 1.125h17.25c.621 0 1.125-.504 1.125-1.125v-3.026a2.999 2.999 0 010-5.198V6.375c0-.621-.504-1.125-1.125-1.125H3.375z" />
                     </svg>
-                    Chọn từ danh sách voucher {activeVouchers.length > 0 ? `(${activeVouchers.length})` : ""}
+                    <span>Chọn từ danh sách voucher {activeVouchers.length > 0 ? `(${activeVouchers.length})` : ""}</span>
                   </button>
                 </div>
               ) : (
@@ -1490,6 +1491,47 @@ function BookingContent() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
                 </svg>
               )}
+            </button>
+
+            <button
+              type="button"
+              disabled={selectedTimeBooked || !resolvedCategory}
+              onClick={() => {
+                if (!photographer) {
+                  setSubmitError("Vui lòng chọn đầy đủ thông tin.");
+                  return;
+                }
+                try {
+                  addToBookingCart({
+                    photographerId: String(photographer.id),
+                    photographerName: photographer.full_name,
+                    packageId: String(matchedPackageId),
+                    packageName: resolvedCategory === "wedding" ? (currentSubType?.label || "Chụp pre-wedding") : (matchedPackage?.name || CATEGORY_INFO[resolvedCategory]?.label || "Gói dịch vụ"),
+                    packageImage: (resolvedCategory && CATEGORY_INFO[resolvedCategory]?.image) || photographer.avatar_url || "",
+                    categorySlug: matchedPackage?.category?.originalSlug || resolvedCategory,
+                    basePrice,
+                    shootDate,
+                    shootTime,
+                    location,
+                    peopleScale: resolvedCategory === "wedding" ? (currentSubType?.label || "Chụp pre-wedding") : (selectedPeopleOption?.label || "Mặc định"),
+                    peopleExtra: subTypeExtra,
+                    scene: "",
+                    concept: specialRequest,
+                    budget: String(finalTotal),
+                    addOns: selectedAddOnsDetails,
+                    estimatedTotal: finalTotal,
+                    depositPercent: 30,
+                    depositAmount,
+                    remainingAmount: finalTotal - depositAmount,
+                  });
+                  toast.success("Đã thêm vào Giỏ Booking", "Bạn có thể tiếp tục chọn thêm dịch vụ hoặc tới Giỏ hàng để thanh toán gom.");
+                } catch (err: any) {
+                  toast.error("Trùng lịch trong giỏ", err.message || "Buổi chụp này đã có trong giỏ hàng.");
+                }
+              }}
+              className="mt-2 w-full rounded-xl border border-[#ff8d28] bg-orange-50/50 px-5 py-3 text-sm font-black text-[#ff8d28] shadow-sm transition-all hover:bg-orange-100 disabled:opacity-60 flex items-center justify-center gap-2"
+            >
+              Thêm vào Giỏ Booking
             </button>
 
             <button type="button" onClick={() => router.back()}
@@ -1571,8 +1613,8 @@ function BookingContent() {
                   Danh sách mã giảm giá (Voucher)
                 </h3>
               </div>
-              <button 
-                type="button" 
+              <button
+                type="button"
                 onClick={() => setShowVoucherModal(false)}
                 className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition"
               >
@@ -1594,18 +1636,16 @@ function BookingContent() {
                   const isEligible = isMeetMinVal && !isUsed;
 
                   return (
-                    <div 
+                    <div
                       key={v.id}
-                      className={`relative flex border rounded-xl overflow-hidden min-h-[96px] transition-all duration-200 ${
-                        isEligible 
-                          ? "border-[#ffe2c4] bg-[#fffbf7] shadow-sm hover:shadow" 
-                          : "border-gray-200 bg-gray-50/50 opacity-65"
-                      }`}
+                      className={`relative flex border rounded-xl overflow-hidden min-h-[96px] transition-all duration-200 ${isEligible
+                        ? "border-[#ffe2c4] bg-[#fffbf7] shadow-sm hover:shadow"
+                        : "border-gray-200 bg-gray-50/50 opacity-65"
+                        }`}
                     >
                       {/* Ticket Left Part - Visual Cutout */}
-                      <div className={`w-[8px] flex flex-col justify-between py-2 shrink-0 ${
-                        isEligible ? "bg-[#ff8d28]/10" : "bg-gray-200/50"
-                      }`}>
+                      <div className={`w-[8px] flex flex-col justify-between py-2 shrink-0 ${isEligible ? "bg-[#ff8d28]/10" : "bg-gray-200/50"
+                        }`}>
                         <div className="w-1.5 h-1.5 rounded-full bg-white -ml-0.5 border border-transparent shadow-[inset_-1px_0_0_rgba(0,0,0,0.05)]" />
                         <div className="w-1.5 h-1.5 rounded-full bg-white -ml-0.5 border border-transparent shadow-[inset_-1px_0_0_rgba(0,0,0,0.05)]" />
                         <div className="w-1.5 h-1.5 rounded-full bg-white -ml-0.5 border border-transparent shadow-[inset_-1px_0_0_rgba(0,0,0,0.05)]" />
@@ -1615,30 +1655,28 @@ function BookingContent() {
                       <div className="flex-1 p-3 flex items-center justify-between gap-3 min-w-0">
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider ${
-                              isEligible 
-                                ? "bg-[#ff8d28] text-white" 
-                                : "bg-gray-300 text-gray-600"
-                            }`}>
+                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider ${isEligible
+                              ? "bg-[#ff8d28] text-white"
+                              : "bg-gray-300 text-gray-600"
+                              }`}>
                               {v.code}
                             </span>
                             <span className="text-[10px] font-bold text-gray-400">
                               {v.type === "platform" ? "Sàn" : "Shop"}
                             </span>
                           </div>
-                          
-                          <h4 className={`text-xs font-black mt-1.5 truncate ${
-                            isEligible ? "text-[#0e111d]" : "text-gray-500"
-                          }`}>
+
+                          <h4 className={`text-xs font-black mt-1.5 truncate ${isEligible ? "text-[#0e111d]" : "text-gray-500"
+                            }`}>
                             {v.name}
                           </h4>
-                          
+
                           {v.description && (
                             <p className="text-[10px] text-gray-500 font-semibold mt-0.5 leading-normal line-clamp-1">
                               {v.description}
                             </p>
                           )}
-                          
+
                           <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[9.5px] font-bold text-gray-400">
                             <span>Đơn tối thiểu: {Number(v.min_booking_value).toLocaleString("vi-VN")}đ</span>
                             {v.max_discount_amount && (
@@ -1652,11 +1690,10 @@ function BookingContent() {
 
                         {/* Right Part: Value & CTA Button */}
                         <div className="flex flex-col items-end justify-between shrink-0 gap-2 h-full min-w-[100px]">
-                          <span className={`text-xs font-black text-right ${
-                            isEligible ? "text-[#ff8d28]" : "text-gray-400"
-                          }`}>
-                            {v.discount_type === "percentage" 
-                              ? `Giảm ${Number(v.discount_value)}%` 
+                          <span className={`text-xs font-black text-right ${isEligible ? "text-[#ff8d28]" : "text-gray-400"
+                            }`}>
+                            {v.discount_type === "percentage"
+                              ? `Giảm ${Number(v.discount_value)}%`
                               : `Giảm ${Number(v.discount_value).toLocaleString("vi-VN")}đ`
                             }
                           </span>
