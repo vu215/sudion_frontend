@@ -3,7 +3,7 @@
  * Calls to Backend Admin API
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://sudion-backend-production-453b.up.railway.app/api';
 
 interface ApiResponse<T = any> {
   success: boolean;
