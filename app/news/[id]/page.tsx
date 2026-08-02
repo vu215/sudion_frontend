@@ -3,15 +3,16 @@ import { notFound } from "next/navigation";
 import { articles } from "@/app/news/data";
 
 interface Params {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 export function generateStaticParams() {
   return articles.map((article) => ({ id: article.id }));
 }
 
-export default function NewsArticlePage({ params }: Params) {
-  const article = articles.find((item) => item.id === params.id);
+export default async function NewsArticlePage({ params }: Params) {
+  const { id } = await params;
+  const article = articles.find((item) => item.id === id);
   if (!article) return notFound();
 
   return (

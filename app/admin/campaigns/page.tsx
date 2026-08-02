@@ -147,8 +147,8 @@ export default function CampaignsListPage() {
               key={status}
               onClick={() => setFilterStatus(status)}
               className={`px-3.5 py-1.5 rounded-xl text-[12px] font-semibold transition ${filterStatus === status
-                  ? "bg-slate-900 text-white shadow-sm"
-                  : "text-slate-600 hover:bg-slate-50"
+                ? "bg-slate-900 text-white shadow-sm"
+                : "text-slate-600 hover:bg-slate-50"
                 }`}
             >
               {status === "ALL" ? "Tất cả" : statusConfig[status as Campaign["status"]]?.label || status}
@@ -181,7 +181,6 @@ export default function CampaignsListPage() {
           </div>
         ) : filteredCampaigns.length === 0 ? (
           <div className="flex min-h-[300px] flex-col items-center justify-center p-6 text-center">
-            <span className="text-[36px] mb-2">📢</span>
             <h3 className="text-[14px] font-semibold text-slate-800">Không tìm thấy chiến dịch</h3>
             <p className="text-slate-500 text-[12px] max-w-sm mt-1">Chưa có chiến dịch tiếp thị nào phù hợp với bộ lọc hiện tại của bạn.</p>
             <Link href="/admin/campaigns/create" className="mt-4 inline-flex h-9 items-center justify-center rounded-xl bg-indigo-600 px-4 text-[12px] font-bold text-white shadow-md hover:bg-indigo-700 transition">

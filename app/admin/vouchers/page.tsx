@@ -509,7 +509,7 @@ function CreateVoucherModal({ onClose, onSuccess }: { onClose: () => void; onSuc
               <label className="mb-1 block text-xs font-semibold text-gray-700">Loại Voucher</label>
               <select
                 value={formData.type}
-                onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
                 className="w-full rounded-xl border border-gray-300 px-3.5 py-2 text-sm focus:outline-none"
               >
                 <option value="platform">Voucher Sàn (Sàn chịu 100%)</option>
@@ -579,7 +579,7 @@ function CreateVoucherModal({ onClose, onSuccess }: { onClose: () => void; onSuc
               <label className="mb-1 block text-xs font-semibold text-gray-700">Loại giảm giá</label>
               <select
                 value={formData.discount_type}
-                onChange={(e) => setFormData({ ...formData, discount_type: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, discount_type: e.target.value as any })}
                 className="w-full rounded-xl border border-gray-300 px-3.5 py-2 text-sm focus:outline-none"
               >
                 <option value="percentage">Phần trăm (%)</option>
@@ -803,7 +803,7 @@ function EditVoucherModal({ voucher, onClose, onSuccess }: { voucher: Voucher; o
               <label className="mb-1 block text-xs font-semibold text-gray-700">Loại Voucher</label>
               <select
                 value={formData.type}
-                onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
                 className="w-full rounded-xl border border-gray-300 px-3.5 py-2 text-sm focus:outline-none"
               >
                 <option value="platform">Voucher Sàn (Sàn chịu 100%)</option>
@@ -872,7 +872,7 @@ function EditVoucherModal({ voucher, onClose, onSuccess }: { voucher: Voucher; o
               <label className="mb-1 block text-xs font-semibold text-gray-700">Loại giảm giá</label>
               <select
                 value={formData.discount_type}
-                onChange={(e) => setFormData({ ...formData, discount_type: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, discount_type: e.target.value as any })}
                 className="w-full rounded-xl border border-gray-300 px-3.5 py-2 text-sm focus:outline-none"
               >
                 <option value="percentage">Phần trăm (%)</option>
