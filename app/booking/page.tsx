@@ -1495,6 +1495,18 @@ function BookingContent() {
               type="button"
               disabled={selectedTimeBooked || !resolvedCategory}
               onClick={() => {
+                if (!session) {
+                  const draft = {
+                    photographerId, selectedCategory, selectedSubType, selectedTier,
+                    selectedPeopleScale, selectedAddOns, location, shootDate, shootTime,
+                    specialRequest, fullName, email, phone, paymentMethod, depositPercent,
+                  };
+                  localStorage.setItem("sudion_booking_draft", JSON.stringify(draft));
+                  toast.info("Cần đăng nhập", "Vui lòng đăng nhập để thêm booking vào giỏ hàng.");
+                  const returnUrl = `${window.location.pathname}${window.location.search}`;
+                  router.push(`/login?redirect=${encodeURIComponent(returnUrl)}`);
+                  return;
+                }
                 if (!photographer) {
                   setSubmitError("Vui lòng chọn đầy đủ thông tin.");
                   return;
