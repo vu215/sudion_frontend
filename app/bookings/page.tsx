@@ -38,6 +38,7 @@ type BackendBooking = {
   location: string | null;
   shoot_date: string | null;
   shoot_time: string | null;
+  shoot_end_time: string | null;
   people_scale: string | null;
   people_extra: number;
   scene: string | null;
@@ -162,6 +163,34 @@ function formatTime(value: string | null) {
   return String(value).slice(0, 5);
 }
 
+function formatBookingCreatedAt(value: string | null | undefined) {
+  if (!value) return "Không rõ thời gian";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+
+  const parts = new Intl.DateTimeFormat("vi-VN", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    hour: "2-digit",
+    minute: "2-digit",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour12: false,
+  }).formatToParts(date);
+
+  const getPart = (type: "hour" | "minute" | "day" | "month" | "year") =>
+    parts.find((part) => part.type === type)?.value || "";
+
+  return `${getPart("hour")}:${getPart("minute")} ngày ${getPart("day")}/${getPart("month")}/${getPart("year")}`;
+}
+
+function getTodayInputValue() {
+  const now = new Date();
+  const localDate = new Date(now.getTime() - now.getTimezoneOffset() * 60_000);
+  return localDate.toISOString().slice(0, 10);
+}
+
 function getRefundInfo(booking: BackendBooking) {
   if (!booking.shoot_date || !booking.shoot_time) {
     return {
@@ -233,6 +262,32 @@ async function cancelBooking(bookingCode: string, cancelReason: string) {
   return json.data;
 }
 
+async function updateBookingSchedule(
+  bookingCode: string,
+  shootDate: string,
+  shootTime: string
+) {
+  const response = await fetch(`${API_URL}/bookings/${bookingCode}/schedule`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders(),
+    },
+    body: JSON.stringify({
+      shootDate,
+      shootTime,
+    }),
+  });
+
+  const json: ApiResponse<BackendBooking> = await response.json();
+
+  if (!response.ok || !json.success) {
+    throw new Error(json.message || "Không thể cập nhật ngày giờ chụp.");
+  }
+
+  return json.data;
+}
+
 export default function BookingsPage() {
   const { session, isLoggedIn, isLoading } = useAuth();
   const router = useRouter();
@@ -252,6 +307,11 @@ export default function BookingsPage() {
   const [cancelTarget, setCancelTarget] = useState<BackendBooking | null>(null);
   const [cancelReason, setCancelReason] = useState("");
   const [isCancelling, setIsCancelling] = useState(false);
+
+  const [editTarget, setEditTarget] = useState<BackendBooking | null>(null);
+  const [editShootDate, setEditShootDate] = useState("");
+  const [editShootTime, setEditShootTime] = useState("");
+  const [isUpdatingSchedule, setIsUpdatingSchedule] = useState(false);
 
   useEffect(() => {
     if (!isLoading && !isLoggedIn) {
@@ -397,6 +457,66 @@ export default function BookingsPage() {
     }
   }
 
+  function openEditSchedule(booking: BackendBooking) {
+    setEditTarget(booking);
+    setEditShootDate(String(booking.shoot_date || "").slice(0, 10));
+    setEditShootTime(String(booking.shoot_time || "").slice(0, 5));
+    setPageError("");
+  }
+
+  function closeEditSchedule() {
+    if (isUpdatingSchedule) return;
+
+    setEditTarget(null);
+    setEditShootDate("");
+    setEditShootTime("");
+  }
+
+  async function handleUpdateSchedule() {
+    if (!editTarget) return;
+
+    if (!editShootDate || !editShootTime) {
+      toast.error("Thiếu ngày giờ", "Vui lòng chọn đầy đủ ngày chụp và giờ chụp.");
+      return;
+    }
+
+    try {
+      setIsUpdatingSchedule(true);
+      setPageError("");
+      setSuccessMessage("");
+
+      const updatedBooking = await updateBookingSchedule(
+        editTarget.booking_code,
+        editShootDate,
+        editShootTime
+      );
+
+      setBookings((current) =>
+        current.map((item) =>
+          item.booking_code === updatedBooking.booking_code ? updatedBooking : item
+        )
+      );
+
+      setSuccessMessage(
+        `Đã đổi lịch ${updatedBooking.booking_code} sang ${formatTime(updatedBooking.shoot_time)} ngày ${formatDate(updatedBooking.shoot_date)}.`
+      );
+      toast.success(
+        "Đã cập nhật ngày giờ",
+        "Photographer sẽ cần xác nhận lại lịch mới."
+      );
+      setEditTarget(null);
+      setEditShootDate("");
+      setEditShootTime("");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Không thể cập nhật ngày giờ chụp.";
+      setPageError(message);
+      toast.error("Cập nhật thất bại", message);
+    } finally {
+      setIsUpdatingSchedule(false);
+    }
+  }
+
   const cancelRefundInfo = cancelTarget ? getRefundInfo(cancelTarget) : null;
 
   return (
@@ -505,6 +625,7 @@ export default function BookingsPage() {
                     booking={booking}
                     isSelected={selectedCodes.includes(booking.booking_code)}
                     onToggleSelect={() => toggleSelectBooking(booking.booking_code)}
+                    onEditSchedule={() => openEditSchedule(booking)}
                     onCancel={() => {
                       setCancelTarget(booking);
                       setCancelReason("");
@@ -533,6 +654,76 @@ export default function BookingsPage() {
           >
             {isCreatingGroup ? "Đang xử lý..." : "Thanh toán gom 1 lần 🚀"}
           </button>
+        </div>
+      )}
+
+      {/* Edit schedule modal */}
+      {editTarget && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/45 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-[520px] rounded-[24px] bg-white p-6 shadow-2xl">
+            <p className="text-[12px] font-black uppercase tracking-[0.16em] text-[#ff8d28]">
+              Sửa lịch chụp
+            </p>
+            <h3 className="mt-2 text-[24px] font-black text-[#0e111d]">
+              Đổi ngày và giờ chụp
+            </h3>
+            <p className="mt-2 text-[13px] font-semibold text-[#6b7280]">
+              Mã booking:{" "}
+              <span className="font-black text-[#0e111d]">{editTarget.booking_code}</span>
+            </p>
+
+            <div className="mt-4 rounded-[16px] border border-[#ffedd5] bg-[#fff7ed] px-4 py-3 text-[13px] font-bold text-[#9a3412]">
+              Sau khi sửa lịch, trạng thái sẽ quay về chờ photographer xác nhận lại.
+            </div>
+
+            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              <label className="grid gap-2 text-[13px] font-extrabold text-[#0e111d]">
+                Ngày chụp mới
+                <input
+                  type="date"
+                  min={getTodayInputValue()}
+                  value={editShootDate}
+                  onChange={(event) => setEditShootDate(event.target.value)}
+                  disabled={isUpdatingSchedule}
+                  className="rounded-[14px] border border-[#e8eaf1] bg-[#fafbfc] px-4 py-3 text-[14px] font-semibold text-[#111827] outline-none focus:border-[#ff8d28] disabled:opacity-60"
+                />
+              </label>
+
+              <label className="grid gap-2 text-[13px] font-extrabold text-[#0e111d]">
+                Giờ chụp mới
+                <input
+                  type="time"
+                  value={editShootTime}
+                  onChange={(event) => setEditShootTime(event.target.value)}
+                  disabled={isUpdatingSchedule}
+                  className="rounded-[14px] border border-[#e8eaf1] bg-[#fafbfc] px-4 py-3 text-[14px] font-semibold text-[#111827] outline-none focus:border-[#ff8d28] disabled:opacity-60"
+                />
+              </label>
+            </div>
+
+            <div className="mt-5 rounded-[16px] border border-[#eef0f5] bg-[#fafbfc] px-4 py-3 text-[13px] font-semibold text-[#475569]">
+              Lịch hiện tại: {formatTime(editTarget.shoot_time)} ngày {formatDate(editTarget.shoot_date)}
+            </div>
+
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={closeEditSchedule}
+                disabled={isUpdatingSchedule}
+                className="rounded-[12px] border border-[#e8eaf1] bg-white px-4 py-3 text-[13px] font-black text-[#4b5563] disabled:opacity-60"
+              >
+                Đóng
+              </button>
+              <button
+                type="button"
+                onClick={handleUpdateSchedule}
+                disabled={isUpdatingSchedule || !editShootDate || !editShootTime}
+                className="rounded-[12px] bg-[#ff8d28] px-4 py-3 text-[13px] font-black text-white hover:bg-[#e0751b] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isUpdatingSchedule ? "Đang cập nhật..." : "Lưu ngày giờ mới"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -599,15 +790,18 @@ function BookingCard({
   booking,
   isSelected,
   onToggleSelect,
+  onEditSchedule,
   onCancel,
 }: {
   booking: BackendBooking;
   isSelected?: boolean;
   onToggleSelect?: () => void;
+  onEditSchedule: () => void;
   onCancel: () => void;
 }) {
   const statusInfo = getStatusInfo(booking.status);
   const canCancel = ["awaiting_payment", "accepted", "confirmed"].includes(booking.status);
+  const canEditSchedule = ["awaiting_payment", "accepted"].includes(booking.status);
   const isEligibleForGroupPay = ["accepted", "completed"].includes(booking.status);
 
   return (
@@ -631,6 +825,9 @@ function BookingCard({
             </h3>
             <p className="mt-1 text-[13px] font-semibold text-[#6b7280]">
               Photographer: <span className="font-black text-[#111827]">{booking.photographer_name}</span>
+            </p>
+            <p className="mt-1 text-[12px] font-bold text-[#94a3b8]">
+              Đặt lúc: <span className="text-[#475569]">{formatBookingCreatedAt(booking.created_at)}</span>
             </p>
           </div>
         </div>
@@ -680,6 +877,16 @@ function BookingCard({
               >
                 Thanh toán còn lại
               </Link>
+            )}
+
+            {canEditSchedule && (
+              <button
+                type="button"
+                onClick={onEditSchedule}
+                className="rounded-[12px] border border-[#ffcfaa] bg-[#fff7ed] px-4 py-3 text-center text-[13px] font-black text-[#ea580c] hover:bg-[#ffedd5]"
+              >
+                Sửa ngày/giờ chụp
+              </button>
             )}
 
             {canCancel && (

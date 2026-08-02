@@ -49,7 +49,9 @@ function LoginContent() {
     }
 
     if (result.user && result.user.role === "photographer") {
-      transitionTo("/photographer-dashboard");
+      const redirect =
+        searchParams.get("redirect") || "/profilephotographer/bookings";
+      transitionTo(redirect);
       return;
     }
 
