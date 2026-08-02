@@ -25,7 +25,7 @@ async function request<T>(endpoint: string, options?: RequestInit): Promise<ApiR
       'Content-Type': 'application/json',
       ...((options?.headers as Record<string, string>) || {}),
     };
-    
+
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
@@ -81,7 +81,7 @@ export const api = {
         body: JSON.stringify({ status }),
       }),
     verify: (id: number) => request(`/admin/photographers/${id}/verify`, { method: 'POST' }),
-    reject: (id: number, reason?: string) => request(`/admin/photographers/${id}/reject`, { 
+    reject: (id: number, reason?: string) => request(`/admin/photographers/${id}/reject`, {
       method: 'POST',
       body: JSON.stringify({ reason })
     }),
@@ -424,14 +424,14 @@ export const api = {
       const campaigns = JSON.parse(raw);
       const camp = campaigns.find((c: any) => c.id === id);
       if (!camp) return { success: false, error: 'Không tìm thấy chiến dịch' };
-      
+
       // Get additional mock detail elements
       const mockContents = [
         { campaign_id: id, content_type: "BANNER_COPY", title: "Ưu đãi Flash Sale", content: camp.description, image_url: "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=600&q=80", ai_generated: true },
         { campaign_id: id, content_type: "EMAIL_BODY", title: "Thư mời ưu đãi", content: `Chào bạn, cơ hội duy nhất giảm giá sâu dịch vụ của Sudion trong chiến dịch ${camp.name}! Đặt lịch ngay kẻo lỡ.`, ai_generated: true },
         { campaign_id: id, content_type: "NOTIFICATION_BODY", title: "Thông báo in-app", content: `🎁 ${camp.name} đã được kích hoạt! Giảm ngay dịch vụ & sản phẩm hot.`, ai_generated: true }
       ];
-      
+
       const mockPromotions = [
         { discount_type: camp.campaign_type === 'product' ? 'fixed_amount' : 'percentage', discount_value: camp.campaign_type === 'product' ? 1500000 : 20, target_type: camp.campaign_type === 'product' ? 'product' : 'category', target_ids: camp.campaign_type === 'product' ? 'Máy ảnh Sony A7C' : 'Chụp ảnh cưới' }
       ];
@@ -486,10 +486,10 @@ export const api = {
     },
     generate: async (prompt: string) => {
       await new Promise(r => setTimeout(r, 2200)); // Simulate AI calculation
-      
+
       const isProduct = prompt.toLowerCase().includes('máy ảnh') || prompt.toLowerCase().includes('sản phẩm');
       const isService = prompt.toLowerCase().includes('cưới') || prompt.toLowerCase().includes('couple') || prompt.toLowerCase().includes('chụp');
-      
+
       let campaign_type = "hybrid";
       if (isProduct && !isService) campaign_type = "product";
       if (isService && !isProduct) campaign_type = "service";
@@ -506,20 +506,20 @@ export const api = {
 
       const plan = {
         name: isProduct && isService ? "Flash Sale Mùa Cưới & Máy Ảnh" : isProduct ? "Ngày Hội Công Nghệ Ảnh" : "Ưu Đãi Trọn Gói Mùa Cưới",
-        description: isProduct && isService 
-          ? "Giảm 20% gói chụp cưới và 15% combo máy ảnh phụ kiện." 
-          : isProduct 
-          ? "Khuyến mãi 15% thiết bị quay chụp máy ảnh Sony và lens kit." 
-          : "Khuyến mãi 20% tất cả gói chụp cưới ngoại cảnh và ảnh đôi.",
+        description: isProduct && isService
+          ? "Giảm 20% gói chụp cưới và 15% combo máy ảnh phụ kiện."
+          : isProduct
+            ? "Khuyến mãi 15% thiết bị quay chụp máy ảnh Sony và lens kit."
+            : "Khuyến mãi 20% tất cả gói chụp cưới ngoại cảnh và ảnh đôi.",
         campaign_type,
         start_at: formatDateStr(start, "08:00"),
         end_at: formatDateStr(end, "23:59"),
         discount_value: isService ? 20 : 15,
-        target_group: isProduct && isService 
-          ? "Khách hàng quan tâm máy ảnh Sony và cặp đôi chuẩn bị cưới tại Hà Nội, TP.HCM." 
-          : isProduct 
-          ? "Người dùng đã xem danh mục camera, lens hoặc có thiết bị trong giỏ hàng." 
-          : "Người dùng thích chụp ảnh ngoại cảnh, cặp đôi đã lưu nhiếp ảnh gia yêu thích.",
+        target_group: isProduct && isService
+          ? "Khách hàng quan tâm máy ảnh Sony và cặp đôi chuẩn bị cưới tại Hà Nội, TP.HCM."
+          : isProduct
+            ? "Người dùng đã xem danh mục camera, lens hoặc có thiết bị trong giỏ hàng."
+            : "Người dùng thích chụp ảnh ngoại cảnh, cặp đôi đã lưu nhiếp ảnh gia yêu thích.",
         projection: {
           views: 12000,
           clicks: 1500,
@@ -532,24 +532,24 @@ export const api = {
           {
             content_type: "BANNER_COPY",
             title: isProduct && isService ? "SIÊU HỘI FLASH SALE MÙA CƯỚI" : isProduct ? "TUẦN LỄ THIẾT BỊ HÌNH ẢNH" : "UYÊN ƯƠNG SÁNH ĐÔI - ƯU ĐÃI TRỌN GÓI",
-            content: isProduct && isService 
-              ? "Cơ hội có một không hai! Giảm ngay 20% tất cả gói chụp cưới chuyên nghiệp từ Studio hàng đầu và giảm 15% combo máy ảnh phụ kiện chính hãng Sony. Giữ lịch ngay chỉ với 50% cọc." 
-              : isProduct 
-              ? "Nâng cấp bộ đồ nghề chụp ảnh của bạn ngay hôm nay! Giảm 15% body Sony Alpha và tặng kèm thẻ nhớ 64GB tốc độ cao." 
-              : "Lưu giữ khoảnh khắc hạnh phúc trọn vẹn tại Đà Lạt, Nha Trang. Giảm giá 20% khi đăng ký đặt lịch dịch vụ cưới ngoại cảnh trọn gói."
+            content: isProduct && isService
+              ? "Cơ hội có một không hai! Giảm ngay 20% tất cả gói chụp cưới chuyên nghiệp từ Studio hàng đầu và giảm 15% combo máy ảnh phụ kiện chính hãng Sony. Giữ lịch ngay chỉ với 50% cọc."
+              : isProduct
+                ? "Nâng cấp bộ đồ nghề chụp ảnh của bạn ngay hôm nay! Giảm 15% body Sony Alpha và tặng kèm thẻ nhớ 64GB tốc độ cao."
+                : "Lưu giữ khoảnh khắc hạnh phúc trọn vẹn tại Đà Lạt, Nha Trang. Giảm giá 20% khi đăng ký đặt lịch dịch vụ cưới ngoại cảnh trọn gói."
           },
           {
             content_type: "NOTIFICATION_BODY",
-            title: "Ưu đãi giới hạn vừa kích hoạt! 🎁",
-            content: isProduct && isService 
+            title: "Ưu đãi giới hạn vừa kích hoạt! ",
+            content: isProduct && isService
               ? "Flash sale giảm giá 20% gói chụp cưới và 15% combo thiết bị Sony đã chính thức bắt đầu. Đặt lịch và mua sắm ngay!"
               : isProduct
-              ? "Tuần lễ thiết bị bắt đầu! Giảm 15% combo máy ảnh & lens Sony. Số lượng có hạn!"
-              : "Lưu giữ câu chuyện tình yêu của bạn với ưu đãi giảm 20% gói chụp cưới ngoại cảnh. Số lượng photographer tài trợ có hạn!"
+                ? "Tuần lễ thiết bị bắt đầu! Giảm 15% combo máy ảnh & lens Sony. Số lượng có hạn!"
+                : "Lưu giữ câu chuyện tình yêu của bạn với ưu đãi giảm 20% gói chụp cưới ngoại cảnh. Số lượng photographer tài trợ có hạn!"
           },
           {
             content_type: "EMAIL_BODY",
-            title: "✨ [Sudion] Bật mí chương trình ưu đãi Flash Sale lớn nhất mùa",
+            title: " [Sudion] Bật mí chương trình ưu đãi Flash Sale lớn nhất mùa",
             content: `Kính gửi quý khách hàng,\n\nChúng tôi xin gửi tới bạn thông tin sự kiện ưu đãi đặc quyền sắp tới tại Sudion Studio.\n\nThông tin chi tiết:\n- Tên sự kiện: ${isProduct && isService ? "Flash Sale Mùa Cưới & Máy Ảnh" : isProduct ? "Ngày Hội Công Nghệ Ảnh" : "Ưu Đãi Trọn Gói Mùa Cưới"}\n- Thời gian áp dụng: Từ ngày ${formatDateStr(start, "08:00")} đến hết ${formatDateStr(end, "23:59")}.\n- Ưu đãi: Giảm ngay đến ${isService ? "20%" : "15%"} chi phí khi đặt chỗ.\n\nĐừng bỏ lỡ cơ hội giữ chỗ photographer chuyên nghiệp yêu thích nhất của bạn!\n\nTrân trọng,\nĐội ngũ Sudion.`
           }
         ],
@@ -615,7 +615,7 @@ export const api = {
       const campaigns = JSON.parse(raw);
       const camp = campaigns.find((c: any) => c.id === id);
       if (!camp) return { success: false, error: 'Không tìm thấy chiến dịch' };
-      
+
       const report = {
         executive_summary: `Chiến dịch "${camp.name}" đã hoàn thành xuất sắc mục tiêu đề ra. Việc áp dụng giảm giá tạm thời kết hợp gửi thông báo in-app và email vào khung giờ vàng (8:00 sáng) mang lại tỷ lệ chuyển đổi cao vượt kỳ vọng.`,
         strengths: [
@@ -629,7 +629,7 @@ export const api = {
         ],
         recommendations: `Đối với chiến dịch tiếp theo, khuyến nghị tăng cường cá nhân hóa email tiếp thị tới nhóm khách hàng đã thêm sản phẩm vào danh sách yêu thích hơn 14 ngày. Đồng thời, cấu hình thêm bộ lọc giới hạn số lượng booking tối đa trên mỗi photographer trong ngày để tránh quá tải.`
       };
-      
+
       return { success: true, data: report };
     }
   },
@@ -651,7 +651,7 @@ export const api = {
       await new Promise(r => setTimeout(r, 500));
       if (typeof window === 'undefined') return { success: false };
       localStorage.setItem('sudion_revenue_policy', JSON.stringify(policy));
-      
+
       const rawBookings = localStorage.getItem('sudion_revenue_bookings_v2');
       if (rawBookings) {
         const bookings = JSON.parse(rawBookings);
@@ -665,13 +665,13 @@ export const api = {
     },
     getBookingsRevenue: async () => {
       if (typeof window === 'undefined') return { success: true, data: [] };
-      
+
       try {
         // Try to fetch bookings from actual backend
         const bookingsRes = await api.bookings.getAll({ page: 1, pageSize: 100 });
         if (bookingsRes.success && bookingsRes.data) {
           const rawBookings = bookingsRes.data as any[];
-          
+
           let paymentsList: any[] = [];
           try {
             const paymentsRes = await api.payments.getAll({ page: 1, pageSize: 200 });
@@ -689,13 +689,13 @@ export const api = {
           const calculated = rawBookings.map((b: any) => {
             const id = b.booking_code || b.id;
             const total_amount = Number(b.estimated_total || b.base_price || 0);
-            
+
             // Find payments for this booking
             const bookingPayments = paymentsList.filter((p: any) => p.booking_code === id && p.status === 'completed');
-            
+
             // Compute customer_paid based on actual payments
             let customer_paid = bookingPayments.reduce((sum, p) => sum + Number(p.amount), 0);
-            
+
             // Fallback: If no payments records exist in db, infer paid amount from booking status to ensure functional UI
             if (customer_paid === 0) {
               if (b.status === 'fully_paid' || b.status === 'completed') {
@@ -705,35 +705,35 @@ export const api = {
                 customer_paid = depAmount > 0 ? depAmount : Math.round(total_amount * (defaultPct / 100));
               }
             }
-            
+
             const depAmount = Number(b.deposit_amount || 0);
             const deposit_pct = depAmount > 0 && total_amount > 0 ? Math.round((depAmount / total_amount) * 100) : defaultPct;
             const required_deposit = depAmount > 0 ? depAmount : Math.round(total_amount * deposit_pct / 100);
-            
+
             let deposit_status = "NOT_PAID";
             if (customer_paid >= required_deposit) {
               deposit_status = "PAID";
             } else if (customer_paid > 0) {
               deposit_status = "PARTIALLY_PAID";
             }
-            
+
             let booking_status: "FULLY_PAID" | "CONFIRMED" | "PENDING_PAYMENT" = "PENDING_PAYMENT";
             if (b.status === 'fully_paid' || b.status === 'completed' || customer_paid >= total_amount) {
               booking_status = "FULLY_PAID";
             } else if (b.status === 'confirmed' || b.status === 'accepted' || customer_paid >= required_deposit) {
               booking_status = "CONFIRMED";
             }
-            
+
             const platform_fee_required = Math.round(total_amount * 0.1);
             const platform_fee_collected = customer_paid >= platform_fee_required ? platform_fee_required : customer_paid;
-            
+
             const photographer_total = Math.round(total_amount * 0.9);
             const photographer_held = Math.max(customer_paid - platform_fee_collected, 0);
-            
+
             const isPhotographerPaid = b.payout_status === 'paid';
             const photographer_paid_amount = isPhotographerPaid ? photographer_total : 0;
             const photographer_remaining = Math.max(photographer_total - photographer_paid_amount, 0);
-            
+
             return {
               id,
               customer: b.customer_full_name || "Khách hàng",
@@ -754,7 +754,7 @@ export const api = {
               remaining_to_pay: Math.max(total_amount - customer_paid, 0)
             };
           });
-          
+
           return { success: true, data: calculated };
         }
       } catch (err) {
@@ -776,7 +776,7 @@ export const api = {
         localStorage.setItem('sudion_revenue_bookings_v2', JSON.stringify(defaultBookings));
         data = JSON.stringify(defaultBookings);
       }
-      
+
       const parsedBookings = JSON.parse(data);
       const calculated = parsedBookings.map((b: any) => {
         const required_deposit = Math.round(b.total_amount * b.deposit_pct / 100);
@@ -786,21 +786,21 @@ export const api = {
         } else if (b.customer_paid > 0) {
           deposit_status = "PARTIALLY_PAID";
         }
-        
+
         let booking_status = "PENDING_PAYMENT";
         if (b.customer_paid >= b.total_amount) {
           booking_status = "FULLY_PAID";
         } else if (b.customer_paid >= required_deposit) {
           booking_status = "CONFIRMED";
         }
-        
+
         const platform_fee_required = Math.round(b.total_amount * 0.1);
         const platform_fee_collected = b.customer_paid >= platform_fee_required ? platform_fee_required : b.customer_paid;
-        
+
         const photographer_total = Math.round(b.total_amount * 0.9);
         const photographer_held = Math.max(b.customer_paid - platform_fee_collected, 0);
         const photographer_remaining = Math.max(photographer_total - b.photographer_paid_amount, 0);
-        
+
         return {
           ...b,
           required_deposit,
@@ -824,14 +824,14 @@ export const api = {
           const total_amount = Number(b.estimated_total || b.base_price || 0);
           const depAmount = Number(b.deposit_amount || 0);
           const required_deposit = depAmount > 0 ? depAmount : Math.round(total_amount * 0.3);
-          
+
           let currentPaid = 0;
           if (b.status === 'fully_paid' || b.status === 'completed') {
             currentPaid = total_amount;
           } else if (b.status === 'confirmed' || b.status === 'accepted') {
             currentPaid = required_deposit;
           }
-          
+
           const newPaid = currentPaid + amount;
           let nextStatus = b.status;
           if (newPaid >= total_amount) {
@@ -839,7 +839,7 @@ export const api = {
           } else if (newPaid >= required_deposit) {
             nextStatus = "confirmed";
           }
-          
+
           const res = await api.bookings.updateStatus(bookingId, nextStatus);
           if (res.success) return res;
         }
@@ -853,7 +853,7 @@ export const api = {
       const bookings = JSON.parse(raw);
       const bIndex = bookings.findIndex((b: any) => b.id === bookingId);
       if (bIndex === -1) return { success: false, error: 'Không tìm thấy booking' };
-      
+
       bookings[bIndex].customer_paid = Math.min(bookings[bIndex].customer_paid + amount, bookings[bIndex].total_amount);
       localStorage.setItem('sudion_revenue_bookings_v2', JSON.stringify(bookings));
       return { success: true };
@@ -872,7 +872,7 @@ export const api = {
       const bookings = JSON.parse(raw);
       const bIndex = bookings.findIndex((b: any) => b.id === bookingId);
       if (bIndex === -1) return { success: false, error: 'Không tìm thấy booking' };
-      
+
       const photographer_total = Math.round(bookings[bIndex].total_amount * 0.9);
       bookings[bIndex].photographer_paid_amount = photographer_total;
       localStorage.setItem('sudion_revenue_bookings_v2', JSON.stringify(bookings));

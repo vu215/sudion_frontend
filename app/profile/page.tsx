@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/app/auth-context";
@@ -51,6 +51,14 @@ function resolveAssetUrl(url: string) {
 }
 
 export default function ProfilePage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#eef2ff] p-8 text-center text-slate-500 font-bold">Đang tải hồ sơ...</div>}>
+      <ProfileContent />
+    </Suspense>
+  );
+}
+
+function ProfileContent() {
   const searchParams = useSearchParams();
   const { session, refresh } = useAuth();
   const fileRef = useRef<HTMLInputElement>(null);
