@@ -50,7 +50,7 @@ export default function ProductsPage() {
 
       const res = await fetch(url);
       const resData = await res.json();
-      
+
       if (Array.isArray(resData)) {
         setProducts(resData);
       } else if (resData.success && Array.isArray(resData.data)) {
@@ -93,7 +93,7 @@ export default function ProductsPage() {
     <main className="bg-[#faf8fe] min-h-screen font-sans text-slate-900 pb-20 pt-10">
       <div className="mx-auto w-full max-w-[1296px] px-5 sm:px-6 lg:px-0">
         <div className="grid gap-6 md:grid-cols-[280px_1fr] lg:grid-cols-[300px_1fr] items-start">
-          
+
           {/* Bộ lọc bên trái giống trang photographer */}
           <aside className="rounded-2xl bg-white p-6 shadow-[0_8px_30px_rgb(0,0,0,0.02)] md:sticky md:top-[100px] md:self-start">
             <div className="flex items-center justify-between border-b border-slate-50 pb-4 mb-6">
@@ -146,11 +146,10 @@ export default function ProductsPage() {
                         className="flex w-full items-center gap-3 text-left !text-[14px] !font-semibold text-slate-600 hover:text-[#ff8d28] transition-colors select-none cursor-pointer"
                       >
                         <span
-                          className={`grid h-[18px] w-[18px] shrink-0 place-items-center rounded-full border transition-all ${
-                            checked
+                          className={`grid h-[18px] w-[18px] shrink-0 place-items-center rounded-full border transition-all ${checked
                               ? "border-[#ff8d28] bg-[#ff8d28]"
                               : "border-slate-300 bg-white"
-                          }`}
+                            }`}
                         >
                           {checked && (
                             <span className="h-1.5 w-1.5 rounded-full bg-white" />
@@ -194,7 +193,7 @@ export default function ProductsPage() {
           <section className="min-w-0">
             <div className="border-b border-slate-100 pb-4 mb-6">
               <h1 className="text-xl md:text-2xl font-black text-slate-900 uppercase">
-                Cửa hàng thiết bị ({products.length})
+                Cửa hàng thiết bị
               </h1>
               <p className="text-xs text-slate-400 font-bold mt-1.5">
                 Mua bán máy ảnh & phụ kiện chính hãng bảo hành uy tín

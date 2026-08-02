@@ -18,6 +18,7 @@ function CheckoutGatewayContent() {
 
   const groupCode = searchParams.get("groupCode") || "";
   const bookingCode = searchParams.get("bookingCode") || "";
+  const rentalCode = searchParams.get("rentalCode") || "";
   const paymentType = searchParams.get("paymentType") || "deposit";
   const queryAmount = Number(searchParams.get("amount") || 0);
 
@@ -26,7 +27,7 @@ function CheckoutGatewayContent() {
   const [success, setSuccess] = useState(false);
   const [groupData, setGroupData] = useState<any>(null);
 
-  const displayCode = groupCode || bookingCode;
+  const displayCode = groupCode || bookingCode || rentalCode;
   const displayAmount = groupData ? Number(groupData.total_amount || 0) : queryAmount;
 
   // Real Bank Info for VietQR
@@ -59,6 +60,16 @@ function CheckoutGatewayContent() {
               clearInterval(intervalId);
             }
           }
+        } else if (rentalCode) {
+          const res = await fetch(`${API_URL}/equipment-bookings/${rentalCode}`, { cache: "no-store" });
+          const json = await res.json();
+          if (res.ok && json.success && json.data) {
+            setGroupData({ total_amount: Number(json.data.total_price || 0) + Number(json.data.deposit_amount || 0) });
+            if (["confirmed", "active", "completed"].includes(json.data.status)) {
+              setSuccess(true);
+              clearInterval(intervalId);
+            }
+          }
         } else if (bookingCode) {
           const res = await fetch(`${API_URL}/payments/${bookingCode}`, {
             headers: authHeaders(),
@@ -80,30 +91,38 @@ function CheckoutGatewayContent() {
 
     void checkStatus();
 
-    // Auto Poll every 3 seconds for real-time bank webhook confirmation
+    // Auto Poll every 1.5 seconds for instant bank confirmation
     intervalId = setInterval(() => {
       void checkStatus();
-    }, 3000);
+    }, 1500);
 
     return () => clearInterval(intervalId);
-  }, [groupCode, bookingCode, displayCode]);
+  }, [groupCode, bookingCode, rentalCode, displayCode]);
 
   // Redirect on payment success
   useEffect(() => {
     if (success) {
-      toast.success("Thanh toán thành công!", "Hệ thống đã nhận diện giao dịch tự động qua ngân hàng.");
+      toast.success("Thanh toán thành công!", "Hệ thống đã nhận diện giao dịch qua ngân hàng.");
       const timer = setTimeout(() => {
-        router.push("/bookings");
-      }, 2500);
+        router.push(rentalCode ? "/user" : "/bookings");
+      }, 1200);
       return () => clearTimeout(timer);
     }
-  }, [success, router, toast]);
+  }, [success, router, toast, rentalCode]);
 
   const handleManualConfirm = async () => {
     try {
       setPaying(true);
 
-      if (groupCode) {
+      if (rentalCode) {
+        const res = await fetch(`${API_URL}/equipment-bookings/${rentalCode}/payment`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...authHeaders() },
+          body: JSON.stringify({ paymentMethod: "bank", transactionCode: `RENT_${Date.now()}` }),
+        });
+        const json = await res.json();
+        if (!res.ok || !json.success) throw new Error(json.message || "Không thể thanh toán đơn thuê.");
+      } else if (groupCode) {
         const res = await fetch(`${API_URL}/payments/group/${groupCode}/status`, {
           method: "POST",
           headers: {
@@ -153,24 +172,24 @@ function CheckoutGatewayContent() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-[#0e1217] text-white">
+      <div className="flex min-h-screen flex-col items-center justify-center bg-[#f8fafc] text-slate-800">
         <div className="h-12 w-12 animate-spin rounded-full border-4 border-[#ff8d28] border-t-transparent" />
-        <p className="mt-5 text-[14px] font-semibold text-slate-400">Đang khởi tạo kết nối ngân hàng...</p>
+        <p className="mt-5 text-[14px] font-semibold text-slate-500">Đang kiểm tra kết nối ngân hàng...</p>
       </div>
     );
   }
 
   if (success) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-[#0e1217] text-white px-4">
-        <div className="grid h-20 w-20 place-items-center rounded-full bg-emerald-500 text-4xl font-bold animate-bounce text-white shadow-[0_0_40px_rgba(16,185,129,0.4)]">
+      <div className="flex min-h-screen flex-col items-center justify-center bg-[#f8fafc] text-slate-800 px-4">
+        <div className="grid h-20 w-20 place-items-center rounded-full bg-emerald-500 text-4xl font-bold animate-bounce text-white shadow-lg">
           ✓
         </div>
-        <h1 className="mt-6 text-2xl font-black tracking-tight text-white">Thanh Toán Đã Nhận Thành Công!</h1>
-        <p className="mt-2 text-center text-xs text-slate-400 max-w-[360px] leading-relaxed">
-          Ngân hàng đã xác nhận biến động tài khoản. Đơn hàng đã tự động chuyển sang trạng thái <strong>ĐÃ THANH TOÁN (CONFIRMED)</strong>.
+        <h1 className="mt-6 text-2xl font-black tracking-tight text-slate-900">Thanh Toán Thành Công!</h1>
+        <p className="mt-2 text-center text-xs text-slate-500 max-w-[360px] leading-relaxed">
+          Ngân hàng đã xác nhận giao dịch. Đơn hàng đã tự động chuyển sang trạng thái <strong>ĐÃ THANH TOÁN (CONFIRMED)</strong>.
         </p>
-        <p className="mt-4 text-[11px] font-semibold text-emerald-400 animate-pulse">
+        <p className="mt-4 text-[11px] font-semibold text-emerald-600 animate-pulse">
           Đang chuyển hướng về lịch đặt của bạn...
         </p>
       </div>
@@ -178,68 +197,63 @@ function CheckoutGatewayContent() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#0e1217] px-4 py-10 text-white">
-      <div className="relative w-full max-w-[500px] overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03] p-7 shadow-2xl backdrop-blur-xl">
+    <div className="flex min-h-screen items-center justify-center bg-[#f8fafc] px-4 py-10 text-slate-800">
+      <div className="relative w-full max-w-[500px] overflow-hidden rounded-3xl border border-slate-200 bg-white p-7 shadow-2xl">
         <div className="absolute -right-24 -top-24 h-56 w-56 rounded-full bg-[#ff8d28]/10 blur-3xl" />
         
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-white/10 pb-5">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-5">
           <div className="flex items-center gap-3">
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-[#ff8d28] text-white font-black text-xs">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-[#ff8d28] text-white font-black text-xs shadow-md">
               QR
             </span>
             <div>
-              <h1 className="text-base font-extrabold tracking-tight">Thanh Toán Chuyển Khoản Ngân Hàng</h1>
-              <p className="text-[11px] text-slate-400">Tự động nhận diện giao dịch qua VietQR Webhook</p>
+              <h1 className="text-base font-extrabold tracking-tight text-slate-900">Thanh Toán Chuyển Khoản Ngân Hàng</h1>
+              <p className="text-[11px] text-slate-500">Tự động nhận diện giao dịch qua VietQR Webhook</p>
             </div>
-          </div>
-
-          <div className="flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 border border-emerald-500/20 text-[10px] font-bold text-emerald-400">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping" />
-            <span>Tự động 24/7</span>
           </div>
         </div>
 
         {/* Real VietQR Display */}
         <div className="mt-6 space-y-4 text-center">
-          <div className="inline-block rounded-2xl bg-white p-3 shadow-xl">
+          <div className="inline-block rounded-2xl bg-white p-3 shadow-lg border border-slate-100">
             <img src={qrUrl} alt="Mã VietQR" className="h-[220px] w-[220px] object-contain mx-auto" />
             <span className="block mt-2 text-[10px] font-black uppercase tracking-wider text-slate-500">
               Quét mã bằng ứng dụng ngân hàng bất kỳ
             </span>
           </div>
 
-          <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 text-left space-y-2 text-xs">
-            <div className="flex justify-between border-b border-white/5 pb-2">
-              <span className="text-slate-400">Số tiền cọc cần chuyển:</span>
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-left space-y-2 text-xs">
+            <div className="flex justify-between border-b border-slate-200 pb-2">
+              <span className="text-slate-500">Số tiền cọc cần chuyển:</span>
               <strong className="text-base font-black text-[#ff8d28]">{displayAmount.toLocaleString("vi-VN")} VND</strong>
             </div>
 
             <div className="flex justify-between">
-              <span className="text-slate-400">Ngân hàng:</span>
-              <strong className="text-slate-200">{bankInfo.bankName}</strong>
+              <span className="text-slate-500">Ngân hàng:</span>
+              <strong className="text-slate-800">{bankInfo.bankName}</strong>
             </div>
 
             <div className="flex justify-between">
-              <span className="text-slate-400">Số tài khoản:</span>
-              <strong className="text-slate-200 select-all font-mono">{bankInfo.accountNumber}</strong>
+              <span className="text-slate-500">Số tài khoản:</span>
+              <strong className="text-slate-800 select-all font-mono">{bankInfo.accountNumber}</strong>
             </div>
 
             <div className="flex justify-between">
-              <span className="text-slate-400">Chủ tài khoản:</span>
-              <strong className="text-slate-200 uppercase">{bankInfo.accountName}</strong>
+              <span className="text-slate-500">Chủ tài khoản:</span>
+              <strong className="text-slate-800 uppercase">{bankInfo.accountName}</strong>
             </div>
 
-            <div className="flex justify-between pt-1 border-t border-white/5">
-              <span className="text-slate-400">Nội dung chuyển khoản (bắt buộc):</span>
-              <span className="select-all rounded bg-orange-500/20 px-2 py-0.5 font-mono font-bold text-orange-400">
+            <div className="flex justify-between pt-1 border-t border-slate-200">
+              <span className="text-slate-500">Nội dung chuyển khoản (bắt buộc):</span>
+              <span className="select-all rounded bg-orange-100 px-2 py-0.5 font-mono font-bold text-[#ff8d28]">
                 {displayCode}
               </span>
             </div>
           </div>
 
           {/* Real-time Polling Status Indicator */}
-          <div className="flex items-center justify-center gap-2 text-xs text-slate-400 pt-2">
+          <div className="flex items-center justify-center gap-2 text-xs text-slate-500 pt-2 font-medium">
             <div className="h-2 w-2 animate-ping rounded-full bg-[#ff8d28]" />
             <span>Đang lắng nghe tín hiệu chuyển khoản từ ngân hàng...</span>
           </div>
@@ -251,15 +265,15 @@ function CheckoutGatewayContent() {
             type="button"
             disabled={paying}
             onClick={handleManualConfirm}
-            className="w-full rounded-2xl bg-[#ff8d28] py-3.5 text-xs font-extrabold text-white shadow-lg transition-all hover:bg-[#e0751b] disabled:opacity-50"
+            className="w-full rounded-2xl bg-[#ff8d28] py-3.5 text-xs font-extrabold text-white shadow-lg transition-all hover:bg-[#e0751b] active:scale-[0.99] disabled:opacity-50"
           >
-            {paying ? "Đang kiểm tra giao dịch..." : "Tôi đã chuyển khoản - Kiểm tra ngay"}
+            {paying ? "Đang xác nhận giao dịch..." : "Tôi đã chuyển khoản - Kiểm tra ngay"}
           </button>
 
           <button
             type="button"
             onClick={() => router.back()}
-            className="w-full rounded-2xl border border-white/10 bg-transparent py-3 text-xs font-semibold text-slate-400 hover:text-white"
+            className="w-full rounded-2xl border border-slate-200 bg-white py-3 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
           >
             Quay lại
           </button>
@@ -274,9 +288,9 @@ export default function CheckoutGatewayPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-screen flex-col items-center justify-center bg-[#0e1217] text-white">
+        <div className="flex min-h-screen flex-col items-center justify-center bg-[#f8fafc] text-slate-800">
           <div className="h-12 w-12 animate-spin rounded-full border-4 border-[#ff8d28] border-t-transparent" />
-          <p className="mt-5 text-[14px] font-semibold text-slate-400">Đang tải...</p>
+          <p className="mt-5 text-[14px] font-semibold text-slate-500">Đang tải...</p>
         </div>
       }
     >

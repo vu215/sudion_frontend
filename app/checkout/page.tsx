@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/auth-context";
 import { useToast } from "@/app/toast-context";
-import { readCart, clearCart, getCartTotal, CartItem } from "@/app/cart-store";
+import { readCart, clearCart, readBuyNow, clearBuyNow, CartItem } from "@/app/cart-store";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
@@ -39,6 +39,7 @@ const STORAGE_ADDRESS_KEY = "sudion_saved_address_list_v2";
 
 export default function CheckoutPage() {
   const router = useRouter();
+  const [isBuyNow, setIsBuyNow] = useState(false);
   const toast = useToast();
   const { session } = useAuth();
 
@@ -68,6 +69,10 @@ export default function CheckoutPage() {
   const [paymentMethod, setPaymentMethod] = useState("cod");
   const [shippingMethod, setShippingMethod] = useState("standard");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    setIsBuyNow(new URLSearchParams(window.location.search).get("mode") === "buy-now");
+  }, []);
 
   // Vietnam Cascading Location Data
   const [provinces, setProvinces] = useState<VnLocation[]>([]);
@@ -115,9 +120,9 @@ export default function CheckoutPage() {
   }, [selectedDistrict]);
 
   useEffect(() => {
-    const cartItems = readCart();
+    const cartItems = isBuyNow ? readBuyNow() : readCart();
     setItems(cartItems);
-    setTotalPrice(getCartTotal());
+    setTotalPrice(cartItems.reduce((sum, item) => sum + item.gia_ban * item.so_luong, 0));
 
     if (typeof window !== "undefined") {
       try {
@@ -147,7 +152,7 @@ export default function CheckoutPage() {
         console.error("Lỗi đọc địa chỉ checkout:", e);
       }
     }
-  }, [session]);
+  }, [session, isBuyNow]);
 
   const saveAddressListToStorage = (list: SavedAddressItem[]) => {
     setAddressList(list);
@@ -306,9 +311,30 @@ export default function CheckoutPage() {
 
       const resData = await res.json();
       if (res.ok && resData.success) {
-        clearCart();
+        if (isBuyNow) clearBuyNow();
+        else clearCart();
+        if (typeof window !== "undefined") {
+          const completedOrder = {
+            ...resData.order,
+            created_at: resData.order?.created_at || new Date().toISOString(),
+          };
+          window.sessionStorage.setItem("sudion-last-order", JSON.stringify(completedOrder));
+
+          // Giữ lịch sử dự phòng theo tài khoản để đơn mới không ghi đè đơn cũ
+          // trong trường hợp API lịch sử tạm thời chưa đồng bộ.
+          const accountKey = String(session?.userId || session?.email || "guest").toLowerCase();
+          const historyKey = `sudion-order-history:${accountKey}`;
+          try {
+            const rawHistory = window.localStorage.getItem(historyKey);
+            const history = rawHistory ? JSON.parse(rawHistory) : [];
+            const withoutCurrent = Array.isArray(history)
+              ? history.filter((order: any) => String(order.id) !== String(completedOrder.id))
+              : [];
+            window.localStorage.setItem(historyKey, JSON.stringify([completedOrder, ...withoutCurrent]));
+          } catch { /* database vẫn là nguồn dữ liệu chính */ }
+        }
         toast.success("Thành công", "Đơn hàng đã được đặt thành công!");
-        router.push("/checkout/success");
+        router.push(`/checkout/success?orderId=${resData.order?.id || ""}`);
       } else {
         toast.error("Lỗi", resData.message || "Lỗi khi đặt hàng.");
       }

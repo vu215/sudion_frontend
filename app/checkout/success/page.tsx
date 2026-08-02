@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import confetti from "canvas-confetti";
 
 export default function CheckoutSuccessPage() {
+  const [orderId, setOrderId] = useState("");
   useEffect(() => {
+    setOrderId(new URLSearchParams(window.location.search).get("orderId") || "");
     const duration = 4 * 1000;
     const animationEnd = Date.now() + duration;
     const defaults = { startVelocity: 28, spread: 360, ticks: 60, zIndex: 9999 };
@@ -53,14 +55,16 @@ export default function CheckoutSuccessPage() {
           Cảm ơn bạn đã tin tưởng mua sắm tại **Sudion Store**. Đơn hàng của bạn đã được tiếp nhận và đang trong quá trình xử lý. Nhân viên của chúng tôi sẽ liên hệ xác nhận trong thời gian sớm nhất!
         </p>
 
+        {orderId ? <p className="-mt-5 mb-7 text-sm font-bold text-slate-700">Mã đơn: #DH{orderId}</p> : null}
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Link href="/products" className="bg-slate-50 border border-slate-200 text-slate-700 font-extrabold py-3.5 rounded-2xl hover:bg-slate-100 transition-all flex items-center justify-center gap-2 text-xs cursor-pointer">
             <span className="material-symbols-outlined text-sm">shopping_bag</span>
             Tiếp tục mua sắm
           </Link>
-          <Link href="/" className="bg-gradient-to-r from-[#ff5e00] to-[#ff3c00] text-white font-extrabold py-3.5 rounded-2xl shadow-lg shadow-orange-500/20 hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 text-xs cursor-pointer">
-            <span className="material-symbols-outlined text-sm">home</span>
-            Về trang chủ
+          <Link href="/user" className="bg-gradient-to-r from-[#ff5e00] to-[#ff3c00] text-white font-extrabold py-3.5 rounded-2xl shadow-lg shadow-orange-500/20 hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 text-xs cursor-pointer">
+            <span className="material-symbols-outlined text-sm">receipt_long</span>
+            Xem lịch sử đơn
           </Link>
         </div>
       </div>
