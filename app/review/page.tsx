@@ -138,7 +138,7 @@ function ReviewContent() {
     }
   }, [bookingQuery]);
 
-  const canReview = booking?.status === "completed" && !existingReview;
+  const canReview = booking?.status === "fully_paid" && !existingReview;
 
   const ratingLabel = useMemo(() => {
     const value = hoverRating || rating;
@@ -359,24 +359,21 @@ function ReviewContent() {
                     {existingReview.comment || "Khách chưa nhập nhận xét."}
                   </p>
                 </div>
-              ) : booking && booking.status !== "completed" ? (
+              ) : booking && booking.status !== "fully_paid" ? (
                 <div className="grid place-items-center py-10 text-center">
                   <h2 className="text-[28px] font-black tracking-[-0.04em]">
                     Chưa thể đánh giá
                   </h2>
 
                   <p className="mt-3 max-w-[520px] text-[15px] font-semibold leading-7 text-[#64748b]">
-                    Booking chỉ được đánh giá sau khi photographer đánh dấu
-                    trạng thái là <span className="font-black">completed</span>.
+                    Booking chỉ được đánh giá sau khi đã hoàn thành buổi chụp và thanh toán đầy đủ.
                   </p>
 
                   <Link
-                    href={`/booking-success/confirmed/${encodeURIComponent(
-                      booking.booking_code
-                    )}`}
+                    href="/bookings"
                     className="mt-6 rounded-[14px] bg-[#111827] px-5 py-3 text-[13px] font-black text-white transition-all hover:bg-[#0f172a]"
                   >
-                    Xem chi tiết booking
+                    Xem danh sách booking
                   </Link>
                 </div>
               ) : booking && canReview ? (

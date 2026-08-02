@@ -421,6 +421,7 @@ function BookingContent() {
     return "pre-wedding";
   });
   const [selectedTier, setSelectedTier] = useState<"basic" | "standard" | "premium">("standard");
+  const [selectedPackageId, setSelectedPackageId] = useState<string | number>("");
   const [selectedPeopleScale, setSelectedPeopleScale] = useState("");
   const [selectedAddOns, setSelectedAddOns] = useState<string[]>([]);
   const [apiAddOns, setApiAddOns] = useState<Array<{ id: string; name: string; price: number; note?: string }>>([]);
@@ -494,8 +495,8 @@ function BookingContent() {
   // Find a matching packageId from the API data for submission
   const matchedPackage = useMemo(() => {
     if (!resolvedCategory || !packages.length) return null;
-    return packages.find((p) => p.category.slug === resolvedCategory) || packages[0] || null;
-  }, [resolvedCategory, packages]);
+    return packages.find((p) => String(p.id) === String(selectedPackageId)) || packages[0] || null;
+  }, [resolvedCategory, packages, selectedPackageId]);
 
   const matchedPackageId = useMemo(() => {
     return matchedPackage?.id || 0;
@@ -503,18 +504,15 @@ function BookingContent() {
 
   // ── Price calculation ──
   const basePrice = useMemo(() => {
-    if (resolvedCategory === "wedding") {
-      return currentTier?.price || 0;
-    }
     return matchedPackage?.price || 0;
-  }, [resolvedCategory, currentTier, matchedPackage]);
+  }, [matchedPackage]);
 
   const subTypeExtra = useMemo(() => {
     if (resolvedCategory === "wedding") {
-      return currentSubType?.extra || 0;
+      return 0; // Gói cưới trong database đã trọn gói, không cộng thêm phụ phí loại hình
     }
     return selectedPeopleOption?.extra || 0;
-  }, [resolvedCategory, currentSubType, selectedPeopleOption]);
+  }, [resolvedCategory, selectedPeopleOption]);
 
   const addOnTotal = useMemo(() => {
     return apiAddOns.filter((a) => selectedAddOns.includes(a.id)).reduce((sum, a) => sum + a.price, 0);
@@ -536,6 +534,63 @@ function BookingContent() {
     () => apiAddOns.filter((a) => selectedAddOns.includes(a.id)).map((a) => ({ id: a.id, name: a.name, price: a.price })),
     [selectedAddOns, apiAddOns]
   );
+
+  // Sắp xếp voucher theo độ phù hợp
+  const sortedVouchers = useMemo(() => {
+    if (!activeVouchers) return [];
+
+    const getDiscountAmount = (v: any, total: number) => {
+      let discount = 0;
+      if (v.discount_type === "percentage") {
+        discount = total * (Number(v.discount_value) / 100);
+        if (v.max_discount_amount) {
+          discount = Math.min(discount, Number(v.max_discount_amount));
+        }
+      } else {
+        discount = Math.min(Number(v.discount_value), total);
+      }
+      return Math.round(discount);
+    };
+
+    return [...activeVouchers].sort((a, b) => {
+      const aMeetMin = estimatedTotal >= Number(a.min_booking_value);
+      const bMeetMin = estimatedTotal >= Number(b.min_booking_value);
+
+      const aUsed = a.has_used;
+      const bUsed = b.has_used;
+
+      const aEligible = aMeetMin && !aUsed;
+      const bEligible = bMeetMin && !bUsed;
+
+      // 1. Ưu tiên voucher hợp lệ trước
+      if (aEligible !== bEligible) {
+        return aEligible ? -1 : 1;
+      }
+
+      // 2. Nếu cả hai đều hợp lệ, sắp xếp theo số tiền giảm thực tế giảm dần
+      if (aEligible && bEligible) {
+        const aDiscount = getDiscountAmount(a, estimatedTotal);
+        const bDiscount = getDiscountAmount(b, estimatedTotal);
+        if (aDiscount !== bDiscount) {
+          return bDiscount - aDiscount;
+        }
+      }
+
+      // 3. Nếu cả hai đều không hợp lệ, ưu tiên voucher chưa dùng (chỉ thiếu min_booking_value) hơn voucher đã dùng
+      if (aUsed !== bUsed) {
+        return aUsed ? 1 : -1;
+      }
+
+      // 4. Sắp xếp theo tiềm năng giảm giá tối đa giảm dần
+      const aPotDiscount = getDiscountAmount(a, Math.max(estimatedTotal, Number(a.min_booking_value)));
+      const bPotDiscount = getDiscountAmount(b, Math.max(estimatedTotal, Number(b.min_booking_value)));
+      if (aPotDiscount !== bPotDiscount) {
+        return bPotDiscount - aPotDiscount;
+      }
+
+      return Number(b.discount_value) - Number(a.discount_value);
+    });
+  }, [activeVouchers, estimatedTotal]);
 
   // ── Effects ──
   // Load draft if it exists on mount
@@ -695,6 +750,17 @@ function BookingContent() {
     };
   }, [photographerId, selectedCategory, allPackages]);
 
+  // Tự động đồng bộ gói đã chọn khi danh sách packages thay đổi
+  useEffect(() => {
+    if (packages.length > 0) {
+      const serviceParam = searchParams.get("service")?.trim();
+      const matched = serviceParam ? packages.find(p => p.name.toLowerCase() === serviceParam.toLowerCase()) : null;
+      setSelectedPackageId(matched ? matched.id : packages[0].id);
+    } else {
+      setSelectedPackageId("");
+    }
+  }, [packages, searchParams]);
+
   // Handle changing category
   const handleSelectCategory = useCallback((slug: string) => {
     setSelectedCategory(slug);
@@ -722,7 +788,7 @@ function BookingContent() {
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!photographer) { setSubmitError("Vui lòng chọn đầy đủ thông tin."); return; }
-    if (resolvedCategory === "wedding" && !currentTier) { setSubmitError("Vui lòng chọn gói dịch vụ."); return; }
+    if (resolvedCategory === "wedding" && !matchedPackage) { setSubmitError("Vui lòng chọn gói dịch vụ."); return; }
     if (selectedTimeBooked) { setSubmitError("Khung giờ này đã được book."); return; }
 
     // Check authentication. If guest, save draft and prompt modal
@@ -758,7 +824,7 @@ function BookingContent() {
         categorySlug: matchedPackage?.category?.originalSlug || resolvedCategory,
         availabilitySlotLabel: shootTime,
         location, shootDate, shootTime,
-        peopleScale: resolvedCategory === "wedding" ? (currentSubType?.label || "Chụp pre-wedding") : (selectedPeopleOption?.label || "Mặc định"),
+        peopleScale: resolvedCategory === "wedding" ? (matchedPackage?.name || "Chụp pre-wedding") : (selectedPeopleOption?.label || "Mặc định"),
         peopleExtra: subTypeExtra,
         addOnTotal: addOnTotal,
         addOns: selectedAddOnsDetails,
@@ -766,6 +832,11 @@ function BookingContent() {
         budget: String(finalTotal),
         scene: "",
         paymentMethod,
+<<<<<<< Updated upstream
+=======
+        depositPercent: 30,
+        voucherCode: appliedVoucher ? appliedVoucher.code : undefined,
+>>>>>>> Stashed changes
         customer: {
           fullName: fullName || session?.fullName || "Khách vãng lai",
           phone,
@@ -946,53 +1017,8 @@ function BookingContent() {
                 </div>
               )}
 
-              {/* ── Sub-type selector (wedding): 3-column compact cards ── */}
-              {resolvedCategory === "wedding" && (
-                <div className="mt-6">
-                  <p className="text-[13px] font-black text-[#0e111d]">Loại hình chụp ảnh</p>
-                  <div className="mt-3 grid grid-cols-3 gap-2">
-                    {visibleSubTypes.map((sub) => {
-                      const active = selectedSubType === sub.id;
-                      return (
-                        <button key={sub.id} type="button" onClick={() => setSelectedSubType(sub.id)}
-                          className={`group flex items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left transition-all ${active ? "border-[#ff8d28] bg-[#fff4eb]" : "border-[#e8eaf1] bg-white hover:border-[#ffb970]"
-                            }`}>
-                          {/* Radio */}
-                          <span className={`h-4 w-4 shrink-0 rounded-full border-2 flex items-center justify-center transition-all ${active ? "border-[#ff8d28]" : "border-[#d1d5db]"}`}>
-                            {active && <span className="h-2 w-2 rounded-full bg-[#ff8d28]" />}
-                          </span>
-                          {/* Image */}
-                          <div className="relative h-10 w-12 shrink-0 overflow-hidden rounded-lg bg-[#f3f4f6]">
-                            <Image src={sub.image} alt={sub.label} fill className="object-cover" sizes="48px" unoptimized />
-                          </div>
-                          {/* Text */}
-                          <div className="min-w-0 flex-1">
-                            <span className={`block text-[11px] font-bold leading-tight ${active ? "text-[#ff8d28]" : "text-[#0e111d]"}`}>
-                              {sub.label}
-                            </span>
-                            <span className="block text-[10px] font-semibold text-[#ff8d28] mt-0.5">
-                              {sub.extra > 0 ? `+${formatCurrency(sub.extra)}` : "Giá gốc"}
-                            </span>
-                          </div>
-                        </button>
-                      );
-                    })}
-
-                    {/* Xem thêm / Thu gọn */}
-                    {WEDDING_SUBTYPES.length > 5 && (
-                      <button type="button" onClick={() => setShowMoreSubTypes(!showMoreSubTypes)}
-                        className="flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-[#d1d5db] bg-white px-3 py-2.5 text-center transition hover:border-[#ff8d28] hover:bg-[#fff4eb]">
-                        <svg className={`h-3 w-3 text-[#ff8d28] transition-transform duration-200 ${showMoreSubTypes ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                        </svg>
-                        <span className="text-[11px] font-bold text-[#4b5563]">
-                          {showMoreSubTypes ? "Thu gọn" : `Xem thêm (${WEDDING_SUBTYPES.length - 5})`}
-                        </span>
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )}
+              {/* ── Sub-type selector (wedding) ── */}
+              {/* Ẩn loại hình chụp ảnh cưới cứng để chọn trực tiếp theo gói thực tế bên dưới */}
 
               {/* ── Dropdown Quy mô (Non-Wedding) ── */}
               {resolvedCategory && resolvedCategory !== "wedding" && currentPeopleOptions.length > 0 && (
@@ -1017,46 +1043,27 @@ function BookingContent() {
                 </div>
               )}
 
-              {/* ── Package Tier selector (Wedding) ── */}
-              {resolvedCategory === "wedding" && tiers.length > 0 && (
+              {/* ── Dynamic Package selector from Database (Wedding) ── */}
+              {resolvedCategory === "wedding" && packages.length > 0 && (
                 <div className="mt-6">
-                  <p className="text-[13px] font-black text-[#0e111d]">Chọn gói dịch vụ</p>
-                  <div className="mt-3 grid gap-3 sm:grid-cols-3">
-                    {tiers.map((tier) => {
-                      const active = selectedTier === tier.tier;
+                  <p className="text-[13px] font-black text-[#0e111d]">Chọn gói dịch vụ cưới của photographer</p>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    {packages.map((pkg) => {
+                      const active = String(selectedPackageId) === String(pkg.id);
                       return (
-                        <div key={tier.tier}
-                          className={`relative rounded-xl border transition-all flex flex-col ${active ? "border-[#ff8d28] bg-[#fff4eb] shadow-[0_8px_20px_rgba(255,141,40,0.08)]" : "border-[#e8eaf1] bg-white hover:border-[#ffb970]"
-                            }`}>
-                          {tier.recommended && (
-                            <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 rounded-full bg-[#ff8d28] px-3 py-0.5 text-[9px] font-black text-white whitespace-nowrap uppercase tracking-wider">
-                              Popular
-                            </span>
-                          )}
-                          <div className="p-4 flex-1">
-                            <span className={`block text-xs font-black uppercase tracking-wider ${active ? "text-[#ff8d28]" : "text-[#6b7280]"}`}>{tier.label}</span>
-                            <span className="block mt-1 text-lg font-black text-[#ff8d28]">{formatCurrency(tier.price)}</span>
-                            <ul className="mt-3 grid gap-1.5 border-t border-[#f1f3f7] pt-3">
-                              {tier.features.map((f) => (
-                                <li key={f} className="flex items-start gap-1.5 text-[11px] font-semibold text-[#4b5563]">
-                                  <svg className="h-3.5 w-3.5 text-[#ff8d28] shrink-0 mt-0.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                  </svg>
-                                  {f}
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                          <div className="p-4 pt-0">
-                            <button type="button" onClick={() => setSelectedTier(tier.tier)}
-                              className={`w-full rounded-lg py-2.5 text-xs font-bold transition-all ${active
-                                ? "bg-[#ff8d28] text-white shadow"
-                                : "border border-[#e8eaf1] bg-white text-[#4b5563] hover:border-[#ff8d28] hover:text-[#ff8d28]"
-                                }`}>
-                              {active ? "Đã chọn" : "Chọn gói"}
-                            </button>
-                          </div>
-                        </div>
+                        <button
+                          key={pkg.id}
+                          type="button"
+                          onClick={() => setSelectedPackageId(pkg.id)}
+                          className={`relative rounded-xl border p-5 transition-all text-left flex flex-col ${active ? "border-[#ff8d28] bg-[#fff4eb] shadow-[0_8px_20px_rgba(255,141,40,0.08)]" : "border-[#e8eaf1] bg-white hover:border-[#ffb970]"}`}
+                        >
+                          <span className={`block text-xs font-black uppercase tracking-wider ${active ? "text-[#ff8d28]" : "text-[#6b7280]"}`}>Gói dịch vụ</span>
+                          <span className="block mt-1.5 text-base font-black text-[#ff8d28]">{pkg.name}</span>
+                          <span className="block mt-1 text-lg font-black text-[#0e111d]">{formatCurrency(pkg.price)}</span>
+                          <p className="mt-3 text-[11px] font-semibold text-[#4b5563] leading-relaxed">
+                            {pkg.description || "Chụp ảnh cưới chuyên nghiệp, hỗ trợ trang phục và concept theo yêu cầu."}
+                          </p>
+                        </button>
                       );
                     })}
                   </div>
@@ -1255,14 +1262,9 @@ function BookingContent() {
                 </span>
                 <div className="min-w-0">
                   <p className="text-[13px] font-black text-[#0e111d] truncate">
-                    {resolvedCategory === "wedding"
-                      ? (currentSubType?.label || "Chụp pre-wedding")
-                      : (matchedPackage?.name || CATEGORY_INFO[resolvedCategory]?.label)}
+                    {matchedPackage?.name || CATEGORY_INFO[resolvedCategory]?.label || "Dịch vụ"}
                   </p>
                   <p className="mt-0.5 text-[11px] font-semibold text-[#6b7280]">{photographer.full_name}</p>
-                  {resolvedCategory === "wedding" && currentTier && (
-                    <p className="mt-0.5 text-[11px] font-bold text-[#ff8d28]">GÓI {currentTier.label.toUpperCase()}</p>
-                  )}
                 </div>
               </div>
             )}
@@ -1399,6 +1401,154 @@ function BookingContent() {
                 className="rounded-xl bg-[#ff8d28] px-5 py-2.5 text-[11px] font-black text-white shadow-sm transition hover:bg-[#e67d1f]"
               >
                 Đăng nhập ngay
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+<<<<<<< Updated upstream
+=======
+
+      {/* ── MODAL CHỌN VOUCHER (POPUP NỔI) ── */}
+      {showVoucherModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/55 p-4 backdrop-blur-sm transition-all duration-300">
+          <div className="w-full max-w-[480px] rounded-2xl border border-[#e5deed] bg-white p-6 shadow-[0_24px_64px_rgba(20,16,35,0.18)] ring-1 ring-black/5 flex flex-col max-h-[85vh]">
+            <div className="flex items-center justify-between border-b border-[#f1eef6] pb-4">
+              <div className="flex items-center gap-2.5">
+                <span className="grid h-9 w-9 place-items-center rounded-full bg-[#fff3eb] text-[#ff8d28]">
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 6v.75m0 3v.75m0 3v.75m0 3V18m-9-5.25h5.25M7.5 15h3M3.375 5.25c-.621 0-1.125.504-1.125 1.125v3.026a2.999 2.999 0 010 5.198v3.026c0 .621.504 1.125 1.125 1.125h17.25c.621 0 1.125-.504 1.125-1.125v-3.026a2.999 2.999 0 010-5.198V6.375c0-.621-.504-1.125-1.125-1.125H3.375z" />
+                  </svg>
+                </span>
+                <h3 className="text-[16px] font-black text-[#14151f]">
+                  Danh sách mã giảm giá (Voucher)
+                </h3>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => setShowVoucherModal(false)}
+                className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition"
+              >
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="mt-4 flex-1 overflow-y-auto pr-1 py-1 space-y-3">
+              {sortedVouchers.length === 0 ? (
+                <div className="text-center py-8 text-gray-500 font-semibold text-xs">
+                  Hiện không có mã giảm giá nào khả dụng cho bạn.
+                </div>
+              ) : (
+                sortedVouchers.map((v) => {
+                  const isMeetMinVal = estimatedTotal >= Number(v.min_booking_value);
+                  const isUsed = v.has_used;
+                  const isEligible = isMeetMinVal && !isUsed;
+
+                  return (
+                    <div 
+                      key={v.id}
+                      className={`relative flex border rounded-xl overflow-hidden min-h-[96px] transition-all duration-200 ${
+                        isEligible 
+                          ? "border-[#ffe2c4] bg-[#fffbf7] shadow-sm hover:shadow" 
+                          : "border-gray-200 bg-gray-50/50 opacity-65"
+                      }`}
+                    >
+                      {/* Ticket Left Part - Visual Cutout */}
+                      <div className={`w-[8px] flex flex-col justify-between py-2 shrink-0 ${
+                        isEligible ? "bg-[#ff8d28]/10" : "bg-gray-200/50"
+                      }`}>
+                        <div className="w-1.5 h-1.5 rounded-full bg-white -ml-0.5 border border-transparent shadow-[inset_-1px_0_0_rgba(0,0,0,0.05)]" />
+                        <div className="w-1.5 h-1.5 rounded-full bg-white -ml-0.5 border border-transparent shadow-[inset_-1px_0_0_rgba(0,0,0,0.05)]" />
+                        <div className="w-1.5 h-1.5 rounded-full bg-white -ml-0.5 border border-transparent shadow-[inset_-1px_0_0_rgba(0,0,0,0.05)]" />
+                      </div>
+
+                      {/* Main Ticket Card Content */}
+                      <div className="flex-1 p-3 flex items-center justify-between gap-3 min-w-0">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider ${
+                              isEligible 
+                                ? "bg-[#ff8d28] text-white" 
+                                : "bg-gray-300 text-gray-600"
+                            }`}>
+                              {v.code}
+                            </span>
+                            <span className="text-[10px] font-bold text-gray-400">
+                              {v.type === "platform" ? "STUDION" : "Shop"}
+                            </span>
+                          </div>
+                          
+                          <h4 className={`text-xs font-black mt-1.5 truncate ${
+                            isEligible ? "text-[#0e111d]" : "text-gray-500"
+                          }`}>
+                            {v.name}
+                          </h4>
+                          
+                          {v.description && (
+                            <p className="text-[10px] text-gray-500 font-semibold mt-0.5 leading-normal line-clamp-1">
+                              {v.description}
+                            </p>
+                          )}
+                          
+                          <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[9.5px] font-bold text-gray-400">
+                            <span>Đơn tối thiểu: {Number(v.min_booking_value).toLocaleString("vi-VN")}đ</span>
+                            {v.max_discount_amount && (
+                              <>
+                                <span>•</span>
+                                <span>Tối đa: {Number(v.max_discount_amount).toLocaleString("vi-VN")}đ</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Right Part: Value & CTA Button */}
+                        <div className="flex flex-col items-end justify-between shrink-0 gap-2 h-full min-w-[100px]">
+                          <span className={`text-xs font-black text-right ${
+                            isEligible ? "text-[#ff8d28]" : "text-gray-400"
+                          }`}>
+                            {v.discount_type === "percentage" 
+                              ? `Giảm ${Number(v.discount_value)}%` 
+                              : `Giảm ${Number(v.discount_value).toLocaleString("vi-VN")}đ`
+                            }
+                          </span>
+
+                          {isUsed ? (
+                            <span className="rounded-lg bg-gray-200 px-3 py-1 text-[10px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                              Đã dùng
+                            </span>
+                          ) : !isMeetMinVal ? (
+                            <span className="text-[9px] font-bold text-red-500 text-right leading-tight max-w-[90px] whitespace-normal">
+                              Thiếu {(Number(v.min_booking_value) - estimatedTotal).toLocaleString("vi-VN")}đ
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                applyVoucherCode(v.code);
+                                setShowVoucherModal(false);
+                              }}
+                              className="rounded-lg bg-[#ff8d28] px-3.5 py-1 text-[10px] font-black text-white hover:bg-[#e67d1f] shadow-sm transition-all uppercase tracking-wider whitespace-nowrap"
+                            >
+                              Áp dụng
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            <div className="mt-5 flex items-center justify-end gap-2.5 border-t border-[#f1eef6] pt-4">
+              <button
+                type="button"
+                onClick={() => setShowVoucherModal(false)}
+                className="rounded-xl border border-[#ddd8e8] bg-white px-5 py-2.5 text-[11px] font-black text-[#6c6878] transition hover:bg-[#fafbfc]"
+              >
+                Đóng
               </button>
             </div>
           </div>

@@ -607,13 +607,33 @@ function PhotographerProfileContent({ id }: { id: string }) {
           const json = await res.json();
           if (json.success && json.data) {
             const data = json.data;
+
+            // Tải danh sách review thực tế từ database
+            let dbReviews: any[] = [];
+            try {
+              const revRes = await fetch(`${API_URL}/reviews/photographer/${id}`);
+              if (revRes.ok) {
+                const revJson = await revRes.json();
+                if (revJson.success && Array.isArray(revJson.data)) {
+                  dbReviews = revJson.data.map((r: any) => ({
+                    name: r.customer_name || "Khách hàng",
+                    time: new Date(r.created_at).toLocaleDateString("vi-VN"),
+                    rating: Number(r.rating || 5),
+                    text: r.comment || "Khách hàng không để lại nhận xét."
+                  }));
+                }
+              }
+            } catch (revErr) {
+              console.error("Lỗi tải review thực tế:", revErr);
+            }
+
             const mappedPerson = {
               id: String(data.photographer.id),
               name: data.photographer.full_name,
               title: data.photographer.photographer_type === "individual" ? "Cá nhân" : "Studio",
               location: data.photographer.active_area || "Việt Nam",
               rating: String(data.photographer.avg_rating || "4.8"),
-              reviewCount: data.packages?.reduce((acc: number, p: any) => acc + (p.review_count || 0), 0) || 45,
+              reviewCount: dbReviews.length || data.packages?.reduce((acc: number, p: any) => acc + (p.review_count || 0), 0) || 0,
               badge: data.photographer.verification_status === "verified" ? "Top Rated Photographer" : "Professional Photographer",
               image: resolveAssetUrl(data.photographer.avatar_url) || "https://i.pinimg.com/736x/a0/b0/00/a0b000947356b75df1e4ec794477fc49.jpg",
               avatar: resolveAssetUrl(data.photographer.avatar_url) || "https://i.pinimg.com/736x/9c/44/0c/9c440c4652d4e4476a5c61d25efbef1e.jpg",
@@ -626,11 +646,9 @@ function PhotographerProfileContent({ id }: { id: string }) {
                 desc: p.description || "Chưa có mô tả chi tiết.",
                 price: Number(p.price || 0).toLocaleString("vi-VN") + " VNĐ"
               })) || [],
-              reviews: [
-                { name: "Khách hàng", time: "1 tuần trước", rating: 5, text: "Chụp ảnh đẹp, làm việc rất chuyên nghiệp và thân thiện!" }
-              ],
+              reviews: dbReviews,
               ratingScore: Number(data.photographer.avg_rating || 4.8),
-              totalReviews: 45,
+              totalReviews: dbReviews.length || data.packages?.reduce((acc: number, p: any) => acc + (p.review_count || 0), 0) || 0,
               startPrice: data.packages?.length ? Number(Math.min(...data.packages.map((p: any) => p.price || 0))).toLocaleString("vi-VN") + " VNĐ" : "Chưa cập nhật"
             };
             setDbPerson(mappedPerson);
@@ -667,8 +685,10 @@ function PhotographerProfileContent({ id }: { id: string }) {
     setReviewRating(5);
   }, [person.id, todayStr, person.services, person.reviews]);
 
-  const averageRating = reviews.length ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length : 0;
-  const totalReviews = reviews.length;
+  const averageRating = reviews.length 
+    ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length 
+    : Number(person.ratingScore || 4.8);
+  const totalReviews = reviews.length || person.totalReviews || 0;
 
   const getCalendarDays = (year: number, month: number) => {
     const firstDay = new Date(year, month, 1);
@@ -876,87 +896,51 @@ function PhotographerProfileContent({ id }: { id: string }) {
                     </div>
                   </div>
 
-                  <div className="mb-6 rounded-3xl border border-gray-200 bg-white p-4 shadow-sm">
-                    <h3 className="text-sm font-bold text-gray-900 mb-3">Gửi đánh giá của bạn</h3>
-                    <div className="space-y-3">
-                      <div>
-                        <p className="text-[11px] text-gray-500 mb-2">Chọn số sao</p>
-                        <div className="flex gap-2">
-                          {[1,2,3,4,5].map((value) => (
-                            <button
-                              key={value}
-                              type="button"
-                              onClick={() => setReviewRating(value)}
-                              className={`w-9 h-9 rounded-full border text-sm font-bold transition ${value <= reviewRating ? "bg-[#ff8d28] text-white border-[#ff8d28]" : "border-gray-200 text-gray-500 hover:bg-gray-50"}`}
-                            >
-                              {value}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-semibold text-gray-500 mb-1">Tên của bạn</label>
-                        <input
-                          value={reviewerName}
-                          onChange={(event) => setReviewerName(event.target.value)}
-                          className="w-full rounded-2xl border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-[#ff8d28] outline-none"
-                          placeholder="Nhập tên"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-semibold text-gray-500 mb-1">Nhận xét</label>
-                        <textarea
-                          value={reviewText}
-                          onChange={(event) => setReviewText(event.target.value)}
-                          className="w-full min-h-[110px] rounded-2xl border border-gray-200 p-3 text-sm text-gray-900 focus:border-[#ff8d28] outline-none"
-                          placeholder="Viết cảm nghĩ của bạn về photographer"
-                        />
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (!reviewText.trim()) return;
-                          const newReview = {
-                            name: reviewerName.trim() || "Khách hàng",
-                            time: "Vừa xong",
-                            rating: reviewRating,
-                            text: reviewText.trim(),
-                          };
-                          setReviews([newReview, ...reviews]);
-                          setReviewerName("");
-                          setReviewText("");
-                          setReviewRating(5);
-                        }}
-                        className="w-full rounded-2xl bg-[#ff8d28] text-white text-sm font-bold py-3 hover:bg-[#e0751b] transition-colors"
-                      >
-                        Gửi đánh giá
-                      </button>
-                    </div>
+                  {/* Gợi ý đánh giá qua Booking */}
+                  <div className="mb-6 rounded-3xl border border-dashed border-[#ffe2c4] bg-[#fffbf7] p-5 text-center">
+                    <p className="text-sm font-bold text-[#0e111d]">
+                      Bạn đã sử dụng dịch vụ của nhiếp ảnh gia này?
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1.5 max-w-[460px] mx-auto leading-relaxed">
+                      Để đảm bảo tính khách quan và chính xác, đánh giá chỉ có thể được thực hiện bởi khách hàng đã đặt lịch chụp thành công và hoàn tất thanh toán.
+                    </p>
+                    <Link
+                      href="/bookings"
+                      className="mt-4 inline-flex items-center justify-center rounded-full bg-[#ff8d28] px-5 py-2.5 text-xs font-black text-white shadow-md hover:bg-[#e0751b] transition-all"
+                    >
+                      Đánh giá lịch đặt của tôi
+                    </Link>
                   </div>
 
-                  <div className="grid md:grid-cols-2 gap-4">
-                    {reviews.map((r, i) => (
-                      <div key={i} className="border border-gray-100 rounded-xl p-4">
-                        <div className="flex gap-0.5 mb-2">
-                          {[1,2,3,4,5].map((s) => (
-                            <svg key={s} className={`w-3.5 h-3.5 ${s <= r.rating ? "text-[#ff8d28]" : "text-gray-200"}`} viewBox="0 0 20 20" fill="currentColor">
-                              <path d="M10 2.8l1.9 4 4.4.6-3.2 3.1.8 4.4-3.9-2.1-3.9 2.1.8-4.4-3.2-3.1 4.4-.6 1.9-4z" />
-                            </svg>
-                          ))}
-                        </div>
-                        <p className="text-sm text-gray-700 leading-relaxed line-clamp-3">{r.text}</p>
-                        <div className="flex items-center gap-2 mt-3">
-                          <div className="w-7 h-7 rounded-full bg-[#ff8d28] flex items-center justify-center text-white text-[10px] font-black">
-                            {r.name.charAt(0)}
+                  {reviews.length === 0 ? (
+                    <div className="text-center py-12 border border-dashed border-gray-200 rounded-2xl bg-gray-50/50">
+                      <p className="text-sm font-semibold text-gray-400">Chưa có đánh giá nào cho photographer này.</p>
+                    </div>
+                  ) : (
+                    <div className="grid md:grid-cols-2 gap-4">
+                      {reviews.map((r, i) => (
+                        <div key={i} className="border border-gray-100 rounded-xl p-4">
+                          <div className="flex gap-0.5 mb-2">
+                            {[1,2,3,4,5].map((s) => (
+                              <svg key={s} className={`w-3.5 h-3.5 ${s <= r.rating ? "text-[#ff8d28]" : "text-gray-200"}`} viewBox="0 0 20 20" fill="currentColor">
+                                <path d="M10 2.8l1.9 4 4.4.6-3.2 3.1.8 4.4-3.9-2.1-3.9 2.1.8-4.4-3.2-3.1 4.4-.6 1.9-4z" />
+                              </svg>
+                            ))}
                           </div>
-                          <div>
-                            <p className="text-xs font-semibold text-gray-800">{r.name}</p>
-                            <p className="text-[10px] text-gray-400">{r.time}</p>
+                          <p className="text-sm text-gray-700 leading-relaxed line-clamp-3">{r.text}</p>
+                          <div className="flex items-center gap-2 mt-3">
+                            <div className="w-7 h-7 rounded-full bg-[#ff8d28] flex items-center justify-center text-white text-[10px] font-black">
+                              {r.name.charAt(0)}
+                            </div>
+                            <div>
+                              <p className="text-xs font-semibold text-gray-800">{r.name}</p>
+                              <p className="text-[10px] text-gray-400">{r.time}</p>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -1085,29 +1069,35 @@ function PhotographerProfileContent({ id }: { id: string }) {
                   <span className="text-xs text-gray-400 ml-1">Dựa trên {totalReviews} đánh giá</span>
                 </div>
               </div>
-              <div className="grid md:grid-cols-2 gap-4">
-                {reviews.map((r, i) => (
-                  <div key={i} className="border border-gray-100 rounded-xl p-4">
-                    <div className="flex gap-0.5 mb-2">
-                      {[1,2,3,4,5].map((s) => (
-                        <svg key={s} className={`w-3.5 h-3.5 ${s <= r.rating ? "text-[#ff8d28]" : "text-gray-200"}`} viewBox="0 0 20 20" fill="currentColor">
-                          <path d="M10 2.8l1.9 4 4.4.6-3.2 3.1.8 4.4-3.9-2.1-3.9 2.1.8-4.4-3.2-3.1 4.4-.6 1.9-4z" />
-                        </svg>
-                      ))}
-                    </div>
-                    <p className="text-sm text-gray-700 leading-relaxed line-clamp-3">{r.text}</p>
-                    <div className="flex items-center gap-2 mt-3">
-                      <div className="w-7 h-7 rounded-full bg-[#ff8d28] flex items-center justify-center text-white text-[10px] font-black">
-                        {r.name.charAt(0)}
+              {reviews.length === 0 ? (
+                <div className="text-center py-10 border border-dashed border-gray-200 rounded-2xl bg-gray-50/50">
+                  <p className="text-sm font-semibold text-gray-400">Chưa có đánh giá nào cho photographer này.</p>
+                </div>
+              ) : (
+                <div className="grid md:grid-cols-2 gap-4">
+                  {reviews.map((r, i) => (
+                    <div key={i} className="border border-gray-100 rounded-xl p-4">
+                      <div className="flex gap-0.5 mb-2">
+                        {[1,2,3,4,5].map((s) => (
+                          <svg key={s} className={`w-3.5 h-3.5 ${s <= r.rating ? "text-[#ff8d28]" : "text-gray-200"}`} viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M10 2.8l1.9 4 4.4.6-3.2 3.1.8 4.4-3.9-2.1-3.9 2.1.8-4.4-3.2-3.1 4.4-.6 1.9-4z" />
+                          </svg>
+                        ))}
                       </div>
-                      <div>
-                        <p className="text-xs font-semibold text-gray-800">{r.name}</p>
-                        <p className="text-[10px] text-gray-400">{r.time}</p>
+                      <p className="text-sm text-gray-700 leading-relaxed line-clamp-3">{r.text}</p>
+                      <div className="flex items-center gap-2 mt-3">
+                        <div className="w-7 h-7 rounded-full bg-[#ff8d28] flex items-center justify-center text-white text-[10px] font-black">
+                          {r.name.charAt(0)}
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold text-gray-800">{r.name}</p>
+                          <p className="text-[10px] text-gray-400">{r.time}</p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>

@@ -271,9 +271,9 @@ export default function BookingRequestSuccessPage({ params }: { params: Promise<
   if (loading) return <Skeleton />;
   if (pageError || !booking) return <ErrorScreen msg={pageError || "Không tìm thấy booking."} />;
 
-  // Initial cọc is 30% instead of 50%
-  const displayDeposit = Math.round(booking.estimated_total * 0.3);
-  const displayRemaining = booking.estimated_total - displayDeposit;
+  // Hiển thị số tiền cọc và còn lại từ database (mặc định cọc 30%)
+  const displayDeposit = Number(booking.deposit_amount !== undefined && booking.deposit_amount !== null ? booking.deposit_amount : Math.round(booking.estimated_total * 0.3));
+  const displayRemaining = Number(booking.remaining_amount !== undefined && booking.remaining_amount !== null ? booking.remaining_amount : booking.estimated_total - displayDeposit);
 
   // Split location and image drive link
   const rawLocation  = booking.location || "";

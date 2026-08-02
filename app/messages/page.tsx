@@ -252,7 +252,7 @@ function MessagesContent() {
   const [pageError, setPageError] = useState("");
 
   const bottomRef = useRef<HTMLDivElement | null>(null);
-  const socketRef = useRef<Socket | null>(null);
+  const [socket, setSocket] = useState<Socket | null>(null);
 
   const currentRole: "customer" | "photographer" =
     session?.role === "photographer" ? "photographer" : "customer";
@@ -264,7 +264,7 @@ function MessagesContent() {
   const senderId =
     currentRole === "photographer"
       ? session?.photographerId || session?.userId || "photographer"
-      : session?.email || session?.userId || "guest";
+      : session?.userId || session?.email || "guest";
 
   const canChat = booking?.status === "fully_paid";
 
@@ -295,31 +295,30 @@ function MessagesContent() {
 
   useEffect(() => {
     const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:5000";
-    const socket = io(socketUrl, {
+    const socketInstance = io(socketUrl, {
       transports: ["websocket"],
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
       timeout: 8000,
     });
-    socketRef.current = socket;
+    setSocket(socketInstance);
 
-    socket.on("connect", () => {
+    socketInstance.on("connect", () => {
       if (process.env.NODE_ENV !== "production") {
         console.log("Connected to WebSocket server");
       }
     });
 
-    socket.on("connect_error", (err) => {
+    socketInstance.on("connect_error", (err) => {
       console.error("Socket connection error:", err);
     });
 
     return () => {
-      socket.disconnect();
+      socketInstance.disconnect();
     };
   }, []);
 
   useEffect(() => {
-    const socket = socketRef.current;
     if (!socket || !activeBookingCode) return;
 
     // Join room
@@ -328,7 +327,7 @@ function MessagesContent() {
     // Listen for new messages
     const handleNewMessage = (msg: ChatMessage) => {
       setMessages((prev) => {
-        if (prev.some((m) => m.id === msg.id)) return prev;
+        if (prev.some((m) => String(m.id) === String(msg.id))) return prev;
         return [...prev, msg];
       });
     };
@@ -339,7 +338,7 @@ function MessagesContent() {
       socket.emit("leave_room", activeBookingCode);
       socket.off("new_message", handleNewMessage);
     };
-  }, [activeBookingCode]);
+  }, [socket, activeBookingCode]);
 
   useEffect(() => {
     if (!activeBookingCode) return;
@@ -433,7 +432,10 @@ function MessagesContent() {
         message: cleanMessage,
       });
 
-      setMessages((current) => [...current, newMessage]);
+      setMessages((current) => {
+        if (current.some((m) => String(m.id) === String(newMessage.id))) return current;
+        return [...current, newMessage];
+      });
       setMessageText("");
 
       toast.success("Đã gửi tin nhắn", "Tin nhắn của bạn đã được gửi.");

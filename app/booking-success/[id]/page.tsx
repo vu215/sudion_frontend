@@ -359,9 +359,9 @@ function NextSteps({
   const packagePrice = Number(booking.base_price || 0);
   const addOnRows = booking.add_ons || [];
   const finalTotal = Number(booking.estimated_total || 0);
-  const depositAmount = Number(booking.deposit_amount !== undefined && booking.deposit_amount !== null ? booking.deposit_amount : Math.round(finalTotal * 0.5));
+  const depositAmount = Number(booking.deposit_amount !== undefined && booking.deposit_amount !== null ? booking.deposit_amount : Math.round(finalTotal * 0.3));
   const remainingAmount = Number(booking.remaining_amount !== undefined && booking.remaining_amount !== null ? booking.remaining_amount : finalTotal - depositAmount);
-  const depositPct = finalTotal > 0 ? Math.round((depositAmount / finalTotal) * 100) : 50;
+  const depositPct = finalTotal > 0 ? Math.round((depositAmount / finalTotal) * 100) : 30;
 
   const paymentInfo = useMemo(() => {
     const commonText = `Booking ${booking.booking_code}\n${
