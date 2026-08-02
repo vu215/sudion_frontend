@@ -43,54 +43,54 @@ type ApiResponse<T> = { success: boolean; message: string; data: T };
 const STATUS_MAP: Record<string, { label: string; desc: string; color: string; dot: string }> = {
   awaiting_payment: {
     label: "Chờ photographer xác nhận",
-    desc:  "Yêu cầu đã gửi tới photographer. Vui lòng chờ xác nhận lịch.",
+    desc: "Yêu cầu đã gửi tới photographer. Vui lòng chờ xác nhận lịch.",
     color: "border-amber-200 bg-amber-50 text-amber-700",
-    dot:   "bg-amber-400",
+    dot: "bg-amber-400",
   },
   accepted: {
     label: "Photographer đã xác nhận",
-    desc:  "Photographer đã xác nhận lịch. Bạn có thể thanh toán cọc để giữ lịch.",
+    desc: "Photographer đã xác nhận lịch. Bạn có thể thanh toán cọc để giữ lịch.",
     color: "border-blue-200 bg-blue-50 text-blue-700",
-    dot:   "bg-blue-500",
+    dot: "bg-blue-500",
   },
   confirmed: {
     label: "Đã thanh toán cọc",
-    desc:  "Thanh toán cọc thành công. Vui lòng đến đúng lịch hẹn.",
+    desc: "Thanh toán cọc thành công. Vui lòng đến đúng lịch hẹn.",
     color: "border-emerald-200 bg-emerald-50 text-emerald-700",
-    dot:   "bg-emerald-500",
+    dot: "bg-emerald-500",
   },
   completed: {
     label: "Buổi chụp đã hoàn thành",
-    desc:  "Photographer đã hoàn thành buổi chụp. Bạn có thể thanh toán phần còn lại.",
+    desc: "Photographer đã hoàn thành buổi chụp. Bạn có thể thanh toán phần còn lại.",
     color: "border-purple-200 bg-purple-50 text-purple-700",
-    dot:   "bg-purple-500",
+    dot: "bg-purple-500",
   },
   fully_paid: {
     label: "Đã thanh toán đủ",
-    desc:  "Booking hoàn tất. Bạn có thể đánh giá photographer.",
+    desc: "Booking hoàn tất. Bạn có thể đánh giá photographer.",
     color: "border-emerald-200 bg-emerald-50 text-emerald-700",
-    dot:   "bg-emerald-500",
+    dot: "bg-emerald-500",
   },
   rejected: {
     label: "Photographer từ chối",
-    desc:  "Photographer đã từ chối yêu cầu. Bạn có thể chọn photographer hoặc khung giờ khác.",
+    desc: "Photographer đã từ chối yêu cầu. Bạn có thể chọn photographer hoặc khung giờ khác.",
     color: "border-red-200 bg-red-50 text-red-700",
-    dot:   "bg-red-400",
+    dot: "bg-red-400",
   },
   cancelled: {
     label: "Booking đã hủy",
-    desc:  "Booking này đã được hủy.",
+    desc: "Booking này đã được hủy.",
     color: "border-slate-200 bg-slate-50 text-slate-500",
-    dot:   "bg-slate-400",
+    dot: "bg-slate-400",
   },
 };
 
 function si(status: string) {
   return STATUS_MAP[status] ?? {
     label: status,
-    desc:  "Trạng thái booking hiện tại.",
+    desc: "Trạng thái booking hiện tại.",
     color: "border-slate-200 bg-slate-50 text-slate-600",
-    dot:   "bg-slate-400",
+    dot: "bg-slate-400",
   };
 }
 
@@ -108,7 +108,7 @@ async function fetchBooking(code: string): Promise<Booking> {
   const res = await fetch(endpoint, { cache: "no-store" });
   const json: ApiResponse<any> = await res.json();
   if (!res.ok || !json.success) throw new Error(json.message || "Không thể tải booking.");
-  
+
   if (isRental) {
     const r = json.data;
     let mappedStatus = r.status;
@@ -150,11 +150,11 @@ type PkgSuggestion = { id: string | number; name: string; price: number; image_u
 export default function BookingRequestSuccessPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: bookingCode } = use(params);
   const router = useRouter();
-  const [booking,      setBooking]      = useState<Booking | null>(null);
-  const [loading,      setLoading]      = useState(true);
-  const [pageError,    setPageError]    = useState("");
-  const [suggestions,  setSuggestions]  = useState<PkgSuggestion[]>([]);
-  const [switching,    setSwitching]    = useState(false);
+  const [booking, setBooking] = useState<Booking | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [pageError, setPageError] = useState("");
+  const [suggestions, setSuggestions] = useState<PkgSuggestion[]>([]);
+  const [switching, setSwitching] = useState(false);
   const [showSameCategory, setShowSameCategory] = useState(false);
   const [showOtherCategory, setShowOtherCategory] = useState(false);
 
@@ -254,7 +254,7 @@ export default function BookingRequestSuccessPage({ params }: { params: Promise<
     const isSelected = newPkg.isSubtype
       ? newPkg.name === booking?.people_scale
       : newPkg.name === booking?.service_name || newPkg.id === Number(booking?.service_id);
-      
+
     if (isSelected || switching || !booking) return;
 
     // Redirect to booking page with photographer + service pre-filled
@@ -271,15 +271,15 @@ export default function BookingRequestSuccessPage({ params }: { params: Promise<
   if (loading) return <Skeleton />;
   if (pageError || !booking) return <ErrorScreen msg={pageError || "Không tìm thấy booking."} />;
 
-  // Initial cọc is 30% instead of 50%
-  const displayDeposit = Math.round(booking.estimated_total * 0.3);
-  const displayRemaining = booking.estimated_total - displayDeposit;
+  const displayDeposit = Number(booking.deposit_amount || 0);
+  const displayRemaining = Number(booking.remaining_amount ?? (booking.estimated_total - displayDeposit));
+  const displayDepositPercent = booking.estimated_total > 0 ? Math.round(displayDeposit / booking.estimated_total * 100) : 30;
 
   // Split location and image drive link
-  const rawLocation  = booking.location || "";
-  const photoMatch   = rawLocation.match(/\[Photos:\s*(https?:\/\/[^\]]+)\]/);
-  const displayLoc   = rawLocation.split(" [Photos:")[0] || "Chưa chọn";
-  const photoLink    = photoMatch?.[1] ?? null;
+  const rawLocation = booking.location || "";
+  const photoMatch = rawLocation.match(/\[Photos:\s*(https?:\/\/[^\]]+)\]/);
+  const displayLoc = rawLocation.split(" [Photos:")[0] || "Chưa chọn";
+  const photoLink = photoMatch?.[1] ?? null;
 
   return (
     <main className="min-h-screen bg-[#f4f6fa] px-4 py-10 sm:py-14 text-[#0f172a]">
@@ -290,7 +290,7 @@ export default function BookingRequestSuccessPage({ params }: { params: Promise<
         </div>
       )}
 
-      <div className="mx-auto max-w-[960px] grid gap-5 lg:grid-cols-[1fr_300px] lg:items-start">
+      <div className="mx-auto max-w-[960px] grid gap-5 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start overflow-hidden">
 
         {/* ── Left ── */}
         <div className="rounded-2xl border border-[#e2e8f0] bg-white shadow-sm overflow-hidden">
@@ -323,25 +323,25 @@ export default function BookingRequestSuccessPage({ params }: { params: Promise<
 
             {/* Info grid */}
             <div className="grid gap-3 sm:grid-cols-2">
-              <Field 
-                title={booking.booking_code.startsWith("RENT-") ? "Phân loại" : "Photographer"}  
-                value={booking.photographer_name}     
+              <Field
+                title={booking.booking_code.startsWith("RENT-") ? "Phân loại" : "Photographer"}
+                value={booking.photographer_name}
               />
-              <Field 
-                title={booking.booking_code.startsWith("RENT-") ? "Thiết bị" : "Dịch vụ"}       
-                value={booking.service_name}          
+              <Field
+                title={booking.booking_code.startsWith("RENT-") ? "Thiết bị" : "Dịch vụ"}
+                value={booking.service_name}
               />
-              <Field 
-                title={booking.booking_code.startsWith("RENT-") ? "Ngày nhận máy" : "Ngày chụp"}     
-                value={fmtDate(booking.shoot_date)}   
+              <Field
+                title={booking.booking_code.startsWith("RENT-") ? "Ngày nhận máy" : "Ngày chụp"}
+                value={fmtDate(booking.shoot_date)}
               />
-              <Field 
-                title={booking.booking_code.startsWith("RENT-") ? "Ngày trả máy" : "Giờ chụp"}      
-                value={booking.booking_code.startsWith("RENT-") ? fmtDate(booking.shoot_time) : fmtTime(booking.shoot_time)}   
+              <Field
+                title={booking.booking_code.startsWith("RENT-") ? "Ngày trả máy" : "Giờ chụp"}
+                value={booking.booking_code.startsWith("RENT-") ? fmtDate(booking.shoot_time) : fmtTime(booking.shoot_time)}
               />
-              <Field 
-                title={booking.booking_code.startsWith("RENT-") ? "Nơi nhận máy" : "Địa điểm"}      
-                value={displayLoc}                    
+              <Field
+                title={booking.booking_code.startsWith("RENT-") ? "Nơi nhận máy" : "Địa điểm"}
+                value={displayLoc}
               />
               {photoLink && (
                 <div className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2.5">
@@ -362,9 +362,9 @@ export default function BookingRequestSuccessPage({ params }: { params: Promise<
 
             {/* Money */}
             <div className="grid grid-cols-3 gap-3">
-              <MoneyCard label="Tổng tiền"          value={booking.estimated_total} />
-              <MoneyCard label="Cọc 30%"            value={displayDeposit} />
-              <MoneyCard label="Còn lại"            value={displayRemaining} />
+              <MoneyCard label="Tổng tiền" value={booking.estimated_total} />
+              <MoneyCard label={`Cọc ${displayDepositPercent}%`} value={displayDeposit} />
+              <MoneyCard label="Còn lại" value={displayRemaining} />
             </div>
 
             {/* Actions */}
@@ -373,19 +373,19 @@ export default function BookingRequestSuccessPage({ params }: { params: Promise<
         </div>
 
         {/* ── Right sidebar ── */}
-        <aside className="rounded-2xl border border-[#e2e8f0] bg-white p-5 shadow-sm lg:sticky lg:top-[88px] grid gap-4">
+        <aside className="rounded-2xl border border-[#e2e8f0] bg-white p-4 shadow-sm lg:sticky lg:top-[88px] grid gap-3 min-w-0 overflow-hidden sm:p-5">
           <div>
             <p className="text-[11px] font-black uppercase tracking-widest text-[#ff8d28]">Quy trình</p>
-            <div className="mt-3 grid gap-1.5">
+            <div className="mt-3 mr-3 grid gap-2 pb-1">
               {[
-                { keys: ["awaiting_payment","accepted","confirmed","completed","fully_paid"], doneKeys: ["accepted","confirmed","completed","fully_paid"], title: "Gửi yêu cầu"          },
-                { keys: ["accepted","confirmed","completed","fully_paid"],                   doneKeys: ["confirmed","completed","fully_paid"],            title: "Photographer xác nhận" },
-                { keys: ["confirmed","completed","fully_paid"],                              doneKeys: ["completed","fully_paid"],                        title: "Thanh toán cọc"       },
-                { keys: ["completed","fully_paid"],                                          doneKeys: ["fully_paid"],                                    title: "Hoàn thành chụp"      },
-                { keys: ["fully_paid"],                                                      doneKeys: [],                                                title: "Hoàn tất"             },
+                { keys: ["awaiting_payment", "accepted", "confirmed", "completed", "fully_paid"], doneKeys: ["accepted", "confirmed", "completed", "fully_paid"], title: "Gửi yêu cầu" },
+                { keys: ["accepted", "confirmed", "completed", "fully_paid"], doneKeys: ["confirmed", "completed", "fully_paid"], title: "Photographer xác nhận" },
+                { keys: ["confirmed", "completed", "fully_paid"], doneKeys: ["completed", "fully_paid"], title: "Thanh toán cọc" },
+                { keys: ["completed", "fully_paid"], doneKeys: ["fully_paid"], title: "Hoàn thành chụp" },
+                { keys: ["fully_paid"], doneKeys: [], title: "Hoàn tất" },
               ].map((step, i) => {
                 const active = step.keys.includes(booking.status);
-                const done   = step.doneKeys.includes(booking.status);
+                const done = step.doneKeys.includes(booking.status);
                 return (
                   <div key={i} className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 text-[12.5px] ${active ? "border-[#ffcfaa] bg-[#fff7ed] font-black text-[#0f172a]" : "border-[#eef2f7] text-[#94a3b8] font-semibold"}`}>
                     <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-full text-[10px] font-black ${done ? "bg-[#ff8d28] text-white" : active ? "border border-[#ff8d28] text-[#ff8d28]" : "bg-[#e2e8f0] text-[#94a3b8]"}`}>
@@ -402,7 +402,7 @@ export default function BookingRequestSuccessPage({ params }: { params: Promise<
           {sameCategoryPkgs.length > 0 && (
             <div>
               <p className="text-[11px] font-black uppercase tracking-widest text-[#ff8d28]">Loại hình chụp ảnh</p>
-              <div className="mt-2 grid gap-2">
+              <div className="mt-2 mr-3 grid gap-2 pb-0.5">
                 {(showSameCategory ? sameCategoryPkgs : sameCategoryPkgs.slice(0, 3)).map(pkg => {
                   const isSelected = pkg.isSubtype
                     ? pkg.name === booking?.people_scale
@@ -413,13 +413,12 @@ export default function BookingRequestSuccessPage({ params }: { params: Promise<
                       type="button"
                       disabled={isSelected || switching}
                       onClick={() => handleSelectService(pkg)}
-                      className={`flex items-center gap-3 rounded-xl border p-2.5 transition text-left w-full ${
-                        isSelected
-                          ? "border-[#ff8d28] bg-[#fff7ed] ring-2 ring-[#ff8d28]/20 cursor-default"
+                      className={`flex h-[82px] items-center gap-2.5 rounded-xl border p-2.5 transition text-left w-full ${isSelected
+                          ? "border-[#ff8d28] bg-[#fff7ed] ring-2 ring-inset ring-[#ff8d28]/20 cursor-default"
                           : "border-[#eef2f7] bg-white hover:border-[#ffcfaa] hover:bg-[#fff7ed]"
-                      }`}
+                        }`}
                     >
-                      <div className="h-11 w-11 shrink-0 rounded-lg overflow-hidden bg-[#f1f5f9]">
+                      <div className="h-12 w-12 shrink-0 rounded-lg overflow-hidden bg-[#f1f5f9]">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={pkg.image_url || getCatImage(pkg.category.slug, pkg.category.name, pkg.name)}
@@ -430,7 +429,7 @@ export default function BookingRequestSuccessPage({ params }: { params: Promise<
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-1">
-                          <p className="truncate text-[12px] font-black text-[#0f172a]">{pkg.name}</p>
+                          <p className="truncate text-[12px] font-black text-[#0f172a]" title={pkg.name}>{pkg.name}</p>
                           {isSelected && (
                             <span className="shrink-0 rounded-full bg-[#ff8d28] px-1.5 py-0.5 text-[9px] font-black text-white">Đang chọn</span>
                           )}
@@ -439,7 +438,7 @@ export default function BookingRequestSuccessPage({ params }: { params: Promise<
                         <p className="text-[11px] font-black text-[#ff8d28]">{fmt(pkg.price)}</p>
                       </div>
                       {!isSelected && (
-                        <svg className="h-4 w-4 shrink-0 text-[#cbd5e1]" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 18l6-6-6-6"/></svg>
+                        <svg className="h-4 w-4 shrink-0 text-[#cbd5e1]" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 18l6-6-6-6" /></svg>
                       )}
                     </button>
                   );
@@ -451,7 +450,7 @@ export default function BookingRequestSuccessPage({ params }: { params: Promise<
                     className="flex items-center justify-center gap-1 rounded-xl border border-dashed border-[#ffcfaa] py-2 text-[11px] font-black text-[#ff8d28] transition hover:bg-[#fff7ed]"
                   >
                     {showSameCategory ? 'Thu gọn' : `Xem thêm ${sameCategoryPkgs.length - 3} loại`}
-                    <svg className={`h-3.5 w-3.5 transition-transform ${showSameCategory ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                    <svg className={`h-3.5 w-3.5 transition-transform ${showSameCategory ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
                   </button>
                 )}
               </div>
@@ -462,16 +461,16 @@ export default function BookingRequestSuccessPage({ params }: { params: Promise<
           {otherCategoryPkgs.length > 0 && (
             <div>
               <p className="text-[11px] font-black uppercase tracking-widest text-[#64748b]">Dịch vụ khác của photographer</p>
-              <div className="mt-2 grid gap-2">
+              <div className="mt-2 mr-3 grid gap-2 pb-0.5">
                 {(showOtherCategory ? otherCategoryPkgs : otherCategoryPkgs.slice(0, 3)).map(pkg => (
                   <button
                     key={pkg.id}
                     type="button"
                     disabled={switching}
                     onClick={() => handleSelectService(pkg)}
-                    className="flex items-center gap-3 rounded-xl border border-[#eef2f7] bg-white p-2.5 transition hover:border-[#ffcfaa] hover:bg-[#fff7ed] text-left w-full"
+                    className="flex h-[82px] items-center gap-2.5 rounded-xl border border-[#eef2f7] bg-white p-2.5 transition hover:border-[#ffcfaa] hover:bg-[#fff7ed] text-left w-full"
                   >
-                    <div className="h-11 w-11 shrink-0 rounded-lg overflow-hidden bg-[#f1f5f9]">
+                    <div className="h-12 w-12 shrink-0 rounded-lg overflow-hidden bg-[#f1f5f9]">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={pkg.image_url || getCatImage(pkg.category.slug, pkg.category.name, pkg.name)}
@@ -481,11 +480,11 @@ export default function BookingRequestSuccessPage({ params }: { params: Promise<
                       />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-[12px] font-black text-[#0f172a]">{pkg.name}</p>
+                      <p className="truncate text-[12px] font-black text-[#0f172a]" title={pkg.name}>{pkg.name}</p>
                       <p className="text-[11px] font-semibold text-[#64748b]">{pkg.category.name}</p>
                       <p className="text-[11px] font-black text-[#ff8d28]">{fmt(pkg.price)}</p>
                     </div>
-                    <svg className="h-4 w-4 shrink-0 text-[#cbd5e1]" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 18l6-6-6-6"/></svg>
+                    <svg className="h-4 w-4 shrink-0 text-[#cbd5e1]" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 18l6-6-6-6" /></svg>
                   </button>
                 ))}
                 {otherCategoryPkgs.length > 3 && (
@@ -495,7 +494,7 @@ export default function BookingRequestSuccessPage({ params }: { params: Promise<
                     className="flex items-center justify-center gap-1 rounded-xl border border-dashed border-[#cbd5e1] py-2 text-[11px] font-black text-[#64748b] transition hover:bg-[#f8fafc]"
                   >
                     {showOtherCategory ? 'Thu gọn' : `Xem thêm ${otherCategoryPkgs.length - 3} dịch vụ`}
-                    <svg className={`h-3.5 w-3.5 transition-transform ${showOtherCategory ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                    <svg className={`h-3.5 w-3.5 transition-transform ${showOtherCategory ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
                   </button>
                 )}
               </div>
@@ -588,7 +587,7 @@ function getCatImage(slug: string, name: string, pkgName: string = ""): string {
     return "https://images.unsplash.com/photo-1511578314322-379afb476865?w=150&auto=format&fit=crop&q=60";
   }
   if (s.includes("yearbook") || s.includes("ky-yeu") || s.includes("tot-nghiep")) {
-    return "https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=150&auto=format&fit=crop&q=60";
+    return "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=150&auto=format&fit=crop&q=60";
   }
   if (s.includes("travel") || s.includes("du-lich")) {
     return "https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=150&auto=format&fit=crop&q=60";

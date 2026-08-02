@@ -9,6 +9,7 @@ export interface CartItem {
 }
 
 const storageKey = "sudion-cart";
+const buyNowStorageKey = "sudion-buy-now";
 
 function canUseStorage() {
   return typeof window !== "undefined" && Boolean(window.localStorage);
@@ -81,6 +82,41 @@ export function addToCart(product: any, variant: any, quantity = 1) {
   }
 
   writeCart(items);
+}
+
+export function createCartItem(product: any, variant: any, quantity = 1): CartItem {
+  const selectedVariantName = variant?.ten || null;
+  let rawImage = product.image_url || product.img || "/next.svg";
+  if (variant?.hinh_anh) rawImage = variant.hinh_anh;
+
+  return {
+    id: selectedVariantName ? `${product.id}-${selectedVariantName}` : String(product.id),
+    productId: Number(product.id),
+    ten_san_pham: product.name || product.ten_san_pham,
+    gia_ban: Number(variant?.gia || product.sale_price || product.price || 0),
+    hinh_anh: resolveImageUrl(rawImage),
+    so_luong: Math.max(1, Number(quantity || 1)),
+    bien_the: selectedVariantName || undefined,
+  };
+}
+
+export function prepareBuyNow(product: any, variant: any, quantity = 1) {
+  if (!canUseStorage()) return;
+  window.sessionStorage.setItem(buyNowStorageKey, JSON.stringify([createCartItem(product, variant, quantity)]));
+}
+
+export function readBuyNow(): CartItem[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.sessionStorage.getItem(buyNowStorageKey);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function clearBuyNow() {
+  if (typeof window !== "undefined") window.sessionStorage.removeItem(buyNowStorageKey);
 }
 
 export function removeFromCart(itemId: string) {

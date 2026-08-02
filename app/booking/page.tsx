@@ -165,9 +165,9 @@ const PACKAGE_TIERS: Record<string, PackageTier[]> = {
 };
 
 const ADDON_CARDS: AddonCard[] = [
-  { id: "flycam", name: "Flycam quay phim", price: 2000000, image: "https://images.unsplash.com/photo-1473968512647-3e447244af8f?w=400&q=80&fit=crop", note: "Góc quay trên cao" },
-  { id: "album-premium", name: "Album cao cấp", price: 3000000, image: "https://images.unsplash.com/photo-1513519245088-0e12902e35ca?w=400&q=80&fit=crop", note: "Thiết kế + in ấn" },
-  { id: "gate-photo", name: "Ảnh cổng 80×120", price: 900000, image: "https://images.unsplash.com/photo-1513519245088-0e12902e35ca?w=400&q=80&fit=crop", note: "Ép gỗ chất lượng cao" },
+  { id: "flycam", name: "Flycam quay phim", price: 2000000, image: "https://images.unsplash.com/photo-1508614589041-895b88991e3e?w=400&q=80&fit=crop", note: "Góc quay trên cao" },
+  { id: "album-premium", name: "Album cao cấp", price: 3000000, image: "https://images.unsplash.com/photo-1544717305-2782549b5136?w=400&q=80&fit=crop", note: "Thiết kế + in ấn" },
+  { id: "gate-photo", name: "Ảnh cổng 80×120", price: 900000, image: "https://images.unsplash.com/photo-1544717305-2782549b5136?w=400&q=80&fit=crop", note: "Ép gỗ chất lượng cao" },
   { id: "photobook", name: "Photobook phóng sự", price: 2500000, image: "https://images.unsplash.com/photo-1544717305-2782549b5136?w=400&q=80&fit=crop", note: "30 trang thiết kế" },
   { id: "makeup", name: "Makeup Artist", price: 1500000, image: "https://images.unsplash.com/photo-1487412912498-0447578fcca8?w=400&q=80&fit=crop", note: "Đi cùng buổi chụp" },
   { id: "video", name: "Video highlight", price: 3000000, image: "https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?w=400&q=80&fit=crop", note: "Clip ngắn hậu kỳ" },
@@ -303,13 +303,13 @@ function getAddonImage(id: string, category: string, name = ""): string {
   const combined = `${cleanId} ${cleanName}`;
 
   if (combined.includes("flycam") || combined.includes("drone") || combined.includes("bay"))
-    return "https://images.unsplash.com/photo-1473968512647-3e447244af8f?w=400&q=80&fit=crop";
+    return "https://images.unsplash.com/photo-1508614589041-895b88991e3e?w=400&q=80&fit=crop";
   if (combined.includes("album"))
-    return "https://images.unsplash.com/photo-1513519245088-0e12902e35ca?w=400&q=80&fit=crop";
+    return "https://images.unsplash.com/photo-1544717305-2782549b5136?w=400&q=80&fit=crop";
   if (combined.includes("photobook") || combined.includes("photo book") || combined.includes("phóng sự"))
     return "https://images.unsplash.com/photo-1544717305-2782549b5136?w=400&q=80&fit=crop";
   if (combined.includes("cổng") || combined.includes("cong") || combined.includes("80x") || combined.includes("80×") || combined.includes("frame") || combined.includes("print"))
-    return "https://images.unsplash.com/photo-1513519245088-0e12902e35ca?w=400&q=80&fit=crop";
+    return "https://images.unsplash.com/photo-1544717305-2782549b5136?w=400&q=80&fit=crop";
   if (combined.includes("makeup") || combined.includes("trang điểm") || combined.includes("trang diem"))
     return "https://images.unsplash.com/photo-1487412912498-0447578fcca8?w=400&q=80&fit=crop";
   if (combined.includes("video") || combined.includes("highlight") || combined.includes("clip"))
@@ -445,6 +445,7 @@ function BookingContent() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("momo");
+  const [depositPercent, setDepositPercent] = useState<30 | 50 | 100>(30);
 
   // ── Calendar state ──
   const [calMonth, setCalMonth] = useState(() => new Date().getMonth());
@@ -542,8 +543,8 @@ function BookingContent() {
   }, [estimatedTotal, voucherDiscount]);
 
   const depositAmount = useMemo(() => {
-    return Math.round(finalTotal * 0.3);
-  }, [finalTotal]);
+    return Math.round(finalTotal * depositPercent / 100);
+  }, [finalTotal, depositPercent]);
 
   const selectedAddOnsDetails = useMemo(
     () => apiAddOns.filter((a) => selectedAddOns.includes(a.id)).map((a) => ({ id: a.id, name: a.name, price: a.price })),
@@ -571,6 +572,7 @@ function BookingContent() {
           if (draft.email) setEmail(draft.email);
           if (draft.phone) setPhone(draft.phone);
           if (draft.paymentMethod) setPaymentMethod(draft.paymentMethod);
+          if ([30, 50, 100].includes(Number(draft.depositPercent))) setDepositPercent(Number(draft.depositPercent) as 30 | 50 | 100);
         }
         localStorage.removeItem("sudion_booking_draft");
       }
@@ -829,6 +831,7 @@ function BookingContent() {
         email,
         phone,
         paymentMethod,
+        depositPercent,
       };
       localStorage.setItem("sudion_booking_draft", JSON.stringify(draft));
       setShowLoginModal(true);
@@ -853,6 +856,7 @@ function BookingContent() {
         budget: String(finalTotal),
         scene: "",
         paymentMethod,
+        depositPercent,
         voucherCode: appliedVoucher ? appliedVoucher.code : undefined,
         customer: {
           fullName: fullName || session?.fullName || "Khách vãng lai",
@@ -871,20 +875,6 @@ function BookingContent() {
       if (!res.ok || !json.success) throw new Error(json.message || "Không thể tạo booking.");
 
       const bookingCode = json.data.booking_code;
-
-      // Cập nhật tỷ lệ cọc sang 30% mặc định vào DB thông qua API admin
-      try {
-        await fetch(`${API_URL}/admin/bookings/${bookingCode}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            deposit_amount: depositAmount,
-            remaining_amount: finalTotal - depositAmount,
-          }),
-        });
-      } catch (err) {
-        console.error("Lỗi cập nhật cọc 30% admin:", err);
-      }
 
       saveBooking({
         id: bookingCode,
@@ -959,7 +949,7 @@ function BookingContent() {
   // ──────────── JSX ────────────
   return (
     <main className="min-h-screen bg-[#fafbfc] text-[#0e111d] font-sans antialiased">
-      <section className="mx-auto w-full max-w-[1200px] px-4 py-8 md:px-6 lg:px-8 lg:py-10">
+      <section className="mx-auto w-full max-w-[1200px] px-4 py-8 md:px-6 lg:px-8 lg:py-10 overflow-hidden">
         <form onSubmit={handleSubmit} className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
 
           {/* ════════ COLUMN LEFT: Main content ════════ */}
@@ -1328,7 +1318,7 @@ function BookingContent() {
           </div>
 
           {/* ════════ COLUMN RIGHT: Sticky Sidebar ════════ */}
-          <aside className="rounded-2xl border border-[#e8eaf1] bg-white p-5 shadow-[0_12px_36px_rgba(20,21,31,0.04)] lg:sticky lg:top-[100px]">
+          <aside className="rounded-2xl border border-[#e8eaf1] bg-white p-5 shadow-[0_12px_36px_rgba(20,21,31,0.04)] lg:sticky lg:top-[100px] min-w-0 overflow-hidden">
             <h3 className="text-sm font-black text-[#0e111d]">Chi tiết đặt lịch</h3>
 
             {/* Service summary card */}
@@ -1468,11 +1458,19 @@ function BookingContent() {
 
             {/* Deposit */}
             <div className="mt-4 rounded-xl border border-[#fff4eb] bg-[#fffaf5] p-3">
+              <p className="mb-2 text-[11px] font-bold text-[#6b7280]">Chọn mức thanh toán trước</p>
+              <div className="mb-3 grid grid-cols-3 gap-2">
+                {([30, 50, 100] as const).map((percent) => (
+                  <button key={percent} type="button" onClick={() => setDepositPercent(percent)} className={`rounded-lg border px-2 py-2 text-xs font-black transition ${depositPercent === percent ? "border-[#ff8d28] bg-[#ff8d28] text-white" : "border-orange-200 bg-white text-slate-600 hover:border-[#ff8d28]"}`}>
+                    {percent}%
+                  </button>
+                ))}
+              </div>
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-semibold text-[#6b7280]">Tiền cọc giữ lịch (30%)</span>
+                <span className="text-[11px] font-semibold text-[#6b7280]">Thanh toán trước ({depositPercent}%)</span>
                 <span className="text-sm font-black text-[#ff8d28]">{formatCurrency(depositAmount)}</span>
               </div>
-              <p className="mt-1 text-[10px] text-[#9ca3af]">Thanh toán nốt 70% sau khi hoàn thành buổi chụp</p>
+              <p className="mt-1 text-[10px] text-[#9ca3af]">{depositPercent === 100 ? "Thanh toán toàn bộ giá trị booking" : `Thanh toán nốt ${100 - depositPercent}% sau khi hoàn thành buổi chụp`}</p>
             </div>
 
             {/* Submit error */}
@@ -1520,7 +1518,7 @@ function BookingContent() {
                     budget: String(finalTotal),
                     addOns: selectedAddOnsDetails,
                     estimatedTotal: finalTotal,
-                    depositPercent: 30,
+                    depositPercent,
                     depositAmount,
                     remainingAmount: finalTotal - depositAmount,
                   });

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState, useMemo } from "react";
 import { useToast } from "@/app/toast-context";
-import { addToCart } from "@/app/cart-store";
+import { addToCart, prepareBuyNow } from "@/app/cart-store";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
@@ -107,11 +107,13 @@ export default function ProductDetailPage() {
         toast.error("Lỗi", "Sản phẩm phiên bản này hiện đã hết hàng.");
         return;
       }
-      addToCart(product, { ten: currentVariant.ten, gia: currentVariant.gia, hinh_anh: currentVariant.hinh_anh }, quantity);
+      const cartVariant = { ten: currentVariant.ten, gia: currentVariant.gia, hinh_anh: currentVariant.hinh_anh };
 
       if (buyNow) {
-        router.push("/cart");
+        prepareBuyNow(product, cartVariant, quantity);
+        router.push("/checkout?mode=buy-now");
       } else {
+        addToCart(product, cartVariant, quantity);
         setShowToast(true);
         setTimeout(() => setShowToast(false), 3000);
       }
