@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { useEffect, useState, useRef, useMemo } from "react";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://sudion-backend-production-453b.up.railway.app/api";
 
 function resolveAssetUrl(url: string | null) {
   if (!url) return "";
