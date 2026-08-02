@@ -101,3 +101,7 @@ export function getBookingCartTotalDeposit() {
 export function getBookingCartTotalEstimated() {
   return readBookingCart().reduce((sum, item) => sum + (item.estimatedTotal || 0), 0);
 }
+
+export function getBookingCartCount() {
+  return readBookingCart().length;
+}
