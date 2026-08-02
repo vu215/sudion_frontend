@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState, useMemo } from "react";
 import { useToast } from "@/app/toast-context";
 import { addToCart, prepareBuyNow } from "@/app/cart-store";
+import { useAuth } from "@/app/auth-context";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
@@ -63,6 +64,7 @@ export default function ProductDetailPage() {
   const params = useParams();
   const router = useRouter();
   const toast = useToast();
+  const { session, isLoading: authLoading } = useAuth();
   const id = params.id as string;
 
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
@@ -101,6 +103,12 @@ export default function ProductDetailPage() {
   const featureSpecs = product?.specs?.slice(0, 4) || [];
 
   const handleAddToCart = (buyNow = false) => {
+    if (authLoading) return;
+    if (!session) {
+      toast.info("Cần đăng nhập", "Vui lòng đăng nhập để thêm sản phẩm vào giỏ hàng.");
+      router.push(`/login?redirect=${encodeURIComponent(`/products/${id}`)}`);
+      return;
+    }
     if (!product) return;
     if (currentVariant) {
       if (currentVariant.ton_kho <= 0) {
