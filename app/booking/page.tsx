@@ -93,7 +93,7 @@ const CATEGORY_INFO: Record<string, { label: string; icon: string; image: string
   yearbook: {
     label: "Kỷ yếu",
     icon: "",
-    image: "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&w=400&q=80",
+    image: "https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=400&q=80",
   },
   travel: {
     label: "Travel",
@@ -166,13 +166,13 @@ const PACKAGE_TIERS: Record<string, PackageTier[]> = {
 
 const ADDON_CARDS: AddonCard[] = [
   { id: "flycam", name: "Flycam quay phim", price: 2000000, image: "https://images.unsplash.com/photo-1473968512647-3e447244af8f?w=400&q=80&fit=crop", note: "Góc quay trên cao" },
-  { id: "album-premium", name: "Album cao cấp", price: 3000000, image: "https://images.unsplash.com/photo-1544946503-58e2bae0d82d?w=400&q=80&fit=crop", note: "Thiết kế + in ấn" },
+  { id: "album-premium", name: "Album cao cấp", price: 3000000, image: "https://images.unsplash.com/photo-1513519245088-0e12902e35ca?w=400&q=80&fit=crop", note: "Thiết kế + in ấn" },
   { id: "gate-photo", name: "Ảnh cổng 80×120", price: 900000, image: "https://images.unsplash.com/photo-1513519245088-0e12902e35ca?w=400&q=80&fit=crop", note: "Ép gỗ chất lượng cao" },
-  { id: "photobook", name: "Photobook phóng sự", price: 2500000, image: "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400&q=80&fit=crop", note: "30 trang thiết kế" },
+  { id: "photobook", name: "Photobook phóng sự", price: 2500000, image: "https://images.unsplash.com/photo-1544717305-2782549b5136?w=400&q=80&fit=crop", note: "30 trang thiết kế" },
   { id: "makeup", name: "Makeup Artist", price: 1500000, image: "https://images.unsplash.com/photo-1487412912498-0447578fcca8?w=400&q=80&fit=crop", note: "Đi cùng buổi chụp" },
   { id: "video", name: "Video highlight", price: 3000000, image: "https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?w=400&q=80&fit=crop", note: "Clip ngắn hậu kỳ" },
   { id: "retouch", name: "Retouch nâng cao", price: 1200000, image: "https://images.unsplash.com/photo-1542744094-24638eff58bb?w=400&q=80&fit=crop", note: "Chỉnh sửa chuyên sâu" },
-  { id: "raw-files", name: "File gốc RAW", price: 500000, image: "https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=400&q=80&fit=crop", note: "Nhận toàn bộ file gốc" },
+  { id: "raw-files", name: "File gốc RAW", price: 500000, image: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=400&q=80&fit=crop", note: "Nhận toàn bộ file gốc" },
 ];
 
 const TIME_SLOTS = [
@@ -305,9 +305,9 @@ function getAddonImage(id: string, category: string, name = ""): string {
   if (combined.includes("flycam") || combined.includes("drone") || combined.includes("bay"))
     return "https://images.unsplash.com/photo-1473968512647-3e447244af8f?w=400&q=80&fit=crop";
   if (combined.includes("album"))
-    return "https://images.unsplash.com/photo-1544946503-58e2bae0d82d?w=400&q=80&fit=crop";
+    return "https://images.unsplash.com/photo-1513519245088-0e12902e35ca?w=400&q=80&fit=crop";
   if (combined.includes("photobook") || combined.includes("photo book") || combined.includes("phóng sự"))
-    return "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400&q=80&fit=crop";
+    return "https://images.unsplash.com/photo-1544717305-2782549b5136?w=400&q=80&fit=crop";
   if (combined.includes("cổng") || combined.includes("cong") || combined.includes("80x") || combined.includes("80×") || combined.includes("frame") || combined.includes("print"))
     return "https://images.unsplash.com/photo-1513519245088-0e12902e35ca?w=400&q=80&fit=crop";
   if (combined.includes("makeup") || combined.includes("trang điểm") || combined.includes("trang diem"))
@@ -317,9 +317,9 @@ function getAddonImage(id: string, category: string, name = ""): string {
   if (combined.includes("retouch") || combined.includes("edit") || combined.includes("chỉnh sửa") || combined.includes("nâng cao"))
     return "https://images.unsplash.com/photo-1542744094-24638eff58bb?w=400&q=80&fit=crop";
   if (combined.includes("raw") || combined.includes("file gốc") || combined.includes("file goc"))
-    return "https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=400&q=80&fit=crop";
+    return "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=400&q=80&fit=crop";
   if (combined.includes("book") || combined.includes("sách") || combined.includes("sach"))
-    return "https://images.unsplash.com/photo-1544946503-58e2bae0d82d?w=400&q=80&fit=crop";
+    return "https://images.unsplash.com/photo-1544717305-2782549b5136?w=400&q=80&fit=crop";
 
   return CATEGORY_INFO[category]?.image || "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=400&q=80&fit=crop";
 }

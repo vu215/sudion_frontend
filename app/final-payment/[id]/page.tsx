@@ -953,7 +953,7 @@ function getCategoryFallbackImage(slugOrName: string = "") {
     return "https://images.unsplash.com/photo-1511578314322-379afb476865?w=120&auto=format&fit=crop&q=60";
   }
   if (s.includes("yearbook") || s.includes("kỷ yếu")) {
-    return "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=120&auto=format&fit=crop&q=60";
+    return "https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=120&auto=format&fit=crop&q=60";
   }
   if (s.includes("travel") || s.includes("du lịch")) {
     return "https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=120&auto=format&fit=crop&q=60";
