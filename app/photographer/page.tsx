@@ -31,7 +31,7 @@ const locations = [
 
 const tabTextClass = "pb-4 !text-[12px] !font-bold leading-none";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://sudion-backend-production-453b.up.railway.app/api";
 
 function resolveAssetUrl(url: string | null) {
   if (!url) return "";

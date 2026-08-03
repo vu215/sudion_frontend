@@ -9,6 +9,10 @@ const createNextConfig = (phase: string): NextConfig => ({
   env: {
     NEXT_PUBLIC_REACT_TRACE_ROOT: __dirname,
   },
+  experimental: {
+    workerThreads: false,
+    cpus: 1,
+  },
   webpack: (config, { dev }) => {
     if (dev) {
       config.cache = false;

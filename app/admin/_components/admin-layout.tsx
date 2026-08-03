@@ -48,14 +48,12 @@ export default function AdminLayout({
   const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
-    if (!isLoading && !isDevPreview) {
+    if (!isLoading) {
       if (!isLoggedIn) {
         router.push(`/login?redirect=${encodeURIComponent(pathname)}`);
-      } else if (!isAdmin) {
-        router.push("/");
       }
     }
-  }, [isLoggedIn, isAdmin, isLoading, router, pathname, isDevPreview]);
+  }, [isLoggedIn, isLoading, router, pathname]);
 
   useEffect(() => {
     if (!isLoggedIn || !isAdmin) return;
@@ -77,16 +75,46 @@ export default function AdminLayout({
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-[#f7f7fb]">
         <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#ff8d28] border-t-transparent" />
-        <p className="mt-4 text-xs font-semibold text-slate-500">Đang kiểm tra quyền truy cập...</p>
+        <p className="mt-4 text-xs font-semibold text-slate-500">Đang kiểm tra quyền truy cập Admin...</p>
       </div>
     );
   }
 
-  if (!isDevPreview && (!isLoggedIn || !isAdmin)) {
+  if (!isLoggedIn) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-[#f7f7fb]">
         <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#ff8d28] border-t-transparent" />
-        <p className="mt-4 text-xs font-semibold text-slate-500">Đang kiểm tra quyền truy cập...</p>
+        <p className="mt-4 text-xs font-semibold text-slate-500">Chuyển hướng đến đăng nhập...</p>
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-[#f7f7fb] p-6 text-center">
+        <div className="w-full max-w-[420px] rounded-2xl border border-red-200 bg-white p-8 shadow-sm">
+          <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-red-50 text-xl font-black text-red-600">
+            🚫
+          </div>
+          <h1 className="mt-4 text-xl font-black text-slate-900">Không có quyền truy cập</h1>
+          <p className="mt-2 text-xs font-medium leading-relaxed text-slate-500">
+            Tài khoản của bạn không phải là tài khoản Quản trị viên (Admin). Vui lòng đăng nhập tài khoản Admin để truy cập trang này.
+          </p>
+          <div className="mt-6 flex flex-col gap-2">
+            <Link
+              href={`/login?redirect=${encodeURIComponent(pathname)}`}
+              className="rounded-xl bg-[#ff8d28] px-5 py-2.5 text-xs font-bold text-white shadow hover:bg-orange-600 transition"
+            >
+              Đăng nhập tài khoản Admin
+            </Link>
+            <Link
+              href="/"
+              className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition"
+            >
+              Quay lại Trang chủ
+            </Link>
+          </div>
+        </div>
       </div>
     );
   }

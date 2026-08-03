@@ -20,6 +20,8 @@ import {
   refreshSessionFromServer,
   registerUser,
 } from "./auth-store";
+import { clearCart, clearBuyNow } from "./cart-store";
+import { clearBookingCart } from "./booking-cart-store";
 
 type AuthResult = {
   ok: boolean;
@@ -69,6 +71,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(() => {
+    clearCart();
+    clearBuyNow();
+    clearBookingCart();
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem("sudion_booking_draft");
+      window.sessionStorage.removeItem("sudion-last-order");
+    }
     clearSession();
     setSessionState(null);
   }, []);

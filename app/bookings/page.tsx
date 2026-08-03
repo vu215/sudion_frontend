@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/auth-context";
 import { useToast } from "@/app/toast-context";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://sudion-backend-production-453b.up.railway.app/api";
 
 function authHeaders() {
   const token = typeof window !== "undefined" ? window.localStorage.getItem("sudion_token") : null;
@@ -14,6 +14,7 @@ function authHeaders() {
 }
 
 const AUTO_REFRESH_MS = 8000;
+const BOOKINGS_PER_PAGE = 5;
 
 type BookingStatus =
   | "awaiting_payment"
@@ -99,7 +100,7 @@ const statusMap: Record<
   },
   accepted: {
     label: "Photographer đã xác nhận",
-    note: "Vui lòng thanh toán cọc 50% để giữ lịch chụp.",
+    note: "Vui lòng thanh toán trước theo mức bạn đã chọn để giữ lịch chụp.",
     className: "bg-[#eff6ff] text-[#1d4ed8] border-[#bfdbfe]",
     dot: "bg-[#3b82f6]",
   },
@@ -296,6 +297,7 @@ export default function BookingsPage() {
   const [email, setEmail] = useState("");
   const [bookings, setBookings] = useState<BackendBooking[]>([]);
   const [activeStatus, setActiveStatus] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
 
   const [selectedCodes, setSelectedCodes] = useState<string[]>([]);
   const [isCreatingGroup, setIsCreatingGroup] = useState(false);
@@ -409,6 +411,22 @@ export default function BookingsPage() {
     return bookings.filter((item) => item.status === activeStatus);
   }, [activeStatus, bookings]);
 
+  const totalPages = Math.max(1, Math.ceil(filteredBookings.length / BOOKINGS_PER_PAGE));
+  const paginatedBookings = useMemo(
+    () => filteredBookings.slice((currentPage - 1) * BOOKINGS_PER_PAGE, currentPage * BOOKINGS_PER_PAGE),
+    [filteredBookings, currentPage]
+  );
+  const paginationStart = Math.max(1, Math.min(currentPage - 2, totalPages - 4));
+  const pageNumbers = Array.from({ length: Math.min(5, totalPages) }, (_, index) => paginationStart + index);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeStatus]);
+
+  useEffect(() => {
+    setCurrentPage((page) => Math.min(page, totalPages));
+  }, [totalPages]);
+
   async function handleLoadBookings(targetEmail = email) {
     try {
       const finalEmail = targetEmail.trim();
@@ -418,6 +436,7 @@ export default function BookingsPage() {
       setPageError("");
       const data = await getBookingsByCustomer(finalEmail);
       setBookings(data);
+      setCurrentPage(1);
     } catch (error) {
       console.error("Lỗi lấy booking:", error);
       setBookings([]);
@@ -521,9 +540,9 @@ export default function BookingsPage() {
 
   return (
     <main className="min-h-screen bg-[#fafbfc] text-[#0e111d]">
-      <section className="mx-auto w-full max-w-[1180px] px-5 py-10 sm:px-6 lg:px-8 lg:py-14">
+      <section className="mx-auto w-full max-w-[1180px] px-5 py-10 sm:px-6 lg:px-8 lg:py-14 overflow-hidden">
         <div className="overflow-hidden rounded-[28px] border border-[#e8eaf1] bg-white shadow-[0_24px_80px_rgba(15,23,42,0.06)]">
-          
+
           {/* Top Banner Header */}
           <div className="relative overflow-hidden bg-[#111827] px-6 py-8 text-white sm:px-8 lg:px-10">
             <div className="relative grid gap-6 lg:grid-cols-[1.55fr_0.95fr] lg:items-end">
@@ -556,7 +575,7 @@ export default function BookingsPage() {
                     href="/cart"
                     className="inline-flex items-center justify-center rounded-full bg-[#ff8d28] px-4 py-2.5 text-xs font-black text-white shadow-md hover:bg-[#e0751b]"
                   >
-                    🛒 Xem Giỏ Booking ({selectedCodes.length > 0 ? selectedCodes.length : "0"})
+                    Xem Giỏ Booking ({selectedCodes.length > 0 ? selectedCodes.length : "0"})
                   </Link>
                   <Link
                     href="/photographer"
@@ -589,11 +608,10 @@ export default function BookingsPage() {
                     key={tab.id}
                     type="button"
                     onClick={() => setActiveStatus(tab.id)}
-                    className={`shrink-0 rounded-full border px-4 py-2 text-[12px] font-black transition-all ${
-                      active
-                        ? "border-[#ff8d28] bg-[#fff7ed] text-[#ff8d28]"
-                        : "border-[#e8eaf1] bg-white text-[#6b7280] hover:border-[#ffcfaa] hover:text-[#ff8d28]"
-                    }`}
+                    className={`shrink-0 rounded-full border px-4 py-2 text-[12px] font-black transition-all ${active
+                      ? "border-[#ff8d28] bg-[#fff7ed] text-[#ff8d28]"
+                      : "border-[#e8eaf1] bg-white text-[#6b7280] hover:border-[#ffcfaa] hover:text-[#ff8d28]"
+                      }`}
                   >
                     {tab.label}
                   </button>
@@ -619,7 +637,7 @@ export default function BookingsPage() {
               <EmptyState hasEmail={Boolean(email.trim())} />
             ) : (
               <div className="mt-5 grid gap-4">
-                {filteredBookings.map((booking) => (
+                {paginatedBookings.map((booking) => (
                   <BookingCard
                     key={booking.booking_code}
                     booking={booking}
@@ -632,6 +650,20 @@ export default function BookingsPage() {
                     }}
                   />
                 ))}
+                {totalPages > 1 ? (
+                  <div className="mt-2 flex flex-wrap items-center justify-between gap-3 border-t border-[#eef0f5] pt-5">
+                    <p className="text-xs font-semibold text-[#6b7280]">
+                      Hiển thị {(currentPage - 1) * BOOKINGS_PER_PAGE + 1}–{Math.min(currentPage * BOOKINGS_PER_PAGE, filteredBookings.length)} trong {filteredBookings.length} booking
+                    </p>
+                    <div className="flex items-center gap-1.5">
+                      <button type="button" disabled={currentPage === 1} onClick={() => setCurrentPage((page) => Math.max(1, page - 1))} className="rounded-lg border border-[#e8eaf1] px-3 py-2 text-xs font-black text-[#6b7280] hover:border-[#ff8d28] hover:text-[#ff8d28] disabled:cursor-not-allowed disabled:opacity-40">Trước</button>
+                      {pageNumbers.map((page) => (
+                        <button key={page} type="button" onClick={() => setCurrentPage(page)} className={`h-8 min-w-8 rounded-lg px-2 text-xs font-black transition ${currentPage === page ? "bg-[#ff8d28] text-white" : "border border-[#e8eaf1] text-[#6b7280] hover:border-[#ff8d28] hover:text-[#ff8d28]"}`}>{page}</button>
+                      ))}
+                      <button type="button" disabled={currentPage === totalPages} onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))} className="rounded-lg border border-[#e8eaf1] px-3 py-2 text-xs font-black text-[#6b7280] hover:border-[#ff8d28] hover:text-[#ff8d28] disabled:cursor-not-allowed disabled:opacity-40">Sau</button>
+                    </div>
+                  </div>
+                ) : null}
               </div>
             )}
           </div>
@@ -652,7 +684,7 @@ export default function BookingsPage() {
             disabled={isCreatingGroup}
             className="rounded-full bg-[#ff8d28] px-6 py-3 text-sm font-black text-white shadow-lg transition-all hover:bg-[#e0751b] disabled:opacity-60"
           >
-            {isCreatingGroup ? "Đang xử lý..." : "Thanh toán gom 1 lần 🚀"}
+            {isCreatingGroup ? "Đang xử lý..." : "Thanh toán gom 1 lần "}
           </button>
         </div>
       )}
@@ -799,6 +831,7 @@ function BookingCard({
   onEditSchedule: () => void;
   onCancel: () => void;
 }) {
+  const [showDetails, setShowDetails] = useState(false);
   const statusInfo = getStatusInfo(booking.status);
   const canCancel = ["awaiting_payment", "accepted", "confirmed"].includes(booking.status);
   const canEditSchedule = ["awaiting_payment", "accepted"].includes(booking.status);
@@ -818,7 +851,7 @@ function BookingCard({
           )}
           <div>
             <p className="text-[12px] font-black uppercase tracking-[0.14em] text-[#ff8d28]">
-              {booking.booking_code}
+              MÃ ĐƠN: {booking.booking_code}
             </p>
             <h3 className="mt-1 text-[20px] font-black text-[#0e111d]">
               {booking.service_name}
@@ -832,7 +865,7 @@ function BookingCard({
           </div>
         </div>
 
-        <span className={`inline-flex w-fit items-center gap-2 rounded-full border px-3 py-2 text-[12px] font-black ${statusInfo.className}`}>
+        <span className={`inline-flex w-fit items-center gap-2 rounded-full border px-3.5 py-2 text-[12px] font-black ${statusInfo.className}`}>
           <span className={`h-2 w-2 rounded-full ${statusInfo.dot}`} />
           {statusInfo.label}
         </span>
@@ -847,16 +880,35 @@ function BookingCard({
             <InfoItem label="Quy mô" value={booking.people_scale || "Chưa chọn"} />
           </div>
 
-          <div className="rounded-[16px] border border-[#eef0f5] bg-[#fafbfc] px-4 py-3">
-            <p className="text-[12px] font-black uppercase tracking-[0.14em] text-[#94a3b8]">Trạng thái hiện tại</p>
-            <p className="mt-2 text-[14px] font-semibold text-[#475569]">{statusInfo.note}</p>
+          <div className="flex items-center justify-between rounded-[16px] border border-[#eef0f5] bg-[#fafbfc] px-4 py-3">
+            <div>
+              <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#94a3b8]">Trạng thái hiện tại</p>
+              <p className="mt-0.5 text-[13px] font-semibold text-[#475569]">{statusInfo.note}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowDetails(!showDetails)}
+              className="shrink-0 rounded-full border border-orange-200 bg-orange-50 px-3.5 py-1.5 text-xs font-black text-[#ff8d28] hover:bg-[#ff8d28] hover:text-white transition-all shadow-sm"
+            >
+              {showDetails ? "Thu gọn ▲" : "Xem chi tiết đầy đủ ▼"}
+            </button>
           </div>
         </div>
 
         <div className="grid gap-3 rounded-[18px] border border-[#eef0f5] bg-[#fbfcff] p-4">
-          <MoneyRow label="Tổng tiền" value={booking.estimated_total} />
-          <MoneyRow label="Tiền cọc" value={booking.deposit_amount} highlight={booking.status === "confirmed"} />
-          <MoneyRow label="Còn lại" value={booking.remaining_amount} highlight={booking.status === "completed"} />
+          {(() => {
+            const depPercent = booking.estimated_total > 0 && booking.deposit_amount
+              ? Math.round((Number(booking.deposit_amount) / Number(booking.estimated_total)) * 100)
+              : 30;
+            const remPercent = Math.max(100 - depPercent, 0);
+            return (
+              <>
+                <MoneyRow label="Tổng tiền" value={booking.estimated_total} />
+                <MoneyRow label={`Tiền cọc (${depPercent}%)`} value={booking.deposit_amount} highlight={booking.status === "confirmed"} />
+                <MoneyRow label={`Còn lại (${remPercent}%)`} value={booking.remaining_amount} highlight={booking.status === "completed"} />
+              </>
+            );
+          })()}
 
           <div className="my-1 h-px bg-[#e8eaf1]" />
 
@@ -901,6 +953,99 @@ function BookingCard({
           </div>
         </div>
       </div>
+
+      {/* Expandable Full Detailed Breakdown */}
+      {showDetails && (
+        <div className="border-t border-[#e8eaf1] bg-[#f8fafc] p-5 text-xs text-[#334155] space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {/* Box 1: Chi tiết dịch vụ */}
+            <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-2 shadow-sm">
+              <h4 className="font-black text-slate-800 text-sm uppercase tracking-wider text-[#ff8d28] border-b pb-1.5">
+                Chi tiết dịch vụ
+              </h4>
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-medium">Gói dịch vụ:</span>
+                <strong className="text-slate-900">{booking.service_name}</strong>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-medium">Giá gốc gói:</span>
+                <strong className="text-slate-900">{formatCurrency(booking.base_price)}</strong>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-medium">Quy mô nhóm:</span>
+                <strong className="text-slate-900">{booking.people_scale || "Tiêu chuẩn"} {booking.people_extra ? `(+${booking.people_extra} người phụ thu)` : ""}</strong>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-medium">Khung cảnh/Concept:</span>
+                <strong className="text-slate-900">{booking.concept || booking.scene || "Theo trao đổi với nhiếp ảnh gia"}</strong>
+              </div>
+            </div>
+
+            {/* Box 2: Thông tin buổi chụp */}
+            <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-2 shadow-sm">
+              <h4 className="font-black text-slate-800 text-sm uppercase tracking-wider text-[#ff8d28] border-b pb-1.5">
+                Lịch trình & Địa điểm
+              </h4>
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-medium">Ngày thực hiện:</span>
+                <strong className="text-slate-900">{formatDate(booking.shoot_date)}</strong>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-medium">Giờ khởi hành:</span>
+                <strong className="text-slate-900">{formatTime(booking.shoot_time)}</strong>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-medium">Địa điểm chụp:</span>
+                <strong className="text-slate-900 text-right max-w-[180px] truncate">{booking.location ? booking.location.split(" [Photos:")[0] : "Chưa chọn"}</strong>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-medium">Hình thức cọc:</span>
+                <strong className="text-slate-900">{booking.payment_method === "bank" ? "Chuyển khoản VietQR" : "Thanh toán trực tuyến"}</strong>
+              </div>
+            </div>
+
+            {/* Box 3: Thông tin người đặt */}
+            <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-2 shadow-sm">
+              <h4 className="font-black text-slate-800 text-sm uppercase tracking-wider text-[#ff8d28] border-b pb-1.5">
+                Thông tin khách hàng
+              </h4>
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-medium">Họ tên khách:</span>
+                <strong className="text-slate-900">{booking.customer_full_name || "Khách hàng"}</strong>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-medium">Số điện thoại:</span>
+                <strong className="text-slate-900">{booking.customer_phone || "Đã đăng ký"}</strong>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-medium">Email liên hệ:</span>
+                <strong className="text-slate-900 truncate max-w-[170px]">{booking.customer_email}</strong>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-medium">Thời gian đặt lịch:</span>
+                <strong className="text-slate-900">{formatDateTime(booking.created_at)}</strong>
+              </div>
+            </div>
+          </div>
+
+          {/* Dịch vụ phụ đi kèm (nếu có) */}
+          {booking.add_ons && booking.add_ons.length > 0 && (
+            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+              <h4 className="font-black text-slate-800 text-xs uppercase tracking-wider text-slate-600 mb-2">
+                Dịch vụ chọn thêm ({booking.add_ons.length})
+              </h4>
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {booking.add_ons.map((addon, idx) => (
+                  <div key={idx} className="flex justify-between rounded-lg bg-slate-50 px-3 py-2 border border-slate-100">
+                    <span className="font-semibold text-slate-700">{addon.name}</span>
+                    <strong className="text-[#ff8d28]">{formatCurrency(addon.price)}</strong>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </article>
   );
 }

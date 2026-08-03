@@ -104,7 +104,13 @@ export default function PhotographerPage() {
         });
         
         if (result.success && result.data) {
-          const transformedData = (result.data as any).map((p: any) => ({
+          const rawList = Array.isArray(result.data)
+            ? result.data
+            : Array.isArray((result.data as any).items)
+            ? (result.data as any).items
+            : [];
+
+          const transformedData = rawList.map((p: any) => ({
             id: p.id,
             studio: p.full_name || p.name || p.user_full_name || "N/A",
             name: p.full_name || p.name || p.user_full_name || "N/A",
@@ -136,9 +142,9 @@ export default function PhotographerPage() {
           }));
           
           setItems(transformedData);
-          setPagination(result.pagination);
+          if (result.pagination) setPagination(result.pagination);
         } else {
-          console.error('API returned no data or failed:', result);
+          console.warn('API Response:', result);
         }
       } catch (error) {
         console.error('Error loading photographers:', error);
