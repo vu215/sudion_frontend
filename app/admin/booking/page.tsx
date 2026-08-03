@@ -68,7 +68,7 @@ export default function BookingPage() {
   useEffect(() => {
     async function loadBookings() {
       setLoading(true);
-      const result = await api.bookings.getAll({ page, pageSize: 10 });
+      const result = await api.bookings.getAll({ page, pageSize: 20 });
       
       if (result.success && result.data) {
         // Transform backend data to frontend format
@@ -207,7 +207,7 @@ export default function BookingPage() {
             <div className="mb-3 grid gap-2 md:grid-cols-[minmax(0,1fr)_150px_150px_150px_40px]">
               <label className="relative !block">
                 <AdminIcon name="search" className="pointer-events-none absolute left-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#8a93a5]" />
-                <input value={query} onChange={(e) => setQuery(e.target.value)} className="!h-10 !min-h-0 w-full rounded-xl border border-[#dfe3ec] !py-0 !pl-10 !pr-3 !text-[12px] !font-normal outline-none focus:border-[#ff8d28]" placeholder="Tìm theo mã booking, tên, SĐT, email..." />
+                <input value={query} onChange={(e) => setQuery(e.target.value)} className="!h-10 !min-h-0 w-full rounded-xl border border-[#dfe3ec] !py-0 !pl-10 !pr-3 !text-[12px] !font-normal outline-none focus:border-[#ff8d28]" style={{ paddingLeft: '38px' }} placeholder="Tìm theo mã booking, tên, SĐT, email..." />
               </label>
               <Select value={status} options={tabs} onChange={(v) => setStatus(v as BookingStatus | "Tất cả")} />
               <Select value={service} options={services} onChange={setService} />

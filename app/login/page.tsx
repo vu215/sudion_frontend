@@ -53,6 +53,12 @@ function LoginContent() {
       return;
     }
 
+    if (result.user && result.user.role === "admin") {
+      const redirect = searchParams.get("redirect") || "/admin";
+      transitionTo(redirect);
+      return;
+    }
+
     const redirect = searchParams.get("redirect") || "";
     if (redirect) {
       transitionTo(redirect);

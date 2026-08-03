@@ -234,9 +234,15 @@ export default function RentalDetailPage() {
 
     try {
       setBookingLoading(true);
+      const token = window.localStorage.getItem("sudion_token");
+      if (!token || !session) {
+        toast.error("Cần đăng nhập", "Vui lòng đăng nhập trước khi thuê thiết bị.");
+        router.push(`/login?redirect=${encodeURIComponent(`/rental/${id}`)}`);
+        return;
+      }
       const res = await fetch(`${API_URL}/equipment-bookings`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           equipmentId: item.id,
           customerName,
@@ -254,8 +260,9 @@ export default function RentalDetailPage() {
 
       const resData = await res.json();
       if (resData.success) {
-        toast.success("Thành công", "Yêu cầu đặt thuê đã được gửi thành công!");
-        router.push(`/booking-request-success/${resData.bookingCode}`);
+        toast.success("Đã tạo đơn thuê", "Vui lòng thanh toán để xác nhận giữ máy.");
+        const payable = Number(resData.totalPrice || 0) + Number(resData.depositAmount || 0);
+        router.push(`/checkout-gateway?rentalCode=${encodeURIComponent(resData.bookingCode)}&amount=${payable}`);
       } else {
         toast.error("Lỗi", resData.message || "Đã xảy ra lỗi khi tạo đơn thuê.");
       }

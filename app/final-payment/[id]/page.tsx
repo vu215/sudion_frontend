@@ -39,25 +39,25 @@ const paymentMethods: {
   description: string;
   mark: string;
 }[] = [
-  {
-    id: "momo",
-    label: "MoMo",
-    description: "Thanh toán ví điện tử",
-    mark: "M",
-  },
-  {
-    id: "vnpay",
-    label: "VNPay",
-    description: "Quét mã QR ngân hàng",
-    mark: "QR",
-  },
-  {
-    id: "bank",
-    label: "Chuyển khoản",
-    description: "Chuyển khoản thủ công",
-    mark: "B",
-  },
-];
+    {
+      id: "momo",
+      label: "MoMo",
+      description: "Thanh toán ví điện tử",
+      mark: "M",
+    },
+    {
+      id: "vnpay",
+      label: "VNPay",
+      description: "Quét mã QR ngân hàng",
+      mark: "QR",
+    },
+    {
+      id: "bank",
+      label: "Chuyển khoản",
+      description: "Chuyển khoản thủ công",
+      mark: "B",
+    },
+  ];
 
 const statusMap: Record<
   string,
@@ -174,7 +174,7 @@ export default function FinalPaymentPage({
 
   useEffect(() => {
     if (!booking?.photographer_id) return;
-    
+
     async function fetchPhotographer() {
       try {
         const res = await fetch(`${API_URL}/photographers/${booking.photographer_id}`);
@@ -415,18 +415,16 @@ export default function FinalPaymentPage({
                     key={item.id}
                     type="button"
                     onClick={() => setPaymentMethod(item.id)}
-                    className={`rounded-[18px] border p-4 text-left transition-all ${
-                      paymentMethod === item.id
+                    className={`rounded-[18px] border p-4 text-left transition-all ${paymentMethod === item.id
                         ? "border-[#ff8d28] bg-[#fff7ed] shadow-[0_12px_28px_rgba(255,141,40,0.12)]"
                         : "border-[#e2e8f0] bg-white hover:border-[#ffcfaa]"
-                    }`}
+                      }`}
                   >
                     <span
-                      className={`grid h-10 w-10 place-items-center rounded-full text-[13px] font-black ${
-                        paymentMethod === item.id
+                      className={`grid h-10 w-10 place-items-center rounded-full text-[13px] font-black ${paymentMethod === item.id
                           ? "bg-[#ff8d28] text-white"
                           : "bg-[#f1f5f9] text-[#64748b]"
-                      }`}
+                        }`}
                     >
                       {item.mark}
                     </span>
@@ -571,7 +569,7 @@ export default function FinalPaymentPage({
               <p className="text-[12px] font-black uppercase tracking-[0.15em] text-[#ff8d28]">
                 Gợi ý thể loại chụp
               </p>
-              
+
               <h3 className="mt-2 text-[13.5px] font-black text-[#0f172a]">
                 Các loại hình {suggestedPackages.sameCategory[0]?.category?.name || "chụp ảnh"} khác:
               </h3>
@@ -582,11 +580,10 @@ export default function FinalPaymentPage({
                   return (
                     <div
                       key={pkg.id}
-                      className={`flex items-center justify-between p-2.5 rounded-xl border text-[12px] ${
-                        isSelected
+                      className={`flex items-center justify-between p-2.5 rounded-xl border text-[12px] ${isSelected
                           ? "border-[#ff8d28]/30 bg-orange-50/20"
                           : "border-[#eef2f7] bg-white"
-                      }`}
+                        }`}
                     >
                       <div className="flex items-center gap-3 min-w-0 flex-1 pr-2">
                         <img
@@ -599,7 +596,7 @@ export default function FinalPaymentPage({
                           <p className="text-gray-500 font-medium mt-0.5">Giá: {pkg.price.toLocaleString("vi-VN")} VND</p>
                         </div>
                       </div>
-                      
+
                       {isSelected ? (
                         <span className="shrink-0 px-2.5 py-1 text-[10px] font-black rounded-full bg-orange-100 text-orange-600">
                           Đã chọn
@@ -773,9 +770,8 @@ function MoneyRow({
       <p className="text-[13px] font-bold text-[#64748b]">{label}</p>
 
       <p
-        className={`text-right font-black ${
-          strong ? "text-[20px] text-[#ff8d28]" : "text-[16px] text-[#111827]"
-        }`}
+        className={`text-right font-black ${strong ? "text-[20px] text-[#ff8d28]" : "text-[16px] text-[#111827]"
+          }`}
       >
         {formatCurrency(value)}
       </p>
@@ -795,7 +791,7 @@ function PaymentPreview({
   const bankId = "TCB"; // Techcombank
   const accountNo = "19075748293011";
   const accountName = "TRAN THIEN VU";
-  
+
   // URL to generate VietQR image dynamically
   const qrUrl = `https://img.vietqr.io/image/${bankId}-${accountNo}-compact.png?amount=${amount}&addInfo=${encodeURIComponent(bookingCode)}&accountName=${encodeURIComponent(accountName)}`;
 
@@ -867,9 +863,8 @@ function SummaryRow({
       <span className="text-[12px] font-bold text-[#64748b]">{label}</span>
 
       <span
-        className={`max-w-[210px] text-right text-[13px] font-black leading-5 ${
-          strong ? "text-[#ff8d28]" : "text-[#0f172a]"
-        }`}
+        className={`max-w-[210px] text-right text-[13px] font-black leading-5 ${strong ? "text-[#ff8d28]" : "text-[#0f172a]"
+          }`}
       >
         {value}
       </span>
@@ -890,30 +885,27 @@ function ProgressItem({
 }) {
   return (
     <div
-      className={`rounded-[14px] border p-2.5 transition-all ${
-        active
+      className={`rounded-[14px] border p-2.5 transition-all ${active
           ? "border-[#ffcfaa] bg-[#fff7ed]"
           : "border-[#eef2f7] bg-[#fbfcff]"
-      }`}
+        }`}
     >
       <div className="flex items-center gap-3">
         <span
-          className={`grid h-6 w-6 shrink-0 place-items-center rounded-full text-[11px] font-black ${
-            done
+          className={`grid h-6 w-6 shrink-0 place-items-center rounded-full text-[11px] font-black ${done
               ? "bg-[#ff8d28] text-white"
               : active
-              ? "bg-white text-[#ff8d28] border border-[#ffcfaa]"
-              : "bg-[#e2e8f0] text-[#94a3b8]"
-          }`}
+                ? "bg-white text-[#ff8d28] border border-[#ffcfaa]"
+                : "bg-[#e2e8f0] text-[#94a3b8]"
+            }`}
         >
           {done ? "✓" : "•"}
         </span>
 
         <div className="min-w-0 flex-1">
           <p
-            className={`text-[12.5px] font-black truncate ${
-              active ? "text-[#0f172a]" : "text-[#64748b]"
-            }`}
+            className={`text-[12.5px] font-black truncate ${active ? "text-[#0f172a]" : "text-[#64748b]"
+              }`}
           >
             {title}
           </p>

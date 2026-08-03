@@ -266,7 +266,6 @@ export default function AdminDashboardPage() {
       <AdminLayout active="Dashboard">
         <div className="flex min-h-[400px] items-center justify-center">
           <div className="text-center">
-            <div className="mb-4 text-2xl">🔄</div>
             <p className="text-gray-600">Đang tải dữ liệu dashboard...</p>
           </div>
         </div>
@@ -284,7 +283,10 @@ export default function AdminDashboardPage() {
           <label className="relative !block">
             <AdminIcon name="calendar" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#ff8d28]" />
             <select value={periodIndex} onChange={(event) => setPeriodIndex(Number(event.target.value))} className="!h-10 !min-h-0 !w-[200px] shrink-0 rounded-xl !border !border-[#ffd2ad] bg-white !py-0 !pl-9 !pr-3 !text-[12px] !font-normal text-[#ff8d28] !shadow-none outline-none hover:bg-[#fff8f1] focus:!border-[#ff8d28] focus:ring-2 focus:ring-[#ff8d28]/10">
-              {periods.map((item, index) => <option key={item.label} value={index}>{item.start} - {item.end}</option>)}
+              {periods.map((item, index) => {
+                const formatShow = (d: string) => d.split("-").reverse().join("/");
+                return <option key={item.label} value={index}>{formatShow(item.start)} - {formatShow(item.end)}</option>;
+              })}
             </select>
           </label>
           <button onClick={exportCsv} className="inline-flex h-10 w-[170px] items-center justify-center gap-2.5 rounded-xl bg-[#ff8d28] px-4 text-[13px] font-medium text-white shadow-[0_10px_20px_rgba(255,141,40,0.22)] hover:bg-[#f47f16]">

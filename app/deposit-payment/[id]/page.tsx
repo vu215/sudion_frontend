@@ -323,7 +323,7 @@ export default function DepositPaymentPage({
 
   return (
     <main className="min-h-screen bg-[#f4f6fa] px-4 py-10 text-[#0f172a] sm:py-14">
-      <div className="mx-auto grid max-w-[960px] gap-5 lg:grid-cols-[1fr_320px] lg:items-start">
+      <div className="mx-auto grid max-w-[960px] gap-5 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start overflow-hidden">
         <div className="overflow-hidden rounded-2xl border border-[#e2e8f0] bg-white shadow-sm">
           <div className="relative overflow-hidden bg-[#111827] px-6 py-7 text-white">
             <div className="absolute -right-16 -top-16 h-56 w-56 rounded-full bg-[#ff8d28]/20 blur-3xl" />

@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState, useMemo } from "react";
 import { useToast } from "@/app/toast-context";
-import { addToCart } from "@/app/cart-store";
+import { addToCart, prepareBuyNow } from "@/app/cart-store";
+import { useAuth } from "@/app/auth-context";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
@@ -63,6 +64,7 @@ export default function ProductDetailPage() {
   const params = useParams();
   const router = useRouter();
   const toast = useToast();
+  const { session, isLoading: authLoading } = useAuth();
   const id = params.id as string;
 
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
@@ -101,17 +103,25 @@ export default function ProductDetailPage() {
   const featureSpecs = product?.specs?.slice(0, 4) || [];
 
   const handleAddToCart = (buyNow = false) => {
+    if (authLoading) return;
+    if (!session) {
+      toast.info("Cần đăng nhập", "Vui lòng đăng nhập để thêm sản phẩm vào giỏ hàng.");
+      router.push(`/login?redirect=${encodeURIComponent(`/products/${id}`)}`);
+      return;
+    }
     if (!product) return;
     if (currentVariant) {
       if (currentVariant.ton_kho <= 0) {
         toast.error("Lỗi", "Sản phẩm phiên bản này hiện đã hết hàng.");
         return;
       }
-      addToCart(product, { ten: currentVariant.ten, gia: currentVariant.gia, hinh_anh: currentVariant.hinh_anh }, quantity);
+      const cartVariant = { ten: currentVariant.ten, gia: currentVariant.gia, hinh_anh: currentVariant.hinh_anh };
 
       if (buyNow) {
-        router.push("/cart");
+        prepareBuyNow(product, cartVariant, quantity);
+        router.push("/checkout?mode=buy-now");
       } else {
+        addToCart(product, cartVariant, quantity);
         setShowToast(true);
         setTimeout(() => setShowToast(false), 3000);
       }

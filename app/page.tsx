@@ -2,9 +2,9 @@
 
 /* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://sudion-backend-production-453b.up.railway.app/api";
 
 function resolveAssetUrl(url: string | null) {
   if (!url) return "";
@@ -46,6 +46,119 @@ const deals = [
   ["-15%", "Gói chụp kỷ yếu nhóm", "Lynh Photography", "1.700.000đ", "2.000.000đ", photos.event],
   ["-10%", "Gói chụp sản phẩm cơ bản", "Tony Media", "900.000đ", "1.000.000đ", photos.product],
   ["-20%", "Gói chụp gia đình cuối tuần", "Nắng Studio", "1.600.000đ", "2.000.000đ", photos.family],
+];
+
+const fallbackProducts = [
+  {
+    id: 101,
+    name: "Sony Alpha 7 IV (Body)",
+    slug: "sony-alpha-7-iv",
+    category_name: "Máy ảnh (Mirrorless)",
+    price: 58990000,
+    sale_price: 54990000,
+    image_url: "https://images.unsplash.com/photo-1616035069371-29a1b244cc32?auto=format&fit=crop&w=800&q=80",
+    description: "Cảm biến Full-frame 33MP, Chip BIONZ XR, Lấy nét Real-time Eye AF, video 4K 60p.",
+    hot: 1
+  },
+  {
+    id: 102,
+    name: "Sony Alpha 7C II (Body)",
+    slug: "sony-alpha-7c-ii",
+    category_name: "Máy ảnh (Mirrorless)",
+    price: 54990000,
+    sale_price: 52990000,
+    image_url: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=800&q=80",
+    description: "Cảm biến Full-frame 33MP, bộ xử lý trí tuệ nhân tạo AI chuyên dụng, trọng lượng siêu nhẹ 514g.",
+    hot: 1
+  },
+  {
+    id: 103,
+    name: "Sony ZV-E10 II (Body)",
+    slug: "sony-zv-e10-ii",
+    category_name: "Máy ảnh (Mirrorless)",
+    price: 19990000,
+    sale_price: 18990000,
+    image_url: "https://images.unsplash.com/photo-1502920917128-1da500764ccc?auto=format&fit=crop&w=800&q=80",
+    description: "Cảm biến APS-C 26MP chuyên quay vlog, mic 3 đầu hướng lọc gió, màn hình xoay lật đa góc.",
+    hot: 1
+  },
+  {
+    id: 104,
+    name: "Sony Alpha 7R V (Body)",
+    slug: "sony-alpha-7r-v",
+    category_name: "Máy ảnh (Mirrorless)",
+    price: 92900000,
+    sale_price: 89990000,
+    image_url: "https://images.unsplash.com/photo-1502982720700-bfff97f2ecac?auto=format&fit=crop&w=800&q=80",
+    description: "Cảm biến Exmor R CMOS 61MP siêu phân giải, chống rung 8.0 bước, màn hình LCD 4 trục xoay linh hoạt.",
+    hot: 1
+  },
+  {
+    id: 105,
+    name: "Sony FE 24-70mm f/2.8 GM II",
+    slug: "sony-fe-24-70mm-f28-gm-ii",
+    category_name: "Ống kính (Lens)",
+    price: 53990000,
+    sale_price: 49990000,
+    image_url: "https://images.unsplash.com/photo-1617005082133-548c4dd27f35?auto=format&fit=crop&w=800&q=80",
+    description: "Ống kính zoom tiêu chuẩn G Master thế hệ 2 siêu nhẹ, độ sắc nét tuyệt đối, f/2.8 cố định.",
+    hot: 1
+  },
+  {
+    id: 106,
+    name: "Sony FE 70-200mm f/2.8 GM OSS II",
+    slug: "sony-fe-70-200mm-f28-gm-oss-ii",
+    category_name: "Ống kính (Lens)",
+    price: 67990000,
+    sale_price: 63990000,
+    image_url: "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?auto=format&fit=crop&w=800&q=80",
+    description: "Ống kính tele zoom đỉnh cao G Master II, 4 động cơ XD Linear, tích hợp chống rung OSS quang học.",
+    hot: 0
+  },
+  {
+    id: 107,
+    name: "Sony FE 50mm f/1.2 GM",
+    slug: "sony-fe-50mm-f12-gm",
+    category_name: "Ống kính (Lens)",
+    price: 49990000,
+    sale_price: 45990000,
+    image_url: "https://images.unsplash.com/photo-1527018601619-a508a2be00cd?auto=format&fit=crop&w=800&q=80",
+    description: "Ống kính chân dung khẩu độ siêu rộng f/1.2 G Master, 11 lá khẩu tròn cho bokeh hoàn hảo.",
+    hot: 1
+  },
+  {
+    id: 108,
+    name: "Sony FE 85mm f/1.4 GM",
+    slug: "sony-fe-85mm-f14-gm",
+    category_name: "Ống kính (Lens)",
+    price: 38990000,
+    sale_price: 35990000,
+    image_url: "https://images.unsplash.com/photo-1619961313028-e4b9e2365922?auto=format&fit=crop&w=800&q=80",
+    description: "Ống kính chân dung huyền thoại khẩu f/1.4, tiêu cự vàng 85mm xóa phông mượt mà nghệ thuật.",
+    hot: 0
+  },
+  {
+    id: 109,
+    name: "Gimbal DJI RS 4 (Standard)",
+    slug: "gimbal-dji-rs-4-standard",
+    category_name: "Phụ kiện (Accessory)",
+    price: 10990000,
+    sale_price: 9990000,
+    image_url: "https://images.unsplash.com/photo-1581591524425-c7e0978865fc?auto=format&fit=crop&w=800&q=80",
+    description: "Gimbal chống rung 3 trục thế hệ 4 hỗ trợ quay dọc native, màn hình OLED tự động khóa, tải trọng 3.0 kg.",
+    hot: 1
+  },
+  {
+    id: 110,
+    name: "Peak Design Travel Tripod (Carbon)",
+    slug: "peak-design-travel-tripod-carbon",
+    category_name: "Phụ kiện (Accessory)",
+    price: 16500000,
+    sale_price: 14990000,
+    image_url: "https://images.unsplash.com/photo-1495707902641-75cac588d2e9?auto=format&fit=crop&w=800&q=80",
+    description: "Chân máy ảnh du lịch carbon siêu nhẹ chỉ 1.27 kg, tải trọng 9.1 kg, thiết kế thu gọn thông minh.",
+    hot: 0
+  }
 ];
 
 const promoSlides = [
@@ -126,22 +239,138 @@ function getCategoryIcon(slug: string) {
   }
   return (
     <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 035.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 0 0-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 0 3 5.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 0 1 9.288 0M15 7a3 3 0 1 1-6 0 3 3 0 0 1 6 0zm6 3a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM7 10a2 2 0 1 1-4 0 2 2 0 0 1 4 0z" />
     </svg>
   );
 }
 
+const getCategoryPhoto = (slug: string) => {
+  if (slug === "wedding" || slug === "couple") return photos.wedding;
+  if (slug === "portrait" || slug === "personal") return photos.portrait;
+  if (slug === "event") return photos.event;
+  if (slug === "travel") return photos.travel;
+  if (slug === "product" || slug === "food") return photos.product;
+  return photos.family;
+};
+
 export default function Home() {
   const [photographers, setPhotographers] = useState<Photographer[]>(fallbackPhotographers);
+  const [allProducts, setAllProducts] = useState<any[]>(fallbackProducts);
+  const [categoriesList, setCategoriesList] = useState<any[]>(services);
+  const [homeDeals, setHomeDeals] = useState<any[]>(deals);
 
   useEffect(() => {
-    fetch(`${API_URL}/photographers/featured?limit=4`)
+    // 1. Fetch categories
+    fetch(`${API_URL}/services`)
       .then((res) => res.json())
       .then((json) => {
-        if (json.success && Array.isArray(json.data) && json.data.length) setPhotographers(json.data.slice(0, 4));
+        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+          const mapped = json.data.map((cat: any) => [
+            cat.name,
+            cat.description || "Dịch vụ chụp ảnh chuyên nghiệp tại Sudion.",
+            getCategoryPhoto(cat.slug),
+            cat.slug
+          ]);
+          setCategoriesList(mapped);
+        }
       })
-      .catch(() => undefined);
+      .catch((err) => console.log("Failed to fetch services:", err));
+
+    // 2. Fetch photographers & deals
+    const loadPhotographersAndDeals = async () => {
+      try {
+        const res = await fetch(`${API_URL}/photographers/featured?limit=4`);
+        const json = await res.json();
+        let list = json.success && Array.isArray(json.data) ? json.data : [];
+        
+        // If featured list is empty, fetch all active photographers as fallback
+        if (list.length === 0) {
+          const resAll = await fetch(`${API_URL}/photographers`);
+          const jsonAll = await resAll.json();
+          list = jsonAll.success && Array.isArray(jsonAll.data) ? jsonAll.data : [];
+        }
+        
+        if (list.length > 0) {
+          setPhotographers(list.slice(0, 4));
+          
+          // Fetch booking options (packages) for the first 3 photographers to build dynamic deals
+          const allPackages: any[] = [];
+          for (const photog of list.slice(0, 3)) {
+            try {
+              const resPack = await fetch(`${API_URL}/photographers/${photog.id}/booking-options`);
+              const jsonPack = await resPack.json();
+              if (jsonPack.success && jsonPack.data && Array.isArray(jsonPack.data.packages)) {
+                for (const pkg of jsonPack.data.packages) {
+                  allPackages.push({ pkg, photog });
+                }
+              }
+            } catch (e) {
+              console.log("Error loading packages for photographer:", photog.id, e);
+            }
+          }
+          
+          if (allPackages.length > 0) {
+            const discounts = ["-20%", "-15%", "-10%", "-25%"];
+            const mappedDeals = allPackages.slice(0, 4).map(({ pkg, photog }, idx) => {
+              const disc = discounts[idx % discounts.length];
+              const priceNum = Number(pkg.price);
+              const oldPriceNum = Math.round(priceNum * 1.25);
+              const formatVND = (v: number) => v.toLocaleString("vi-VN") + "đ";
+              
+              const pkgImg = pkg.image_url 
+                ? resolveAssetUrl(pkg.image_url) 
+                : getCategoryPhoto(pkg.category?.slug || "wedding");
+
+              return [
+                disc,
+                pkg.name,
+                photog.full_name,
+                formatVND(priceNum),
+                formatVND(oldPriceNum),
+                pkgImg
+              ];
+            });
+            setHomeDeals(mappedDeals);
+          }
+        }
+      } catch (err) {
+        console.log("Error loading photographers & packages:", err);
+      }
+    };
+    
+    loadPhotographersAndDeals();
+
+    // 3. Fetch products
+    fetch(`${API_URL}/products`)
+      .then((res) => res.json())
+      .then((data) => {
+        const list = Array.isArray(data) ? data : (data.success && Array.isArray(data.data)) ? data.data : [];
+        if (list.length > 0) {
+          setAllProducts(list);
+        }
+      })
+      .catch((err) => console.log("Failed to fetch homepage products:", err));
   }, []);
+
+  const getProductImage = (image_url: string) => {
+    const backendHost = API_URL.replace(/\/api\/?$/, "");
+    if (!image_url) return "/default-product.png";
+    if (image_url.startsWith("http") || image_url.startsWith("data:")) {
+      return image_url;
+    }
+    if (image_url.startsWith("/")) {
+      return `${backendHost}${image_url}`;
+    }
+    return `${backendHost}/uploads/${image_url}`;
+  };
+
+  const hotProducts = useMemo(() => {
+    return allProducts.filter(p => p.hot === 1).slice(0, 4);
+  }, [allProducts]);
+
+  const promoProducts = useMemo(() => {
+    return allProducts.filter(p => p.sale_price > 0 && p.sale_price < p.price).slice(0, 4);
+  }, [allProducts]);
 
   return (
     <main className="bg-white font-sans text-[#111827]">
@@ -156,7 +385,7 @@ export default function Home() {
 
         <Section title="Dịch vụ được đặt nhiều" action="/services">
           <div className="flex snap-x gap-3 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:grid md:grid-cols-6 md:overflow-visible">
-            {services.map(([name, desc, image, slug]) => (
+            {categoriesList.slice(0, 6).map(([name, desc, image, slug]) => (
               <Link key={name} href={`/services/${slug}`} className="group relative w-[160px] shrink-0 snap-start overflow-hidden rounded-2xl bg-slate-900 shadow-sm sm:w-[185px] md:w-auto" style={{ aspectRatio: "0.5" }}>
                 <img src={image} alt={name} className="transition duration-500 group-hover:scale-105" style={{ height: "100%", width: "100%", objectFit: "cover" }} />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/15 to-transparent" />
@@ -175,9 +404,9 @@ export default function Home() {
         </Section>
 
         <Section title="Gói dịch vụ ưu đãi" action="/services">
-          <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4">
-            {deals.map(([discount, name, studio, price, oldPrice, image]) => (
-              <article key={name} className="flex overflow-hidden rounded-xl border border-slate-200 bg-white font-sans shadow-[0_5px_18px_rgba(15,23,42,.06)] transition duration-300 hover:shadow-md" style={{ height: "clamp(145px, 11vw, 180px)" }}>
+          <div className="flex snap-x gap-4 overflow-x-auto pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:grid md:grid-cols-4 md:overflow-visible">
+            {homeDeals.map(([discount, name, studio, price, oldPrice, image]) => (
+              <article key={name} className="flex overflow-hidden rounded-xl border border-slate-200 bg-white font-sans shadow-[0_5px_18px_rgba(15,23,42,.06)] transition duration-300 hover:shadow-md w-[280px] shrink-0 snap-start sm:w-[320px] md:w-auto" style={{ height: "clamp(145px, 11vw, 180px)" }}>
                 <div className="relative w-[43%] shrink-0 bg-slate-100">
                   <img src={image} alt={name} className="h-full w-full object-cover" style={{ height: "100%", width: "100%", objectFit: "cover" }} />
                   <span className="absolute left-2 top-2 rounded-md bg-[#ff8d28] px-2 py-0.5 text-[10px] font-black text-white shadow-sm">{discount}</span>
@@ -201,6 +430,102 @@ export default function Home() {
             ))}
           </div>
         </Section>
+
+        {hotProducts.length > 0 && (
+          <Section title="Thiết bị máy ảnh HOT" action="/products" badge="HOT">
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+              {hotProducts.map((item) => (
+                <div key={item.id} className="group bg-white rounded-3xl shadow-[0_4px_20px_rgba(15,23,42,.1)] hover:shadow-[0_8px_30px_rgba(15,23,42,.16)] overflow-hidden flex flex-col transition-all duration-300">
+                  <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-50">
+                    <img
+                      src={getProductImage(item.image_url)}
+                      alt={item.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                    <div className="absolute top-2.5 left-2.5 bg-[#ff8d28] text-white px-2.5 py-0.5 rounded-full text-[9px] font-black tracking-wider shadow-sm uppercase">
+                      HOT
+                    </div>
+                    {item.sale_price > 0 && item.sale_price < item.price && (
+                      <div className="absolute top-2.5 right-2.5 bg-red-500 text-white px-2.5 py-0.5 rounded-full text-[9px] font-black shadow-sm">
+                        -{Math.round(((item.price - item.sale_price) / item.price) * 100)}%
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-4 flex-1 flex flex-col justify-between">
+                    <div>
+                      <div className="text-[10px] font-extrabold text-[#ff8d28] uppercase tracking-wider">{item.category_name}</div>
+                      <h3 className="mt-1.5 text-sm font-extrabold text-slate-800 line-clamp-1 group-hover:text-[#ff8d28] transition-colors">{item.name}</h3>
+                      <p className="mt-1 text-[11px] text-slate-400 line-clamp-2 leading-relaxed">{item.description}</p>
+                    </div>
+                    <div className="mt-4 pt-3 border-t border-slate-50 flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <span className="text-sm font-black text-slate-800 block truncate">
+                          {Number(item.sale_price || item.price).toLocaleString('vi-VN')} ₫
+                        </span>
+                        {item.sale_price > 0 && item.sale_price < item.price && (
+                          <span className="text-[10px] text-slate-400 line-through block mt-0.5 truncate">
+                            {Number(item.price).toLocaleString('vi-VN')} ₫
+                          </span>
+                        )}
+                      </div>
+                      <Link href={`/products/${item.slug}`} className="rounded-lg bg-slate-900 px-3 py-1.5 text-[10px] font-black text-white hover:bg-[#ff8d28] transition-colors whitespace-nowrap shrink-0">
+                        Xem chi tiết
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Section>
+        )}
+
+        {promoProducts.length > 0 && (
+          <Section title="Ưu đãi thiết bị chính hãng" action="/products" badge="SALE">
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+              {promoProducts.map((item) => (
+                <div key={item.id} className="group bg-white rounded-3xl shadow-[0_4px_20px_rgba(15,23,42,.1)] hover:shadow-[0_8px_30px_rgba(15,23,42,.16)] overflow-hidden flex flex-col transition-all duration-300">
+                  <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-50">
+                    <img
+                      src={getProductImage(item.image_url)}
+                      alt={item.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                    <div className="absolute top-2.5 left-2.5 bg-red-600 text-white px-2.5 py-0.5 rounded-full text-[9px] font-black tracking-wider shadow-sm uppercase">
+                      GIẢM GIÁ
+                    </div>
+                    {item.sale_price > 0 && item.sale_price < item.price && (
+                      <div className="absolute top-2.5 right-2.5 bg-red-500 text-white px-2.5 py-0.5 rounded-full text-[9px] font-black shadow-sm">
+                        -{Math.round(((item.price - item.sale_price) / item.price) * 100)}%
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-4 flex-1 flex flex-col justify-between">
+                    <div>
+                      <div className="text-[10px] font-extrabold text-[#ff8d28] uppercase tracking-wider">{item.category_name}</div>
+                      <h3 className="mt-1.5 text-sm font-extrabold text-slate-800 line-clamp-1 group-hover:text-[#ff8d28] transition-colors">{item.name}</h3>
+                      <p className="mt-1 text-[11px] text-slate-400 line-clamp-2 leading-relaxed">{item.description}</p>
+                    </div>
+                    <div className="mt-4 pt-3 border-t border-slate-50 flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <span className="text-sm font-black text-slate-800 block truncate">
+                          {Number(item.sale_price || item.price).toLocaleString('vi-VN')} ₫
+                        </span>
+                        {item.sale_price > 0 && item.sale_price < item.price && (
+                          <span className="text-[10px] text-slate-400 line-through block mt-0.5 truncate">
+                            {Number(item.price).toLocaleString('vi-VN')} ₫
+                          </span>
+                        )}
+                      </div>
+                      <Link href={`/products/${item.slug}`} className="rounded-lg bg-slate-900 px-3 py-1.5 text-[10px] font-black text-white hover:bg-[#ff8d28] transition-colors whitespace-nowrap shrink-0">
+                        Chi tiết
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Section>
+        )}
 
         <AiBanner />
         <BookingSteps />
@@ -256,40 +581,76 @@ const locations = {
 
 const slides = [
   {
-    id: "travel",
-    image: "https://images.unsplash.com/photo-1528127269322-539801943592?auto=format&fit=crop&w=2000&q=90", // Vietnam nature
-    gradient: "from-[#fff8f1]/95 via-[#f7efe8]/75 to-black/10",
-    slogan1: "Đặt lịch chụp hình",
-    slogan2: "CÙNG SUDION",
-    slogan3: "ngay hôm nay",
-    slogan1Color: "text-slate-800",
+    id: "main",
+    image: "https://images.pexels.com/photos/1024960/pexels-photo-1024960.jpeg?auto=compress&cs=tinysrgb&w=2000",
+    gradient: "from-black/60 via-black/30 to-transparent",
+    slogan1: "Kết nối với",
+    slogan2: "PHOTOGRAPHER",
+    slogan3: "chuyên nghiệp",
+    slogan1Color: "text-white/90",
     slogan2Color: "text-[#ff8d28]",
-    slogan3Color: "text-slate-800",
-    description: "Khám phá, so sánh và đặt lịch với những Photographer uy tín, chuyên nghiệp trên toàn quốc."
-  },
-  {
-    id: "event",
-    image: "https://images.unsplash.com/photo-1513151233558-d860c5398176?auto=format&fit=crop&w=2000&q=90", // Party light
-    gradient: "from-[#fff8f1]/95 via-[#f7efe8]/75 to-black/10",
-    slogan1: "Lưu giữ khoảnh khắc",
-    slogan2: "TRỌN VẸN YÊU THƯƠNG",
-    slogan3: "ngày đặc biệt",
-    slogan1Color: "text-slate-800",
-    slogan2Color: "text-[#ff8d28]",
-    slogan3Color: "text-slate-800",
-    description: "Ghi lại những giây phút đong đầy hạnh phúc bên gia đình và bạn bè trong ngày đặc biệt."
+    slogan3Color: "text-white/90",
+    description: "Khám phá, so sánh và đặt lịch với những photographer uy tín, chuyên nghiệp trên toàn quốc."
   },
   {
     id: "wedding",
-    image: "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=2000&q=90", // Wedding
-    gradient: "from-[#fff8f1]/95 via-[#f7efe8]/75 to-black/10",
+    image: "https://images.pexels.com/photos/2253870/pexels-photo-2253870.jpeg?auto=compress&cs=tinysrgb&w=2000",
+    gradient: "from-black/60 via-black/30 to-transparent",
     slogan1: "Viết câu chuyện tình",
-    slogan2: "ĐẸP NHƯ CỔ TÍCH",
-    slogan3: "trong ngày cưới",
-    slogan1Color: "text-slate-800",
+    slogan2: "NGÀY CƯỚI",
+    slogan3: "đẹp như cổ tích",
+    slogan1Color: "text-white/90",
     slogan2Color: "text-[#ff8d28]",
-    slogan3Color: "text-slate-800",
+    slogan3Color: "text-white/90",
     description: "Dịch vụ chụp ảnh cưới chuyên nghiệp, tinh tế, đồng hành cùng tình yêu đôi lứa."
+  },
+  {
+    id: "portrait",
+    image: "https://images.pexels.com/photos/3621234/pexels-photo-3621234.jpeg?auto=compress&cs=tinysrgb&w=2000",
+    gradient: "from-black/60 via-black/30 to-transparent",
+    slogan1: "Lưu giữ mọi",
+    slogan2: "KHOẢNH KHẮC",
+    slogan3: "đáng nhớ",
+    slogan1Color: "text-white/90",
+    slogan2Color: "text-[#ff8d28]",
+    slogan3Color: "text-white/90",
+    description: "Chụp ảnh chân dung, kỷ yếu, couple theo phong cách riêng cùng photographer được chọn lọc."
+  },
+  {
+    id: "yearbook",
+    image: "https://images.pexels.com/photos/1205651/pexels-photo-1205651.jpeg?auto=compress&cs=tinysrgb&w=2000",
+    gradient: "from-black/65 via-black/35 to-transparent",
+    slogan1: "Ghi dấu tuổi thanh xuân",
+    slogan2: "KỶ YẾU",
+    slogan3: "đầy kỷ niệm",
+    slogan1Color: "text-white/90",
+    slogan2Color: "text-[#ff8d28]",
+    slogan3Color: "text-white/90",
+    description: "Bộ ảnh kỷ yếu sáng tạo, cá tính — lưu giữ tuổi học trò đẹp nhất của bạn."
+  },
+  {
+    id: "event",
+    image: "https://images.pexels.com/photos/2774556/pexels-photo-2774556.jpeg?auto=compress&cs=tinysrgb&w=2000",
+    gradient: "from-black/65 via-black/35 to-transparent",
+    slogan1: "Ghi lại từng khoảnh khắc",
+    slogan2: "SỰ KIỆN",
+    slogan3: "chuyên nghiệp",
+    slogan1Color: "text-white/90",
+    slogan2Color: "text-[#ff8d28]",
+    slogan3Color: "text-white/90",
+    description: "Nhiếp ảnh sự kiện, hội nghị, khai trương — bắt trọn không khí và cảm xúc."
+  },
+  {
+    id: "travel",
+    image: "https://images.pexels.com/photos/1271619/pexels-photo-1271619.jpeg?auto=compress&cs=tinysrgb&w=2000",
+    gradient: "from-black/60 via-black/30 to-transparent",
+    slogan1: "Đồng hành cùng",
+    slogan2: "HÀNH TRÌNH",
+    slogan3: "của bạn",
+    slogan1Color: "text-white/90",
+    slogan2Color: "text-[#ff8d28]",
+    slogan3Color: "text-white/90",
+    description: "Chụp ảnh travel, phong cảnh và lifestyle — lưu lại từng chuyến đi đáng nhớ."
   }
 ];
 
@@ -337,9 +698,8 @@ function Hero() {
           return (
             <div
               key={slide.id}
-              className={`absolute inset-0 w-full h-full transition-opacity duration-700 ease-in-out ${
-                isActive ? "opacity-100 z-10" : "opacity-0 pointer-events-none z-0"
-              }`}
+              className={`absolute inset-0 w-full h-full transition-opacity duration-700 ease-in-out ${isActive ? "opacity-100 z-10" : "opacity-0 pointer-events-none z-0"
+                }`}
             >
               {/* Background Image */}
               <img
@@ -349,7 +709,7 @@ function Hero() {
               />
               {/* Gradient Overlay */}
               <div className={`absolute inset-0 bg-gradient-to-r ${slide.gradient}`} />
-              
+
               {/* Slide Content */}
               <div className="relative h-full flex items-center px-12 pt-10 pb-20 sm:px-16 md:px-20 lg:px-24 lg:pb-20">
                 <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
@@ -366,7 +726,7 @@ function Hero() {
                         {slide.slogan3}
                       </span>
                     </h1>
-                    <p className="mt-4 max-w-[550px] text-sm font-medium leading-7 text-slate-800 sm:text-[16px]">
+                    <p className="mt-4 max-w-[550px] text-sm font-medium leading-7 text-white/95 drop-shadow-md sm:text-[16px]">
                       {slide.description}
                     </p>
                   </div>
@@ -408,9 +768,8 @@ function Hero() {
                 e.stopPropagation();
                 setActiveSlide(index);
               }}
-              className={`w-2 h-2 rounded-full transition-all cursor-pointer ${
-                index === activeSlide ? "bg-[#ff8d28] w-4" : "bg-slate-400/50 hover:bg-slate-400"
-              }`}
+              className={`w-2 h-2 rounded-full transition-all cursor-pointer ${index === activeSlide ? "bg-[#ff8d28] w-4" : "bg-slate-400/50 hover:bg-slate-400"
+                }`}
               aria-label={`Go to slide ${index + 1}`}
             />
           ))}
@@ -436,9 +795,8 @@ function Hero() {
                       setCategory(key);
                       setOpenDropdown(null);
                     }}
-                    className={`w-full text-left px-4 py-2 text-sm font-semibold transition cursor-pointer block ${
-                      category === key ? "text-[#ff4f00] bg-slate-50" : "text-slate-700 hover:bg-slate-50 hover:text-[#ff4f00]"
-                    }`}
+                    className={`w-full text-left px-4 py-2 text-sm font-semibold transition cursor-pointer block ${category === key ? "text-[#ff4f00] bg-slate-50" : "text-slate-700 hover:bg-slate-50 hover:text-[#ff4f00]"
+                      }`}
                   >
                     {val}
                   </button>
@@ -446,7 +804,7 @@ function Hero() {
               </div>
             )}
           </div>
-          
+
           {/* Thời gian */}
           <div className="flex-1 min-w-0 relative">
             <SearchField
@@ -479,9 +837,8 @@ function Hero() {
                       setLocation(key);
                       setOpenDropdown(null);
                     }}
-                    className={`w-full text-left px-4 py-2 text-sm font-semibold transition cursor-pointer block ${
-                      location === key ? "text-[#ff4f00] bg-slate-50" : "text-slate-700 hover:bg-slate-50 hover:text-[#ff4f00]"
-                    }`}
+                    className={`w-full text-left px-4 py-2 text-sm font-semibold transition cursor-pointer block ${location === key ? "text-[#ff4f00] bg-slate-50" : "text-slate-700 hover:bg-slate-50 hover:text-[#ff4f00]"
+                      }`}
                   >
                     {val}
                   </button>
@@ -746,7 +1103,7 @@ function BookingSteps() {
     {
       icon: (
         <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 0 0 3-3V8a3 3 0 0 0-3-3H6a3 3 0 0 0-3 3v8a3 3 0 0 0 3 3z" />
         </svg>
       ),
       color: "bg-violet-50 text-violet-600 border-violet-100",

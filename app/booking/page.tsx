@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/app/auth-context";
 import { saveBooking } from "../booking-store";
+import { addToBookingCart } from "../booking-cart-store";
 import { useToast } from "@/app/toast-context";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
@@ -92,7 +93,7 @@ const CATEGORY_INFO: Record<string, { label: string; icon: string; image: string
   yearbook: {
     label: "Kỷ yếu",
     icon: "",
-    image: "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&w=400&q=80",
+    image: "https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=400&q=80",
   },
   travel: {
     label: "Travel",
@@ -164,14 +165,14 @@ const PACKAGE_TIERS: Record<string, PackageTier[]> = {
 };
 
 const ADDON_CARDS: AddonCard[] = [
-  { id: "flycam", name: "Flycam quay phim", price: 2000000, image: "https://images.unsplash.com/photo-1473968512647-3e447244af8f?w=400&q=80&fit=crop", note: "Góc quay trên cao" },
-  { id: "album-premium", name: "Album cao cấp", price: 3000000, image: "https://images.unsplash.com/photo-1544946503-58e2bae0d82d?w=400&q=80&fit=crop", note: "Thiết kế + in ấn" },
-  { id: "gate-photo", name: "Ảnh cổng 80×120", price: 900000, image: "https://images.unsplash.com/photo-1513519245088-0e12902e35ca?w=400&q=80&fit=crop", note: "Ép gỗ chất lượng cao" },
-  { id: "photobook", name: "Photobook phóng sự", price: 2500000, image: "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400&q=80&fit=crop", note: "30 trang thiết kế" },
+  { id: "flycam", name: "Flycam quay phim", price: 2000000, image: "https://images.unsplash.com/photo-1508614589041-895b88991e3e?w=400&q=80&fit=crop", note: "Góc quay trên cao" },
+  { id: "album-premium", name: "Album cao cấp", price: 3000000, image: "https://images.unsplash.com/photo-1544717305-2782549b5136?w=400&q=80&fit=crop", note: "Thiết kế + in ấn" },
+  { id: "gate-photo", name: "Ảnh cổng 80×120", price: 900000, image: "https://images.unsplash.com/photo-1544717305-2782549b5136?w=400&q=80&fit=crop", note: "Ép gỗ chất lượng cao" },
+  { id: "photobook", name: "Photobook phóng sự", price: 2500000, image: "https://images.unsplash.com/photo-1544717305-2782549b5136?w=400&q=80&fit=crop", note: "30 trang thiết kế" },
   { id: "makeup", name: "Makeup Artist", price: 1500000, image: "https://images.unsplash.com/photo-1487412912498-0447578fcca8?w=400&q=80&fit=crop", note: "Đi cùng buổi chụp" },
   { id: "video", name: "Video highlight", price: 3000000, image: "https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?w=400&q=80&fit=crop", note: "Clip ngắn hậu kỳ" },
   { id: "retouch", name: "Retouch nâng cao", price: 1200000, image: "https://images.unsplash.com/photo-1542744094-24638eff58bb?w=400&q=80&fit=crop", note: "Chỉnh sửa chuyên sâu" },
-  { id: "raw-files", name: "File gốc RAW", price: 500000, image: "https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=400&q=80&fit=crop", note: "Nhận toàn bộ file gốc" },
+  { id: "raw-files", name: "File gốc RAW", price: 500000, image: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=400&q=80&fit=crop", note: "Nhận toàn bộ file gốc" },
 ];
 
 const TIME_SLOTS = [
@@ -297,18 +298,18 @@ function getCalendarDays(year: number, month: number): (number | null)[] {
 }
 
 function getAddonImage(id: string, category: string, name = ""): string {
-  const cleanId   = id.toLowerCase();
+  const cleanId = id.toLowerCase();
   const cleanName = name.toLowerCase();
-  const combined  = `${cleanId} ${cleanName}`;
+  const combined = `${cleanId} ${cleanName}`;
 
   if (combined.includes("flycam") || combined.includes("drone") || combined.includes("bay"))
-    return "https://images.unsplash.com/photo-1473968512647-3e447244af8f?w=400&q=80&fit=crop";
+    return "https://images.unsplash.com/photo-1508614589041-895b88991e3e?w=400&q=80&fit=crop";
   if (combined.includes("album"))
-    return "https://images.unsplash.com/photo-1544946503-58e2bae0d82d?w=400&q=80&fit=crop";
+    return "https://images.unsplash.com/photo-1544717305-2782549b5136?w=400&q=80&fit=crop";
   if (combined.includes("photobook") || combined.includes("photo book") || combined.includes("phóng sự"))
-    return "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400&q=80&fit=crop";
+    return "https://images.unsplash.com/photo-1544717305-2782549b5136?w=400&q=80&fit=crop";
   if (combined.includes("cổng") || combined.includes("cong") || combined.includes("80x") || combined.includes("80×") || combined.includes("frame") || combined.includes("print"))
-    return "https://images.unsplash.com/photo-1513519245088-0e12902e35ca?w=400&q=80&fit=crop";
+    return "https://images.unsplash.com/photo-1544717305-2782549b5136?w=400&q=80&fit=crop";
   if (combined.includes("makeup") || combined.includes("trang điểm") || combined.includes("trang diem"))
     return "https://images.unsplash.com/photo-1487412912498-0447578fcca8?w=400&q=80&fit=crop";
   if (combined.includes("video") || combined.includes("highlight") || combined.includes("clip"))
@@ -316,9 +317,9 @@ function getAddonImage(id: string, category: string, name = ""): string {
   if (combined.includes("retouch") || combined.includes("edit") || combined.includes("chỉnh sửa") || combined.includes("nâng cao"))
     return "https://images.unsplash.com/photo-1542744094-24638eff58bb?w=400&q=80&fit=crop";
   if (combined.includes("raw") || combined.includes("file gốc") || combined.includes("file goc"))
-    return "https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=400&q=80&fit=crop";
+    return "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=400&q=80&fit=crop";
   if (combined.includes("book") || combined.includes("sách") || combined.includes("sach"))
-    return "https://images.unsplash.com/photo-1544946503-58e2bae0d82d?w=400&q=80&fit=crop";
+    return "https://images.unsplash.com/photo-1544717305-2782549b5136?w=400&q=80&fit=crop";
 
   return CATEGORY_INFO[category]?.image || "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=400&q=80&fit=crop";
 }
@@ -403,6 +404,14 @@ function BookingContent() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
 
+  // ── Voucher state ──
+  const [voucherInput, setVoucherInput] = useState("");
+  const [appliedVoucher, setAppliedVoucher] = useState<{ id: number; code: string; name: string; discount_amount: number } | null>(null);
+  const [voucherError, setVoucherError] = useState("");
+  const [isApplyingVoucher, setIsApplyingVoucher] = useState(false);
+  const [activeVouchers, setActiveVouchers] = useState<any[]>([]);
+  const [showVoucherModal, setShowVoucherModal] = useState(false);
+
   // ── Selection state ──
   const [selectedCategory, setSelectedCategory] = useState<string | null>(() => {
     if (typeof window !== "undefined") {
@@ -436,6 +445,7 @@ function BookingContent() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("momo");
+  const [depositPercent, setDepositPercent] = useState<30 | 50 | 100>(30);
 
   // ── Calendar state ──
   const [calMonth, setCalMonth] = useState(() => new Date().getMonth());
@@ -524,13 +534,17 @@ function BookingContent() {
     return basePrice + subTypeExtra + addOnTotal;
   }, [basePrice, subTypeExtra, addOnTotal]);
 
+  const voucherDiscount = useMemo(() => {
+    return appliedVoucher ? appliedVoucher.discount_amount : 0;
+  }, [appliedVoucher]);
+
   const finalTotal = useMemo(() => {
-    return estimatedTotal;
-  }, [estimatedTotal]);
+    return Math.max(estimatedTotal - voucherDiscount, 0);
+  }, [estimatedTotal, voucherDiscount]);
 
   const depositAmount = useMemo(() => {
-    return Math.round(finalTotal * 0.3);
-  }, [finalTotal]);
+    return Math.round(finalTotal * depositPercent / 100);
+  }, [finalTotal, depositPercent]);
 
   const selectedAddOnsDetails = useMemo(
     () => apiAddOns.filter((a) => selectedAddOns.includes(a.id)).map((a) => ({ id: a.id, name: a.name, price: a.price })),
@@ -558,6 +572,7 @@ function BookingContent() {
           if (draft.email) setEmail(draft.email);
           if (draft.phone) setPhone(draft.phone);
           if (draft.paymentMethod) setPaymentMethod(draft.paymentMethod);
+          if ([30, 50, 100].includes(Number(draft.depositPercent))) setDepositPercent(Number(draft.depositPercent) as 30 | 50 | 100);
         }
         localStorage.removeItem("sudion_booking_draft");
       }
@@ -709,6 +724,80 @@ function BookingContent() {
     setSelectedAddOns((c) => (c.includes(id) ? c.filter((x) => x !== id) : [...c, id]));
   }, []);
 
+  const applyVoucherCode = async (code: string) => {
+    if (!code.trim()) return;
+    setIsApplyingVoucher(true);
+    setVoucherError("");
+    try {
+      const res = await fetch(`${API_URL}/vouchers/apply`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: code.trim(),
+          photographerId: photographer?.id,
+          bookingValue: estimatedTotal,
+          userEmail: email || session?.email
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || "Không thể áp dụng voucher.");
+      }
+      setAppliedVoucher(data.data);
+      setVoucherInput("");
+      setVoucherError("");
+    } catch (err: any) {
+      setVoucherError(err.message || "Lỗi áp dụng voucher.");
+      setAppliedVoucher(null);
+    } finally {
+      setIsApplyingVoucher(false);
+    }
+  };
+
+  const handleApplyVoucher = () => {
+    applyVoucherCode(voucherInput);
+  };
+
+  const handleRemoveVoucher = () => {
+    setAppliedVoucher(null);
+    setVoucherError("");
+    setVoucherInput("");
+  };
+
+  // Fetch active vouchers for selection
+  useEffect(() => {
+    if (!photographer?.id) return;
+
+    async function loadActiveVouchers() {
+      try {
+        const queryParams = new URLSearchParams({
+          photographerId: String(photographer.id)
+        });
+        const userMail = email || session?.email;
+        if (userMail) {
+          queryParams.append("userEmail", userMail);
+        }
+        const res = await fetch(`${API_URL}/vouchers/active?${queryParams.toString()}`);
+        const result = await res.json();
+        if (result.success && Array.isArray(result.data)) {
+          setActiveVouchers(result.data);
+        }
+      } catch (err) {
+        console.error("Lỗi tải active vouchers:", err);
+      }
+    }
+
+    loadActiveVouchers();
+  }, [photographer?.id, email, session?.email]);
+
+  // Auto-reset voucher if estimated total or photographer changes
+  useEffect(() => {
+    if (appliedVoucher) {
+      setAppliedVoucher(null);
+      setVoucherError("Lượng tạm tính thay đổi, vui lòng áp dụng lại voucher.");
+    }
+  }, [estimatedTotal, photographerId]);
+
   const handleCalPrev = () => {
     if (calMonth === 0) { setCalMonth(11); setCalYear((y) => y - 1); }
     else setCalMonth((m) => m - 1);
@@ -742,6 +831,7 @@ function BookingContent() {
         email,
         phone,
         paymentMethod,
+        depositPercent,
       };
       localStorage.setItem("sudion_booking_draft", JSON.stringify(draft));
       setShowLoginModal(true);
@@ -766,6 +856,8 @@ function BookingContent() {
         budget: String(finalTotal),
         scene: "",
         paymentMethod,
+        depositPercent,
+        voucherCode: appliedVoucher ? appliedVoucher.code : undefined,
         customer: {
           fullName: fullName || session?.fullName || "Khách vãng lai",
           phone,
@@ -783,20 +875,6 @@ function BookingContent() {
       if (!res.ok || !json.success) throw new Error(json.message || "Không thể tạo booking.");
 
       const bookingCode = json.data.booking_code;
-
-      // Cập nhật tỷ lệ cọc sang 30% mặc định vào DB thông qua API admin
-      try {
-        await fetch(`${API_URL}/admin/bookings/${bookingCode}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            deposit_amount: depositAmount,
-            remaining_amount: finalTotal - depositAmount,
-          }),
-        });
-      } catch (err) {
-        console.error("Lỗi cập nhật cọc 30% admin:", err);
-      }
 
       saveBooking({
         id: bookingCode,
@@ -871,7 +949,7 @@ function BookingContent() {
   // ──────────── JSX ────────────
   return (
     <main className="min-h-screen bg-[#fafbfc] text-[#0e111d] font-sans antialiased">
-      <section className="mx-auto w-full max-w-[1200px] px-4 py-8 md:px-6 lg:px-8 lg:py-10">
+      <section className="mx-auto w-full max-w-[1200px] px-4 py-8 md:px-6 lg:px-8 lg:py-10 overflow-hidden">
         <form onSubmit={handleSubmit} className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
 
           {/* ════════ COLUMN LEFT: Main content ════════ */}
@@ -1240,7 +1318,7 @@ function BookingContent() {
           </div>
 
           {/* ════════ COLUMN RIGHT: Sticky Sidebar ════════ */}
-          <aside className="rounded-2xl border border-[#e8eaf1] bg-white p-5 shadow-[0_12px_36px_rgba(20,21,31,0.04)] lg:sticky lg:top-[100px]">
+          <aside className="rounded-2xl border border-[#e8eaf1] bg-white p-5 shadow-[0_12px_36px_rgba(20,21,31,0.04)] lg:sticky lg:top-[100px] min-w-0 overflow-hidden">
             <h3 className="text-sm font-black text-[#0e111d]">Chi tiết đặt lịch</h3>
 
             {/* Service summary card */}
@@ -1296,6 +1374,64 @@ function BookingContent() {
               )}
             </div>
 
+            {/* Voucher Input */}
+            <div className="mt-4 border-t border-[#f1f3f7] pt-3">
+              <p className="text-[11px] font-black text-[#6b7280] mb-2 uppercase tracking-wider">Mã giảm giá (Voucher)</p>
+              {!appliedVoucher ? (
+                <div>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={voucherInput}
+                      onChange={(e) => setVoucherInput(e.target.value)}
+                      placeholder="Nhập mã voucher..."
+                      className="flex-1 border border-[#e8eaf1] rounded-xl px-3 py-2 text-xs font-semibold focus:border-[#ff8d28] focus:outline-none uppercase"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleApplyVoucher}
+                      disabled={isApplyingVoucher || !voucherInput.trim()}
+                      className="bg-[#ff8d28] text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-[#e67d1f] disabled:opacity-50 transition"
+                    >
+                      {isApplyingVoucher ? "Đang áp..." : "Áp dụng"}
+                    </button>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowVoucherModal(true)}
+                    className="mt-2.5 inline-flex items-center gap-1.5 text-xs font-bold text-[#ff8d28] hover:text-[#e67d1f] hover:underline transition whitespace-nowrap cursor-pointer"
+                  >
+                    <svg className="h-4 w-4 shrink-0 text-[#ff8d28]" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 6v.75m0 3v.75m0 3v.75m0 3V18m-9-5.25h5.25M7.5 15h3M3.375 5.25c-.621 0-1.125.504-1.125 1.125v3.026a2.999 2.999 0 010 5.198v3.026c0 .621.504 1.125 1.125 1.125h17.25c.621 0 1.125-.504 1.125-1.125v-3.026a2.999 2.999 0 010-5.198V6.375c0-.621-.504-1.125-1.125-1.125H3.375z" />
+                    </svg>
+                    <span>Chọn từ danh sách voucher {activeVouchers.length > 0 ? `(${activeVouchers.length})` : ""}</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-xl px-3 py-2">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <svg className="h-4 w-4 text-green-500 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                    <span className="text-xs font-black text-green-800 truncate">{appliedVoucher.code}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleRemoveVoucher}
+                    className="text-xs font-bold text-red-600 hover:text-red-800"
+                  >
+                    Gỡ bỏ
+                  </button>
+                </div>
+              )}
+              {voucherError && (
+                <p className="mt-1.5 text-[10px] font-bold text-red-600">
+                  {voucherError}
+                </p>
+              )}
+            </div>
+
             {/* Price breakdown */}
             <div className="mt-4 border-t border-[#f1f3f7] pt-3 grid gap-2">
               <div className="flex justify-between text-xs">
@@ -1308,6 +1444,12 @@ function BookingContent() {
                   <span className="font-bold text-[#0e111d]">{formatCurrency(addOnTotal)}</span>
                 </div>
               )}
+              {appliedVoucher && (
+                <div className="flex justify-between text-xs text-green-600">
+                  <span className="font-semibold">Giảm giá ({appliedVoucher.code})</span>
+                  <span className="font-bold">-{formatCurrency(voucherDiscount)}</span>
+                </div>
+              )}
               <div className="flex justify-between text-base border-t border-[#f1f3f7] pt-2">
                 <span className="font-black text-[#0e111d]">Tổng tiền</span>
                 <span className="font-black text-lg text-[#ff8d28]">{formatCurrency(finalTotal)}</span>
@@ -1316,11 +1458,19 @@ function BookingContent() {
 
             {/* Deposit */}
             <div className="mt-4 rounded-xl border border-[#fff4eb] bg-[#fffaf5] p-3">
+              <p className="mb-2 text-[11px] font-bold text-[#6b7280]">Chọn mức thanh toán trước</p>
+              <div className="mb-3 grid grid-cols-3 gap-2">
+                {([30, 50, 100] as const).map((percent) => (
+                  <button key={percent} type="button" onClick={() => setDepositPercent(percent)} className={`rounded-lg border px-2 py-2 text-xs font-black transition ${depositPercent === percent ? "border-[#ff8d28] bg-[#ff8d28] text-white" : "border-orange-200 bg-white text-slate-600 hover:border-[#ff8d28]"}`}>
+                    {percent}%
+                  </button>
+                ))}
+              </div>
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-semibold text-[#6b7280]">Tiền cọc giữ lịch (30%)</span>
+                <span className="text-[11px] font-semibold text-[#6b7280]">Thanh toán trước ({depositPercent}%)</span>
                 <span className="text-sm font-black text-[#ff8d28]">{formatCurrency(depositAmount)}</span>
               </div>
-              <p className="mt-1 text-[10px] text-[#9ca3af]">Thanh toán nốt 70% sau khi hoàn thành buổi chụp</p>
+              <p className="mt-1 text-[10px] text-[#9ca3af]">{depositPercent === 100 ? "Thanh toán toàn bộ giá trị booking" : `Thanh toán nốt ${100 - depositPercent}% sau khi hoàn thành buổi chụp`}</p>
             </div>
 
             {/* Submit error */}
@@ -1339,6 +1489,59 @@ function BookingContent() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
                 </svg>
               )}
+            </button>
+
+            <button
+              type="button"
+              disabled={selectedTimeBooked || !resolvedCategory}
+              onClick={() => {
+                if (!session) {
+                  const draft = {
+                    photographerId, selectedCategory, selectedSubType, selectedTier,
+                    selectedPeopleScale, selectedAddOns, location, shootDate, shootTime,
+                    specialRequest, fullName, email, phone, paymentMethod, depositPercent,
+                  };
+                  localStorage.setItem("sudion_booking_draft", JSON.stringify(draft));
+                  toast.info("Cần đăng nhập", "Vui lòng đăng nhập để thêm booking vào giỏ hàng.");
+                  const returnUrl = `${window.location.pathname}${window.location.search}`;
+                  router.push(`/login?redirect=${encodeURIComponent(returnUrl)}`);
+                  return;
+                }
+                if (!photographer) {
+                  setSubmitError("Vui lòng chọn đầy đủ thông tin.");
+                  return;
+                }
+                try {
+                  addToBookingCart({
+                    photographerId: String(photographer.id),
+                    photographerName: photographer.full_name,
+                    packageId: String(matchedPackageId),
+                    packageName: resolvedCategory === "wedding" ? (currentSubType?.label || "Chụp pre-wedding") : (matchedPackage?.name || CATEGORY_INFO[resolvedCategory]?.label || "Gói dịch vụ"),
+                    packageImage: (resolvedCategory && CATEGORY_INFO[resolvedCategory]?.image) || photographer.avatar_url || "",
+                    categorySlug: matchedPackage?.category?.originalSlug || resolvedCategory,
+                    basePrice,
+                    shootDate,
+                    shootTime,
+                    location,
+                    peopleScale: resolvedCategory === "wedding" ? (currentSubType?.label || "Chụp pre-wedding") : (selectedPeopleOption?.label || "Mặc định"),
+                    peopleExtra: subTypeExtra,
+                    scene: "",
+                    concept: specialRequest,
+                    budget: String(finalTotal),
+                    addOns: selectedAddOnsDetails,
+                    estimatedTotal: finalTotal,
+                    depositPercent,
+                    depositAmount,
+                    remainingAmount: finalTotal - depositAmount,
+                  });
+                  toast.success("Đã thêm vào Giỏ Booking", "Bạn có thể tiếp tục chọn thêm dịch vụ hoặc tới Giỏ hàng để thanh toán gom.");
+                } catch (err: any) {
+                  toast.error("Trùng lịch trong giỏ", err.message || "Buổi chụp này đã có trong giỏ hàng.");
+                }
+              }}
+              className="mt-2 w-full rounded-xl border border-[#ff8d28] bg-orange-50/50 px-5 py-3 text-sm font-black text-[#ff8d28] shadow-sm transition-all hover:bg-orange-100 disabled:opacity-60 flex items-center justify-center gap-2"
+            >
+              Thêm vào Giỏ Booking
             </button>
 
             <button type="button" onClick={() => router.back()}
@@ -1399,6 +1602,147 @@ function BookingContent() {
                 className="rounded-xl bg-[#ff8d28] px-5 py-2.5 text-[11px] font-black text-white shadow-sm transition hover:bg-[#e67d1f]"
               >
                 Đăng nhập ngay
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL CHỌN VOUCHER (POPUP NỔI) ── */}
+      {showVoucherModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/55 p-4 backdrop-blur-sm transition-all duration-300">
+          <div className="w-full max-w-[480px] rounded-2xl border border-[#e5deed] bg-white p-6 shadow-[0_24px_64px_rgba(20,16,35,0.18)] ring-1 ring-black/5 flex flex-col max-h-[85vh]">
+            <div className="flex items-center justify-between border-b border-[#f1eef6] pb-4">
+              <div className="flex items-center gap-2.5">
+                <span className="grid h-9 w-9 place-items-center rounded-full bg-[#fff3eb] text-[#ff8d28]">
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 6v.75m0 3v.75m0 3v.75m0 3V18m-9-5.25h5.25M7.5 15h3M3.375 5.25c-.621 0-1.125.504-1.125 1.125v3.026a2.999 2.999 0 010 5.198v3.026c0 .621.504 1.125 1.125 1.125h17.25c.621 0 1.125-.504 1.125-1.125v-3.026a2.999 2.999 0 010-5.198V6.375c0-.621-.504-1.125-1.125-1.125H3.375z" />
+                  </svg>
+                </span>
+                <h3 className="text-[16px] font-black text-[#14151f]">
+                  Danh sách mã giảm giá (Voucher)
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowVoucherModal(false)}
+                className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition"
+              >
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="mt-4 flex-1 overflow-y-auto pr-1 py-1 space-y-3">
+              {activeVouchers.length === 0 ? (
+                <div className="text-center py-8 text-gray-500 font-semibold text-xs">
+                  Hiện không có mã giảm giá nào khả dụng cho bạn.
+                </div>
+              ) : (
+                activeVouchers.map((v) => {
+                  const isMeetMinVal = estimatedTotal >= Number(v.min_booking_value);
+                  const isUsed = v.has_used;
+                  const isEligible = isMeetMinVal && !isUsed;
+
+                  return (
+                    <div
+                      key={v.id}
+                      className={`relative flex border rounded-xl overflow-hidden min-h-[96px] transition-all duration-200 ${isEligible
+                        ? "border-[#ffe2c4] bg-[#fffbf7] shadow-sm hover:shadow"
+                        : "border-gray-200 bg-gray-50/50 opacity-65"
+                        }`}
+                    >
+                      {/* Ticket Left Part - Visual Cutout */}
+                      <div className={`w-[8px] flex flex-col justify-between py-2 shrink-0 ${isEligible ? "bg-[#ff8d28]/10" : "bg-gray-200/50"
+                        }`}>
+                        <div className="w-1.5 h-1.5 rounded-full bg-white -ml-0.5 border border-transparent shadow-[inset_-1px_0_0_rgba(0,0,0,0.05)]" />
+                        <div className="w-1.5 h-1.5 rounded-full bg-white -ml-0.5 border border-transparent shadow-[inset_-1px_0_0_rgba(0,0,0,0.05)]" />
+                        <div className="w-1.5 h-1.5 rounded-full bg-white -ml-0.5 border border-transparent shadow-[inset_-1px_0_0_rgba(0,0,0,0.05)]" />
+                      </div>
+
+                      {/* Main Ticket Card Content */}
+                      <div className="flex-1 p-3 flex items-center justify-between gap-3 min-w-0">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider ${isEligible
+                              ? "bg-[#ff8d28] text-white"
+                              : "bg-gray-300 text-gray-600"
+                              }`}>
+                              {v.code}
+                            </span>
+                            <span className="text-[10px] font-bold text-gray-400">
+                              {v.type === "platform" ? "Sàn" : "Shop"}
+                            </span>
+                          </div>
+
+                          <h4 className={`text-xs font-black mt-1.5 truncate ${isEligible ? "text-[#0e111d]" : "text-gray-500"
+                            }`}>
+                            {v.name}
+                          </h4>
+
+                          {v.description && (
+                            <p className="text-[10px] text-gray-500 font-semibold mt-0.5 leading-normal line-clamp-1">
+                              {v.description}
+                            </p>
+                          )}
+
+                          <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[9.5px] font-bold text-gray-400">
+                            <span>Đơn tối thiểu: {Number(v.min_booking_value).toLocaleString("vi-VN")}đ</span>
+                            {v.max_discount_amount && (
+                              <>
+                                <span>•</span>
+                                <span>Tối đa: {Number(v.max_discount_amount).toLocaleString("vi-VN")}đ</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Right Part: Value & CTA Button */}
+                        <div className="flex flex-col items-end justify-between shrink-0 gap-2 h-full min-w-[100px]">
+                          <span className={`text-xs font-black text-right ${isEligible ? "text-[#ff8d28]" : "text-gray-400"
+                            }`}>
+                            {v.discount_type === "percentage"
+                              ? `Giảm ${Number(v.discount_value)}%`
+                              : `Giảm ${Number(v.discount_value).toLocaleString("vi-VN")}đ`
+                            }
+                          </span>
+
+                          {isUsed ? (
+                            <span className="rounded-lg bg-gray-200 px-3 py-1 text-[10px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                              Đã dùng
+                            </span>
+                          ) : !isMeetMinVal ? (
+                            <span className="text-[9px] font-bold text-red-500 text-right leading-tight max-w-[90px] whitespace-normal">
+                              Thiếu {(Number(v.min_booking_value) - estimatedTotal).toLocaleString("vi-VN")}đ
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                applyVoucherCode(v.code);
+                                setShowVoucherModal(false);
+                              }}
+                              className="rounded-lg bg-[#ff8d28] px-3.5 py-1 text-[10px] font-black text-white hover:bg-[#e67d1f] shadow-sm transition-all uppercase tracking-wider whitespace-nowrap"
+                            >
+                              Áp dụng
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            <div className="mt-5 flex items-center justify-end gap-2.5 border-t border-[#f1eef6] pt-4">
+              <button
+                type="button"
+                onClick={() => setShowVoucherModal(false)}
+                className="rounded-xl border border-[#ddd8e8] bg-white px-5 py-2.5 text-[11px] font-black text-[#6c6878] transition hover:bg-[#fafbfc]"
+              >
+                Đóng
               </button>
             </div>
           </div>

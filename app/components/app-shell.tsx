@@ -62,6 +62,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 }
 
 import { getCartCount } from "@/app/cart-store";
+import { getBookingCartCount } from "@/app/booking-cart-store";
 
 function Header({ pathname }: { pathname: string }) {
   const router = useRouter();
@@ -74,12 +75,16 @@ function Header({ pathname }: { pathname: string }) {
   }, []);
 
   useEffect(() => {
-    setCartCount(getCartCount());
-    const handleCartUpdate = () => {
-      setCartCount(getCartCount());
+    const updateTotalCount = () => {
+      setCartCount(getCartCount() + getBookingCartCount());
     };
-    window.addEventListener("cartUpdated", handleCartUpdate);
-    return () => window.removeEventListener("cartUpdated", handleCartUpdate);
+    updateTotalCount();
+    window.addEventListener("cartUpdated", updateTotalCount);
+    window.addEventListener("bookingCartUpdated", updateTotalCount);
+    return () => {
+      window.removeEventListener("cartUpdated", updateTotalCount);
+      window.removeEventListener("bookingCartUpdated", updateTotalCount);
+    };
   }, []);
 
   const [mobileOpen, setMobileOpen] = useState(false);
