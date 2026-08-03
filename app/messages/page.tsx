@@ -498,14 +498,14 @@ function MessagesContent() {
                       <NoMessageState canChat={canChat} />
                     ) : (
                       <div className="grid gap-3">
-                        {messages.map((item) => {
+                        {messages.map((item, index) => {
                           const isMine =
                             item.sender_role === currentRole &&
                             String(item.sender_id || "") === String(senderId);
 
                           return (
                             <MessageBubble
-                              key={item.id}
+                              key={`${item.id || index}-${index}`}
                               message={item}
                               isMine={isMine}
                             />

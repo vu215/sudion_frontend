@@ -343,13 +343,21 @@ export default function BookingRequestSuccessPage({ params }: { params: Promise<
                 title={booking.booking_code.startsWith("RENT-") ? "Nơi nhận máy" : "Địa điểm"}      
                 value={displayLoc}                    
               />
-              {photoLink && (
+              {photoLink && booking.status === "fully_paid" && (
                 <div className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2.5">
                   <p className="text-[10px] font-black uppercase tracking-wider text-blue-400">Ảnh buổi chụp</p>
                   <a href={photoLink} target="_blank" rel="noopener noreferrer"
                     className="mt-1 inline-flex items-center gap-1 text-[13px] font-black text-blue-700 underline hover:text-blue-900">
                     📂 Google Drive
                   </a>
+                </div>
+              )}
+              {photoLink && booking.status !== "fully_paid" && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-amber-500">Ảnh buổi chụp</p>
+                  <p className="mt-1 text-[12px] font-semibold text-amber-700 leading-relaxed">
+                    🔒 Ảnh đã được tải lên. Vui lòng thanh toán phần còn lại để mở khóa link Google Drive.
+                  </p>
                 </div>
               )}
             </div>
@@ -524,6 +532,7 @@ function ActionButtons({ booking }: { booking: Booking }) {
   );
   if (booking.status === "fully_paid") return (
     <div className="flex flex-wrap gap-3">
+      <Link href={`/messages?booking=${code}`} className="flex-1 min-w-[140px] rounded-xl bg-blue-600 px-5 py-3.5 text-center text-[14px] font-black text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-blue-700">💬 Nhắn tin ngay</Link>
       <Link href={`/review?booking=${code}`} className="flex-1 min-w-[140px] rounded-xl bg-[#ff8d28] px-5 py-3.5 text-center text-[14px] font-black text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-[#e0751b]">Đánh giá photographer</Link>
       <Link href="/bookings" className="flex-1 min-w-[140px] rounded-xl border border-[#e2e8f0] bg-white px-5 py-3.5 text-center text-[14px] font-black text-[#334155] transition hover:border-[#ff8d28] hover:text-[#ff8d28]">Xem booking của tôi</Link>
     </div>
