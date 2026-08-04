@@ -250,7 +250,8 @@ export async function refreshSessionFromServer() {
 
     const user = normalizeUser(result.data.user);
     const session = makeSession(user);
-    writeCompatStorage(user, session);
+    const refreshedToken = (result.data as any)?.token;
+    writeCompatStorage(user, session, refreshedToken);
 
     return session;
   } catch {
