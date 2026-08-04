@@ -84,8 +84,9 @@ export default function AdminProductDashboard({
 
   const openEditModal = async (product: Product) => {
     try {
+      const targetId = product.id || (product as any)._id;
       const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
-      const res = await fetch(`${API_URL}/products/${product.id}`);
+      const res = await fetch(`${API_URL}/products/${targetId}`);
       if (res.ok) {
         const fullProduct = await res.json();
         setEditingProduct(fullProduct);
@@ -99,7 +100,7 @@ export default function AdminProductDashboard({
     }
   };
 
-  const handleDelete = async (productId: number) => {
+  const handleDelete = async (productId: number | string) => {
     if (!confirm("Bạn có chắc chắn muốn xóa sản phẩm này không?")) return;
 
     try {

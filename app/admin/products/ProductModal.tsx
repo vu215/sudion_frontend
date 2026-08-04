@@ -244,11 +244,14 @@ export default function ProductModal({
         headers["Authorization"] = `Bearer ${token}`;
       }
 
-      const url = product
-        ? `${API_URL}/products/${product.id}`
+      const targetId = product?.id || product?._id;
+      const isEdit = Boolean(product && targetId);
+
+      const url = isEdit
+        ? `${API_URL}/products/${targetId}`
         : `${API_URL}/products`;
 
-      const method = product ? "PATCH" : "POST";
+      const method = isEdit ? "PATCH" : "POST";
 
       const res = await fetch(url, {
         method,
@@ -256,12 +259,18 @@ export default function ProductModal({
         body: formData,
       });
 
-      const resData = await res.json();
-      if (res.ok && resData.success) {
+      let resData: any = {};
+      try {
+        resData = await res.json();
+      } catch (_) {
+        resData = {};
+      }
+
+      if (res.ok && (resData.success || resData.id)) {
         onSuccess();
         onClose();
       } else {
-        setError(resData.message || "Đã xảy ra lỗi khi lưu sản phẩm.");
+        setError(resData.message || `Đã xảy ra lỗi khi lưu sản phẩm (Mã lỗi ${res.status}).`);
       }
     } catch (err) {
       console.error("Fetch error:", err);
