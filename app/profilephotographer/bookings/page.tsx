@@ -2,14 +2,49 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/auth-context";
+import { getToken } from "@/app/auth-store";
 import { useToast } from "@/app/toast-context";
+
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
-function authHeaders() {
-  const token = typeof window !== "undefined" ? window.localStorage.getItem("sudion_token") : null;
-  return token ? { Authorization: `Bearer ${token}` } : {};
+class AuthRequiredError extends Error {
+  constructor(message = "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.") {
+    super(message);
+    this.name = "AuthRequiredError";
+  }
+}
+
+function authHeaders(): Record<string, string> {
+  const token = getToken();
+
+  if (!token) {
+    throw new AuthRequiredError("Bạn chưa đăng nhập hoặc phiên đăng nhập đã mất token.");
+  }
+
+  return { Authorization: `Bearer ${token}` };
+}
+
+async function readApiResponse<T>(response: Response): Promise<ApiResponse<T>> {
+  const text = await response.text();
+
+  if (!text) {
+    return {
+      success: false,
+      message: `Backend không trả dữ liệu (HTTP ${response.status}).`,
+    };
+  }
+
+  try {
+    return JSON.parse(text) as ApiResponse<T>;
+  } catch {
+    return {
+      success: false,
+      message: `Backend trả dữ liệu không hợp lệ (HTTP ${response.status}).`,
+    };
+  }
 }
 
 const AUTO_REFRESH_MS = 8000;
@@ -75,8 +110,8 @@ type BackendBooking = {
 
 type ApiResponse<T> = {
   success: boolean;
-  message: string;
-  data: T;
+  message?: string;
+  data?: T;
   error?: unknown;
 };
 
@@ -177,22 +212,45 @@ function formatTime(value: string | null) {
 }
 
 async function getBookingsByPhotographer(photographerId: string) {
+  const headers = authHeaders();
+
+  /*
+    Ưu tiên endpoint /me để backend tự lấy photographer từ JWT.
+    Nếu backend cũ chưa gắn middleware cho route này thì fallback về route theo ID.
+  */
+  const meResponse = await fetch(`${API_URL}/bookings/photographer/me`, {
+    method: "GET",
+    cache: "no-store",
+    headers,
+  });
+  const meJson = await readApiResponse<BackendBooking[]>(meResponse);
+
+  if (meResponse.ok && meJson.success) {
+    return Array.isArray(meJson.data) ? meJson.data : [];
+  }
+
   const response = await fetch(
     `${API_URL}/bookings/photographer/${encodeURIComponent(photographerId)}`,
     {
       method: "GET",
       cache: "no-store",
-      headers: authHeaders(),
-    }
+      headers,
+    },
   );
 
-  const json: ApiResponse<BackendBooking[]> = await response.json();
+  const json = await readApiResponse<BackendBooking[]>(response);
+
+  if (response.status === 401 || response.status === 403) {
+    throw new AuthRequiredError(
+      json.message || "Phiên đăng nhập không hợp lệ hoặc đã hết hạn.",
+    );
+  }
 
   if (!response.ok || !json.success) {
     throw new Error(json.message || "Không thể lấy booking của photographer.");
   }
 
-  return json.data;
+  return Array.isArray(json.data) ? json.data : [];
 }
 
 async function updateBookingStatus(bookingCode: string, status: string, location?: string) {
@@ -205,9 +263,15 @@ async function updateBookingStatus(bookingCode: string, status: string, location
     body: JSON.stringify({ status, location }),
   });
 
-  const json: ApiResponse<BackendBooking> = await response.json();
+  const json = await readApiResponse<BackendBooking>(response);
 
-  if (!response.ok || !json.success) {
+  if (response.status === 401 || response.status === 403) {
+    throw new AuthRequiredError(
+      json.message || "Phiên đăng nhập không hợp lệ hoặc đã hết hạn.",
+    );
+  }
+
+  if (!response.ok || !json.success || !json.data) {
     throw new Error(json.message || "Không thể cập nhật trạng thái booking.");
   }
 
@@ -215,7 +279,8 @@ async function updateBookingStatus(bookingCode: string, status: string, location
 }
 
 export default function PhotographerDashboardPage() {
-  const { session, isPhotographer } = useAuth();
+  const { session, isPhotographer, isLoading, logout } = useAuth();
+  const router = useRouter();
   const toast = useToast();
   const [photographerId, setPhotographerId] = useState("");
   const [bookings, setBookings] = useState<BackendBooking[]>([]);
@@ -227,29 +292,84 @@ export default function PhotographerDashboardPage() {
   const [successMessage, setSuccessMessage] = useState("");
 
   useEffect(() => {
-    const sessionPhotographerId =
-      isPhotographer && session?.photographerId ? session.photographerId : "";
+    if (isLoading) return;
+
+    if (!isPhotographer || !session) {
+      return;
+    }
+
+    if (!getToken()) {
+      logout();
+      router.replace(
+        `/login?redirect=${encodeURIComponent("/profilephotographer/bookings")}`,
+      );
+      return;
+    }
 
     const savedId = window.localStorage.getItem("sudion_photographer_id") || "";
-    const finalId = sessionPhotographerId || savedId;
+    const finalId = String(
+      session.photographerId || session.userId || savedId,
+    ).trim();
 
-    if (!finalId) return;
+    if (!finalId) {
+      setPageError("Không xác định được ID tài khoản photographer.");
+      return;
+    }
 
-    setPhotographerId(finalId);
-    void handleLoadBookings(finalId);
+    let cancelled = false;
 
-    const timer = window.setInterval(async () => {
+    const loadBookings = async (showLoading: boolean) => {
       try {
+        if (showLoading) setLoading(true);
+
         const data = await getBookingsByPhotographer(finalId);
+
+        if (cancelled) return;
+
         setBookings(data);
+        setPageError("");
+        setPhotographerId(finalId);
         window.localStorage.setItem("sudion_photographer_id", finalId);
       } catch (error) {
-        console.error("Auto refresh photographer dashboard failed:", error);
+        if (cancelled) return;
+
+        if (error instanceof AuthRequiredError) {
+          logout();
+          router.replace(
+            `/login?redirect=${encodeURIComponent("/profilephotographer/bookings")}`,
+          );
+          return;
+        }
+
+        console.error("Lỗi lấy booking photographer:", error);
+        setBookings([]);
+        setPageError(
+          error instanceof Error
+            ? error.message
+            : "Không thể lấy booking của photographer.",
+        );
+      } finally {
+        if (!cancelled && showLoading) setLoading(false);
       }
+    };
+
+    void loadBookings(true);
+
+    const timer = window.setInterval(() => {
+      void loadBookings(false);
     }, AUTO_REFRESH_MS);
 
-    return () => window.clearInterval(timer);
-  }, [isPhotographer, session?.photographerId]);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [
+    isLoading,
+    isPhotographer,
+    session,
+    logout,
+    router,
+  ]);
 
   const stats = useMemo(() => {
     return {
@@ -289,13 +409,21 @@ export default function PhotographerDashboardPage() {
       setBookings(data);
       window.localStorage.setItem("sudion_photographer_id", finalId);
     } catch (error) {
+      if (error instanceof AuthRequiredError) {
+        logout();
+        router.replace(
+          `/login?redirect=${encodeURIComponent("/profilephotographer/bookings")}`,
+        );
+        return;
+      }
+
       console.error("Lỗi lấy booking photographer:", error);
 
       setBookings([]);
       setPageError(
         error instanceof Error
           ? error.message
-          : "Không thể lấy booking của photographer."
+          : "Không thể lấy booking của photographer.",
       );
     } finally {
       setLoading(false);
@@ -307,8 +435,12 @@ export default function PhotographerDashboardPage() {
     await handleLoadBookings();
   }
 
- async function handleUpdateStatus(bookingCode: string, status: string, location?: string) {
-  try {
+  async function handleUpdateStatus(
+    bookingCode: string,
+    status: string,
+    location?: string,
+  ) {
+    try {
     setUpdatingCode(bookingCode);
     setPageError("");
     setSuccessMessage("");
@@ -333,21 +465,28 @@ export default function PhotographerDashboardPage() {
       "Cập nhật booking thành công",
       `Booking ${updatedBooking.booking_code}: ${statusLabel}.`
     );
-  } catch (error) {
-    console.error("Lỗi cập nhật trạng thái:", error);
+    } catch (error) {
+      if (error instanceof AuthRequiredError) {
+        logout();
+        router.replace(
+          `/login?redirect=${encodeURIComponent("/profilephotographer/bookings")}`,
+        );
+        return;
+      }
 
-    const message =
-      error instanceof Error
-        ? error.message
-        : "Không thể cập nhật trạng thái.";
+      console.error("Lỗi cập nhật trạng thái:", error);
 
-    setPageError(message);
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Không thể cập nhật trạng thái.";
 
-    toast.error("Cập nhật thất bại", message);
-  } finally {
-    setUpdatingCode("");
+      setPageError(message);
+      toast.error("Cập nhật thất bại", message);
+    } finally {
+      setUpdatingCode("");
+    }
   }
-}
 
   return (
     <main className="min-h-screen bg-[#f8fafc] text-[#0f172a]">
@@ -379,14 +518,14 @@ export default function PhotographerDashboardPage() {
               >
                 <label className="grid gap-2">
                   <span className="px-1 text-[12px] font-extrabold text-white/80">
-                    Photographer ID
+                    ID tài khoản photographer đang đăng nhập
                   </span>
 
                   <span className="flex gap-2 rounded-[14px] bg-white p-2">
                     <input
                       value={photographerId}
-                      onChange={(event) => setPhotographerId(event.target.value)}
-                      placeholder="Ví dụ: 79"
+                      readOnly
+                      placeholder="Đang lấy từ tài khoản đăng nhập"
                       className="min-h-[44px] flex-1 border-0 bg-transparent px-3 text-[14px] font-bold text-[#111827] outline-none placeholder:text-[#9ca3af]"
                     />
 
@@ -395,7 +534,7 @@ export default function PhotographerDashboardPage() {
                       disabled={loading}
                       className="rounded-[12px] bg-[#ff8d28] px-4 text-[13px] font-black text-white shadow-[0_10px_24px_rgba(255,141,40,0.3)] transition-all hover:bg-[#e0751b] disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      {loading ? "Đang tải" : "Xem đơn"}
+                      {loading ? "Đang tải" : "Tải lại"}
                     </button>
                   </span>
                 </label>

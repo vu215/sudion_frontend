@@ -13,12 +13,12 @@ import { useRouter } from "next/navigation";
 import {
   clearSession,
   getSession,
+  getToken,
   type AuthSession,
   type AuthUser,
   loginUser,
   refreshSessionFromServer,
   registerUser,
-  setSession,
 } from "./auth-store";
 import { clearCart, clearBuyNow } from "./cart-store";
 import { clearBookingCart } from "./booking-cart-store";
@@ -59,12 +59,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
 
   const refresh = useCallback(async () => {
-    const localSession = getSession();
+    setIsLoading(true);
+
+    // Chỉ dùng session local khi vẫn còn token thật.
+    const localSession = getToken() ? getSession() : null;
     setSessionState(localSession);
-    setIsLoading(false);
 
     const serverSession = await refreshSessionFromServer();
     setSessionState(serverSession);
+    setIsLoading(false);
   }, []);
 
   const logout = useCallback(() => {
@@ -100,22 +103,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       role: "customer",
     });
 
-    if (result.ok && result.user) {
-      const sessionData: AuthSession = {
-        userId: String(result.user.userId || result.user.id),
-        email: result.user.email,
-        fullName: result.user.fullName,
-        role: result.user.role,
-        photographerId: result.user.photographerId,
-      };
-
-      setSession(sessionData);
-      setSessionState(sessionData);
-
-      return {
-        ...result,
-        session: sessionData,
-      };
+    if (result.ok && result.session) {
+      setSessionState(result.session);
     }
 
     return result;

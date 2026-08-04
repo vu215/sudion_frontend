@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/app/auth-context";
+import { RequireRole } from "@/app/components/route-guard";
 import type { ReactNode } from "react";
 
 const NAV = [
@@ -15,7 +16,7 @@ const NAV = [
   { href: "/profilephotographer/rental",    label: "Thuê thiết bị", icon: "M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z M12 16a3.5 3.5 0 100-7 3.5 3.5 0 000 7z" },
 ];
 
-export default function ProfilePhotographerLayout({ children }: { children: ReactNode }) {
+function ProfilePhotographerShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { session } = useAuth();
 
@@ -94,5 +95,18 @@ export default function ProfilePhotographerLayout({ children }: { children: Reac
         </main>
       </div>
     </div>
+  );
+}
+
+
+export default function ProfilePhotographerLayout({
+  children,
+}: {
+  children: ReactNode;
+}) {
+  return (
+    <RequireRole role="photographer">
+      <ProfilePhotographerShell>{children}</ProfilePhotographerShell>
+    </RequireRole>
   );
 }
