@@ -534,8 +534,8 @@ function MessagesContent() {
                 type="button"
                 onClick={() => setShowSearchInput((prev) => !prev)}
                 className={`grid h-9 w-9 place-items-center rounded-xl border transition-all ${showSearchInput || searchFilter
-                    ? "border-[#ff8d28] bg-orange-50 text-[#ff8d28]"
-                    : "border-[#e2e8f0] bg-white text-[#64748b] hover:border-[#ff8d28] hover:text-[#ff8d28]"
+                  ? "border-[#ff8d28] bg-orange-50 text-[#ff8d28]"
+                  : "border-[#e2e8f0] bg-white text-[#64748b] hover:border-[#ff8d28] hover:text-[#ff8d28]"
                   }`}
                 title="Tìm kiếm cuộc trò chuyện"
               >
@@ -589,8 +589,8 @@ function MessagesContent() {
                       type="button"
                       onClick={() => handleSelectBooking(item.booking_code)}
                       className={`flex w-full items-center gap-3 rounded-2xl p-3 text-left transition-all ${isSelected
-                          ? "bg-[#fff7ed] border border-[#ff8d28]/40 shadow-sm"
-                          : "border border-transparent bg-white hover:border-[#e2e8f0] hover:bg-[#f8fafc]"
+                        ? "bg-[#fff7ed] border border-[#ff8d28]/40 shadow-sm"
+                        : "border border-transparent bg-white hover:border-[#e2e8f0] hover:bg-[#f8fafc]"
                         }`}
                     >
                       <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#111827] text-[13px] font-black text-white shadow-sm">
@@ -731,8 +731,8 @@ function MessageBubble({
     <div className={`flex w-full ${isMine ? "justify-end" : "justify-start"}`}>
       <div
         className={`max-w-[82%] sm:max-w-[70%] rounded-[20px] px-4 py-3 shadow-sm ${isMine
-            ? "rounded-br-[4px] bg-[#ff8d28] text-white"
-            : "rounded-bl-[4px] border border-[#e2e8f0] bg-white text-[#0f172a]"
+          ? "rounded-br-[4px] bg-[#ff8d28] text-white"
+          : "rounded-bl-[4px] border border-[#e2e8f0] bg-white text-[#0f172a]"
           }`}
       >
         <div className="mb-1.5 flex flex-wrap items-center justify-between gap-3 border-b border-black/5 pb-1">
@@ -876,7 +876,7 @@ function BookingDetailsDrawer({
           {driveUrl && (
             <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 space-y-2">
               <span className="text-[11px] font-black uppercase text-emerald-800 tracking-wider block">
-                🟢 Link Google Drive Sản Phẩm
+                Link Google Drive Sản Phẩm
               </span>
               <a
                 href={driveUrl}
@@ -884,7 +884,7 @@ function BookingDetailsDrawer({
                 rel="noreferrer"
                 className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-700 transition"
               >
-                📁 Mở Google Drive xem ảnh ↗
+                Mở Google Drive xem ảnh ↗
               </a>
             </div>
           )}
@@ -916,9 +916,6 @@ function NoMessageState({ canChat }: { canChat: boolean }) {
   return (
     <div className="grid h-full place-items-center text-center py-16">
       <div>
-        <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-white text-[22px] font-black text-[#ff8d28] shadow-sm">
-          💬
-        </div>
         <p className="mt-4 text-[17px] font-black text-[#0f172a]">Chưa có tin nhắn nào</p>
         <p className="mt-1.5 max-w-[380px] text-[12.5px] font-semibold text-[#64748b]">
           {canChat
@@ -934,9 +931,6 @@ function EmptyChatState() {
   return (
     <div className="grid h-full place-items-center text-center p-8">
       <div>
-        <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-orange-50 text-[22px] font-black text-[#ff8d28]">
-          💬
-        </div>
         <p className="mt-4 text-[18px] font-black text-[#0f172a]">Chọn cuộc trò chuyện bên trái</p>
         <p className="mt-1.5 max-w-[420px] text-[13px] font-semibold text-[#64748b]">
           Chọn một đơn đặt lịch từ danh sách bên trái để xem nội dung trò chuyện và trao đổi trực tiếp.

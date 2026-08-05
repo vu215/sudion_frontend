@@ -511,6 +511,7 @@ function DashboardBookingCard({
   updatingCode: string;
   onUpdateStatus: (bookingCode: string, status: string, location?: string) => Promise<void>;
 }) {
+  const [showDetails, setShowDetails] = useState(false);
   const [driveLink, setDriveLink] = useState("");
   const statusInfo = getStatusInfo(booking.status);
   const isUpdating = updatingCode === booking.booking_code;
@@ -553,12 +554,22 @@ function DashboardBookingCard({
           </p>
         </div>
 
-        <span
-          className={`inline-flex w-fit items-center gap-2 rounded-full border px-3 py-2 text-[12px] font-black ${statusInfo.className}`}
-        >
-          <span className={`h-2 w-2 rounded-full ${statusInfo.dot}`} />
-          {statusInfo.label}
-        </span>
+        <div className="flex items-center gap-2.5">
+          <button
+            type="button"
+            onClick={() => setShowDetails(!showDetails)}
+            className="shrink-0 rounded-full border border-orange-200 bg-orange-50 px-3.5 py-1.5 text-xs font-black text-[#ff8d28] hover:bg-[#ff8d28] hover:text-white transition-all shadow-sm flex items-center gap-1"
+          >
+            {showDetails ? "Thu gọn ▲" : "🔍 Xem chi tiết đơn ▼"}
+          </button>
+
+          <span
+            className={`inline-flex w-fit items-center gap-2 rounded-full border px-3 py-2 text-[12px] font-black ${statusInfo.className}`}
+          >
+            <span className={`h-2 w-2 rounded-full ${statusInfo.dot}`} />
+            {statusInfo.label}
+          </span>
+        </div>
       </div>
 
       <div className="grid gap-5 p-5 lg:grid-cols-[minmax(0,1fr)_300px]">
@@ -711,6 +722,58 @@ function DashboardBookingCard({
           </div>
         </div>
       </div>
+
+      {/* Expandable Full Detailed Breakdown for Photographer */}
+      {showDetails && (
+        <div className="border-t border-[#e8eaf1] bg-[#f8fafc] p-5 text-xs text-[#334155] space-y-4 animate-in fade-in duration-200">
+          <div className="flex items-center justify-between">
+            <h4 className="text-[13px] font-black uppercase text-[#0f172a] tracking-wider">
+              Chi tiết đầy đủ đơn booking: {booking.booking_code}
+            </h4>
+            <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-black ${statusInfo.className}`}>
+              <span className={`h-1.5 w-1.5 rounded-full ${statusInfo.dot}`} />
+              {statusInfo.label}
+            </span>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {/* Box 1: Thông tin dịch vụ & lịch trình */}
+            <div className="rounded-xl border border-[#e2e8f0] bg-white p-4 space-y-2">
+              <p className="text-[11px] font-black uppercase tracking-wider text-[#ff8d28]">Dịch vụ & Lịch trình</p>
+              <div className="space-y-1.5 text-xs font-semibold">
+                <p><span className="text-gray-500">Mã đơn:</span> <strong>{booking.booking_code}</strong></p>
+                <p><span className="text-gray-500">Gói chụp:</span> <strong>{booking.service_name}</strong></p>
+                <p><span className="text-gray-500">Ngày chụp:</span> <strong>{formatDate(booking.shoot_date)}</strong></p>
+                <p><span className="text-gray-500">Giờ chụp:</span> <strong>{formatTime(booking.shoot_time)}</strong></p>
+                <p><span className="text-gray-500">Địa điểm:</span> <strong>{booking.location ? booking.location.split(" [Photos:")[0] : "Chưa chọn"}</strong></p>
+                <p><span className="text-gray-500">Quy mô:</span> <strong>{booking.people_scale || "Chưa chọn"}</strong></p>
+              </div>
+            </div>
+
+            {/* Box 2: Thông tin khách hàng */}
+            <div className="rounded-xl border border-[#e2e8f0] bg-white p-4 space-y-2">
+              <p className="text-[11px] font-black uppercase tracking-wider text-[#ff8d28]">Khách hàng</p>
+              <div className="space-y-1.5 text-xs font-semibold">
+                <p><span className="text-gray-500">Họ tên:</span> <strong>{booking.customer_full_name}</strong></p>
+                <p><span className="text-gray-500">Email:</span> <strong>{booking.customer_email || "Chưa có"}</strong></p>
+                <p><span className="text-gray-500">SĐT:</span> <strong>{booking.customer_phone || "Chưa có"}</strong></p>
+                <p><span className="text-gray-500">Concept / Ghi chú:</span> <strong>{booking.concept || "Không có"}</strong></p>
+              </div>
+            </div>
+
+            {/* Box 3: Chi tiết thanh toán & Link Drive */}
+            <div className="rounded-xl border border-[#e2e8f0] bg-white p-4 space-y-2">
+              <p className="text-[11px] font-black uppercase tracking-wider text-[#ff8d28]">Thanh toán & Sản phẩm</p>
+              <div className="space-y-1.5 text-xs font-semibold">
+                <p><span className="text-gray-500">Tổng chi phí:</span> <strong>{formatCurrency(booking.estimated_total)}</strong></p>
+                <p><span className="text-gray-500">Tiền cọc:</span> <strong className="text-emerald-600">{formatCurrency(booking.deposit_amount)}</strong></p>
+                <p><span className="text-gray-500">Còn lại:</span> <strong className="text-[#ff8d28]">{formatCurrency(booking.remaining_amount)}</strong></p>
+                <p><span className="text-gray-500">Trạng thái:</span> <strong>{statusInfo.label}</strong></p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </article>
   );
 }
