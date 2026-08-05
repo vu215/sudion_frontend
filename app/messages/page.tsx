@@ -484,6 +484,8 @@ function MessagesContent() {
     }
   }
 
+  const [showSearchInput, setShowSearchInput] = useState(false);
+
   const filteredConversations = useMemo(() => {
     if (!searchFilter.trim()) return userBookings;
     const q = searchFilter.toLowerCase().trim();
@@ -501,52 +503,82 @@ function MessagesContent() {
   const backText = currentRole === "photographer" ? "Lịch nhận của tôi" : "Lịch đặt của tôi";
 
   return (
-    <main className="min-h-screen bg-[#f4f6fa] text-[#0f172a]">
-      <section className="mx-auto w-full max-w-[1360px] px-3 py-4 sm:px-6 lg:px-8 lg:py-6">
-        <div className="overflow-hidden rounded-[28px] border border-[#e2e8f0] bg-white shadow-[0_20px_60px_rgba(15,23,42,0.06)] grid grid-cols-1 lg:grid-cols-[340px_minmax(0,1fr)] min-h-[720px] h-[calc(100vh-100px)]">
+    <main className="h-screen bg-[#f4f6fa] text-[#0f172a] flex flex-col overflow-hidden">
+      <section className="mx-auto w-full max-w-[1360px] px-3 py-3 sm:px-6 lg:px-8 flex-1 flex flex-col min-h-0 overflow-hidden">
+        <div className="overflow-hidden rounded-[26px] border border-[#e2e8f0] bg-white shadow-[0_16px_48px_rgba(15,23,42,0.05)] grid grid-cols-1 lg:grid-cols-[340px_minmax(0,1fr)] flex-1 min-h-0 h-full">
           
           {/* ── LEFT SIDEBAR: Conversations List ── */}
-          <aside className="flex flex-col border-r border-[#eef2f7] bg-[#fcfdfe]">
-            {/* Header with Back Button */}
-            <div className="flex items-center gap-3 border-b border-[#eef2f7] px-5 py-4 bg-white">
-              <Link
-                href={backUrl}
-                className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-[#e2e8f0] bg-white text-[#475569] hover:border-[#ff8d28] hover:text-[#ff8d28] transition-all shadow-sm"
-                title={`Quay về ${backText}`}
-              >
-                <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
-                </svg>
-              </Link>
-              <div>
-                <h1 className="text-[17px] font-black text-[#0f172a] tracking-tight">Trò chuyện</h1>
-                <p className="text-[11px] font-semibold text-[#64748b]">
-                  {currentRole === "photographer" ? "Danh sách khách hàng" : "Danh sách nhiếp ảnh gia"}
-                </p>
+          <aside className="flex flex-col border-r border-[#eef2f7] bg-[#fcfdfe] min-h-0 h-full overflow-hidden">
+            {/* Header with Title & Search Icon Toggle Button */}
+            <div className="flex items-center justify-between border-b border-[#eef2f7] px-4 py-3.5 bg-white shrink-0">
+              <div className="flex items-center gap-3">
+                <Link
+                  href={backUrl}
+                  className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-[#e2e8f0] bg-white text-[#475569] hover:border-[#ff8d28] hover:text-[#ff8d28] transition-all shadow-sm"
+                  title={`Quay về ${backText}`}
+                >
+                  <svg className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+                  </svg>
+                </Link>
+                <div>
+                  <h1 className="text-[16px] font-black text-[#0f172a] tracking-tight">Trò chuyện</h1>
+                  <p className="text-[10.5px] font-semibold text-[#64748b]">
+                    {currentRole === "photographer" ? "Danh sách khách hàng" : "Danh sách nhiếp ảnh gia"}
+                  </p>
+                </div>
               </div>
-            </div>
 
-            {/* Filter input */}
-            <div className="px-4 py-3 border-b border-[#eef2f7] bg-white/60">
-              <div className="relative">
-                <input
-                  type="text"
-                  value={searchFilter}
-                  onChange={(e) => setSearchFilter(e.target.value)}
-                  placeholder="Tìm theo tên hoặc mã BK..."
-                  className="w-full rounded-xl border border-[#e2e8f0] bg-[#f8fafc] py-2 pl-9 pr-3 text-[12.5px] font-semibold text-[#0f172a] outline-none focus:border-[#ff8d28] focus:bg-white"
-                />
-                <svg className="absolute left-3 top-2.5 h-4 w-4 text-[#94a3b8]" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+              {/* Search Toggle Icon Button */}
+              <button
+                type="button"
+                onClick={() => setShowSearchInput((prev) => !prev)}
+                className={`grid h-9 w-9 place-items-center rounded-xl border transition-all ${
+                  showSearchInput || searchFilter
+                    ? "border-[#ff8d28] bg-orange-50 text-[#ff8d28]"
+                    : "border-[#e2e8f0] bg-white text-[#64748b] hover:border-[#ff8d28] hover:text-[#ff8d28]"
+                }`}
+                title="Tìm kiếm cuộc trò chuyện"
+              >
+                <svg className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
-              </div>
+              </button>
             </div>
 
-            {/* Conversation List Items */}
-            <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
+            {/* Expandable Search Input (Only shown when Search Icon is clicked or search active) */}
+            {(showSearchInput || searchFilter) && (
+              <div className="px-4 py-2.5 border-b border-[#eef2f7] bg-[#fffbf7] shrink-0">
+                <div className="relative">
+                  <input
+                    type="text"
+                    autoFocus
+                    value={searchFilter}
+                    onChange={(e) => setSearchFilter(e.target.value)}
+                    placeholder="Nhập tên hoặc mã BK để tìm..."
+                    className="w-full rounded-xl border border-[#ffcfaa] bg-white py-2 pl-9 pr-7 text-[12px] font-bold text-[#0f172a] outline-none focus:ring-2 focus:ring-[#ff8d28]/20"
+                  />
+                  <svg className="absolute left-3 top-2.5 h-4 w-4 text-[#ff8d28]" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                  {searchFilter && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchFilter("")}
+                      className="absolute right-2.5 top-2.5 text-xs text-[#94a3b8] hover:text-[#0f172a]"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Conversation List Items (Internal Vertical Scroll Only) */}
+            <div className="flex-1 overflow-y-auto p-3 space-y-1.5 min-h-0">
               {filteredConversations.length === 0 ? (
                 <div className="py-12 text-center text-xs font-semibold text-[#94a3b8]">
-                  Chưa có cuộc trò chuyện nào
+                  {searchFilter ? "Không tìm thấy cuộc trò chuyện phù hợp" : "Chưa có cuộc trò chuyện nào"}
                 </div>
               ) : (
                 filteredConversations.map((item) => {
