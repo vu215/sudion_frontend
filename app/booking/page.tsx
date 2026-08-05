@@ -511,6 +511,17 @@ function BookingContent() {
     return matchedPackage?.id || 0;
   }, [matchedPackage]);
 
+  const fullServiceName = useMemo(() => {
+    if (resolvedCategory === "wedding") {
+      const subLabel = currentSubType?.label || "Chụp pre-wedding";
+      const tierLabel = currentTier?.label ? ` - Gói ${currentTier.label}` : "";
+      return `Dịch vụ cưới: ${subLabel}${tierLabel}`;
+    }
+    const baseName = matchedPackage?.name || CATEGORY_INFO[resolvedCategory || "all"]?.label || "Gói dịch vụ";
+    const scaleLabel = selectedPeopleOption?.label && selectedPeopleOption.label !== "Mặc định" ? ` (${selectedPeopleOption.label})` : "";
+    return `${baseName}${scaleLabel}`;
+  }, [resolvedCategory, currentSubType, currentTier, matchedPackage, selectedPeopleOption]);
+
   // ── Price calculation ──
   const basePrice = useMemo(() => {
     if (resolvedCategory === "wedding") {
@@ -814,6 +825,13 @@ function BookingContent() {
     if (resolvedCategory === "wedding" && !currentTier) { setSubmitError("Vui lòng chọn gói dịch vụ."); return; }
     if (selectedTimeBooked) { setSubmitError("Khung giờ này đã được book."); return; }
 
+    const phoneClean = phone.replace(/\D/g, "");
+    const phoneRegex = /^(0[3|5|7|8|9])[0-9]{8}$/;
+    if (!phoneRegex.test(phoneClean)) {
+      setSubmitError("Số điện thoại không đúng định dạng. Vui lòng nhập số điện thoại Việt Nam hợp lệ gồm 10 chữ số (ví dụ: 0912345678).");
+      return;
+    }
+
     // Check authentication. If guest, save draft and prompt modal
     if (!session) {
       const draft = {
@@ -845,6 +863,8 @@ function BookingContent() {
       const payload = {
         photographerId: photographer.id,
         packageId: matchedPackageId,
+        serviceName: fullServiceName,
+        packageName: fullServiceName,
         categorySlug: matchedPackage?.category?.originalSlug || resolvedCategory,
         availabilitySlotLabel: shootTime,
         location, shootDate, shootTime,
@@ -1302,7 +1322,15 @@ function BookingContent() {
                       <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#9ca3af] pointer-events-none" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                       </svg>
-                      <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="0xxx xxx xxx" required className="w-full border border-[#e8eaf1] rounded-xl !pl-10 pr-3 py-2.5 text-xs font-medium focus:border-[#ff8d28] focus:outline-none" />
+                      <input
+                        type="tel"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                        placeholder="0912345678 (10 chữ số VN)"
+                        required
+                        maxLength={10}
+                        className="w-full border border-[#e8eaf1] rounded-xl !pl-10 pr-3 py-2.5 text-xs font-medium focus:border-[#ff8d28] focus:outline-none"
+                      />
                     </div>
                   </Field>
                 </div>
@@ -1516,7 +1544,7 @@ function BookingContent() {
                     photographerId: String(photographer.id),
                     photographerName: photographer.full_name,
                     packageId: String(matchedPackageId),
-                    packageName: resolvedCategory === "wedding" ? (currentSubType?.label || "Chụp pre-wedding") : (matchedPackage?.name || CATEGORY_INFO[resolvedCategory]?.label || "Gói dịch vụ"),
+                    packageName: fullServiceName,
                     packageImage: (resolvedCategory && CATEGORY_INFO[resolvedCategory]?.image) || photographer.avatar_url || "",
                     categorySlug: matchedPackage?.category?.originalSlug || resolvedCategory,
                     basePrice,
