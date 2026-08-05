@@ -330,7 +330,7 @@ function MessagesContent() {
     // Listen for new messages
     const handleNewMessage = (msg: ChatMessage) => {
       setMessages((prev) => {
-        if (prev.some((m) => m.id === msg.id)) return prev;
+        if (prev.some((m) => String(m.id || "") === String(msg.id || ""))) return prev;
         return [...prev, msg];
       });
     };
@@ -435,7 +435,12 @@ function MessagesContent() {
         message: cleanMessage,
       });
 
-      setMessages((current) => [...current, newMessage]);
+      setMessages((current) => {
+        if (current.some((m) => String(m.id || "") === String(newMessage.id || ""))) {
+          return current;
+        }
+        return [...current, newMessage];
+      });
       setMessageText("");
 
       toast.success("Đã gửi tin nhắn", "Tin nhắn của bạn đã được gửi.");
@@ -500,14 +505,14 @@ function MessagesContent() {
                       <NoMessageState canChat={canChat} />
                     ) : (
                       <div className="grid gap-3">
-                        {messages.map((item) => {
+                        {messages.map((item, idx) => {
                           const isMine =
                             item.sender_role === currentRole &&
                             String(item.sender_id || "") === String(senderId);
 
                           return (
                             <MessageBubble
-                              key={item.id}
+                              key={item.id ? `msg-${item.id}-${idx}` : `msg-temp-${idx}`}
                               message={item}
                               isMine={isMine}
                             />
