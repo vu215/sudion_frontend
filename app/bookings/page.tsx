@@ -666,9 +666,23 @@ function BookingCard({
 }) {
   const [showDetails, setShowDetails] = useState(false);
   const statusInfo = getStatusInfo(booking.status);
-  const canCancel = ["awaiting_payment", "accepted", "confirmed"].includes(booking.status);
-  const isEligibleForGroupPay = ["accepted", "completed"].includes(booking.status);
 
+  const canCancel = (() => {
+    if (!["awaiting_payment", "accepted", "confirmed"].includes(booking.status)) {
+      return false;
+    }
+    if (booking.shoot_date) {
+      const dateText = String(booking.shoot_date).slice(0, 10);
+      const timeText = String(booking.shoot_time || "23:59").slice(0, 5);
+      const shootDateTime = new Date(`${dateText}T${timeText}:00`);
+      if (!Number.isNaN(shootDateTime.getTime()) && shootDateTime.getTime() <= Date.now()) {
+        return false;
+      }
+    }
+    return true;
+  })();
+
+  const isEligibleForGroupPay = ["accepted", "completed"].includes(booking.status);
   const driveUrl = extractPhotoDriveLink(booking.location);
 
   return (
