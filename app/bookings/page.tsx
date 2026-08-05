@@ -676,13 +676,22 @@ function BookingCard({
       <div className="flex flex-col gap-4 border-b border-[#eef0f5] bg-[#fbfcff] px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-center gap-3">
           {isEligibleForGroupPay && onToggleSelect && (
-            <input
-              type="checkbox"
-              checked={Boolean(isSelected)}
-              onChange={onToggleSelect}
-              className="h-4 w-4 rounded border-slate-300 text-[#ff8d28] accent-[#ff8d28] focus:ring-0 cursor-pointer shrink-0 transition"
+            <button
+              type="button"
+              onClick={onToggleSelect}
+              className={`grid h-5 w-5 shrink-0 place-items-center rounded-md border transition-all ${
+                isSelected
+                  ? "border-[#ff8d28] bg-[#ff8d28] text-white shadow-sm"
+                  : "border-slate-300 bg-white hover:border-[#ff8d28]"
+              }`}
               title="Chọn để thanh toán gom đơn"
-            />
+            >
+              {isSelected && (
+                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              )}
+            </button>
           )}
           <div>
             <p className="text-[12px] font-black uppercase tracking-[0.14em] text-[#ff8d28]">
