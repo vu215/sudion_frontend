@@ -41,6 +41,8 @@ export function AppShell({ children }: { children: ReactNode }) {
     pathname.startsWith("/profilephotographer") ||
     pathname.startsWith("/admin");
 
+  const isNoFooterPage = pathname.startsWith("/messages");
+
   if (isStandalonePage) {
     return <>{children}</>;
   }
@@ -54,9 +56,9 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div id="main-content" className="pt-[76px] lg:pt-[88px]">
         <ErrorBoundary>{children}</ErrorBoundary>
       </div>
-      <Footer />
-      {mounted && <AiConsultantWidget />}
-      <ScrollToTop />
+      {!isNoFooterPage && <Footer />}
+      {mounted && !isNoFooterPage && <AiConsultantWidget />}
+      {!isNoFooterPage && <ScrollToTop />}
     </>
   );
 }

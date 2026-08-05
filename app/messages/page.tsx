@@ -412,7 +412,7 @@ function MessagesContent() {
     if (messagesContainerRef.current) {
       messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
     }
-  }, [messages]);
+  }, [messages, activeBookingCode]);
 
   // Auto polling refresh
   useEffect(() => {
@@ -503,10 +503,10 @@ function MessagesContent() {
   const backText = currentRole === "photographer" ? "Lịch nhận của tôi" : "Lịch đặt của tôi";
 
   return (
-    <main className="h-screen bg-[#f4f6fa] text-[#0f172a] flex flex-col overflow-hidden">
-      <section className="mx-auto w-full max-w-[1360px] px-3 py-3 sm:px-6 lg:px-8 flex-1 flex flex-col min-h-0 overflow-hidden">
+    <main className="h-[calc(100vh-76px)] lg:h-[calc(100vh-88px)] bg-[#f4f6fa] text-[#0f172a] flex flex-col overflow-hidden">
+      <section className="mx-auto w-full max-w-[1360px] px-3 py-2.5 sm:px-6 lg:px-8 flex-1 flex flex-col min-h-0 overflow-hidden">
         <div className="overflow-hidden rounded-[26px] border border-[#e2e8f0] bg-white shadow-[0_16px_48px_rgba(15,23,42,0.05)] grid grid-cols-1 lg:grid-cols-[340px_minmax(0,1fr)] flex-1 min-h-0 h-full">
-          
+
           {/* ── LEFT SIDEBAR: Conversations List ── */}
           <aside className="flex flex-col border-r border-[#eef2f7] bg-[#fcfdfe] min-h-0 h-full overflow-hidden">
             {/* Header with Title & Search Icon Toggle Button */}
@@ -533,11 +533,10 @@ function MessagesContent() {
               <button
                 type="button"
                 onClick={() => setShowSearchInput((prev) => !prev)}
-                className={`grid h-9 w-9 place-items-center rounded-xl border transition-all ${
-                  showSearchInput || searchFilter
+                className={`grid h-9 w-9 place-items-center rounded-xl border transition-all ${showSearchInput || searchFilter
                     ? "border-[#ff8d28] bg-orange-50 text-[#ff8d28]"
                     : "border-[#e2e8f0] bg-white text-[#64748b] hover:border-[#ff8d28] hover:text-[#ff8d28]"
-                }`}
+                  }`}
                 title="Tìm kiếm cuộc trò chuyện"
               >
                 <svg className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
@@ -558,9 +557,7 @@ function MessagesContent() {
                     placeholder="Nhập tên hoặc mã BK để tìm..."
                     className="w-full rounded-xl border border-[#ffcfaa] bg-white py-2 pl-9 pr-7 text-[12px] font-bold text-[#0f172a] outline-none focus:ring-2 focus:ring-[#ff8d28]/20"
                   />
-                  <svg className="absolute left-3 top-2.5 h-4 w-4 text-[#ff8d28]" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
+
                   {searchFilter && (
                     <button
                       type="button"
@@ -591,11 +588,10 @@ function MessagesContent() {
                       key={item.booking_code}
                       type="button"
                       onClick={() => handleSelectBooking(item.booking_code)}
-                      className={`flex w-full items-center gap-3 rounded-2xl p-3 text-left transition-all ${
-                        isSelected
+                      className={`flex w-full items-center gap-3 rounded-2xl p-3 text-left transition-all ${isSelected
                           ? "bg-[#fff7ed] border border-[#ff8d28]/40 shadow-sm"
                           : "border border-transparent bg-white hover:border-[#e2e8f0] hover:bg-[#f8fafc]"
-                      }`}
+                        }`}
                     >
                       <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#111827] text-[13px] font-black text-white shadow-sm">
                         {name ? name.charAt(0).toUpperCase() : "S"}
@@ -740,11 +736,10 @@ function MessageBubble({
   return (
     <div className={`flex w-full ${isMine ? "justify-end" : "justify-start"}`}>
       <div
-        className={`max-w-[82%] sm:max-w-[70%] rounded-[20px] px-4 py-3 shadow-sm ${
-          isMine
+        className={`max-w-[82%] sm:max-w-[70%] rounded-[20px] px-4 py-3 shadow-sm ${isMine
             ? "rounded-br-[4px] bg-[#ff8d28] text-white"
             : "rounded-bl-[4px] border border-[#e2e8f0] bg-white text-[#0f172a]"
-        }`}
+          }`}
       >
         <div className="mb-1.5 flex flex-wrap items-center justify-between gap-3 border-b border-black/5 pb-1">
           <div className="flex items-center gap-2">
@@ -752,9 +747,8 @@ function MessageBubble({
               {isMine ? "Bạn" : message.sender_name}
             </span>
             <span
-              className={`rounded-full px-2 py-0.5 text-[9.5px] font-bold ${
-                isMine ? "bg-white/20 text-white" : "bg-[#f1f5f9] text-[#64748b]"
-              }`}
+              className={`rounded-full px-2 py-0.5 text-[9.5px] font-bold ${isMine ? "bg-white/20 text-white" : "bg-[#f1f5f9] text-[#64748b]"
+                }`}
             >
               {message.sender_role === "photographer" ? "Photographer" : "Khách hàng"}
             </span>
