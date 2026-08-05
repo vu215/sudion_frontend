@@ -511,6 +511,17 @@ function BookingContent() {
     return matchedPackage?.id || 0;
   }, [matchedPackage]);
 
+  const fullServiceName = useMemo(() => {
+    if (resolvedCategory === "wedding") {
+      const subLabel = currentSubType?.label || "Chụp pre-wedding";
+      const tierLabel = currentTier?.label ? ` - Gói ${currentTier.label}` : "";
+      return `Dịch vụ cưới: ${subLabel}${tierLabel}`;
+    }
+    const baseName = matchedPackage?.name || CATEGORY_INFO[resolvedCategory || "all"]?.label || "Gói dịch vụ";
+    const scaleLabel = selectedPeopleOption?.label && selectedPeopleOption.label !== "Mặc định" ? ` (${selectedPeopleOption.label})` : "";
+    return `${baseName}${scaleLabel}`;
+  }, [resolvedCategory, currentSubType, currentTier, matchedPackage, selectedPeopleOption]);
+
   // ── Price calculation ──
   const basePrice = useMemo(() => {
     if (resolvedCategory === "wedding") {
@@ -845,6 +856,8 @@ function BookingContent() {
       const payload = {
         photographerId: photographer.id,
         packageId: matchedPackageId,
+        serviceName: fullServiceName,
+        packageName: fullServiceName,
         categorySlug: matchedPackage?.category?.originalSlug || resolvedCategory,
         availabilitySlotLabel: shootTime,
         location, shootDate, shootTime,
@@ -1516,7 +1529,7 @@ function BookingContent() {
                     photographerId: String(photographer.id),
                     photographerName: photographer.full_name,
                     packageId: String(matchedPackageId),
-                    packageName: resolvedCategory === "wedding" ? (currentSubType?.label || "Chụp pre-wedding") : (matchedPackage?.name || CATEGORY_INFO[resolvedCategory]?.label || "Gói dịch vụ"),
+                    packageName: fullServiceName,
                     packageImage: (resolvedCategory && CATEGORY_INFO[resolvedCategory]?.image) || photographer.avatar_url || "",
                     categorySlug: matchedPackage?.category?.originalSlug || resolvedCategory,
                     basePrice,
