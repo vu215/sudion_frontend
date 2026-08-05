@@ -312,11 +312,15 @@ function MessagesContent() {
         const res = await fetch(url, { headers: authHeaders(), cache: "no-store" });
         const json = await res.json();
         if (res.ok && json.success && Array.isArray(json.data)) {
-          setUserBookings(json.data);
+          // Filter ONLY chat-eligible bookings (accepted, confirmed, completed, fully_paid)
+          const chatEligible = json.data.filter((b: BackendBooking) =>
+            ["accepted", "confirmed", "completed", "fully_paid"].includes(b.status)
+          );
+          setUserBookings(chatEligible);
           // If no active booking code selected yet, pick first booking
-          if (!queryBookingCode && json.data.length > 0) {
-            setActiveBookingCode(json.data[0].booking_code);
-            setBookingCode(json.data[0].booking_code);
+          if (!queryBookingCode && chatEligible.length > 0) {
+            setActiveBookingCode(chatEligible[0].booking_code);
+            setBookingCode(chatEligible[0].booking_code);
           }
         }
       } catch (err) {
@@ -401,9 +405,13 @@ function MessagesContent() {
     void loadData();
   }, [activeBookingCode]);
 
-  // Auto scroll to bottom
+  const messagesContainerRef = useRef<HTMLDivElement | null>(null);
+
+  // Auto scroll to bottom inside inner container only (prevents window scrolling shift)
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+    }
   }, [messages]);
 
   // Auto polling refresh
@@ -612,11 +620,23 @@ function MessagesContent() {
                       </span>
                     )}
 
+                    <button
+                      type="button"
+                      onClick={() => router.back()}
+                      className="flex items-center gap-1.5 rounded-xl border border-[#e2e8f0] bg-white px-3 py-2 text-[12px] font-black text-[#475569] hover:border-[#ff8d28] hover:text-[#ff8d28] transition shadow-sm"
+                      title="Quay lại trang trước"
+                    >
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+                      </svg>
+                      <span>Quay lại</span>
+                    </button>
+
                     {/* 3-Dots Menu Button for Booking Details */}
                     <button
                       type="button"
                       onClick={() => setShowDrawer(true)}
-                      className="flex items-center gap-1.5 rounded-xl border border-[#e2e8f0] bg-white px-3.5 py-2 text-[12.5px] font-black text-[#334155] shadow-sm transition hover:border-[#ff8d28] hover:text-[#ff8d28] hover:bg-orange-50/50"
+                      className="flex items-center gap-1.5 rounded-xl border border-[#e2e8f0] bg-white px-3 py-2 text-[12px] font-black text-[#334155] shadow-sm transition hover:border-[#ff8d28] hover:text-[#ff8d28] hover:bg-orange-50/50"
                       title="Xem chi tiết thông tin lịch chụp"
                     >
                       <span className="text-base font-black">⋮</span>
@@ -626,11 +646,11 @@ function MessagesContent() {
                 </div>
 
                 {/* Messages Body */}
-                <div className="flex-1 overflow-y-auto bg-[#f8fafc] px-4 py-5 sm:px-6">
+                <div ref={messagesContainerRef} className="flex-1 overflow-y-auto bg-[#f8fafc] px-4 py-5 sm:px-6">
                   {messages.length === 0 ? (
                     <NoMessageState canChat={canChat} />
                   ) : (
-                    <div className="grid gap-3">
+                    <div className="space-y-3">
                       {messages.map((item, idx) => {
                         // Align Customer messages right if logged in as customer, Photographer messages right if logged in as photographer
                         const isMine = item.sender_role === currentRole;
@@ -644,7 +664,6 @@ function MessagesContent() {
                           />
                         );
                       })}
-                      <div ref={bottomRef} />
                     </div>
                   )}
                 </div>
@@ -687,7 +706,7 @@ function MessageBubble({
   currentRole: "customer" | "photographer";
 }) {
   return (
-    <div className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
+    <div className={`flex w-full ${isMine ? "justify-end" : "justify-start"}`}>
       <div
         className={`max-w-[82%] sm:max-w-[70%] rounded-[20px] px-4 py-3 shadow-sm ${
           isMine
@@ -695,25 +714,26 @@ function MessageBubble({
             : "rounded-bl-[4px] border border-[#e2e8f0] bg-white text-[#0f172a]"
         }`}
       >
-        <div className="mb-1 flex flex-wrap items-center gap-2">
-          <span className={`text-[11.5px] font-black ${isMine ? "text-white/95" : "text-[#ff8d28]"}`}>
-            {isMine ? "Bạn" : message.sender_name}
-          </span>
-          <span
-            className={`rounded-full px-2 py-0.5 text-[9.5px] font-bold ${
-              isMine ? "bg-white/20 text-white" : "bg-[#f1f5f9] text-[#64748b]"
-            }`}
-          >
-            {message.sender_role === "photographer" ? "Photographer" : "Khách hàng"}
+        <div className="mb-1.5 flex flex-wrap items-center justify-between gap-3 border-b border-black/5 pb-1">
+          <div className="flex items-center gap-2">
+            <span className={`text-[11.5px] font-black ${isMine ? "text-white/95" : "text-[#ff8d28]"}`}>
+              {isMine ? "Bạn" : message.sender_name}
+            </span>
+            <span
+              className={`rounded-full px-2 py-0.5 text-[9.5px] font-bold ${
+                isMine ? "bg-white/20 text-white" : "bg-[#f1f5f9] text-[#64748b]"
+              }`}
+            >
+              {message.sender_role === "photographer" ? "Photographer" : "Khách hàng"}
+            </span>
+          </div>
+          <span className={`text-[10px] font-semibold ${isMine ? "text-white/80" : "text-[#94a3b8]"}`}>
+            {formatDateTime(message.created_at)}
           </span>
         </div>
 
         <p className="whitespace-pre-line break-words text-[13.5px] font-medium leading-6">
           {message.message}
-        </p>
-
-        <p className={`mt-1.5 text-right text-[10px] font-bold ${isMine ? "text-white/75" : "text-[#94a3b8]"}`}>
-          {formatDateTime(message.created_at)}
         </p>
       </div>
     </div>
