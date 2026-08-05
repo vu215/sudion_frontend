@@ -679,11 +679,10 @@ function BookingCard({
             <button
               type="button"
               onClick={onToggleSelect}
-              className={`grid h-5 w-5 shrink-0 place-items-center rounded-md border transition-all ${
-                isSelected
-                  ? "border-[#ff8d28] bg-[#ff8d28] text-white shadow-sm"
-                  : "border-slate-300 bg-white hover:border-[#ff8d28]"
-              }`}
+              className={`grid h-5 w-5 shrink-0 place-items-center rounded-md border transition-all ${isSelected
+                ? "border-[#ff8d28] bg-[#ff8d28] text-white shadow-sm"
+                : "border-slate-300 bg-white hover:border-[#ff8d28]"
+                }`}
               title="Chọn để thanh toán gom đơn"
             >
               {isSelected && (

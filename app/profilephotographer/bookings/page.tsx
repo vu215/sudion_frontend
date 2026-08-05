@@ -734,9 +734,7 @@ function DashboardBookingCard({
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-[#eef2f7] bg-white px-6 py-4 shrink-0">
               <div className="flex items-center gap-3">
-                <div className="grid h-10 w-10 place-items-center rounded-2xl bg-orange-50 text-[#ff8d28] border border-orange-100 text-base font-black">
-                  📋
-                </div>
+
                 <div>
                   <h3 className="text-[17px] font-black text-[#0f172a] tracking-tight">
                     Chi tiết đơn booking: <span className="text-[#ff8d28]">{booking.booking_code}</span>

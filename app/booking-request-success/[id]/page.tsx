@@ -296,18 +296,18 @@ export default function BookingRequestSuccessPage({ params }: { params: Promise<
         <div className="rounded-2xl border border-[#e2e8f0] bg-white shadow-sm overflow-hidden">
 
           {/* Header */}
-          <div className="bg-[#111827] px-6 py-7 text-white relative overflow-hidden">
-            <div className="absolute -right-16 -top-16 h-56 w-56 rounded-full bg-[#ff8d28]/20 blur-3xl" />
+          <div className="bg-white px-6 py-7 relative overflow-hidden border-b border-[#eef2f7]">
+            <div className="absolute -right-16 -top-16 h-56 w-56 rounded-full bg-[#ff8d28]/10 blur-3xl" />
             <div className="relative">
               <div className="flex flex-wrap items-center gap-3">
-                <span className="text-[11px] font-black uppercase tracking-widest text-[#ffb267]">Booking request sent</span>
+                <span className="text-[11px] font-black uppercase tracking-widest text-[#ff8d28]">Booking request sent</span>
                 <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-bold ${info.color}`}>
                   <span className={`h-1.5 w-1.5 rounded-full ${info.dot}`} />
                   {info.label}
                 </span>
               </div>
-              <h1 className="mt-3 text-2xl font-black">Đã gửi yêu cầu đặt lịch</h1>
-              <p className="mt-1.5 text-[13px] text-white/60 font-medium">
+              <h1 className="mt-3 text-2xl font-black text-[#0f172a]">Đã gửi yêu cầu đặt lịch</h1>
+              <p className="mt-1.5 text-[13px] text-[#64748b] font-medium">
                 Trang này tự cập nhật mỗi 8 giây — không cần tải lại.
               </p>
             </div>
