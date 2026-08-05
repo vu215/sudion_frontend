@@ -880,52 +880,111 @@ function DashboardBookingCard({
       {/* Expandable Full Detailed Breakdown for Photographer */}
       {showDetails && (
         <div className="border-t border-[#e8eaf1] bg-[#f8fafc] p-5 text-xs text-[#334155] space-y-4 animate-in fade-in duration-200">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between border-b border-[#e2e8f0] pb-2.5">
             <h4 className="text-[13px] font-black uppercase text-[#0f172a] tracking-wider">
-              Chi tiết đầy đủ đơn booking: {booking.booking_code}
+              Chi tiết đầy đủ đơn booking: <span className="text-[#ff8d28]">{booking.booking_code}</span>
             </h4>
-            <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-black ${statusInfo.className}`}>
+            <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-black ${statusInfo.className}`}>
               <span className={`h-1.5 w-1.5 rounded-full ${statusInfo.dot}`} />
               {statusInfo.label}
             </span>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {/* Box 1: Thông tin dịch vụ & lịch trình */}
-            <div className="rounded-xl border border-[#e2e8f0] bg-white p-4 space-y-2">
-              <p className="text-[11px] font-black uppercase tracking-wider text-[#ff8d28]">Dịch vụ & Lịch trình</p>
-              <div className="space-y-1.5 text-xs font-semibold">
-                <p><span className="text-gray-500">Mã đơn:</span> <strong>{booking.booking_code}</strong></p>
-                <p><span className="text-gray-500">Gói chụp:</span> <strong>{booking.service_name}</strong></p>
-                <p><span className="text-gray-500">Ngày chụp:</span> <strong>{formatDate(booking.shoot_date)}</strong></p>
-                <p><span className="text-gray-500">Giờ chụp:</span> <strong>{formatTime(booking.shoot_time)}</strong></p>
-                <p><span className="text-gray-500">Địa điểm:</span> <strong>{booking.location ? booking.location.split(" [Photos:")[0] : "Chưa chọn"}</strong></p>
-                <p><span className="text-gray-500">Quy mô:</span> <strong>{booking.people_scale || "Chưa chọn"}</strong></p>
+            {/* Box 1: Chi tiết dịch vụ */}
+            <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-2 shadow-sm">
+              <h5 className="font-black text-[#ff8d28] text-xs uppercase tracking-wider border-b border-slate-100 pb-1.5">
+                Chi tiết dịch vụ
+              </h5>
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-medium">Gói dịch vụ:</span>
+                <strong className="text-slate-900">{booking.service_name}</strong>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-medium">Giá gốc gói:</span>
+                <strong className="text-slate-900">{formatCurrency(booking.base_price)}</strong>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-medium">Quy mô nhóm:</span>
+                <strong className="text-slate-900">{booking.people_scale || "Tiêu chuẩn"} {booking.people_extra ? `(+${formatCurrency(booking.people_extra)})` : ""}</strong>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-medium">Khung cảnh/Concept:</span>
+                <strong className="text-slate-900">{booking.concept || booking.scene || "Theo trao đổi với nhiếp ảnh gia"}</strong>
               </div>
             </div>
 
-            {/* Box 2: Thông tin khách hàng */}
-            <div className="rounded-xl border border-[#e2e8f0] bg-white p-4 space-y-2">
-              <p className="text-[11px] font-black uppercase tracking-wider text-[#ff8d28]">Khách hàng</p>
-              <div className="space-y-1.5 text-xs font-semibold">
-                <p><span className="text-gray-500">Họ tên:</span> <strong>{booking.customer_full_name}</strong></p>
-                <p><span className="text-gray-500">Email:</span> <strong>{booking.customer_email || "Chưa có"}</strong></p>
-                <p><span className="text-gray-500">SĐT:</span> <strong>{booking.customer_phone || "Chưa có"}</strong></p>
-                <p><span className="text-gray-500">Concept / Ghi chú:</span> <strong>{booking.concept || "Không có"}</strong></p>
+            {/* Box 2: Lịch trình & Địa điểm */}
+            <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-2 shadow-sm">
+              <h5 className="font-black text-[#ff8d28] text-xs uppercase tracking-wider border-b border-slate-100 pb-1.5">
+                Lịch trình & Địa điểm
+              </h5>
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-medium">Ngày thực hiện:</span>
+                <strong className="text-slate-900">{formatDate(booking.shoot_date)}</strong>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-medium">Giờ khởi hành:</span>
+                <strong className="text-slate-900">{formatTime(booking.shoot_time)}</strong>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-medium">Địa điểm chụp:</span>
+                <strong className="text-slate-900 text-right max-w-[180px] truncate">{booking.location ? booking.location.split(" [Photos:")[0] : "Chưa chọn"}</strong>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-medium">Hình thức cọc:</span>
+                <strong className="text-slate-900">{booking.payment_method === "bank" ? "Chuyển khoản VietQR" : "Thanh toán MoMo/VnPay"}</strong>
               </div>
             </div>
 
-            {/* Box 3: Chi tiết thanh toán & Link Drive */}
-            <div className="rounded-xl border border-[#e2e8f0] bg-white p-4 space-y-2">
-              <p className="text-[11px] font-black uppercase tracking-wider text-[#ff8d28]">Thanh toán & Sản phẩm</p>
-              <div className="space-y-1.5 text-xs font-semibold">
-                <p><span className="text-gray-500">Tổng chi phí:</span> <strong>{formatCurrency(booking.estimated_total)}</strong></p>
-                <p><span className="text-gray-500">Tiền cọc:</span> <strong className="text-emerald-600">{formatCurrency(booking.deposit_amount)}</strong></p>
-                <p><span className="text-gray-500">Còn lại:</span> <strong className="text-[#ff8d28]">{formatCurrency(booking.remaining_amount)}</strong></p>
-                <p><span className="text-gray-500">Trạng thái:</span> <strong>{statusInfo.label}</strong></p>
+            {/* Box 3: Thông tin người đặt & Tài chính */}
+            <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-2 shadow-sm">
+              <h5 className="font-black text-[#ff8d28] text-xs uppercase tracking-wider border-b border-slate-100 pb-1.5">
+                Khách hàng & Tài chính
+              </h5>
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-medium">Họ tên khách:</span>
+                <strong className="text-slate-900">{booking.customer_full_name}</strong>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-medium">Số điện thoại:</span>
+                <strong className="text-slate-900">{booking.customer_phone || "Chưa có"}</strong>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-medium">Email liên hệ:</span>
+                <strong className="text-slate-[#0f172a] truncate max-w-[160px]">{booking.customer_email || "Chưa có"}</strong>
+              </div>
+              <div className="flex justify-between border-t border-slate-100 pt-1.5">
+                <span className="text-slate-500 font-medium">Tổng tiền:</span>
+                <strong className="text-[#0f172a]">{formatCurrency(booking.estimated_total)}</strong>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-medium">Đã cọc:</span>
+                <strong className="text-emerald-600">{formatCurrency(booking.deposit_amount)}</strong>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-medium">Còn lại:</span>
+                <strong className="text-[#ff8d28]">{formatCurrency(booking.remaining_amount)}</strong>
               </div>
             </div>
           </div>
+
+          {/* Dịch vụ bổ sung Add-ons nếu có */}
+          {Array.isArray(booking.add_ons) && booking.add_ons.length > 0 && (
+            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+              <h5 className="font-black text-[#ff8d28] text-xs uppercase tracking-wider border-b border-slate-100 pb-1.5 mb-2">
+                Dịch vụ bổ sung đã chọn (Add-ons)
+              </h5>
+              <div className="flex flex-wrap gap-2">
+                {booking.add_ons.map((addon: any, idx: number) => (
+                  <span key={idx} className="inline-flex items-center gap-1.5 rounded-lg border border-orange-200 bg-orange-50/70 px-2.5 py-1 text-[11px] font-bold text-[#ff8d28]">
+                    <span>{addon.name || addon.title}</span>
+                    <span>(+{formatCurrency(addon.price)})</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </article>
