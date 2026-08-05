@@ -412,7 +412,7 @@ function MessagesContent() {
     if (messagesContainerRef.current) {
       messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
     }
-  }, [messages, activeBookingCode]);
+  }, [messages.length, activeBookingCode]);
 
   // Auto polling refresh
   useEffect(() => {
@@ -614,7 +614,7 @@ function MessagesContent() {
           </aside>
 
           {/* ── RIGHT MAIN CHAT AREA ── */}
-          <section className="flex flex-col min-w-0 bg-white relative">
+          <section className="flex flex-col min-w-0 bg-white relative h-full min-h-0 overflow-hidden">
             {!activeBookingCode || !booking ? (
               <EmptyChatState />
             ) : (
@@ -642,12 +642,6 @@ function MessagesContent() {
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0">
-                    {refreshing && (
-                      <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold text-slate-500 animate-pulse">
-                        Đang đồng bộ...
-                      </span>
-                    )}
-
                     <button
                       type="button"
                       onClick={() => router.back()}
