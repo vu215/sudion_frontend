@@ -733,9 +733,12 @@ function BookingCard({
             <button
               type="button"
               onClick={() => setShowDetails(!showDetails)}
-              className="shrink-0 rounded-full border border-orange-200 bg-orange-50 px-3.5 py-1.5 text-xs font-black text-[#ff8d28] hover:bg-[#ff8d28] hover:text-white transition-all shadow-sm"
+              className="flex items-center gap-1.5 shrink-0 rounded-full border border-orange-200 bg-orange-50 px-3.5 py-1.5 text-xs font-black text-[#ff8d28] hover:bg-[#ff8d28] hover:text-white transition-all shadow-sm"
             >
-              {showDetails ? "Thu gọn ▲" : "Xem chi tiết đầy đủ ▼"}
+              <span>{showDetails ? "Thu gọn" : "Xem chi tiết đơn"}</span>
+              <svg className={`h-3.5 w-3.5 transition-transform duration-200 ${showDetails ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
             </button>
           </div>
         </div>
