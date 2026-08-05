@@ -266,7 +266,9 @@ function MessagesContent() {
       ? session?.photographerId || session?.userId || "photographer"
       : session?.email || session?.userId || "guest";
 
-  const canChat = booking?.status === "fully_paid";
+  const canChat = ["accepted", "confirmed", "completed", "fully_paid"].includes(
+    booking?.status || ""
+  );
 
   const statusInfo = useMemo(() => {
     return getStatusInfo(booking?.status || "awaiting_payment");

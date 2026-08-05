@@ -698,14 +698,14 @@ function DashboardBookingCard({
               </button>
             ) : null}
 
-            {booking.status === "fully_paid" ? (
+            {["accepted", "confirmed", "completed", "fully_paid"].includes(booking.status) ? (
               <Link
                 href={`/messages?booking=${encodeURIComponent(
                   booking.booking_code
                 )}`}
-                className="rounded-[12px] bg-[#ff8d28] px-4 py-3 text-center text-[13px] font-black text-white shadow-[0_10px_24px_rgba(255,141,40,0.18)] transition-all hover:bg-[#e0751b]"
+                className="rounded-[12px] bg-[#ff8d28] px-4 py-3 text-center text-[13px] font-black text-white shadow-[0_10px_24px_rgba(255,141,40,0.18)] transition-all hover:bg-[#e0751b] flex items-center justify-center gap-1.5"
               >
-                Chat với khách
+                💬 Chat với khách
               </Link>
             ) : null}
           </div>

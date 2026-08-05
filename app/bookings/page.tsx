@@ -178,6 +178,17 @@ function formatDateTime(value: string | null | undefined) {
   });
 }
 
+function extractPhotoDriveLink(location: string | null | undefined): string {
+  if (!location) return "";
+  const match = String(location).match(/\[Photos:\s*(https?:\/\/[^\]]+)\]/i);
+  if (match?.[1]) return match[1].trim();
+  if (String(location).includes("drive.google.com")) {
+    const urlMatch = String(location).match(/(https?:\/\/[^\s\]]+)/i);
+    if (urlMatch?.[1]) return urlMatch[1].trim();
+  }
+  return "";
+}
+
 function getRefundInfo(booking: BackendBooking) {
   if (!booking.shoot_date || !booking.shoot_time) {
     return {
@@ -658,6 +669,8 @@ function BookingCard({
   const canCancel = ["awaiting_payment", "accepted", "confirmed"].includes(booking.status);
   const isEligibleForGroupPay = ["accepted", "completed"].includes(booking.status);
 
+  const driveUrl = extractPhotoDriveLink(booking.location);
+
   return (
     <article className={`overflow-hidden rounded-[22px] border transition-all ${isSelected ? "border-[#ff8d28] bg-orange-50/20 shadow-md" : "border-[#e8eaf1] bg-white shadow-sm"}`}>
       <div className="flex flex-col gap-4 border-b border-[#eef0f5] bg-[#fbfcff] px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
@@ -731,6 +744,15 @@ function BookingCard({
           <div className="my-1 h-px bg-[#e8eaf1]" />
 
           <div className="grid gap-2">
+            {["accepted", "confirmed", "completed", "fully_paid"].includes(booking.status) && (
+              <Link
+                href={`/messages?booking=${encodeURIComponent(booking.booking_code)}`}
+                className="rounded-[12px] border border-[#ff8d28] bg-orange-50/70 px-4 py-3 text-center text-[13px] font-black text-[#ff8d28] hover:bg-[#ff8d28] hover:text-white transition-all shadow-sm flex items-center justify-center gap-1.5"
+              >
+                Chat với Photographer
+              </Link>
+            )}
+
             {booking.status === "accepted" && (
               <Link
                 href={`/deposit-payment/${encodeURIComponent(booking.booking_code)}`}
@@ -761,6 +783,53 @@ function BookingCard({
           </div>
         </div>
       </div>
+
+      {/* Google Drive Link Section (Locked vs Unlocked) */}
+      {driveUrl ? (
+        (booking.status === "fully_paid" || Number(booking.remaining_amount || 0) <= 0) ? (
+          <div className="mx-5 mb-5 rounded-[18px] border border-emerald-200 bg-emerald-50/90 p-4 space-y-3 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-[12px] font-black uppercase text-emerald-800 tracking-wider flex items-center gap-1.5">
+                Link Google Drive Sản Phẩm (Đã Mở Khóa)
+              </span>
+              <span className="rounded-full bg-emerald-600 px-2.5 py-0.5 text-[10px] font-bold text-white">
+                Đã thanh toán 100%
+              </span>
+            </div>
+            <p className="text-xs font-semibold text-emerald-900 leading-5">
+              Ảnh chụp HD của bạn đã được photographer hoàn tất và tải lên. Bấm nút dưới đây để truy cập thư mục Google Drive.
+            </p>
+            <a
+              href={driveUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-xs font-black text-white shadow hover:bg-emerald-700 transition-all"
+            >
+              📁 Mở Thư Mục Google Drive Xem & Tải Ảnh ↗
+            </a>
+          </div>
+        ) : (
+          <div className="mx-5 mb-5 rounded-[18px] border border-amber-200 bg-amber-50/90 p-4 space-y-3 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-[12px] font-black uppercase text-amber-800 tracking-wider flex items-center gap-1.5">
+                🔒 Link Google Drive Ảnh (Chưa Mở Khóa)
+              </span>
+              <span className="rounded-full bg-amber-600 px-2.5 py-0.5 text-[10px] font-bold text-white">
+                Cần thanh toán nốt
+              </span>
+            </div>
+            <p className="text-xs font-semibold text-amber-900 leading-5">
+              Photographer đã hoàn thành buổi chụp và gửi Link Drive. Vui lòng thanh toán phần còn lại <strong>({formatCurrency(booking.remaining_amount)})</strong> để mở khóa quyền truy cập xem & tải ảnh.
+            </p>
+            <Link
+              href={`/final-payment/${encodeURIComponent(booking.booking_code)}`}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#ff8d28] px-5 py-2.5 text-xs font-black text-white shadow hover:bg-[#e0751b] transition-all"
+            >
+              💳 Thanh toán nốt {formatCurrency(booking.remaining_amount)} để mở khóa ảnh ↗
+            </Link>
+          </div>
+        )
+      ) : null}
 
       {/* Expandable Full Detailed Breakdown */}
       {showDetails && (
