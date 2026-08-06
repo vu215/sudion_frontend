@@ -1,4 +1,4 @@
-export type ServiceSlug = "wedding" | "couple" | "portrait";
+export type ServiceSlug = "wedding" | "couple" | "portrait" | "event" | "yearbook" | "travel" | "food" | "rental";
 
 export type ServicePackage = {
   id: string;
@@ -88,6 +88,91 @@ export const serviceCategories: ServiceCategory[] = [
       "https://i.pinimg.com/736x/05/b8/2f/05b82fccfbf7594f39fc5f01355db3ea.jpg",
     tags: ["Studio", "Lifestyle", "Profile", "Retouch", "Tạo dáng"],
     mood: "Hiện đại, cá nhân hóa, sắc nét",
+  },
+  {
+    slug: "event",
+    eyebrow: "Event photography",
+    title: "Chụp ảnh sự kiện",
+    shortTitle: "Sự kiện",
+    description: "Ghi lại khoảnh khắc chuyên nghiệp cho hội nghị, lễ trao giải, khai trương, tiệc công ty.",
+    longDescription:
+      "Dịch vụ chụp ảnh sự kiện với đội ngũ photographer có kinh nghiệm chụp tại hội trường, sân khấu và outdoor cho các loại sự kiện quy mô khác nhau.",
+    startingPrice: "Từ 2.000.000 VND",
+    photographerCount: "600+ photographer",
+    heroImage:
+      "https://i.pinimg.com/736x/ab/3c/4f/ab3c4f2b4e8b0b3e1f3d8b9f6e6a4c2d.jpg",
+    accentImage:
+      "https://i.pinimg.com/736x/1a/2b/3c/1a2b3c4d5e6f7a8b9c0d.jpg",
+    tags: ["Sự kiện", "Hội nghị", "Tiệc", "Phóng sự"],
+    mood: "Năng động, chuyên nghiệp",
+  },
+  {
+    slug: "yearbook",
+    eyebrow: "Yearbook photography",
+    title: "Chụp ảnh kỷ yếu",
+    shortTitle: "Kỷ yếu",
+    description: "Bộ ảnh kỷ yếu sáng tạo, thời trang cho lớp/niên khóa, cả studio và ngoại cảnh.",
+    longDescription:
+      "Thiết kế concept, make-up và chụp trọn gói cho bộ ảnh kỷ yếu, hỗ trợ album và in ấn theo yêu cầu.",
+    startingPrice: "Từ 1.200.000 VND",
+    photographerCount: "420+ photographer",
+    heroImage:
+      "https://i.pinimg.com/736x/3f/4e/5d/3f4e5d6c7b8a9d0e1f2a.jpg",
+    accentImage:
+      "https://i.pinimg.com/736x/6b/7c/8d/6b7c8d9e0a1b2c3d4e5f.jpg",
+    tags: ["Kỷ yếu", "Studio", "Group", "Concept"],
+    mood: "Trẻ trung, sáng tạo",
+  },
+  {
+    slug: "travel",
+    eyebrow: "Travel photography",
+    title: "Chụp ảnh du lịch",
+    shortTitle: "Du lịch",
+    description: "Ảnh du lịch, couple/travel diary cho các chuyến đi, honeymoon, adventure.",
+    longDescription:
+      "Photographer chuyên váy áo và khung cảnh ngoại cảnh, tạo album travel story cho couple hoặc cá nhân.",
+    startingPrice: "Từ 1.500.000 VND",
+    photographerCount: "300+ photographer",
+    heroImage:
+      "https://i.pinimg.com/736x/5e/6f/7a/5e6f7a8b9c0d1e2f3a4b.jpg",
+    accentImage:
+      "https://i.pinimg.com/736x/7f/8e/9d/7f8e9d0a1b2c3d4e5f6a.jpg",
+    tags: ["Ngoại cảnh", "Travel", "Destination", "Lifestyle"],
+    mood: "Phóng khoáng, tự nhiên",
+  },
+  {
+    slug: "food",
+    eyebrow: "Food & Product",
+    title: "Chụp ảnh sản phẩm & ẩm thực",
+    shortTitle: "Product/Food",
+    description: "Ảnh sản phẩm, menu, food styling cho nhà hàng và shop online.",
+    longDescription:
+      "Photographer và stylist chuyên chụp ảnh sản phẩm, ẩm thực, quảng cáo cho thương hiệu và nhà hàng.",
+    startingPrice: "Từ 800.000 VND",
+    photographerCount: "210+ photographer",
+    heroImage:
+      "https://i.pinimg.com/736x/9a/8b/7c/9a8b7c6d5e4f3a2b1c0d.jpg",
+    accentImage:
+      "https://i.pinimg.com/736x/8b/7a/6c/8b7a6c5d4e3f2a1b0c9d.jpg",
+    tags: ["Food", "Product", "E-commerce", "Styling"],
+    mood: "Sáng tạo, thương mại",
+  },
+  {
+    slug: "rental",
+    eyebrow: "Equipment rental",
+    title: "Thuê thiết bị",
+    shortTitle: "Thuê thiết bị",
+    description: "Thuê máy ảnh, lens, đèn và phụ kiện cho project ngắn hạn hoặc quay chụp.",
+    longDescription:
+      "Dịch vụ cho thuê thiết bị máy ảnh và lighting với nhiều lựa chọn theo nhu cầu dự án và thời gian.",
+    startingPrice: "Từ 200.000 VND",
+    photographerCount: "—",
+    heroImage:
+      "https://i.pinimg.com/736x/2a/3b/4c/2a3b4c5d6e7f8a9b0c1d.jpg",
+    accentImage:
+      "https://i.pinimg.com/736x/3b/4c/5d/3b4c5d6e7f8a9b0c1d2e.jpg",
+    tags: ["Thuê", "Equipment", "Lighting", "Lens"],
+    mood: "Thực tế, tiện lợi",
   },
 ];
 

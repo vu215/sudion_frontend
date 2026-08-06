@@ -48,23 +48,8 @@ function LoginContent() {
       return;
     }
 
-    if (result.user && result.user.role === "photographer") {
-      transitionTo("/photographer-dashboard");
-      return;
-    }
-
-    if (result.user && result.user.role === "admin") {
-      const redirect = searchParams.get("redirect") || "/admin";
-      transitionTo(redirect);
-      return;
-    }
-
-    const redirect = searchParams.get("redirect") || "";
-    if (redirect) {
-      transitionTo(redirect);
-    } else {
-      transitionTo("/");
-    }
+    // Always navigate to homepage after successful login
+    transitionTo("/");
   }
 
   return (
