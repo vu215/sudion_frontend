@@ -38,6 +38,71 @@ export function AiConsultantWidget() {
   }>({ step: "idle" });
 
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const chatBodyRef = useRef<HTMLDivElement | null>(null);
+
+  const CHAT_PERSIST_KEY = "sudion_ai_chat_state";
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const saved = window.localStorage.getItem(CHAT_PERSIST_KEY);
+    if (!saved) return;
+
+    try {
+      const data = JSON.parse(saved) as {
+        isOpen?: boolean;
+        messages?: Message[];
+        inputVal?: string;
+        flowState?: typeof flowState;
+        showTooltip?: boolean;
+      };
+
+      if (data.messages && data.messages.length > 0) {
+        setMessages(data.messages);
+      }
+      if (typeof data.isOpen === "boolean") {
+        setIsOpen(data.isOpen);
+      }
+      if (typeof data.inputVal === "string") {
+        setInputVal(data.inputVal);
+      }
+      if (data.flowState) {
+        setFlowState(data.flowState);
+      }
+      if (typeof data.showTooltip === "boolean") {
+        setShowTooltip(data.showTooltip);
+      }
+    } catch (error) {
+      console.error("Lỗi đọc trạng thái chat AI từ localStorage:", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const payload = {
+      isOpen,
+      messages,
+      inputVal,
+      flowState,
+      showTooltip,
+    };
+
+    window.localStorage.setItem(CHAT_PERSIST_KEY, JSON.stringify(payload));
+  }, [isOpen, messages, inputVal, flowState, showTooltip]);
+
+  useEffect(() => {
+    const handleLinkClick = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (!target) return;
+      const anchor = target.closest("a") as HTMLAnchorElement | null;
+      if (anchor && chatBodyRef.current && chatBodyRef.current.contains(anchor)) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener("click", handleLinkClick);
+    return () => document.removeEventListener("click", handleLinkClick);
+  }, []);
 
   // Load lightweight client-only configuration.
   useEffect(() => {
@@ -472,7 +537,7 @@ export function AiConsultantWidget() {
                   <span class="text-slate-600 font-medium text-xs">Giá từ: ${p.min_price ? p.min_price.toLocaleString('vi-VN') + 'đ' : 'Liên hệ'}</span>
                 </div>
               </div>
-              <a href="/photographer-profile?id=${p.id}" class="px-2.5 py-1.5 bg-orange-500 hover:bg-orange-600 text-white text-[11px] font-bold rounded-lg shrink-0 transition-colors">
+              <a href="/photographer-profile/${p.id}" class="px-2.5 py-1.5 bg-orange-500 hover:bg-orange-600 text-white text-[11px] font-bold rounded-lg shrink-0 transition-colors">
                 Xem
               </a>
             </div>
@@ -508,7 +573,7 @@ export function AiConsultantWidget() {
                   <span class="text-slate-600 font-medium text-xs">Giá từ: ${p.min_price ? p.min_price.toLocaleString('vi-VN') + 'đ' : 'Liên hệ'}</span>
                 </div>
               </div>
-              <a href="/photographer-profile?id=${p.id}" class="px-2.5 py-1.5 bg-orange-500 hover:bg-orange-600 text-white text-[11px] font-bold rounded-lg shrink-0 transition-colors">
+              <a href="/photographer-profile/${p.id}" class="px-2.5 py-1.5 bg-orange-500 hover:bg-orange-600 text-white text-[11px] font-bold rounded-lg shrink-0 transition-colors">
                 Xem
               </a>
             </div>
@@ -572,6 +637,10 @@ export function AiConsultantWidget() {
       /\[(.*?)\]\(((?:\/|https?:\/\/)[^\s)]+)\)/g,
       '<a href="$2" class="text-orange-500 font-bold underline">$1</a>'
     );
+
+    // Rewrite any old photographer-profile query URLs to route-based dynamic profile pages.
+    formatted = formatted.replace(/photographer-profile\?id=([0-9a-zA-Z_-]+)/g, "/photographer-profile/$1");
+    formatted = formatted.replace(/photographer-profile%3Fid%3D([0-9a-zA-Z_-]+)/g, "/photographer-profile/$1");
 
     return formatted;
   };
@@ -644,7 +713,7 @@ export function AiConsultantWidget() {
           </div>
 
           {/* Messages Body */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/50">
+          <div ref={chatBodyRef} className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/50">
             {messages.map((m) => (
               <div key={m.id} className={`flex flex-col ${m.sender === "user" ? "items-end" : "items-start"}`}>
                 <div
