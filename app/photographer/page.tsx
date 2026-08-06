@@ -166,16 +166,44 @@ function fadeUpStyle(isReady: boolean, delay = 0): CSSProperties {
 function getCoordinatesByArea(area: string | null | undefined): Coordinates {
   const text = (area || "").toLowerCase();
 
-  if (text.includes("đà lạt") || text.includes("da lat")) {
+  if (text.includes("quận 7") || text.includes("quan 7") || text.includes("district 7") || text.includes("q7")) {
+    return { lat: 10.737, lng: 106.724 };
+  }
+
+  if (text.includes("quận 1") || text.includes("district 1") || text.includes("q1")) {
+    return { lat: 10.772, lng: 106.698 };
+  }
+
+  if (text.includes("quận 2") || text.includes("district 2") || text.includes("q2") || text.includes("thảo điền") || text.includes("thao dien")) {
+    return { lat: 10.797, lng: 106.730 };
+  }
+
+  if (text.includes("quận 3") || text.includes("district 3") || text.includes("q3")) {
+    return { lat: 10.781, lng: 106.692 };
+  }
+
+  if (text.includes("quận 10") || text.includes("district 10") || text.includes("q10")) {
+    return { lat: 10.768, lng: 106.667 };
+  }
+
+  if (text.includes("lâm đồng") || text.includes("lam dong") || text.includes("đà lạt") || text.includes("da lat")) {
     return { lat: 11.9404, lng: 108.4583 };
   }
 
-  if (text.includes("hà nội") || text.includes("ha noi")) {
+  if (text.includes("đắk lắk") || text.includes("dak lak") || text.includes("buon ma thuot") || text.includes("buon") || text.includes("buon-ma-thuot")) {
+    return { lat: 12.6663, lng: 108.0504 };
+  }
+
+  if (text.includes("hà nội") || text.includes("ha noi") || text.includes("hn")) {
     return { lat: 21.0278, lng: 105.8342 };
   }
 
-  if (text.includes("đà nẵng") || text.includes("da nang")) {
+  if (text.includes("đà nẵng") || text.includes("da nang") || text.includes("hoà quảng")) {
     return { lat: 16.0544, lng: 108.2022 };
+  }
+
+  if (text.includes("hội an") || text.includes("hoian")) {
+    return { lat: 15.8801, lng: 108.3380 };
   }
 
   if (text.includes("huế") || text.includes("hue")) {
@@ -188,6 +216,22 @@ function getCoordinatesByArea(area: string | null | undefined): Coordinates {
 
   if (text.includes("cần thơ") || text.includes("can tho")) {
     return { lat: 10.0452, lng: 105.7469 };
+  }
+
+  if (text.includes("bình dương") || text.includes("binh duong")) {
+    return { lat: 10.9810, lng: 106.6577 };
+  }
+
+  if (text.includes("đồng nai") || text.includes("dong nai")) {
+    return { lat: 10.9433, lng: 106.8235 };
+  }
+
+  if (text.includes("vũng tàu") || text.includes("vung tau") || text.includes("ba ria")) {
+    return { lat: 10.4114, lng: 107.1362 };
+  }
+
+  if (text.includes("hcm") || text.includes("sài gòn") || text.includes("saigon") || text.includes("ho chi minh") || text.includes("tp.hcm")) {
+    return { lat: 10.7758, lng: 106.7009 };
   }
 
   return { lat: 10.7758, lng: 106.7009 };
@@ -452,9 +496,14 @@ function PhotographerContent() {
       (item) => item.id === shootLocationId,
     );
 
+    const customTargetLocation =
+      shootLocationId === "custom" && customShootLocation
+        ? getCoordinatesByArea(customShootLocation)
+        : null;
+
     const targetLocation =
       shootLocationId === "custom"
-        ? null
+        ? customTargetLocation
         : shootLocationId === "current"
           ? userLocation
           : selectedShootLocation?.coordinates || null;
@@ -472,7 +521,7 @@ function PhotographerContent() {
       }))
       .sort((a, b) => a.distanceKm - b.distanceKm)
       .slice(0, 6);
-  }, [location, photographers, shootLocationId, userLocation]);
+  }, [customShootLocation, location, photographers, shootLocationId, userLocation]);
 
   const displayedPhotographers = useMemo(() => {
     const baseList =
