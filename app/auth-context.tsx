@@ -84,10 +84,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (result.ok && result.session) {
       setSessionState(result.session);
+      try {
+        router.push("/");
+      } catch (err) {
+        // ignore routing errors
+      }
     }
 
     return result;
   }, []);
+
 
   const register = useCallback(async (params: {
     fullName: string;

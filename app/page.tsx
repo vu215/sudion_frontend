@@ -3,6 +3,7 @@
 /* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
 import { useEffect, useState, useRef, useMemo } from "react";
+import { serviceCategories } from "@/app/services/service-data";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://sudion-backend-production-453b.up.railway.app/api";
 
@@ -658,7 +659,10 @@ function Hero() {
   const [location, setLocation] = useState("all");
   const [category, setCategory] = useState("all");
   const [date, setDate] = useState("");
+  const [heroSearch, setHeroSearch] = useState("");
+  const [heroOpen, setHeroOpen] = useState(false);
   const [openDropdown, setOpenDropdown] = useState<"category" | "location" | null>(null);
+  const heroRef = useRef<HTMLDivElement | null>(null);
   const dateInputRef = useRef<HTMLInputElement>(null);
   const [activeSlide, setActiveSlide] = useState(0);
 
@@ -667,6 +671,9 @@ function Hero() {
       const target = e.target as HTMLElement;
       if (!target.closest(".search-bar-container")) {
         setOpenDropdown(null);
+      }
+      if (heroRef.current && !heroRef.current.contains(target)) {
+        setHeroOpen(false);
       }
     };
     document.addEventListener("click", handleOutsideClick);
@@ -779,30 +786,62 @@ function Hero() {
       {/* Search Bar - positioned absolutely inside the bottom edge of the banner */}
       <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-20 w-[calc(100%-48px)] sm:w-[calc(100%-80px)] md:w-[calc(100%-96px)] lg:w-[calc(100%-112px)] max-w-[920px]">
         <div className="search-bar-container w-full bg-white rounded-[24px] md:rounded-full p-1.5 md:p-0 md:pl-6 shadow-[0_12px_35px_rgba(0,0,0,0.06)] border border-slate-100/80 flex flex-col md:flex-row md:items-center md:justify-between gap-2.5 md:gap-0 md:h-[48px] md:overflow-visible">
-          {/* Thể loại */}
-          <div className="flex-1 min-w-0 relative">
-            <SearchField
-              icon={<HeroFieldIcon type="camera" />}
-              labelText={categories[category as keyof typeof categories] || "Thể loại"}
-              onClick={() => setOpenDropdown(openDropdown === "category" ? null : "category")}
-            />
-            {openDropdown === "category" && (
-              <div className="absolute top-[calc(100%+12px)] left-0 w-full bg-white rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.12)] border border-slate-100 py-1.5 z-30 min-w-[200px]">
-                {Object.entries(categories).map(([key, val]) => (
-                  <button
-                    key={key}
-                    onClick={() => {
-                      setCategory(key);
-                      setOpenDropdown(null);
-                    }}
-                    className={`w-full text-left px-4 py-2 text-sm font-semibold transition cursor-pointer block ${category === key ? "text-[#ff4f00] bg-slate-50" : "text-slate-700 hover:bg-slate-50 hover:text-[#ff4f00]"
-                      }`}
-                  >
-                    {val}
-                  </button>
-                ))}
+          {/* Thể loại (search + suggestions) */}
+          <div className="flex-1 min-w-0 relative" ref={heroRef}>
+            <div className="relative">
+              <div className="flex min-h-[46px] md:min-h-[40px] items-center gap-2.5 px-4 bg-white rounded-full border border-slate-100 w-full">
+                <span className="grid h-5 w-5 shrink-0 place-items-center text-slate-800">
+                  <HeroFieldIcon type="camera" />
+                </span>
+                <input
+                  type="search"
+                  value={heroSearch}
+                  onChange={(e) => { setHeroSearch(e.target.value); setHeroOpen(true); }}
+                  onFocus={() => setHeroOpen(true)}
+                  placeholder={categories[category as keyof typeof categories] || "Thể loại"}
+                  className="min-w-0 flex-1 bg-transparent text-sm font-bold text-slate-800 outline-none"
+                />
+                {heroSearch && (
+                  <button type="button" onClick={() => { setHeroSearch(""); setHeroOpen(false); }} className="text-slate-400 px-2">×</button>
+                )}
               </div>
-            )}
+
+              {heroOpen && (
+                <div className="absolute left-0 top-full mt-1 w-full rounded-b-xl border border-slate-200 bg-white shadow-lg z-40 max-h-56 overflow-auto">
+                  <ul className="py-1">
+                    {(() => {
+                      const q = heroSearch.trim().toLowerCase();
+                      const list = q
+                        ? serviceCategories.filter((s) => {
+                            const txt = (s.title + " " + s.shortTitle + " " + (s.tags || []).join(" ")).toLowerCase();
+                            return txt.includes(q);
+                          })
+                        : serviceCategories.slice(0, 6);
+                      return list.length ? (
+                        list.map((s) => (
+                          <li key={s.slug}>
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                setCategory(s.slug);
+                                setHeroSearch("");
+                                setHeroOpen(false);
+                              }}
+                              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center justify-between"
+                            >
+                              <span className="truncate">{s.title}</span>
+                              <span className="text-[11px] text-slate-400 ml-2">{s.shortTitle}</span>
+                            </button>
+                          </li>
+                        ))
+                      ) : (
+                        <li className="px-4 py-2 text-sm text-gray-500">Không có gợi ý</li>
+                      );
+                    })()}
+                  </ul>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Thời gian */}

@@ -64,6 +64,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 }
 
 import { getCartCount } from "@/app/cart-store";
+import { serviceCategories } from "@/app/services/service-data";
 import { getBookingCartCount } from "@/app/booking-cart-store";
 
 function Header({ pathname }: { pathname: string }) {
@@ -93,6 +94,7 @@ function Header({ pathname }: { pathname: string }) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -115,6 +117,26 @@ function Header({ pathname }: { pathname: string }) {
       inputRef.current?.focus();
     }
   }, [searchOpen]);
+
+  const normalize = (v: string) =>
+    v
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/\p{Diacritic}/gu, "")
+      .trim();
+
+  const filteredServices = searchOpen
+    ? searchQuery.trim()
+      ? serviceCategories.filter((s) => {
+          const q = normalize(searchQuery);
+          const inTitle = normalize(s.title).includes(q);
+          const inShort = normalize(s.shortTitle || "").includes(q);
+          const inEyebrow = normalize(s.eyebrow || "").includes(q);
+          const inTags = (s.tags || []).some((t) => normalize(t).includes(q));
+          return inTitle || inShort || inEyebrow || inTags;
+        })
+      : serviceCategories.slice(0, 6)
+    : [];
 
   const initials = session?.fullName
     ? session.fullName.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2)
@@ -203,7 +225,7 @@ function Header({ pathname }: { pathname: string }) {
                 setSearchOpen(false);
                 setSearchQuery("");
               }}
-              className={`flex items-center overflow-hidden rounded-xl border bg-white shadow-sm transition-all duration-300 ${searchOpen
+              className={`relative flex items-center overflow-visible rounded-xl border bg-white shadow-sm transition-all duration-300 ${searchOpen
                   ? "w-[280px] border-[#ff8d28] ring-2 ring-[#ff8d28]/10"
                   : "w-10 border-[#e8eaf1]"
                 }`}
@@ -226,6 +248,33 @@ function Header({ pathname }: { pathname: string }) {
                 className={`h-10 flex-1 bg-transparent pr-3 text-sm text-[#0e111d] outline-none placeholder:text-[#9ca3af] transition-all duration-300 ${searchOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none w-0"
                   }`}
               />
+              {/* Suggestions dropdown */}
+              {searchOpen && (filteredServices.length > 0 || searchQuery) && (
+                <div className="absolute left-0 top-full mt-1 w-full rounded-b-xl rounded-t-none border border-slate-200 bg-white shadow-lg z-50 max-h-56 overflow-auto">
+                  <ul className="py-1">
+                    {filteredServices.length > 0 ? (
+                      filteredServices.map((s) => (
+                        <li key={s.slug}>
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              router.push(`/services/${s.slug}`);
+                              setSearchOpen(false);
+                              setSearchQuery("");
+                            }}
+                            className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3"
+                          >
+                            <span className="min-w-0 flex-1 truncate">{s.title}</span>
+                            <span className="inline-block text-[11px] text-slate-400">{s.shortTitle}</span>
+                          </button>
+                        </li>
+                      ))
+                    ) : (
+                      <li className="px-4 py-2 text-sm text-gray-500">Không có gợi ý</li>
+                    )}
+                  </ul>
+                </div>
+              )}
             </form>
           </div>
 

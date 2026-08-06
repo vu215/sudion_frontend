@@ -234,15 +234,33 @@ export default function NewsPage() {
   }, [searchOpen]);
 
   const featured = articles.find((a) => a.featured)!;
-  const rest = articles.filter((a) => !a.featured);
 
-  const filtered = rest.filter((a) => {
+  const normalizeText = (value: string) =>
+    value
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/\p{Diacritic}/gu, "")
+      .replace(/[^\p{L}\p{N}\s]/gu, "")
+      .trim();
+
+  const normalizedSearch = normalizeText(search);
+
+  const filtered = articles.filter((a) => {
     const matchCat = activeCategory === "Tất cả" || a.category === activeCategory;
+    const normalizedTitle = normalizeText(a.title);
+    const normalizedExcerpt = normalizeText(a.excerpt);
+    const normalizedAuthor = normalizeText(a.author);
+    const normalizedCategory = normalizeText(a.category);
+
     const matchSearch =
-      !search.trim() ||
-      a.title.toLowerCase().includes(search.toLowerCase()) ||
-      a.excerpt.toLowerCase().includes(search.toLowerCase());
-    return matchCat && matchSearch;
+      !normalizedSearch ||
+      normalizedTitle.includes(normalizedSearch) ||
+      normalizedExcerpt.includes(normalizedSearch) ||
+      normalizedAuthor.includes(normalizedSearch) ||
+      normalizedCategory.includes(normalizedSearch);
+
+    const hideFeatured = a.featured && !search.trim() && activeCategory === "Tất cả";
+    return matchCat && matchSearch && !hideFeatured;
   });
 
   const latest = [...articles].slice(0, 4);
