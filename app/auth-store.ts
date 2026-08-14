@@ -258,3 +258,21 @@ export async function refreshSessionFromServer() {
     return getSession();
   }
 }
+
+export function googleLoginFE(customEmail?: string, customName?: string) {
+  const email = customEmail || "user.google@gmail.com";
+  const fullName = customName || "Khách hàng Google";
+  const user: AuthUser = {
+    id: `google_${Date.now()}`,
+    userId: `google_${Date.now()}`,
+    fullName,
+    email,
+    role: "customer",
+    avatar_url: "https://lh3.googleusercontent.com/a/default-user=s96-c",
+    phone: "0900000000",
+  };
+  const session = makeSession(user);
+  writeCompatStorage(user, session, `google_fe_token_${Date.now()}`);
+  return { ok: true as const, user, session };
+}
+
