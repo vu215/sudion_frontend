@@ -46,13 +46,20 @@ export default function PhotographerEarningsPage() {
     const gross = paid.reduce((sum, item) => sum + Number(item.estimated_total || 0), 0);
     const pending = inProgress.reduce((sum, item) => sum + Number(item.estimated_total || 0), 0);
     const platformFee = Math.round(gross * 0.1);
+    const payout = Math.max(gross - platformFee, 0);
+    const totalBalance = payout + pending; // Total từ cả booking hoàn thành và chưa hoàn thành
+    const availableWithdraw = payout; // Số dư có thể rút (từ booking hoàn thành)
+    const bookingBalance = pending; // Số dư có thể dùng để booking (từ booking chưa hoàn thành)
 
     return {
       gross,
       platformFee,
-      payout: Math.max(gross - platformFee, 0),
+      payout,
       pending,
       paidCount: paid.length,
+      totalBalance,
+      availableWithdraw,
+      bookingBalance,
     };
   }, [bookings]);
 
@@ -77,6 +84,78 @@ export default function PhotographerEarningsPage() {
           <Metric label="Phí sàn ước tính" value={loading ? "..." : formatCurrency(summary.platformFee)} />
           <Metric label="Dự kiến nhận" value={loading ? "..." : formatCurrency(summary.payout)} />
           <Metric label="Đang chờ hoàn tất" value={loading ? "..." : formatCurrency(summary.pending)} />
+        </section>
+
+        <section className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+          <div className="space-y-7">
+            <div>
+              <h2 className="text-2xl font-bold text-[#1a1a2e]">Số dư & Rút tiền</h2>
+              <p className="mt-2 text-sm text-slate-500">
+                Quản lý số dư của bạn từ các booking hoàn thành và chưa hoàn thành
+              </p>
+            </div>
+
+            <div className="grid gap-5 sm:grid-cols-3">
+              <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-emerald-50 via-emerald-50 to-white p-6 transition-all hover:shadow-md">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-600 text-lg">
+                    💰
+                  </div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-600">Khả dụng để rút</p>
+                </div>
+                <p className="mt-4 text-3xl font-bold text-emerald-600">
+                  {loading ? "..." : formatCurrency(summary.availableWithdraw)}
+                </p>
+                <p className="mt-2 text-xs text-slate-500">Từ booking đã hoàn thành</p>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-blue-50 via-blue-50 to-white p-6 transition-all hover:shadow-md">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600 text-lg">
+                    📅
+                  </div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-600">Dành cho booking</p>
+                </div>
+                <p className="mt-4 text-3xl font-bold text-blue-600">
+                  {loading ? "..." : formatCurrency(summary.bookingBalance)}
+                </p>
+                <p className="mt-2 text-xs text-slate-500">Chờ hoàn thành</p>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 via-slate-50 to-white p-6 transition-all hover:shadow-md">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-900 text-lg">
+                    💵
+                  </div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-600">Tổng số dư</p>
+                </div>
+                <p className="mt-4 text-3xl font-bold text-slate-900">
+                  {loading ? "..." : formatCurrency(summary.totalBalance)}
+                </p>
+                <p className="mt-2 text-xs text-slate-500">Tổng cộng</p>
+              </div>
+            </div>
+
+            <button className="w-full rounded-2xl bg-emerald-600 px-6 py-4 font-semibold text-white shadow-md transition-all duration-200 hover:bg-emerald-700 hover:shadow-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
+              Rút tiền ngay
+            </button>
+
+            <div className="space-y-2 rounded-2xl border border-slate-200 bg-slate-50/50 p-5">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-600">Thống kê booking</p>
+              <div className="mt-3 grid gap-4 sm:grid-cols-2">
+                <div className="flex items-center justify-between rounded-lg bg-white px-4 py-3">
+                  <span className="text-sm text-slate-600">Hoàn thành & thanh toán</span>
+                  <span className="font-bold text-emerald-600">{summary.paidCount}</span>
+                </div>
+                <div className="flex items-center justify-between rounded-lg bg-white px-4 py-3">
+                  <span className="text-sm text-slate-600">Đang chờ hoàn tất</span>
+                  <span className="font-bold text-blue-600">
+                    {bookings.filter((item) => ["confirmed", "completed"].includes(item.status)).length}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
         </section>
 
         <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
