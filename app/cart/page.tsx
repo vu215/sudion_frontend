@@ -77,6 +77,7 @@ export default function CartPage() {
   const [streetAddress, setStreetAddress] = useState("");
   const [isDefaultAddr, setIsDefaultAddr] = useState(false);
   const [orderNote, setOrderNote] = useState("");
+  const [checkoutMode, setCheckoutMode] = useState<"all" | "separate">("all");
 
   // Vietnam Cascading Location Data
   const [provinces, setProvinces] = useState<VnLocation[]>([]);
@@ -653,6 +654,56 @@ export default function CartPage() {
                     </svg>
                   </button>
                 )}
+
+                {/* Chế độ thanh toán - giao diện tĩnh */}
+                <div className="space-y-2 pt-1">
+                  <label className="text-[10px] font-black uppercase tracking-wider text-[#64748b]">Chế độ thanh toán</label>
+                  <div className="grid gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setCheckoutMode("all")}
+                      className={`flex items-center justify-between rounded-xl border px-3 py-2.5 text-left transition-all ${
+                        checkoutMode === "all"
+                          ? "border-[#ff8d28] bg-[#fff7ed] shadow-sm"
+                          : "border-[#e2e8f0] bg-white hover:border-[#ff8d28]/60"
+                      }`}
+                    >
+                      <div>
+                        <div className="text-xs font-bold text-[#0e111d]">Một đơn cho cả giỏ</div>
+                        <div className="text-[10px] text-[#64748b]">Thanh toán chung trong một lần</div>
+                      </div>
+                      <span
+                        className={`flex h-4 w-4 items-center justify-center rounded-full border ${
+                          checkoutMode === "all" ? "border-[#ff8d28] bg-[#ff8d28]" : "border-[#cbd5e1] bg-white"
+                        }`}
+                      >
+                        {checkoutMode === "all" && <span className="h-2 w-2 rounded-full bg-white" />}
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setCheckoutMode("separate")}
+                      className={`flex items-center justify-between rounded-xl border px-3 py-2.5 text-left transition-all ${
+                        checkoutMode === "separate"
+                          ? "border-[#ff8d28] bg-[#fff7ed] shadow-sm"
+                          : "border-[#e2e8f0] bg-white hover:border-[#ff8d28]/60"
+                      }`}
+                    >
+                      <div>
+                        <div className="text-xs font-bold text-[#0e111d]">Tách đơn riêng</div>
+                        <div className="text-[10px] text-[#64748b]">Mỗi sản phẩm / dịch vụ là một đơn</div>
+                      </div>
+                      <span
+                        className={`flex h-4 w-4 items-center justify-center rounded-full border ${
+                          checkoutMode === "separate" ? "border-[#ff8d28] bg-[#ff8d28]" : "border-[#cbd5e1] bg-white"
+                        }`}
+                      >
+                        {checkoutMode === "separate" && <span className="h-2 w-2 rounded-full bg-white" />}
+                      </span>
+                    </button>
+                  </div>
+                </div>
 
                 {/* Ghi chú đơn hàng */}
                 <div className="space-y-1 pt-1">
