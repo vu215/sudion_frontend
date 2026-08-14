@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation";
 import {
   clearSession,
   getSession,
+  googleLoginFE,
   type AuthSession,
   type AuthUser,
   loginUser,
@@ -20,6 +21,7 @@ import {
   registerUser,
   setSession,
 } from "./auth-store";
+
 import { clearCart, clearBuyNow } from "./cart-store";
 import { clearBookingCart } from "./booking-cart-store";
 
@@ -46,9 +48,11 @@ type AuthContextValue = {
     password: string;
     phone?: string;
   }) => Promise<AuthResult>;
+  loginWithGoogle: (email?: string, name?: string) => AuthResult;
   isTransitioning: boolean;
   transitionTo: (targetUrl: string) => void;
 };
+
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
@@ -127,6 +131,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return result;
   }, []);
 
+  const loginWithGoogle = useCallback((customEmail?: string, customName?: string) => {
+    const result = googleLoginFE(customEmail, customName);
+    if (result.ok && result.session) {
+      setSessionState(result.session);
+    }
+    return result;
+  }, []);
+
   const transitionTo = useCallback((targetUrl: string) => {
     setIsTransitioning(true);
 
@@ -155,10 +167,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       logout,
       login,
       register,
+      loginWithGoogle,
       isTransitioning,
       transitionTo,
     };
-  }, [session, isLoading, isTransitioning, refresh, logout, login, register, transitionTo]);
+  }, [session, isLoading, isTransitioning, refresh, logout, login, register, loginWithGoogle, transitionTo]);
+
 
   return (
     <AuthContext.Provider value={value}>

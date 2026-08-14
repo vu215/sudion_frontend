@@ -53,6 +53,9 @@ type BackendBooking = {
   estimated_total: number;
   deposit_amount: number;
   remaining_amount: number;
+  platform_fee_amount?: number;
+  photographer_payout_amount?: number;
+
 
   add_ons: {
     id: string;
@@ -516,6 +519,13 @@ function DashboardBookingCard({
   const statusInfo = getStatusInfo(booking.status);
   const isUpdating = updatingCode === booking.booking_code;
 
+  const totalAmt = Number(booking.estimated_total || 0);
+  const rawFee = Number(booking.platform_fee_amount || 0);
+  const rawPayout = Number(booking.photographer_payout_amount || 0);
+  const platformFeeCalc = rawFee > 0 ? rawFee : Math.round(totalAmt * 0.1);
+  const photographerPayoutCalc = rawPayout > 0 ? rawPayout : Math.round(totalAmt * 0.9);
+
+
   const canAccept = booking.status === "awaiting_payment";
   const canReject = booking.status === "awaiting_payment";
   const canComplete = booking.status === "confirmed";
@@ -624,8 +634,20 @@ function DashboardBookingCard({
           ) : null}
         </div>
 
-        <div className="grid gap-3 rounded-[18px] border border-[#eef2f7] bg-[#fbfcff] p-4">
-          <MoneyRow label="Tổng tiền" value={booking.estimated_total} />
+        <div className="grid gap-2.5 rounded-[18px] border border-[#eef2f7] bg-[#fbfcff] p-4">
+          <MoneyRow label="Tổng tiền đơn" value={booking.estimated_total} />
+          <MoneyRow
+            label="Phí sàn trích (10%)"
+            value={platformFeeCalc}
+            isDeduction
+          />
+          <MoneyRow
+            label="Thực nhận (90%)"
+            value={photographerPayoutCalc}
+            isPayout
+          />
+
+          <div className="my-1 h-px bg-[#e2e8f0]" />
           <MoneyRow
             label="Tiền cọc"
             value={booking.deposit_amount}
@@ -636,6 +658,7 @@ function DashboardBookingCard({
             value={booking.remaining_amount}
             highlight={booking.status === "completed"}
           />
+
 
           <div className="my-1 h-px bg-[#e2e8f0]" />
 
@@ -835,7 +858,16 @@ function DashboardBookingCard({
                     <span className="text-slate-500 font-medium">Tổng chi phí:</span>
                     <strong className="text-[#0f172a] font-black">{formatCurrency(booking.estimated_total)}</strong>
                   </div>
-                  <div className="flex justify-between">
+                  <div className="flex justify-between text-red-500 font-semibold">
+                    <span>Phí sàn (10%):</span>
+                    <strong>-{formatCurrency(platformFeeCalc)}</strong>
+                  </div>
+                  <div className="flex justify-between text-emerald-600 font-black border-t border-slate-100 pt-1">
+                    <span>Thực nhận (90%):</span>
+                    <strong>{formatCurrency(photographerPayoutCalc)}</strong>
+                  </div>
+
+                  <div className="flex justify-between pt-1">
                     <span className="text-slate-500 font-medium">Đã cọc:</span>
                     <strong className="text-emerald-600 font-black">{formatCurrency(booking.deposit_amount)}</strong>
                   </div>
@@ -843,6 +875,7 @@ function DashboardBookingCard({
                     <span className="text-slate-500 font-medium">Còn lại:</span>
                     <strong className="text-[#ff8d28] font-black">{formatCurrency(booking.remaining_amount)}</strong>
                   </div>
+
                 </div>
               </div>
 
@@ -899,24 +932,35 @@ function MoneyRow({
   label,
   value,
   highlight,
+  isDeduction,
+  isPayout,
 }: {
   label: string;
   value: number | string | null | undefined;
   highlight?: boolean;
+  isDeduction?: boolean;
+  isPayout?: boolean;
 }) {
   return (
     <div className="flex items-center justify-between gap-4">
       <span className="text-[13px] font-bold text-[#64748b]">{label}</span>
       <span
         className={`text-[14px] font-black ${
-          highlight ? "text-[#ff8d28]" : "text-[#0f172a]"
+          isDeduction
+            ? "text-red-500"
+            : isPayout
+              ? "text-emerald-600"
+              : highlight
+                ? "text-[#ff8d28]"
+                : "text-[#0f172a]"
         }`}
       >
-        {formatCurrency(value)}
+        {isDeduction ? `-${formatCurrency(value)}` : formatCurrency(value)}
       </span>
     </div>
   );
 }
+
 
 function EmptyState({ hasPhotographerId }: { hasPhotographerId: boolean }) {
   return (
