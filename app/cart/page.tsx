@@ -669,8 +669,8 @@ export default function CartPage() {
                       }`}
                     >
                       <div>
-                        <div className="text-xs font-bold text-[#0e111d]">Thanh toán toàn bộ đơn</div>
-                        <div className="text-[10px] text-[#64748b]">Một hóa đơn tổng cho toàn bộ giỏ hàng</div>
+                        <div className="text-xs font-bold text-[#0e111d]">Một đơn cho cả giỏ</div>
+                        <div className="text-[10px] text-[#64748b]">Thanh toán chung trong một lần</div>
                       </div>
                       <span
                         className={`flex h-4 w-4 items-center justify-center rounded-full border ${
@@ -691,8 +691,8 @@ export default function CartPage() {
                       }`}
                     >
                       <div>
-                        <div className="text-xs font-bold text-[#0e111d]">Có bill riêng cho từng đơn</div>
-                        <div className="text-[10px] text-[#64748b]">Mỗi dịch vụ / sản phẩm có hóa đơn riêng</div>
+                        <div className="text-xs font-bold text-[#0e111d]">Tách đơn riêng</div>
+                        <div className="text-[10px] text-[#64748b]">Mỗi sản phẩm / dịch vụ là một đơn</div>
                       </div>
                       <span
                         className={`flex h-4 w-4 items-center justify-center rounded-full border ${
