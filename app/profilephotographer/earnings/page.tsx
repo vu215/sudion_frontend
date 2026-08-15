@@ -96,40 +96,51 @@ export default function PhotographerEarningsPage() {
             </div>
 
             <div className="grid gap-5 sm:grid-cols-3">
-              <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-emerald-50 via-emerald-50 to-white p-6 transition-all hover:shadow-md">
+              <div className="rounded-[24px] border border-[#dfeae2] bg-[#edf8f1] p-5 shadow-sm transition-all hover:shadow-md">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-600 text-lg">
-                    💰
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#1da56a] text-white">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 8.5A2.5 2.5 0 0 1 6.5 6h11A2.5 2.5 0 0 1 20 8.5v7A2.5 2.5 0 0 1 17.5 18h-11A2.5 2.5 0 0 1 4 15.5v-7Z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M8 10h8M8 14h5" />
+                    </svg>
                   </div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-600">Khả dụng để rút</p>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#1a7d52]">Cash</p>
                 </div>
-                <p className="mt-4 text-3xl font-bold text-emerald-600">
+                <p className="mt-5 text-[11px] font-bold uppercase tracking-[0.2em] text-[#1a7d52]">Khả dụng để rút</p>
+                <p className="mt-3 text-3xl font-bold tracking-[-0.06em] text-[#1a7d52]">
                   {loading ? "..." : formatCurrency(summary.availableWithdraw)}
                 </p>
                 <p className="mt-2 text-xs text-slate-500">Từ booking đã hoàn thành</p>
               </div>
 
-              <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-blue-50 via-blue-50 to-white p-6 transition-all hover:shadow-md">
+              <div className="rounded-[24px] border border-[#dfe7f5] bg-[#f1f7ff] p-5 shadow-sm transition-all hover:shadow-md">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600 text-lg">
-                    📅
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#2f6eea] text-white">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2Z" />
+                    </svg>
                   </div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-600">Dành cho booking</p>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#2d5bc4]">Book</p>
                 </div>
-                <p className="mt-4 text-3xl font-bold text-blue-600">
+                <p className="mt-5 text-[11px] font-bold uppercase tracking-[0.2em] text-[#2d5bc4]">Dành cho booking</p>
+                <p className="mt-3 text-3xl font-bold tracking-[-0.06em] text-[#2d5bc4]">
                   {loading ? "..." : formatCurrency(summary.bookingBalance)}
                 </p>
                 <p className="mt-2 text-xs text-slate-500">Chờ hoàn thành</p>
               </div>
 
-              <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 via-slate-50 to-white p-6 transition-all hover:shadow-md">
+              <div className="rounded-[24px] border border-[#e6e7eb] bg-[#f7f7f8] p-5 shadow-sm transition-all hover:shadow-md">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-900 text-lg">
-                    💵
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#1f1f25] text-white">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 7.5A2.5 2.5 0 0 1 6.5 5h11A2.5 2.5 0 0 1 20 7.5v9A2.5 2.5 0 0 1 17.5 19h-11A2.5 2.5 0 0 1 4 16.5v-9Z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M8 9.5h8M8 13.5h8M12 5v14" />
+                    </svg>
                   </div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-600">Tổng số dư</p>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#465065]">Total</p>
                 </div>
-                <p className="mt-4 text-3xl font-bold text-slate-900">
+                <p className="mt-5 text-[11px] font-bold uppercase tracking-[0.2em] text-[#465065]">Tổng số dư</p>
+                <p className="mt-3 text-3xl font-bold tracking-[-0.06em] text-[#1f1f25]">
                   {loading ? "..." : formatCurrency(summary.totalBalance)}
                 </p>
                 <p className="mt-2 text-xs text-slate-500">Tổng cộng</p>

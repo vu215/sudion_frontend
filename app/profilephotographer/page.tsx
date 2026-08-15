@@ -16,6 +16,12 @@ function resolveUrl(url: string) {
   if (/^https?:\/\//i.test(url) || url.startsWith("data:")) return url;
   return `${API_URL.replace(/\/api\/?$/, "")}${url.startsWith("/") ? url : `/${url}`}`;
 }
+function resolveImageUrl(url: string) {
+  if (!url) return "";
+  if (/^https?:\/\//i.test(url) || url.startsWith("data:")) return url;
+  const base = API_URL.replace(/\/api\/?$/, "");
+  return `${base}${url.startsWith("/") ? url : `/${url}`}`;
+}
 function fmt(v: number) { return Number(v || 0).toLocaleString("vi-VN"); }
 
 const FALLBACK_AVATAR = "https://images.pexels.com/photos/1983037/pexels-photo-1983037.jpeg?auto=compress&cs=tinysrgb&w=200";
@@ -77,7 +83,9 @@ export default function ProfilePhotographerPage() {
           setName(p.full_name || ""); setPhone(p.phone || ""); setBio(p.bio || "");
           setActiveArea(p.active_area || ""); setStartedYear(Number(p.started_year || 2020));
           setPhotographerType(p.photographer_type || "freelance");
-          setAvatar(p.avatar_url || ""); setPortfolio(imgs || []); setPackages(pkgs || []);
+          setAvatar(p.avatar_url || "");
+          setPortfolio(Array.isArray(imgs) ? imgs.map((item: string) => resolveImageUrl(item)) : []);
+          setPackages(pkgs || []);
         }
       } catch { toast.error("Lỗi", "Không thể tải hồ sơ."); }
       finally { setLoading(false); }
@@ -208,18 +216,70 @@ export default function ProfilePhotographerPage() {
         </div>
 
         {/* ── Quick action cards ── */}
-        <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
           {[
-            { href: "/profilephotographer/bookings",  icon: "📅", label: "Booking mới",  val: "0",  color: "from-blue-500 to-blue-600"    },
-            { href: "/profilephotographer/earnings",  icon: "💰", label: "Doanh thu",    val: "0đ", color: "from-emerald-500 to-emerald-600"},
-            { href: "/profilephotographer/portfolio", icon: "🖼️", label: "Portfolio",    val: String(portfolio.length), color: "from-purple-500 to-purple-600" },
-            { href: "/profilephotographer/messages",  icon: "💬", label: "Tin nhắn",     val: "0",  color: "from-[#ff8d28] to-[#f97316]"   },
-          ].map(c => (
-            <Link key={c.href} href={c.href}
-              className="group rounded-[28px] border border-transparent bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-[#ff8d28]/25 hover:shadow-lg">
-              <div className={`mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br ${c.color} text-lg text-white shadow-sm`}>{c.icon}</div>
-              <p className="text-2xl font-black text-[#0e111d]">{c.val}</p>
-              <p className="mt-2 text-sm font-semibold text-[#6b7280]">{c.label}</p>
+            {
+              href: "/profilephotographer/bookings",
+              label: "Booking mới",
+              val: "0",
+              icon: (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 3v3M16 3v3M4 9h16M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 13h3M8 17h8" />
+                </svg>
+              ),
+              box: "bg-[#edf4ff] text-[#2563eb]",
+            },
+            {
+              href: "/profilephotographer/earnings",
+              label: "Doanh thu",
+              val: "0đ",
+              icon: (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 1v22M17 5.5c0-1.4-1.7-2.5-5-2.5S7 4.1 7 5.5 8.7 8 12 8s5 1.1 5 2.5S15.3 13 12 13s-5 1.1-5 2.5S8.7 18 12 18s5-1.1 5-2.5" />
+                </svg>
+              ),
+              box: "bg-[#ebfaf3] text-[#0f9f6e]",
+            },
+            {
+              href: "/profilephotographer/portfolio",
+              label: "Portfolio",
+              val: String(portfolio.length),
+              icon: (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 7.5A2.5 2.5 0 0 1 6.5 5h11A2.5 2.5 0 0 1 20 7.5v9A2.5 2.5 0 0 1 17.5 19h-11A2.5 2.5 0 0 1 4 16.5v-9Z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m8 9 4 4 4-4M8 15h8" />
+                </svg>
+              ),
+              box: "bg-[#f5ecff] text-[#8b5cf6]",
+            },
+            {
+              href: "/profilephotographer/messages",
+              label: "Tin nhắn",
+              val: "0",
+              icon: (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 12.5A7.5 7.5 0 0 1 11.5 5h1A7.5 7.5 0 0 1 20 12.5v.5A7.5 7.5 0 0 1 12.5 20H8l-4 3v-3.5A7.5 7.5 0 0 1 4 13v-.5Z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 11h8M8 15h5" />
+                </svg>
+              ),
+              box: "bg-[#fff2e8] text-[#ea580c]",
+            },
+          ].map((c) => (
+            <Link
+              key={c.href}
+              href={c.href}
+              className="group rounded-[24px] border border-[#edf1f5] bg-white p-4 shadow-[0_12px_30px_rgba(15,23,42,0.04)] transition-all duration-200 hover:-translate-y-0.5 hover:border-[#f7d7b4] hover:shadow-[0_18px_40px_rgba(15,23,42,0.06)]"
+            >
+              <div className="mb-4 flex items-center justify-between">
+                <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${c.box}`}>
+                  {c.icon}
+                </div>
+                <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">{c.label === "Doanh thu" ? "Live" : "Now"}</span>
+              </div>
+
+              <p className="text-[30px] font-black leading-none tracking-[-0.06em] text-[#0f172a]">{c.val}</p>
+              <p className="mt-2 text-sm font-semibold text-slate-600">{c.label}</p>
             </Link>
           ))}
         </div>
@@ -276,7 +336,16 @@ export default function ProfilePhotographerPage() {
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 {(portfolio.length ? portfolio.slice(0, 8) : SAMPLE_PORTFOLIO_IMAGES).map((url, i) => (
                   <div key={i} className="group relative overflow-hidden rounded-[24px] bg-[#f8fafc] shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
-                    <img src={url} alt="Portfolio" className="h-32 w-full object-cover transition duration-300 group-hover:scale-105" />
+                    <img
+                      src={resolveImageUrl(String(url)) || FALLBACK_COVER}
+                      alt="Portfolio"
+                      onError={(e) => {
+                        const target = e.currentTarget;
+                        target.onerror = null;
+                        target.src = FALLBACK_COVER;
+                      }}
+                      className="h-32 w-full object-cover transition duration-300 group-hover:scale-105"
+                    />
                     {editMode && portfolio.length > 0 && (
                       <button onClick={() => setPortfolio(p => p.filter((_, j) => j !== i))}
                         className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-red-500 text-white text-xs font-black shadow opacity-0 group-hover:opacity-100 transition">×</button>
