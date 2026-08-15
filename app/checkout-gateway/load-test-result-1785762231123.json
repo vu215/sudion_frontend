@@ -1,0 +1,31 @@
+{
+  "url": "https://staging.upnext.works/vi",
+  "testedAt": "2026-08-03T13:03:51.123Z",
+  "durationPerLevelSeconds": 10,
+  "cooldownMilliseconds": 15000,
+  "levels": [
+    75,
+    100,
+    150,
+    200
+  ],
+  "hardErrorRate": 50,
+  "hardTimeoutRate": 30,
+  "results": [
+    {
+      "connections": 75,
+      "requestsPerSecond": 0,
+      "averageLatency": 0,
+      "p95Latency": 0,
+      "p99Latency": 0,
+      "totalRequests": 0,
+      "errors": 0,
+      "timeouts": 0,
+      "non2xx": 0,
+      "failedRequests": 0,
+      "errorRate": 100,
+      "timeoutRate": 100,
+      "status": "Quá tải nặng"
+    }
+  ]
+}

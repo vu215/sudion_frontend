@@ -1,0 +1,45 @@
+{
+  "url": "https://staging.upnext.works/vi",
+  "testedAt": "2026-08-03T13:37:38.607Z",
+  "description": "Authorized mobile user-agent load test on staging",
+  "durationPerLevelSeconds": 15,
+  "cooldownMilliseconds": 15000,
+  "requestTimeoutSeconds": 20,
+  "levels": [
+    50,
+    100,
+    150,
+    200,
+    300,
+    400,
+    500,
+    700,
+    1000
+  ],
+  "thresholds": {
+    "hardErrorRate": 20,
+    "hardTimeoutRate": 10,
+    "unstableErrorRate": 5,
+    "unstableTimeoutRate": 2,
+    "unstableP99Milliseconds": 5000
+  },
+  "results": [
+    {
+      "connections": 50,
+      "requestsPerSecond": 0,
+      "averageLatency": 0,
+      "p97_5Latency": 0,
+      "p99Latency": 0,
+      "sentRequests": 50,
+      "completedRequests": 0,
+      "errors": 0,
+      "timeouts": 0,
+      "non2xx": 0,
+      "failedRequests": 0,
+      "errorRate": 0,
+      "timeoutRate": 0,
+      "statusCodeStats": {},
+      "status": "Quá tải nặng"
+    }
+  ]
+}

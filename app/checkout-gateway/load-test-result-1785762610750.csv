@@ -1,0 +1,4 @@
+connections,requestsPerSecond,averageLatency,p95Latency,p99Latency,totalRequests,errors,timeouts,non2xx,failedRequests,errorRate,timeoutRate,status
+75,6.1,2926.94,8437,9110,61,1,0,0,1,1.64,0,"Ổn định"
+100,2.8,4737.54,9030,9030,28,0,0,0,0,0,0,"Ổn định"
+150,0,0,0,0,0,0,0,0,0,100,100,"Quá tải nặng"

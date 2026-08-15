@@ -1,0 +1,2 @@
+connections,requestsPerSecond,averageLatency,p97_5Latency,p99Latency,sentRequests,completedRequests,errors,timeouts,non2xx,failedRequests,errorRate,timeoutRate,statusCodeStats,status
+50,0,0,0,0,50,0,0,0,0,0,0,0,"{}","Quá tải nặng"

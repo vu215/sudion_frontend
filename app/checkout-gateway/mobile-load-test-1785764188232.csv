@@ -1,0 +1,4 @@
+connections,requestsPerSecond,averageLatency,p97_5Latency,p99Latency,sentRequests,completedRequests,errors,timeouts,non2xx,failedRequests,errorRate,timeoutRate,statusCodeStats,status
+50,6.6,3917.87,13968,14690,151,99,2,0,0,2,1.32,0,"{""200"":{""count"":99}}","Mất ổn định"
+100,5.74,4201.66,13779,14555,186,86,0,0,0,0,0,0,"{""200"":{""count"":86}}","Mất ổn định"
+150,0,0,0,0,150,0,0,0,0,0,0,0,"{}","Quá tải nặng"

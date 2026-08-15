@@ -1,0 +1,52 @@
+{
+  "url": "https://staging.upnext.works/vi",
+  "testedAt": "2026-08-03T13:02:50.401Z",
+  "durationPerLevel": 10,
+  "reports": [
+    {
+      "connections": 75,
+      "requestsPerSecond": 2.7,
+      "averageLatency": 912.15,
+      "p95Latency": 9786,
+      "p99Latency": 9786,
+      "totalRequests": 27,
+      "errors": 1,
+      "timeouts": 0,
+      "non2xx": 0,
+      "failedRequests": 1,
+      "errorRate": 3.7,
+      "timeoutRate": 0,
+      "status": "Mất ổn định"
+    },
+    {
+      "connections": 100,
+      "requestsPerSecond": 4.6,
+      "averageLatency": 4294.03,
+      "p95Latency": 9536,
+      "p99Latency": 9875,
+      "totalRequests": 46,
+      "errors": 0,
+      "timeouts": 0,
+      "non2xx": 0,
+      "failedRequests": 0,
+      "errorRate": 0,
+      "timeoutRate": 0,
+      "status": "Mất ổn định"
+    },
+    {
+      "connections": 150,
+      "requestsPerSecond": 0,
+      "averageLatency": 0,
+      "p95Latency": 0,
+      "p99Latency": 0,
+      "totalRequests": 0,
+      "errors": 0,
+      "timeouts": 0,
+      "non2xx": 0,
+      "failedRequests": 0,
+      "errorRate": 100,
+      "timeoutRate": 100,
+      "status": "Sập / quá tải nặng"
+    }
+  ]
+}

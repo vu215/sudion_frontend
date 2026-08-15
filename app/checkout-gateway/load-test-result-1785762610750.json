@@ -1,0 +1,61 @@
+{
+  "url": "https://staging.upnext.works/vi",
+  "testedAt": "2026-08-03T13:10:10.750Z",
+  "durationPerLevelSeconds": 10,
+  "cooldownMilliseconds": 15000,
+  "levels": [
+    75,
+    100,
+    150,
+    200
+  ],
+  "hardErrorRate": 50,
+  "hardTimeoutRate": 30,
+  "results": [
+    {
+      "connections": 75,
+      "requestsPerSecond": 6.1,
+      "averageLatency": 2926.94,
+      "p95Latency": 8437,
+      "p99Latency": 9110,
+      "totalRequests": 61,
+      "errors": 1,
+      "timeouts": 0,
+      "non2xx": 0,
+      "failedRequests": 1,
+      "errorRate": 1.64,
+      "timeoutRate": 0,
+      "status": "Ổn định"
+    },
+    {
+      "connections": 100,
+      "requestsPerSecond": 2.8,
+      "averageLatency": 4737.54,
+      "p95Latency": 9030,
+      "p99Latency": 9030,
+      "totalRequests": 28,
+      "errors": 0,
+      "timeouts": 0,
+      "non2xx": 0,
+      "failedRequests": 0,
+      "errorRate": 0,
+      "timeoutRate": 0,
+      "status": "Ổn định"
+    },
+    {
+      "connections": 150,
+      "requestsPerSecond": 0,
+      "averageLatency": 0,
+      "p95Latency": 0,
+      "p99Latency": 0,
+      "totalRequests": 0,
+      "errors": 0,
+      "timeouts": 0,
+      "non2xx": 0,
+      "failedRequests": 0,
+      "errorRate": 100,
+      "timeoutRate": 100,
+      "status": "Quá tải nặng"
+    }
+  ]
+}

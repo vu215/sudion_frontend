@@ -1,0 +1,87 @@
+{
+  "url": "https://staging.upnext.works/vi",
+  "testedAt": "2026-08-03T13:36:28.232Z",
+  "description": "Authorized mobile user-agent load test on staging",
+  "durationPerLevelSeconds": 15,
+  "cooldownMilliseconds": 15000,
+  "requestTimeoutSeconds": 20,
+  "levels": [
+    50,
+    100,
+    150,
+    200,
+    300,
+    400,
+    500,
+    700,
+    1000
+  ],
+  "thresholds": {
+    "hardErrorRate": 20,
+    "hardTimeoutRate": 10,
+    "unstableErrorRate": 5,
+    "unstableTimeoutRate": 2,
+    "unstableP99Milliseconds": 5000
+  },
+  "results": [
+    {
+      "connections": 50,
+      "requestsPerSecond": 6.6,
+      "averageLatency": 3917.87,
+      "p97_5Latency": 13968,
+      "p99Latency": 14690,
+      "sentRequests": 151,
+      "completedRequests": 99,
+      "errors": 2,
+      "timeouts": 0,
+      "non2xx": 0,
+      "failedRequests": 2,
+      "errorRate": 1.32,
+      "timeoutRate": 0,
+      "statusCodeStats": {
+        "200": {
+          "count": 99
+        }
+      },
+      "status": "Mất ổn định"
+    },
+    {
+      "connections": 100,
+      "requestsPerSecond": 5.74,
+      "averageLatency": 4201.66,
+      "p97_5Latency": 13779,
+      "p99Latency": 14555,
+      "sentRequests": 186,
+      "completedRequests": 86,
+      "errors": 0,
+      "timeouts": 0,
+      "non2xx": 0,
+      "failedRequests": 0,
+      "errorRate": 0,
+      "timeoutRate": 0,
+      "statusCodeStats": {
+        "200": {
+          "count": 86
+        }
+      },
+      "status": "Mất ổn định"
+    },
+    {
+      "connections": 150,
+      "requestsPerSecond": 0,
+      "averageLatency": 0,
+      "p97_5Latency": 0,
+      "p99Latency": 0,
+      "sentRequests": 150,
+      "completedRequests": 0,
+      "errors": 0,
+      "timeouts": 0,
+      "non2xx": 0,
+      "failedRequests": 0,
+      "errorRate": 0,
+      "timeoutRate": 0,
+      "statusCodeStats": {},
+      "status": "Quá tải nặng"
+    }
+  ]
+}
