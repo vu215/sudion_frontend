@@ -14,6 +14,7 @@ import {
   clearSession,
   getSession,
   googleLoginFE,
+  loginWithGoogleCredential as loginWithGoogleCredentialStore,
   type AuthSession,
   type AuthUser,
   loginUser,
@@ -49,9 +50,11 @@ type AuthContextValue = {
     phone?: string;
   }) => Promise<AuthResult>;
   loginWithGoogle: (email?: string, name?: string) => AuthResult;
+  loginWithGoogleCredential: (credentialToken: string) => Promise<AuthResult>;
   isTransitioning: boolean;
   transitionTo: (targetUrl: string) => void;
 };
+
 
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -139,6 +142,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return result;
   }, []);
 
+  const loginWithGoogleCredential = useCallback(async (credentialToken: string) => {
+    const result = await loginWithGoogleCredentialStore(credentialToken);
+    if (result.ok && result.session) {
+      setSessionState(result.session);
+    }
+    return result;
+  }, []);
+
   const transitionTo = useCallback((targetUrl: string) => {
     setIsTransitioning(true);
 
@@ -168,10 +179,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       login,
       register,
       loginWithGoogle,
+      loginWithGoogleCredential,
       isTransitioning,
       transitionTo,
     };
-  }, [session, isLoading, isTransitioning, refresh, logout, login, register, loginWithGoogle, transitionTo]);
+  }, [session, isLoading, isTransitioning, refresh, logout, login, register, loginWithGoogle, loginWithGoogleCredential, transitionTo]);
+
 
 
   return (
