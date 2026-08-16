@@ -31,6 +31,7 @@ export default function PhotographerPortfolioPage() {
   });
   const [editingId, setEditingId] = useState<number | string | null>(null);
   const [draggedId, setDraggedId] = useState<number | string | null>(null);
+  const [dragOverId, setDragOverId] = useState<number | string | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(true);
 
   const loadPortfolio = useCallback(async () => {
@@ -38,8 +39,14 @@ export default function PhotographerPortfolioPage() {
       setLoading(true);
       const result = await getMyPortfolio();
       setItems(result);
+      if (result.length === 0) {
+        // Portfolio rỗng không phải lỗi, đơn giản chưa có ảnh
+      }
     } catch (error) {
-      toast.error("Lỗi", error instanceof Error ? error.message : "Không thể tải portfolio.");
+      console.error("Portfolio loading error:", error);
+      const errorMsg = error instanceof Error ? error.message : "Không thể tải portfolio.";
+      toast.error("Lỗi", errorMsg);
+      setItems([]); // Fallback to empty array
     } finally {
       setLoading(false);
     }
@@ -361,42 +368,67 @@ export default function PhotographerPortfolioPage() {
             ))}
           </div>
         ) : sortedItems.length ? (
-          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-            {sortedItems.map((item, index) => {
-              const isEditing = editingId === item.id;
-              const imageUrl = resolveAssetUrl(item.image_url || item.image || item.url || "");
+          <>
+            <div className="rounded-xl border border-[#ffd699] bg-[#fffbf5] p-3 text-center text-sm font-semibold text-[#d97706]">
+              💡 Kéo ảnh để sắp xếp thứ tự portfolio của bạn
+            </div>
+            <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+              {sortedItems.map((item, index) => {
+                const isEditing = editingId === item.id;
+                const isDragging = draggedId === item.id;
+                const isDragOver = dragOverId === item.id;
+                const imageUrl = resolveAssetUrl(item.image_url || item.image || item.url || "");
 
-              return (
-                <div
-                  key={String(item.id)}
-                  draggable
-                  onDragStart={() => setDraggedId(item.id)}
-                  onDragOver={(event) => event.preventDefault()}
-                  onDrop={() => {
-                    if (draggedId && draggedId !== item.id) {
-                      void handleReorder(draggedId, item.id);
-                    }
-                    setDraggedId(null);
-                  }}
-                  className="group overflow-hidden rounded-[28px] border border-[#edf0f5] bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-                >
-                  <div className="relative overflow-hidden">
-                    <img
-                      src={imageUrl || "https://images.pexels.com/photos/3775532/pexels-photo-3775532.jpeg?auto=compress&cs=tinysrgb&w=900"}
-                      alt={item.caption || `Portfolio ${index + 1}`}
-                      className="h-[250px] w-full object-cover transition duration-300 group-hover:scale-105"
-                    />
-                    <div className="absolute left-3 top-3 flex items-center gap-2">
-                      <span className="rounded-full border border-white/50 bg-slate-950/40 px-2 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-white">
-                        #{index + 1}
-                      </span>
-                      {item.is_featured || item.featured ? (
-                        <span className="rounded-full bg-[#ff8d28] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-white">
-                          Nổi bật
+                return (
+                  <div
+                    key={String(item.id)}
+                    draggable
+                    onDragStart={() => setDraggedId(item.id)}
+                    onDragEnter={() => setDragOverId(item.id)}
+                    onDragLeave={() => setDragOverId(null)}
+                    onDragOver={(event) => event.preventDefault()}
+                    onDrop={() => {
+                      if (draggedId && draggedId !== item.id) {
+                        void handleReorder(draggedId, item.id);
+                      }
+                      setDraggedId(null);
+                      setDragOverId(null);
+                    }}
+                    onDragEnd={() => {
+                      setDraggedId(null);
+                      setDragOverId(null);
+                    }}
+                    className={`group cursor-move overflow-hidden rounded-[28px] border-2 bg-white shadow-sm transition ${
+                      isDragging
+                        ? "border-[#ff8d28] opacity-60"
+                        : isDragOver
+                          ? "border-[#ff8d28] bg-[#fff9f4]"
+                          : "border-[#edf0f5] hover:-translate-y-0.5 hover:shadow-md"
+                    }`}
+                  >
+                    <div className="relative overflow-hidden">
+                      <img
+                        src={imageUrl || "https://images.pexels.com/photos/3775532/pexels-photo-3775532.jpeg?auto=compress&cs=tinysrgb&w=900"}
+                        alt={item.caption || `Portfolio ${index + 1}`}
+                        className={`h-[250px] w-full object-cover transition duration-300 ${isDragging ? "opacity-50" : "group-hover:scale-105"}`}
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center opacity-0 transition group-hover:opacity-100">
+                        <div className="rounded-full bg-black/50 px-4 py-2 text-center">
+                          <div className="text-lg">⇅</div>
+                          <p className="text-xs font-semibold text-white">Kéo để sắp xếp</p>
+                        </div>
+                      </div>
+                      <div className="absolute left-3 top-3 flex items-center gap-2">
+                        <span className="rounded-full border border-white/50 bg-slate-950/40 px-2 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-white">
+                          #{index + 1}
                         </span>
-                      ) : null}
+                        {item.is_featured || item.featured ? (
+                          <span className="rounded-full bg-[#ff8d28] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-white">
+                            Nổi bật
+                          </span>
+                        ) : null}
+                      </div>
                     </div>
-                  </div>
 
                   <div className="space-y-3 p-4">
                     {isEditing ? (
@@ -506,8 +538,9 @@ export default function PhotographerPortfolioPage() {
                   </div>
                 </div>
               );
-            })}
-          </div>
+              })}
+            </div>
+          </>
         ) : (
           <div className="rounded-[28px] border border-dashed border-[#d7dce5] bg-white p-10 text-center shadow-sm">
             <p className="text-lg font-bold text-[#101827]">Chưa có ảnh nào trong portfolio.</p>

@@ -7,6 +7,7 @@ import { useState, useRef, useEffect, type ReactNode } from "react";
 import { useAuth } from "@/app/auth-context";
 import { ScrollToTop } from "./scroll-to-top";
 import { ErrorBoundary } from "./error-boundary";
+import { NotificationBell } from "./notification-bell";
 
 const containerClass = "w-full max-w-[1440px] mx-auto px-6 md:px-12 lg:px-20";
 const AiConsultantWidget = dynamic(
@@ -277,6 +278,9 @@ function Header({ pathname }: { pathname: string }) {
               )}
             </form>
           </div>
+
+          {/* Notification Bell */}
+          {mounted && session && <NotificationBell />}
 
           {/* Cart Icon */}
           {mounted && (

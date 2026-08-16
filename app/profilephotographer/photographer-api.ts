@@ -204,21 +204,53 @@ export function normalizePortfolioItems(raw: unknown): PhotographerPortfolioItem
 }
 
 export async function getMyPortfolio() {
-  const response = await fetch(`${API_URL}/photographers/me/portfolio`, {
-    headers: authHeaders(),
-    cache: "no-store",
-  });
+  try {
+    const response = await fetch(`${API_URL}/photographers/me/portfolio`, {
+      headers: authHeaders(),
+      cache: "no-store",
+    });
 
-  const json = await response.json();
+    const json = await response.json();
+    console.log("Portfolio response:", { status: response.status, json });
 
-  if (!response.ok || !json.success) {
-    throw new Error(json.message || "Không thể tải portfolio.");
+    if (!response.ok) {
+      console.error("Portfolio API error - bad status:", response.status, json);
+      throw new Error(json.message || `Server error: ${response.status}`);
+    }
+
+    if (!json.success) {
+      console.error("Portfolio API error - success false:", json);
+      throw new Error(json.message || "Không thể tải portfolio.");
+    }
+
+    const normalized = normalizePortfolioItems(json.data ?? []);
+    return normalized;
+  } catch (err) {
+    console.error("Portfolio fetch error:", err);
+    if (err instanceof TypeError) {
+      throw new Error("Lỗi kết nối. Vui lòng kiểm tra backend API.");
+    }
+    // Fallback: try to get portfolio from profile endpoint
+    try {
+      console.log("Trying fallback: fetching from /photographers/me");
+      const profileRes = await fetch(`${API_URL}/photographers/me`, {
+        headers: authHeaders(),
+        cache: "no-store",
+      });
+      const profileJson = await profileRes.json();
+      if (profileJson.success && profileJson.data?.portfolio) {
+        return normalizePortfolioItems(profileJson.data.portfolio);
+      }
+    } catch (fallbackErr) {
+      console.error("Fallback fetch also failed:", fallbackErr);
+    }
+    throw err;
   }
-
-  return normalizePortfolioItems(json.data ?? []);
 }
 
 export async function createPortfolioItem(payload: Record<string, unknown>) {
+  console.log("Create portfolio item payload:", payload);
+  
   const response = await fetch(`${API_URL}/photographers/me/portfolio`, {
     method: "POST",
     headers: {
@@ -229,8 +261,13 @@ export async function createPortfolioItem(payload: Record<string, unknown>) {
   });
 
   const json = await response.json();
+  console.log("Create portfolio response:", { status: response.status, json });
 
-  if (!response.ok || !json.success) {
+  if (!response.ok) {
+    throw new Error(json.message || `Server error: ${response.status}`);
+  }
+
+  if (!json.success) {
     throw new Error(json.message || "Không thể thêm ảnh vào portfolio.");
   }
 
@@ -270,12 +307,12 @@ export async function deletePortfolioItem(id: number | string) {
 }
 
 export async function reorderPortfolioItems(ids: Array<number | string>) {
+  // Backend expects simple format with ids in order
   const payload = {
-    portfolio_ids: ids,
-    item_ids: ids,
-    order: ids,
-    items: ids.map((id, index) => ({ id, sort_order: index + 1 })),
+    ids: ids.map(String),
   };
+
+  console.log("Reorder payload:", payload);
 
   const response = await fetch(`${API_URL}/photographers/me/portfolio/reorder`, {
     method: "POST",
@@ -287,8 +324,13 @@ export async function reorderPortfolioItems(ids: Array<number | string>) {
   });
 
   const json = await response.json().catch(() => ({}));
+  console.log("Reorder response:", { status: response.status, json });
 
-  if (!response.ok && !(json as { success?: boolean })?.success) {
+  if (!response.ok) {
+    throw new Error((json as { message?: string })?.message || `Server error: ${response.status}`);
+  }
+
+  if (!((json as { success?: boolean })?.success ?? true)) {
     throw new Error((json as { message?: string })?.message || "Không thể sắp xếp ảnh portfolio.");
   }
 
