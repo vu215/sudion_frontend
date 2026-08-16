@@ -24,8 +24,8 @@ function resolveImageUrl(url: string) {
 }
 function fmt(v: number) { return Number(v || 0).toLocaleString("vi-VN"); }
 
-const FALLBACK_AVATAR = "https://images.pexels.com/photos/1983037/pexels-photo-1983037.jpeg?auto=compress&cs=tinysrgb&w=200";
-const FALLBACK_COVER  = "https://images.pexels.com/photos/1024993/pexels-photo-1024993.jpeg?auto=compress&cs=tinysrgb&w=1400";
+const FALLBACK_AVATAR = "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=400&q=80";
+const FALLBACK_COVER  = "https://images.unsplash.com/photo-1520854221256-17451cc331bf?auto=format&fit=crop&w=1400&q=80";
 
 const SAMPLE_SERVICE_SUGGESTIONS = [
   { name: "Gói cưới Premium", category_name: "Cưới", price: 4500000, duration: 180 },
@@ -60,6 +60,7 @@ export default function ProfilePhotographerPage() {
   const [startedYear,      setStartedYear]      = useState(2020);
   const [photographerType, setPhotographerType] = useState("freelance");
   const [avatar,           setAvatar]           = useState("");
+  const [cover,            setCover]            = useState("");
   const [portfolio,        setPortfolio]        = useState<string[]>([]);
   const [packages,         setPackages]         = useState<any[]>([]);
   const [equipment,        setEquipment]        = useState<string[]>(["Sony A7R IV", "Canon 5D Mark IV"]);
@@ -80,10 +81,14 @@ export default function ProfilePhotographerPage() {
         const json = await res.json();
         if (json.success && json.data) {
           const { photographer: p, portfolio: imgs, packages: pkgs } = json.data;
+          const nextAvatar = p.avatar_url || p.cover_url || "";
+          const nextCover = p.cover_url || p.avatar_url || "";
+
           setName(p.full_name || ""); setPhone(p.phone || ""); setBio(p.bio || "");
           setActiveArea(p.active_area || ""); setStartedYear(Number(p.started_year || 2020));
           setPhotographerType(p.photographer_type || "freelance");
-          setAvatar(p.avatar_url || "");
+          setAvatar(nextAvatar);
+          setCover(nextCover);
           setPortfolio(Array.isArray(imgs) ? imgs.map((item: string) => resolveImageUrl(item)) : []);
           setPackages(pkgs || []);
         }
@@ -137,6 +142,7 @@ export default function ProfilePhotographerPage() {
 
   const yearsExp   = Math.max(1, new Date().getFullYear() - startedYear);
   const displayAva = resolveUrl(avatar) || FALLBACK_AVATAR;
+  const displayCover = resolveUrl(cover) || FALLBACK_COVER;
 
   return (
     <div className="bg-gradient-to-b from-slate-50 to-slate-100 min-h-full">
@@ -147,7 +153,14 @@ export default function ProfilePhotographerPage() {
 
       {/* ── Hero cover ── */}
       <div className="relative overflow-hidden bg-[#0f172a] sm:h-[280px]">
-        <img src={FALLBACK_COVER} alt="" className="absolute inset-0 h-full w-full object-cover brightness-75" />
+        <img
+          src={displayCover}
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover brightness-75"
+          onError={(e) => {
+            e.currentTarget.src = FALLBACK_COVER;
+          }}
+        />
         <div className="absolute inset-0 bg-gradient-to-br from-[#020617]/95 via-[#0f172a]/70 to-[#0e111d]/65" />
         <div className="absolute inset-0 flex items-center px-6 sm:px-10">
           <div className="max-w-3xl">
@@ -178,7 +191,14 @@ export default function ProfilePhotographerPage() {
             {/* Avatar */}
             <div className="relative -mt-14 sm:-mt-16 shrink-0">
               <div className="relative h-20 w-20 overflow-hidden rounded-2xl border-4 border-white shadow-lg sm:h-24 sm:w-24">
-                <img src={displayAva} alt={name} className="h-full w-full object-cover" />
+                <img
+                  src={displayAva}
+                  alt={name}
+                  className="h-full w-full object-cover"
+                  onError={(e) => {
+                    e.currentTarget.src = FALLBACK_AVATAR;
+                  }}
+                />
               </div>
               {editMode && (
                 <button onClick={() => avatarRef.current?.click()}

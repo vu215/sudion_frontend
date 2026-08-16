@@ -588,6 +588,9 @@ const sideNavItems = [
 
 const tabs = ["Tổng quan", "Portfolio", "Gói dịch vụ", "Đánh giá"];
 
+const FALLBACK_PROFILE_AVATAR = "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=400&q=80";
+const FALLBACK_PROFILE_COVER = "https://images.unsplash.com/photo-1520854221256-17451cc331bf?auto=format&fit=crop&w=1400&q=80";
+
 export default function PhotographerProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const unwrappedParams = use(params);
   return <PhotographerProfileContent id={unwrappedParams.id} />;
@@ -607,6 +610,19 @@ function PhotographerProfileContent({ id }: { id: string }) {
           const json = await res.json();
           if (json.success && json.data) {
             const data = json.data;
+            const avatarUrl = resolveAssetUrl(
+              data.photographer.avatar_url ||
+              data.photographer.profile_image ||
+              data.photographer.cover_url ||
+              "",
+            );
+            const coverUrl = resolveAssetUrl(
+              data.photographer.cover_url ||
+              data.photographer.avatar_url ||
+              data.photographer.profile_image ||
+              "",
+            );
+
             const mappedPerson = {
               id: String(data.photographer.id),
               name: data.photographer.full_name,
@@ -615,9 +631,9 @@ function PhotographerProfileContent({ id }: { id: string }) {
               rating: String(data.photographer.avg_rating || "4.8"),
               reviewCount: data.packages?.reduce((acc: number, p: any) => acc + (p.review_count || 0), 0) || 45,
               badge: data.photographer.verification_status === "verified" ? "Top Rated Photographer" : "Professional Photographer",
-              image: resolveAssetUrl(data.photographer.avatar_url) || "https://i.pinimg.com/736x/a0/b0/00/a0b000947356b75df1e4ec794477fc49.jpg",
-              avatar: resolveAssetUrl(data.photographer.avatar_url) || "https://i.pinimg.com/736x/9c/44/0c/9c440c4652d4e4476a5c61d25efbef1e.jpg",
-              cover: resolveAssetUrl(data.photographer.avatar_url) || "https://i.pinimg.com/736x/bb/cc/37/bbcc37f0caa97bdff1f08ad8355ac9f4.jpg",
+              image: avatarUrl || FALLBACK_PROFILE_AVATAR,
+              avatar: avatarUrl || FALLBACK_PROFILE_AVATAR,
+              cover: coverUrl || FALLBACK_PROFILE_COVER,
               bio: data.photographer.bio || "Chưa có giới thiệu tiểu sử.",
               portfolio: data.packages?.map((p: any) => resolveAssetUrl(p.image_url)).filter(Boolean).slice(0, 5) || [],
               equipment: ["Máy ảnh chuyên nghiệp"],
@@ -643,7 +659,28 @@ function PhotographerProfileContent({ id }: { id: string }) {
     loadDbPerson();
   }, [id]);
 
-  const person = dbPerson || photographers.find((p) => p.id === id) || photographers[0];
+  const fallbackPerson = {
+    id: String(id),
+    name: "Photographer",
+    title: "Studio",
+    location: "Việt Nam",
+    rating: "4.8",
+    reviewCount: 0,
+    badge: "Professional Photographer",
+    image: FALLBACK_PROFILE_AVATAR,
+    avatar: FALLBACK_PROFILE_AVATAR,
+    cover: FALLBACK_PROFILE_COVER,
+    bio: "Chưa có thông tin giới thiệu.",
+    portfolio: [],
+    equipment: [],
+    services: [],
+    reviews: [],
+    ratingScore: 4.8,
+    totalReviews: 0,
+    startPrice: "Chưa cập nhật",
+  };
+
+  const person = dbPerson || photographers.find((p) => p.id === id) || fallbackPerson;
   const [activeTab, setActiveTab] = useState("Tổng quan");
   const today = new Date();
   const todayStr = today.toISOString().slice(0, 10);
@@ -665,7 +702,7 @@ function PhotographerProfileContent({ id }: { id: string }) {
     setReviewerName("");
     setReviewText("");
     setReviewRating(5);
-  }, [person.id, todayStr, person.services, person.reviews]);
+  }, [person.id, todayStr]);
 
   const averageRating = reviews.length ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length : 0;
   const totalReviews = reviews.length;
