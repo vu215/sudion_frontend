@@ -4,6 +4,7 @@ import { AppShell } from "./components/app-shell";
 import { MotionEffects } from "./motion";
 import { AuthProvider } from "./auth-context";
 import { ToastProvider } from "./toast-context";
+import { NotificationProvider } from "./notification-context";
 // import { ReactTrace } from "./components/react-trace"; // Disabled: dev tool causing module resolution issues
 
 export const metadata: Metadata = {
@@ -31,7 +32,9 @@ export default function RootLayout({
 
         <AuthProvider>
           <ToastProvider>
-            <AppShell>{children}</AppShell>
+            <NotificationProvider>
+              <AppShell>{children}</AppShell>
+            </NotificationProvider>
             {/* <ReactTrace /> */}
           </ToastProvider>
         </AuthProvider>
