@@ -259,6 +259,49 @@ export async function refreshSessionFromServer() {
   }
 }
 
+export async function loginWithGoogleCredential(credential: string) {
+  try {
+    const response = await fetch(`${API_URL}/auth/google`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ credential }),
+    });
+
+    const result = (await response.json()) as ApiResponse<{
+      user: AuthUser;
+      token?: string;
+    }>;
+
+    if (!response.ok || !result.success) {
+      return {
+        ok: false as const,
+        error: result.message || "Đăng nhập bằng Google thất bại.",
+      };
+    }
+
+    const user = normalizeUser(result.data?.user);
+    const session = makeSession(user);
+    const token = result.data?.token;
+
+    writeCompatStorage(user, session, token);
+
+    return {
+      ok: true as const,
+      user,
+      session,
+    };
+  } catch (error: any) {
+    return {
+      ok: false as const,
+      error:
+        error?.message ||
+        "Không thể kết nối máy chủ Google auth. Vui lòng thử lại.",
+    };
+  }
+}
+
 export function googleLoginFE(customEmail?: string, customName?: string) {
   const email = customEmail || "user.google@gmail.com";
   const fullName = customName || "Khách hàng Google";
@@ -275,4 +318,5 @@ export function googleLoginFE(customEmail?: string, customName?: string) {
   writeCompatStorage(user, session, `google_fe_token_${Date.now()}`);
   return { ok: true as const, user, session };
 }
+
 

@@ -42,14 +42,44 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 
   const loadNotifications = useCallback(async () => {
     try {
+      const token = typeof window !== "undefined" ? window.localStorage.getItem("sudion_token") : null;
+      const sessionRaw = typeof window !== "undefined" ? window.localStorage.getItem("sudion_session") : null;
+
+      // If user is not logged in, clear notifications and don't make unnecessary request
+      if (!token && !sessionRaw) {
+        setNotifications([]);
+        return;
+      }
+
       setIsLoading(true);
-      const response = await fetch(`${API_URL}/notifications`, {
-        headers: authHeaders(),
+
+      let endpoint = `${API_URL}/notifications/me`;
+      let headers: Record<string, string> = {};
+
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      } else if (sessionRaw) {
+        try {
+          const session = JSON.parse(sessionRaw);
+          if (session?.userId) {
+            endpoint = `${API_URL}/notifications/id/${session.userId}`;
+          } else if (session?.email) {
+            endpoint = `${API_URL}/notifications/user/${session.email}`;
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      const response = await fetch(endpoint, {
+        headers,
         cache: "no-store",
       });
 
       if (!response.ok) {
-        console.error("Failed to load notifications:", response.status);
+        if (response.status !== 401 && response.status !== 404) {
+          console.error("Failed to load notifications:", response.status);
+        }
         return;
       }
 
@@ -68,10 +98,13 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     }
   }, [API_URL]);
 
+
   const markAsRead = useCallback(
     async (id: string | number) => {
       try {
-        const response = await fetch(`${API_URL}/notifications/${id}/read`, {
+        const token = typeof window !== "undefined" ? window.localStorage.getItem("sudion_token") : null;
+        const endpoint = token ? `${API_URL}/notifications/me/${id}/read` : `${API_URL}/notifications/${id}/read`;
+        const response = await fetch(endpoint, {
           method: "PATCH",
           headers: {
             "Content-Type": "application/json",
@@ -90,6 +123,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     },
     [API_URL]
   );
+
 
   const markAllAsRead = useCallback(async () => {
     try {
