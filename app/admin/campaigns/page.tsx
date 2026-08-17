@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import AdminLayout from "../_components/admin-layout";
 import { AdminIcon } from "../_components/admin-icons";
 import Link from "next/link";
-import { api } from "@/lib/api";
+import { api } from "./_campaign-api";
 
 type Campaign = {
   id: string;
@@ -13,7 +13,7 @@ type Campaign = {
   campaign_type: "service" | "product" | "hybrid";
   start_at: string;
   end_at: string;
-  status: "DRAFT" | "AI_GENERATED" | "PENDING_APPROVAL" | "APPROVED" | "SCHEDULED" | "ACTIVE" | "PAUSED" | "COMPLETED" | "CANCELLED" | "FAILED";
+  status: "DRAFT" | "AI_GENERATED" | "PENDING_APPROVAL" | "REJECTED" | "APPROVED" | "SCHEDULED" | "ACTIVE" | "PAUSED" | "COMPLETED" | "CANCELLED" | "FAILED";
   created_by: string;
   approved_by: string | null;
   approved_at: string | null;
@@ -24,6 +24,7 @@ const statusConfig: Record<Campaign["status"], { label: string; bg: string; text
   DRAFT: { label: "Bản nháp", bg: "bg-slate-100", text: "text-slate-700" },
   AI_GENERATED: { label: "AI Đề xuất", bg: "bg-indigo-50", text: "text-indigo-700" },
   PENDING_APPROVAL: { label: "Chờ duyệt", bg: "bg-amber-50", text: "text-amber-700" },
+  REJECTED: { label: "Bị từ chối", bg: "bg-red-50", text: "text-red-700" },
   APPROVED: { label: "Đã duyệt", bg: "bg-emerald-50", text: "text-emerald-700" },
   SCHEDULED: { label: "Đã lên lịch", bg: "bg-blue-50", text: "text-blue-700" },
   ACTIVE: { label: "Đang chạy", bg: "bg-pink-50 text-pink-700 animate-pulse", text: "text-pink-700" },

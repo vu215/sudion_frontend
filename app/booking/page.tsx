@@ -406,7 +406,7 @@ function BookingContent() {
 
   // ── Voucher state ──
   const [voucherInput, setVoucherInput] = useState("");
-  const [appliedVoucher, setAppliedVoucher] = useState<{ id: number; code: string; name: string; discount_amount: number } | null>(null);
+  const [appliedVoucher, setAppliedVoucher] = useState<{ id: number; code: string; name: string; discount_amount: number; campaign_id?: number } | null>(null);
   const [voucherError, setVoucherError] = useState("");
   const [isApplyingVoucher, setIsApplyingVoucher] = useState(false);
   const [activeVouchers, setActiveVouchers] = useState<any[]>([]);
@@ -828,6 +828,55 @@ function BookingContent() {
     }
   }, [estimatedTotal, photographerId]);
 
+  // Tự áp dụng promotion đang ACTIVE của chiến dịch AI.
+  // Backend vẫn xác thực lại voucher khi tạo booking nên FE không quyết định giá cuối cùng.
+  useEffect(() => {
+    if (!matchedPackageId || estimatedTotal <= 0 || appliedVoucher) return;
+
+    let active = true;
+    const timer = window.setTimeout(async () => {
+      try {
+        const res = await fetch(`${API_URL}/campaigns/promotions/quote`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            targetType: "SERVICE",
+            targetId: String(matchedPackageId),
+            baseAmount: estimatedTotal,
+          }),
+        });
+        const result = await res.json().catch(() => ({}));
+        const quote = result?.data;
+        const promotion = quote?.promotion;
+
+        if (
+          active &&
+          res.ok &&
+          result?.success &&
+          promotion?.code &&
+          Number(quote?.discountAmount || 0) > 0
+        ) {
+          setAppliedVoucher({
+            id: Number(promotion.voucher_id || promotion.id || 0),
+            code: String(promotion.code),
+            name: String(promotion.name || promotion.campaign_name || "Ưu đãi chiến dịch"),
+            discount_amount: Number(quote.discountAmount || 0),
+            campaign_id: Number(promotion.campaign_id || 0) || undefined,
+          });
+          setVoucherError("");
+        }
+      } catch (err) {
+        // Promotion là tiện ích bổ sung; lỗi quote không được chặn booking bình thường.
+        console.warn("Không thể tự áp dụng promotion chiến dịch:", err);
+      }
+    }, 250);
+
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [matchedPackageId, estimatedTotal, appliedVoucher]);
+
   const handleCalPrev = () => {
     if (calMonth === 0) { setCalMonth(11); setCalYear((y) => y - 1); }
     else setCalMonth((m) => m - 1);
@@ -914,6 +963,15 @@ function BookingContent() {
       if (!res.ok || !json.success) throw new Error(json.message || "Không thể tạo booking.");
 
       const bookingCode = json.data.booking_code;
+
+      if (appliedVoucher?.campaign_id) {
+        fetch(`${API_URL}/campaigns/${appliedVoucher.campaign_id}/track`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ metric: "booking" }),
+          keepalive: true,
+        }).catch(() => undefined);
+      }
 
       saveBooking({
         id: bookingCode,
