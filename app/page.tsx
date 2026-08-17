@@ -656,6 +656,13 @@ const slides = [
   }
 ];
 
+type HeroSlide = (typeof slides)[number] & {
+  campaignId?: number;
+  ctaText?: string;
+  ctaUrl?: string;
+  isCampaign?: boolean;
+};
+
 function Hero() {
   const [location, setLocation] = useState("all");
   const [category, setCategory] = useState("all");
@@ -666,6 +673,73 @@ function Hero() {
   const heroRef = useRef<HTMLDivElement | null>(null);
   const dateInputRef = useRef<HTMLInputElement>(null);
   const [activeSlide, setActiveSlide] = useState(0);
+  const [campaignSlides, setCampaignSlides] = useState<HeroSlide[]>([]);
+  const trackedCampaignViews = useRef<Set<number>>(new Set());
+  const displaySlides = useMemo<HeroSlide[]>(
+    () => (campaignSlides.length ? campaignSlides : (slides as HeroSlide[])),
+    [campaignSlides]
+  );
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadCampaignHero = async () => {
+      try {
+        const res = await fetch(`${API_URL}/campaigns/active-content?type=BANNER`, { cache: "no-store" });
+        const result = await res.json().catch(() => ({}));
+        if (!mounted) return;
+
+        const mapped: HeroSlide[] = res.ok && result?.success && Array.isArray(result.data)
+          ? result.data.map((item: any) => {
+              const campaignId = Number(item.campaign_id || 0) || undefined;
+              return {
+                id: `campaign-${item.id || campaignId || Math.random()}`,
+                image: resolveAssetUrl(item.image_url) || photos.hero,
+                gradient: "from-black/75 via-black/45 to-black/10",
+                slogan1: String(item.campaign_name || "CHIẾN DỊCH SUDION"),
+                slogan2: String(item.title || "ƯU ĐÃI ĐẶC BIỆT"),
+                slogan3: "ĐANG DIỄN RA",
+                slogan1Color: "text-white/90",
+                slogan2Color: "text-[#ff8d28]",
+                slogan3Color: "text-white/90",
+                description: String(item.body || "Ưu đãi giới hạn từ Sudion Studio."),
+                campaignId,
+                ctaText: String(item.cta_text || "Xem ưu đãi ngay"),
+                ctaUrl: String(item.cta_url || "/services"),
+                isCampaign: true,
+              };
+            })
+          : [];
+
+        setCampaignSlides(mapped);
+        setActiveSlide(0);
+
+        for (const slide of mapped) {
+          if (!slide.campaignId || trackedCampaignViews.current.has(slide.campaignId)) continue;
+          trackedCampaignViews.current.add(slide.campaignId);
+          fetch(`${API_URL}/campaigns/${slide.campaignId}/track`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ metric: "view" }),
+            keepalive: true,
+          }).catch(() => undefined);
+        }
+      } catch (err) {
+        console.warn("Không thể tải campaign hero:", err);
+      }
+    };
+
+    void loadCampaignHero();
+    const intervalId = window.setInterval(() => void loadCampaignHero(), 10000);
+    const onFocus = () => void loadCampaignHero();
+    window.addEventListener("focus", onFocus);
+
+    return () => {
+      mounted = false;
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, []);
 
   useEffect(() => {
     const handleOutsideClick = (e: MouseEvent) => {
@@ -682,26 +756,41 @@ function Hero() {
   }, []);
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setActiveSlide((prev) => (prev + 1) % slides.length);
+    if (displaySlides.length <= 1) return;
+    const timer = window.setInterval(() => {
+      setActiveSlide((prev) => (prev + 1) % displaySlides.length);
     }, 6000);
-    return () => clearInterval(timer);
-  }, []);
+    return () => window.clearInterval(timer);
+  }, [displaySlides.length]);
+
+  useEffect(() => {
+    if (activeSlide >= displaySlides.length) setActiveSlide(0);
+  }, [activeSlide, displaySlides.length]);
 
   const handlePrev = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setActiveSlide((prev) => (prev - 1 + slides.length) % slides.length);
+    setActiveSlide((prev) => (prev - 1 + displaySlides.length) % displaySlides.length);
   };
 
   const handleNext = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setActiveSlide((prev) => (prev + 1) % slides.length);
+    setActiveSlide((prev) => (prev + 1) % displaySlides.length);
+  };
+
+  const trackCampaignClick = (campaignId?: number) => {
+    if (!campaignId) return;
+    fetch(`${API_URL}/campaigns/${campaignId}/track`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ metric: "click" }),
+      keepalive: true,
+    }).catch(() => undefined);
   };
 
   return (
     <div className="relative mb-10 md:mb-12">
       <section className="relative min-h-[580px] overflow-hidden rounded-[26px] bg-slate-900 shadow-sm md:min-h-[380px] md:aspect-[2.25]">
-        {slides.map((slide, index) => {
+        {displaySlides.map((slide, index) => {
           const isActive = index === activeSlide;
           return (
             <div
@@ -737,6 +826,16 @@ function Hero() {
                     <p className="mt-4 max-w-[550px] text-sm font-medium leading-7 text-white/95 drop-shadow-md sm:text-[16px]">
                       {slide.description}
                     </p>
+                    {slide.isCampaign && slide.ctaUrl && (
+                      <Link
+                        href={slide.ctaUrl}
+                        onClick={() => trackCampaignClick(slide.campaignId)}
+                        className="mt-5 inline-flex w-fit items-center rounded-full bg-[#ff8d28] px-6 py-3 text-sm font-extrabold text-white shadow-lg shadow-black/20 transition hover:-translate-y-0.5 hover:bg-[#ed7c18]"
+                      >
+                        {slide.ctaText || "Xem ưu đãi ngay"}
+                        <span className="ml-2">→</span>
+                      </Link>
+                    )}
                   </div>
 
                   {/* Right Column (Left empty intentionally so characters on custom banner background design can shine through) */}
@@ -748,6 +847,8 @@ function Hero() {
         })}
 
         {/* Slide navigation arrows */}
+        {displaySlides.length > 1 && (
+          <>
         <button
           onClick={handlePrev}
           className="absolute left-4 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-white/70 hover:bg-white text-slate-800 flex items-center justify-center shadow-md transition hover:scale-110 active:scale-95 cursor-pointer"
@@ -767,9 +868,12 @@ function Hero() {
           </svg>
         </button>
 
+          </>
+        )}
+
         {/* Slide indicators (dots) */}
         <div className="absolute bottom-12 left-1/2 -translate-x-1/2 z-20 flex gap-2">
-          {slides.map((_, index) => (
+          {displaySlides.map((_, index) => (
             <button
               key={index}
               onClick={(e) => {
@@ -918,83 +1022,43 @@ function HeroFieldIcon({ type }: { type: "location" | "camera" | "calendar" }) {
 }
 
 function PromoBanner() {
-  type CampaignPromoSlide = (typeof promoSlides)[number] & { campaignId?: number };
   const [activePromo, setActivePromo] = useState(0);
-  const [campaignPromos, setCampaignPromos] = useState<CampaignPromoSlide[]>([]);
-
-  const allPromoSlides = useMemo<CampaignPromoSlide[]>(
-    () => [...campaignPromos, ...promoSlides],
-    [campaignPromos]
-  );
-  const promo = allPromoSlides[activePromo] || allPromoSlides[0];
+  const [hasActiveCampaign, setHasActiveCampaign] = useState(false);
+  const promo = promoSlides[activePromo] || promoSlides[0];
 
   useEffect(() => {
-    let active = true;
-
-    (async () => {
+    let mounted = true;
+    const checkCampaign = async () => {
       try {
-        const res = await fetch(`${API_URL}/campaigns/active-content?type=BANNER`, {
-          cache: "no-store",
-        });
+        const res = await fetch(`${API_URL}/campaigns/active-content?type=BANNER`, { cache: "no-store" });
         const result = await res.json().catch(() => ({}));
-        if (!active || !res.ok || !result?.success || !Array.isArray(result.data)) return;
-
-        const mapped: CampaignPromoSlide[] = result.data
-          .filter((item: any) => item?.image_url)
-          .map((item: any) => ({
-            eyebrow: String(item.campaign_name || "CHIẾN DỊCH SUDION").toUpperCase(),
-            title: String(item.title || "ƯU ĐÃI MỚI"),
-            description: String(item.body || "Khám phá chương trình ưu đãi mới từ Sudion Studio."),
-            image: resolveAssetUrl(item.image_url),
-            href: String(item.cta_url || "/"),
-            campaignId: Number(item.campaign_id || 0) || undefined,
-          }));
-
-        setCampaignPromos(mapped);
-
-        // Ghi nhận một lượt hiển thị cho mỗi campaign banner khi trang chủ thực sự tải banner.
-        for (const campaignId of [...new Set(mapped.map((item) => item.campaignId).filter(Boolean))]) {
-          fetch(`${API_URL}/campaigns/${campaignId}/track`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ metric: "view" }),
-            keepalive: true,
-          }).catch(() => undefined);
-        }
-      } catch (err) {
-        console.warn("Không thể tải banner chiến dịch:", err);
+        if (mounted) setHasActiveCampaign(Boolean(res.ok && result?.success && Array.isArray(result.data) && result.data.length));
+      } catch {
+        if (mounted) setHasActiveCampaign(false);
       }
-    })();
-
+    };
+    void checkCampaign();
+    const id = window.setInterval(() => void checkCampaign(), 10000);
     return () => {
-      active = false;
+      mounted = false;
+      window.clearInterval(id);
     };
   }, []);
 
   useEffect(() => {
-    if (!allPromoSlides.length) return;
-    if (activePromo >= allPromoSlides.length) setActivePromo(0);
+    if (hasActiveCampaign || promoSlides.length <= 1) return;
     const timer = window.setInterval(() => {
-      setActivePromo((current) => (current + 1) % allPromoSlides.length);
+      setActivePromo((current) => (current + 1) % promoSlides.length);
     }, 3000);
-
     return () => window.clearInterval(timer);
-  }, [allPromoSlides.length, activePromo]);
+  }, [hasActiveCampaign]);
 
-  if (!promo) return null;
+  // Campaign BANNER takes over the large Hero above. Hide this legacy promo carousel
+  // temporarily so the campaign is the single prominent homepage banner.
+  if (hasActiveCampaign || !promo) return null;
 
   const movePromo = (direction: number) => {
-    setActivePromo((current) => (current + direction + allPromoSlides.length) % allPromoSlides.length);
-  };
-
-  const trackCampaignClick = (campaignId?: number) => {
-    if (!campaignId) return;
-    fetch(`${API_URL}/campaigns/${campaignId}/track`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ metric: "click" }),
-      keepalive: true,
-    }).catch(() => undefined);
+    setActivePromo((current) => (current + direction + promoSlides.length) % promoSlides.length);
   };
 
   return (
@@ -1010,14 +1074,13 @@ function PromoBanner() {
           maskImage: "linear-gradient(to right, transparent 0%, rgba(0,0,0,.25) 14%, #000 34%)",
         }}
       >
-        {allPromoSlides.map((slide, index) => (
+        {promoSlides.map((slide, index) => (
           <img
-            key={`${slide.campaignId || "static"}-${slide.image}-${index}`}
+            key={`${slide.image}-${index}`}
             src={slide.image}
             alt=""
             aria-hidden={activePromo !== index}
-            className={`absolute inset-0 h-full w-full object-cover object-center transition-[opacity,transform] duration-1000 ease-[cubic-bezier(0.4,0,0.2,1)] motion-reduce:transition-none ${activePromo === index ? "scale-100 opacity-100" : "scale-[1.025] opacity-0"
-              }`}
+            className={`absolute inset-0 h-full w-full object-cover object-center transition-[opacity,transform] duration-1000 ease-[cubic-bezier(0.4,0,0.2,1)] motion-reduce:transition-none ${activePromo === index ? "scale-100 opacity-100" : "scale-[1.025] opacity-0"}`}
           />
         ))}
       </div>
@@ -1026,21 +1089,13 @@ function PromoBanner() {
 
       <div className="relative z-10 flex min-h-[210px] items-center px-8 py-8 sm:min-h-[170px] sm:px-16 lg:px-24">
         <div key={activePromo} className="w-full animate-fade-in-up text-center motion-reduce:animate-none sm:w-[58%] sm:text-left">
-          <p className="text-[10px] font-black tracking-[0.24em] text-[#ff8d28] sm:text-xs">
-            {promo.eyebrow}
-          </p>
+          <p className="text-[10px] font-black tracking-[0.24em] text-[#ff8d28] sm:text-xs">{promo.eyebrow}</p>
           <div className="mt-2 flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:gap-8">
             <div className="min-w-0">
-              <h3 className="text-[26px] font-black leading-none tracking-tight text-[#ff8d28] sm:text-[30px] lg:text-[36px]">
-                {promo.title}
-              </h3>
+              <h3 className="text-[26px] font-black leading-none tracking-tight text-[#ff8d28] sm:text-[30px] lg:text-[36px]">{promo.title}</h3>
               <p className="mt-2 text-xs font-semibold text-orange-950/75 sm:text-sm">{promo.description}</p>
             </div>
-            <Link
-              href={promo.href}
-              onClick={() => trackCampaignClick(promo.campaignId)}
-              className="shrink-0 rounded-full border border-[#ff8d28] bg-[#ff8d28] px-7 py-3 text-xs font-extrabold text-white shadow-md shadow-[#ff8d28]/30 transition hover:-translate-y-0.5 hover:bg-[#ed7c18]"
-            >
+            <Link href={promo.href} className="shrink-0 rounded-full border border-[#ff8d28] bg-[#ff8d28] px-7 py-3 text-xs font-extrabold text-white shadow-md shadow-[#ff8d28]/30 transition hover:-translate-y-0.5 hover:bg-[#ed7c18]">
               Xem ưu đãi ngay
             </Link>
           </div>
@@ -1048,34 +1103,13 @@ function PromoBanner() {
       </div>
 
       <div className="absolute right-4 top-4 z-20 flex gap-2">
-        <button
-          type="button"
-          onClick={() => movePromo(-1)}
-          aria-label="Khuyến mãi trước"
-          className="grid h-9 w-9 place-items-center rounded-lg border border-white/70 bg-white/80 text-lg font-bold text-slate-600 shadow-sm backdrop-blur-md transition hover:bg-white hover:text-[#ff8d28]"
-        >
-          ‹
-        </button>
-        <button
-          type="button"
-          onClick={() => movePromo(1)}
-          aria-label="Khuyến mãi tiếp theo"
-          className="grid h-9 w-9 place-items-center rounded-lg border border-white/70 bg-white/80 text-lg font-bold text-slate-600 shadow-sm backdrop-blur-md transition hover:bg-white hover:text-[#ff8d28]"
-        >
-          ›
-        </button>
+        <button type="button" onClick={() => movePromo(-1)} aria-label="Khuyến mãi trước" className="grid h-9 w-9 place-items-center rounded-lg border border-white/70 bg-white/80 text-lg font-bold text-slate-600 shadow-sm backdrop-blur-md transition hover:bg-white hover:text-[#ff8d28]">‹</button>
+        <button type="button" onClick={() => movePromo(1)} aria-label="Khuyến mãi tiếp theo" className="grid h-9 w-9 place-items-center rounded-lg border border-white/70 bg-white/80 text-lg font-bold text-slate-600 shadow-sm backdrop-blur-md transition hover:bg-white hover:text-[#ff8d28]">›</button>
       </div>
 
       <div className="absolute bottom-3 right-5 z-20 flex items-center gap-2">
-        {allPromoSlides.map((slide, index) => (
-          <button
-            type="button"
-            key={`${slide.campaignId || "static"}-${slide.title}-${index}`}
-            onClick={() => setActivePromo(index)}
-            aria-label={`Xem khuyến mãi ${index + 1}`}
-            aria-current={activePromo === index}
-            className={`h-2 rounded-full shadow-sm transition-all duration-500 ${activePromo === index ? "w-6 bg-white/90" : "w-2 bg-white/45 hover:bg-white/70"}`}
-          />
+        {promoSlides.map((slide, index) => (
+          <button type="button" key={`${slide.title}-${index}`} onClick={() => setActivePromo(index)} aria-label={`Xem khuyến mãi ${index + 1}`} aria-current={activePromo === index} className={`h-2 rounded-full shadow-sm transition-all duration-500 ${activePromo === index ? "w-6 bg-white/90" : "w-2 bg-white/45 hover:bg-white/70"}`} />
         ))}
       </div>
     </section>

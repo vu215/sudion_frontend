@@ -8,7 +8,7 @@ import { useToast } from "@/app/toast-context";
 export function NotificationBell() {
   const router = useRouter();
   const toast = useToast();
-  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
+  const { notifications, unreadCount, loadNotifications, markAsRead, markAllAsRead } = useNotifications();
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"all" | "unread">("all");
   const bellRef = useRef<HTMLDivElement>(null);
@@ -94,7 +94,13 @@ export function NotificationBell() {
     <div ref={bellRef} className="relative">
       <button
         type="button"
-        onClick={() => setIsOpen((v) => !v)}
+        onClick={() => {
+          setIsOpen((v) => {
+            const next = !v;
+            if (next) void loadNotifications();
+            return next;
+          });
+        }}
         className="relative inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#e8eaf1] text-[#4b5563] hover:border-[#ff8d28] hover:text-[#ff8d28] transition-colors"
         aria-label="Thông báo"
       >

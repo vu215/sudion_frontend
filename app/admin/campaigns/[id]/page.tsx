@@ -35,10 +35,15 @@ type CampaignDetails = {
     target_ids: string;
   }>;
   schedules: Array<{
+    id?: string | number;
     action_type: string;
     scheduled_at: string;
     executed_at: string | null;
-    status: "PENDING" | "SUCCESS" | "FAILED";
+    status: "PENDING" | "PROCESSING" | "SUCCESS" | "FAILED" | "CANCELLED";
+    error_message?: string | null;
+    attempts?: number;
+    max_attempts?: number;
+    result?: any;
   }>;
   audience: {
     audience_type: string;
@@ -96,9 +101,10 @@ export default function CampaignDetailsPage() {
   const [report, setReport] = useState<CampaignReport | null>(null);
   const [loadingReport, setLoadingReport] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
+  const [uploadingBanner, setUploadingBanner] = useState(false);
 
-  const loadDetails = async () => {
-    setLoading(true);
+  const loadDetails = async (showSpinner = true) => {
+    if (showSpinner) setLoading(true);
     try {
       const res = await (api.campaigns as any).getById(id);
       if (res.success && res.data) {
@@ -113,7 +119,7 @@ export default function CampaignDetailsPage() {
     } catch (err) {
       console.error(err);
     } finally {
-      setLoading(false);
+      if (showSpinner) setLoading(false);
     }
   };
 
@@ -132,10 +138,37 @@ export default function CampaignDetailsPage() {
   };
 
   useEffect(() => {
-    if (id) {
-      loadDetails();
-    }
+    if (!id) return;
+    void loadDetails(true);
+
+    const refresh = () => {
+      if (document.visibilityState === "visible") void loadDetails(false);
+    };
+    const intervalId = window.setInterval(refresh, 5000);
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
   }, [id]);
+
+  const handleReplaceBanner = async (file?: File) => {
+    if (!details || !file) return;
+    setUploadingBanner(true);
+    try {
+      const res = await (api.campaigns as any).uploadBannerForCampaign(details.id, file);
+      if (!res?.success) throw new Error(res?.message || res?.error || "Không thể cập nhật ảnh banner.");
+      await loadDetails(false);
+      alert("Đã cập nhật ảnh banner. Nếu chiến dịch đang chạy, ảnh mới sẽ được áp dụng ngay.");
+    } catch (err: any) {
+      alert(err?.message || "Không thể cập nhật ảnh banner.");
+    } finally {
+      setUploadingBanner(false);
+    }
+  };
 
   const handleApprove = async () => {
     if (!details) return;
@@ -144,7 +177,7 @@ export default function CampaignDetailsPage() {
       const res = await (api.campaigns as any).approve(details.id);
       if (res.success) {
         alert("Chiến dịch đã được duyệt và chuyển sang trạng thái SCHEDULED (Đã lên lịch) thành công!");
-        loadDetails();
+        void loadDetails(false);
       } else {
         alert("Duyệt thất bại: " + res.error);
       }
@@ -329,8 +362,31 @@ export default function CampaignDetailsPage() {
                       {item.ai_generated ? " AI Generated" : "Chỉnh sửa thủ công"}
                     </span>
                   </div>
+                  {item.content_type === "BANNER" && item.image_url && (
+                    <img
+                      src={item.image_url}
+                      alt={item.title || "Campaign banner"}
+                      className="mb-3 h-40 w-full rounded-xl border border-slate-100 object-cover"
+                    />
+                  )}
                   <h4 className="text-[13px] font-bold text-slate-800 mb-1.5">{item.title}</h4>
                   <p className="text-[12px] leading-6 text-slate-600 whitespace-pre-line">{item.content}</p>
+                  {item.content_type === "BANNER" && (
+                    <label className="mt-3 inline-flex cursor-pointer items-center rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-[11px] font-bold text-indigo-700 transition hover:bg-indigo-100">
+                      {uploadingBanner ? "Đang tải ảnh..." : "Cập nhật ảnh banner từ máy"}
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        className="hidden"
+                        disabled={uploadingBanner}
+                        onChange={(event) => {
+                          const file = event.target.files?.[0];
+                          if (file) void handleReplaceBanner(file);
+                          event.currentTarget.value = "";
+                        }}
+                      />
+                    </label>
+                  )}
                 </div>
               ))}
             </div>
@@ -384,21 +440,68 @@ export default function CampaignDetailsPage() {
           {/* Job Scheduler logs */}
           <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
             <h4 className="text-[12px] font-bold uppercase tracking-wider text-slate-400 mb-3.5"> Tiến trình chạy tự động (Scheduler Log)</h4>
-            <div className="relative border-l border-slate-200 ml-3 pl-4 space-y-4 py-1 text-[12px]">
-              {details.schedules.map((job, idx) => (
-                <div key={idx} className="relative">
-                  <span className={`absolute -left-[21px] top-1.5 h-2.5 w-2.5 rounded-full border border-white ${job.status === 'SUCCESS' ? 'bg-emerald-600' : job.status === 'FAILED' ? 'bg-red-500 animate-ping' : 'bg-slate-300'
-                    }`} />
-                  <div>
-                    <div className="font-bold text-slate-800 leading-tight">{actionLabels[job.action_type] || job.action_type}</div>
-                    <p className="text-[10px] text-slate-400 mt-0.5">Đặt lịch: {job.scheduled_at}</p>
-                    {job.executed_at && (
-                      <p className="text-[10px] text-emerald-600 font-semibold mt-0.5">Đã chạy: {job.executed_at}</p>
-                    )}
+            {(() => {
+              const finished = details.schedules.filter((job) => job.status === "SUCCESS").length;
+              const total = details.schedules.length;
+              const pct = total ? Math.round((finished / total) * 100) : 0;
+              return (
+                <>
+                  <div className="mb-4">
+                    <div className="mb-1 flex items-center justify-between text-[10px] font-bold text-slate-500">
+                      <span>Đã hoàn tất {finished}/{total} tác vụ</span>
+                      <span>{pct}%</span>
+                    </div>
+                    <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                      <div className="h-full rounded-full bg-indigo-600 transition-all duration-500" style={{ width: `${pct}%` }} />
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                  <div className="relative border-l border-slate-200 ml-3 pl-4 space-y-4 py-1 text-[12px]">
+                    {details.schedules.map((job, idx) => {
+                      const label =
+                        job.status === "SUCCESS" ? "Đã xong" :
+                        job.status === "PROCESSING" ? "Đang chạy" :
+                        job.status === "FAILED" ? "Lỗi" :
+                        job.status === "CANCELLED" ? "Đã hủy" : "Chờ chạy";
+                      const dotClass =
+                        job.status === "SUCCESS" ? "bg-emerald-600" :
+                        job.status === "PROCESSING" ? "bg-indigo-600 animate-pulse" :
+                        job.status === "FAILED" ? "bg-red-500" :
+                        job.status === "CANCELLED" ? "bg-slate-400" : "bg-slate-300";
+                      const badgeClass =
+                        job.status === "SUCCESS" ? "bg-emerald-50 text-emerald-700" :
+                        job.status === "PROCESSING" ? "bg-indigo-50 text-indigo-700" :
+                        job.status === "FAILED" ? "bg-red-50 text-red-700" :
+                        "bg-slate-100 text-slate-600";
+
+                      return (
+                        <div key={job.id || idx} className="relative">
+                          <span className={`absolute -left-[21px] top-1.5 h-2.5 w-2.5 rounded-full border border-white ${dotClass}`} />
+                          <div>
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="font-bold text-slate-800 leading-tight">{actionLabels[job.action_type] || job.action_type}</div>
+                              <span className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] font-black ${badgeClass}`}>{label}</span>
+                            </div>
+                            <p className="text-[10px] text-slate-400 mt-0.5">Đặt lịch: {job.scheduled_at}</p>
+                            {job.executed_at && (
+                              <p className="text-[10px] text-emerald-600 font-semibold mt-0.5">Đã chạy: {job.executed_at}</p>
+                            )}
+                            {job.status === "PROCESSING" && (
+                              <p className="text-[10px] text-indigo-600 font-semibold mt-0.5">Worker đang xử lý tác vụ này...</p>
+                            )}
+                            {job.error_message && (
+                              <p className="mt-1 rounded-md bg-red-50 px-2 py-1 text-[10px] text-red-700">{job.error_message}</p>
+                            )}
+                            {job.result?.recipients !== undefined && (
+                              <p className="mt-1 text-[10px] text-slate-500">Đối tượng: {job.result.recipients} · Thành công: {job.result.inserted ?? job.result.sent ?? "-"}</p>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              );
+            })()}
           </div>
         </aside>
       </div>

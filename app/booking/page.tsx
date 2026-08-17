@@ -411,6 +411,7 @@ function BookingContent() {
   const [isApplyingVoucher, setIsApplyingVoucher] = useState(false);
   const [activeVouchers, setActiveVouchers] = useState<any[]>([]);
   const [showVoucherModal, setShowVoucherModal] = useState(false);
+  const [dismissedCampaignPackageId, setDismissedCampaignPackageId] = useState<string | null>(null);
 
   // ── Selection state ──
   const [selectedCategory, setSelectedCategory] = useState<string | null>(() => {
@@ -766,6 +767,9 @@ function BookingContent() {
           code: code.trim(),
           photographerId: photographer?.id,
           bookingValue: estimatedTotal,
+          packageId: matchedPackageId,
+          targetType: "SERVICE",
+          targetId: matchedPackageId ? String(matchedPackageId) : undefined,
           userEmail: email || session?.email
         }),
       });
@@ -789,6 +793,11 @@ function BookingContent() {
   };
 
   const handleRemoveVoucher = () => {
+    if (appliedVoucher?.campaign_id && matchedPackageId) {
+      // User explicitly removed the auto campaign voucher. Do not immediately
+      // auto-apply it again for the same package.
+      setDismissedCampaignPackageId(String(matchedPackageId));
+    }
     setAppliedVoucher(null);
     setVoucherError("");
     setVoucherInput("");
@@ -820,6 +829,11 @@ function BookingContent() {
     loadActiveVouchers();
   }, [photographer?.id, email, session?.email]);
 
+  // A campaign promotion dismissed by the user is only suppressed for the current package.
+  useEffect(() => {
+    setDismissedCampaignPackageId(null);
+  }, [matchedPackageId]);
+
   // Auto-reset voucher if estimated total or photographer changes
   useEffect(() => {
     if (appliedVoucher) {
@@ -831,7 +845,12 @@ function BookingContent() {
   // Tự áp dụng promotion đang ACTIVE của chiến dịch AI.
   // Backend vẫn xác thực lại voucher khi tạo booking nên FE không quyết định giá cuối cùng.
   useEffect(() => {
-    if (!matchedPackageId || estimatedTotal <= 0 || appliedVoucher) return;
+    if (
+      !matchedPackageId ||
+      estimatedTotal <= 0 ||
+      appliedVoucher ||
+      dismissedCampaignPackageId === String(matchedPackageId)
+    ) return;
 
     let active = true;
     const timer = window.setTimeout(async () => {
@@ -875,7 +894,51 @@ function BookingContent() {
       active = false;
       window.clearTimeout(timer);
     };
-  }, [matchedPackageId, estimatedTotal, appliedVoucher]);
+  }, [matchedPackageId, estimatedTotal, appliedVoucher, dismissedCampaignPackageId]);
+
+  // Keep an already-applied campaign promotion honest while this page stays open.
+  // When the campaign ends, is disabled, or no longer targets this package, remove it visually too.
+  useEffect(() => {
+    if (!appliedVoucher?.campaign_id || !matchedPackageId || estimatedTotal <= 0) return;
+
+    let active = true;
+    const verify = async () => {
+      try {
+        const res = await fetch(`${API_URL}/campaigns/promotions/quote`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            targetType: "SERVICE",
+            targetId: String(matchedPackageId),
+            baseAmount: estimatedTotal,
+          }),
+          cache: "no-store",
+        });
+        const result = await res.json().catch(() => ({}));
+        const promotion = result?.data?.promotion;
+        const stillSamePromotion =
+          res.ok &&
+          result?.success &&
+          promotion?.code &&
+          String(promotion.code).toUpperCase() === String(appliedVoucher.code).toUpperCase();
+
+        if (active && !stillSamePromotion) {
+          setAppliedVoucher(null);
+          setVoucherInput("");
+          setVoucherError("Ưu đãi chiến dịch đã kết thúc hoặc không áp dụng cho gói này.");
+        }
+      } catch {
+        // Network hiccup must not erase a valid voucher; backend validates again on submit.
+      }
+    };
+
+    const intervalId = window.setInterval(() => void verify(), 10000);
+    void verify();
+    return () => {
+      active = false;
+      window.clearInterval(intervalId);
+    };
+  }, [API_URL, appliedVoucher?.campaign_id, appliedVoucher?.code, matchedPackageId, estimatedTotal]);
 
   const handleCalPrev = () => {
     if (calMonth === 0) { setCalMonth(11); setCalYear((y) => y - 1); }

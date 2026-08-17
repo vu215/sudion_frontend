@@ -45,11 +45,58 @@ async function request(path: string, options: RequestInit = {}) {
   return data;
 }
 
+async function uploadBannerFile(file: File, campaignId?: string | number) {
+  const token =
+    typeof window !== "undefined"
+      ? window.localStorage.getItem("sudion_token")
+      : null;
+  const form = new FormData();
+  form.append("file", file);
+
+  const path = campaignId
+    ? `/admin/campaigns/${campaignId}/banner`
+    : "/admin/campaigns/upload-banner";
+
+  const response = await fetch(`${API_URL}${path}`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    body: form,
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data?.message || data?.error || `Upload ảnh lỗi ${response.status}`);
+  }
+  return data;
+}
+
 function normalizeCampaignType(value: unknown) {
   const type = String(value || "service").toLowerCase();
   if (type === "product") return "product";
   if (type === "hybrid" || type === "mixed") return "hybrid";
   return "service";
+}
+
+function asTime(value: unknown) {
+  const time = new Date(String(value || "")).getTime();
+  return Number.isFinite(time) ? time : NaN;
+}
+
+function clampScheduleValue(value: unknown, startAt: string, endAt: string, fallback: string) {
+  const startMs = asTime(startAt);
+  const endMs = asTime(endAt);
+  const valueMs = asTime(value);
+
+  if (!Number.isFinite(valueMs) || !Number.isFinite(startMs) || !Number.isFinite(endMs)) {
+    return fallback;
+  }
+
+  return valueMs < startMs || valueMs > endMs ? fallback : String(value);
+}
+
+function replacePercentages(value: unknown, discountValue: number) {
+  const text = String(value || "");
+  if (!(discountValue > 0)) return text;
+  return text.replace(/\b\d{1,3}(?:[.,]\d+)?\s*%/g, `${discountValue}%`);
 }
 
 function previewSchedules(plan: AnyObject) {
@@ -235,13 +282,23 @@ function mergeUiEditsIntoPlan(basePlan: AnyObject, payload: AnyObject) {
       return {
         ...original,
         contentType: item.content_type || original.contentType || "IN_APP_POST",
-        title: item.title ?? original.title ?? "",
-        body: item.content ?? original.body ?? "",
+        title: replacePercentages(item.title ?? original.title ?? "", discountValue),
+        body: replacePercentages(item.content ?? original.body ?? "", discountValue),
         ctaText: item.cta_text ?? original.ctaText ?? "",
         ctaUrl: item.cta_url ?? original.ctaUrl ?? "",
         imageUrl: item.image_url ?? original.imageUrl ?? "",
-        publishAt: item.publish_at || original.publishAt || startAt,
-        removeAt: item.remove_at || original.removeAt || endAt,
+        publishAt: clampScheduleValue(
+          item.publish_at || original.publishAt || startAt,
+          startAt,
+          endAt,
+          startAt
+        ),
+        removeAt: clampScheduleValue(
+          item.remove_at || original.removeAt || endAt,
+          startAt,
+          endAt,
+          endAt
+        ),
       };
     });
   }
@@ -251,8 +308,8 @@ function mergeUiEditsIntoPlan(basePlan: AnyObject, payload: AnyObject) {
       plan.promotions[0] = {
         ...plan.promotions[0],
         discountValue,
-        startAt: plan.promotions[0].startAt || startAt,
-        endAt: plan.promotions[0].endAt || endAt,
+        startAt,
+        endAt,
       };
     } else {
       plan.promotions.push({
@@ -411,6 +468,14 @@ export const api = {
     async getReport(id: string | number) {
       const res = await request(`/admin/campaigns/${id}/report`);
       return res?.data ? { ...res, data: reportToUi(res.data) } : res;
+    },
+
+    async uploadBanner(file: File) {
+      return uploadBannerFile(file);
+    },
+
+    async uploadBannerForCampaign(id: string | number, file: File) {
+      return uploadBannerFile(file, id);
     },
 
     async runSchedulerOnce() {
