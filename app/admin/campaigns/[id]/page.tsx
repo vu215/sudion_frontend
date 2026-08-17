@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import AdminLayout from "../../_components/admin-layout";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { api } from "@/lib/api";
+import { api } from "../_campaign-api";
 
 type CampaignDetails = {
   id: string;
@@ -13,11 +13,14 @@ type CampaignDetails = {
   campaign_type: "service" | "product" | "hybrid";
   start_at: string;
   end_at: string;
-  status: "DRAFT" | "AI_GENERATED" | "PENDING_APPROVAL" | "APPROVED" | "SCHEDULED" | "ACTIVE" | "PAUSED" | "COMPLETED" | "CANCELLED" | "FAILED";
+  status: "DRAFT" | "AI_GENERATED" | "PENDING_APPROVAL" | "REJECTED" | "APPROVED" | "SCHEDULED" | "ACTIVE" | "PAUSED" | "COMPLETED" | "CANCELLED" | "FAILED";
   created_by: string;
   approved_by: string | null;
   approved_at: string | null;
   created_at: string;
+  predicted_reach?: number;
+  predicted_clicks?: number;
+  predicted_revenue?: number;
   contents: Array<{
     content_type: string;
     title: string;
@@ -62,6 +65,7 @@ const statusConfig: Record<CampaignDetails["status"], { label: string; bg: strin
   DRAFT: { label: "Bản nháp", bg: "bg-slate-100", text: "text-slate-700" },
   AI_GENERATED: { label: "AI Đề xuất", bg: "bg-indigo-50", text: "text-indigo-700" },
   PENDING_APPROVAL: { label: "Chờ duyệt", bg: "bg-amber-50", text: "text-amber-700" },
+  REJECTED: { label: "Bị từ chối", bg: "bg-red-50", text: "text-red-700" },
   APPROVED: { label: "Đã duyệt", bg: "bg-emerald-50", text: "text-emerald-700" },
   SCHEDULED: { label: "Đã lên lịch", bg: "bg-blue-50", text: "text-blue-700" },
   ACTIVE: { label: "Đang chạy", bg: "bg-pink-50 text-pink-700 animate-pulse", text: "text-pink-700" },
@@ -74,6 +78,7 @@ const statusConfig: Record<CampaignDetails["status"], { label: string; bg: strin
 const actionLabels: Record<string, string> = {
   PUBLISH_BANNER: "Đăng Banner Trang Chủ",
   PUBLISH_POST: "Đăng Bài Viết Blog",
+  PUBLISH_CONTENT: "Đăng Nội dung Nội bộ",
   ACTIVATE_DISCOUNT: "Kích Hoạt Mã Giảm Giá",
   SEND_NOTIFICATION: "Gửi Thông Báo Hệ Thống",
   SEND_EMAIL: "Gửi Email Quảng Bá",
@@ -273,11 +278,11 @@ export default function CampaignDetailsPage() {
 
               <div className="grid gap-5 sm:grid-cols-3">
                 {[
-                  { label: "Lượt hiển thị (Views)", actual: details.metrics.views, projected: 12000 },
-                  { label: "Lượt tương tác (Clicks)", actual: details.metrics.clicks, projected: 1500 },
-                  { label: "Doanh thu đem lại", actual: details.metrics.revenue, projected: 240000000, money: true }
+                  { label: "Lượt hiển thị (Views)", actual: details.metrics.views, projected: Number(details.predicted_reach || 0) },
+                  { label: "Lượt tương tác (Clicks)", actual: details.metrics.clicks, projected: Number(details.predicted_clicks || 0) },
+                  { label: "Doanh thu đem lại", actual: details.metrics.revenue, projected: Number(details.predicted_revenue || 0), money: true }
                 ].map((item, index) => {
-                  const pct = Math.min(Math.round((item.actual / item.projected) * 100), 180);
+                  const pct = item.projected > 0 ? Math.min(Math.round((item.actual / item.projected) * 100), 180) : 0;
                   return (
                     <div key={index} className="rounded-xl border border-slate-100 p-4 bg-slate-50/20">
                       <span className="text-[11px] text-slate-500 font-medium">{item.label}</span>

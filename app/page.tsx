@@ -918,19 +918,83 @@ function HeroFieldIcon({ type }: { type: "location" | "camera" | "calendar" }) {
 }
 
 function PromoBanner() {
+  type CampaignPromoSlide = (typeof promoSlides)[number] & { campaignId?: number };
   const [activePromo, setActivePromo] = useState(0);
-  const promo = promoSlides[activePromo];
+  const [campaignPromos, setCampaignPromos] = useState<CampaignPromoSlide[]>([]);
+
+  const allPromoSlides = useMemo<CampaignPromoSlide[]>(
+    () => [...campaignPromos, ...promoSlides],
+    [campaignPromos]
+  );
+  const promo = allPromoSlides[activePromo] || allPromoSlides[0];
 
   useEffect(() => {
+    let active = true;
+
+    (async () => {
+      try {
+        const res = await fetch(`${API_URL}/campaigns/active-content?type=BANNER`, {
+          cache: "no-store",
+        });
+        const result = await res.json().catch(() => ({}));
+        if (!active || !res.ok || !result?.success || !Array.isArray(result.data)) return;
+
+        const mapped: CampaignPromoSlide[] = result.data
+          .filter((item: any) => item?.image_url)
+          .map((item: any) => ({
+            eyebrow: String(item.campaign_name || "CHIẾN DỊCH SUDION").toUpperCase(),
+            title: String(item.title || "ƯU ĐÃI MỚI"),
+            description: String(item.body || "Khám phá chương trình ưu đãi mới từ Sudion Studio."),
+            image: resolveAssetUrl(item.image_url),
+            href: String(item.cta_url || "/"),
+            campaignId: Number(item.campaign_id || 0) || undefined,
+          }));
+
+        setCampaignPromos(mapped);
+
+        // Ghi nhận một lượt hiển thị cho mỗi campaign banner khi trang chủ thực sự tải banner.
+        for (const campaignId of [...new Set(mapped.map((item) => item.campaignId).filter(Boolean))]) {
+          fetch(`${API_URL}/campaigns/${campaignId}/track`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ metric: "view" }),
+            keepalive: true,
+          }).catch(() => undefined);
+        }
+      } catch (err) {
+        console.warn("Không thể tải banner chiến dịch:", err);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!allPromoSlides.length) return;
+    if (activePromo >= allPromoSlides.length) setActivePromo(0);
     const timer = window.setInterval(() => {
-      setActivePromo((current) => (current + 1) % promoSlides.length);
+      setActivePromo((current) => (current + 1) % allPromoSlides.length);
     }, 3000);
 
     return () => window.clearInterval(timer);
-  }, []);
+  }, [allPromoSlides.length, activePromo]);
+
+  if (!promo) return null;
 
   const movePromo = (direction: number) => {
-    setActivePromo((current) => (current + direction + promoSlides.length) % promoSlides.length);
+    setActivePromo((current) => (current + direction + allPromoSlides.length) % allPromoSlides.length);
+  };
+
+  const trackCampaignClick = (campaignId?: number) => {
+    if (!campaignId) return;
+    fetch(`${API_URL}/campaigns/${campaignId}/track`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ metric: "click" }),
+      keepalive: true,
+    }).catch(() => undefined);
   };
 
   return (
@@ -946,9 +1010,9 @@ function PromoBanner() {
           maskImage: "linear-gradient(to right, transparent 0%, rgba(0,0,0,.25) 14%, #000 34%)",
         }}
       >
-        {promoSlides.map((slide, index) => (
+        {allPromoSlides.map((slide, index) => (
           <img
-            key={slide.image}
+            key={`${slide.campaignId || "static"}-${slide.image}-${index}`}
             src={slide.image}
             alt=""
             aria-hidden={activePromo !== index}
@@ -974,6 +1038,7 @@ function PromoBanner() {
             </div>
             <Link
               href={promo.href}
+              onClick={() => trackCampaignClick(promo.campaignId)}
               className="shrink-0 rounded-full border border-[#ff8d28] bg-[#ff8d28] px-7 py-3 text-xs font-extrabold text-white shadow-md shadow-[#ff8d28]/30 transition hover:-translate-y-0.5 hover:bg-[#ed7c18]"
             >
               Xem ưu đãi ngay
@@ -1002,10 +1067,10 @@ function PromoBanner() {
       </div>
 
       <div className="absolute bottom-3 right-5 z-20 flex items-center gap-2">
-        {promoSlides.map((slide, index) => (
+        {allPromoSlides.map((slide, index) => (
           <button
             type="button"
-            key={slide.title}
+            key={`${slide.campaignId || "static"}-${slide.title}-${index}`}
             onClick={() => setActivePromo(index)}
             aria-label={`Xem khuyến mãi ${index + 1}`}
             aria-current={activePromo === index}

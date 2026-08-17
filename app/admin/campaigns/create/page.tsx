@@ -4,7 +4,7 @@ import { useState, useMemo, Suspense } from "react";
 import AdminLayout from "../../_components/admin-layout";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { api } from "@/lib/api";
+import { api } from "../_campaign-api";
 
 type CampaignPlan = {
   name: string;
@@ -26,6 +26,11 @@ type CampaignPlan = {
     content_type: string;
     title: string;
     content: string;
+    cta_text?: string;
+    cta_url?: string;
+    image_url?: string;
+    publish_at?: string;
+    remove_at?: string;
   }>;
   schedules: Array<{
     action_type: string;
@@ -81,6 +86,10 @@ function CreateCampaignForm() {
 
   const handleSave = async (status: "DRAFT" | "SCHEDULED") => {
     if (!isManual && !plan) return;
+    if (status === "SCHEDULED" && plan?.contents?.some((item) => item.content_type === "BANNER" && !item.image_url?.trim())) {
+      alert("Banner cần có Image URL trước khi phê duyệt & lên lịch.");
+      return;
+    }
     setSubmitting(true);
     try {
       const payload = {
@@ -91,6 +100,9 @@ function CreateCampaignForm() {
         end_at: endAt,
         discount_value: discountValue,
         status,
+        sourceType: isManual ? "MANUAL" : "AI",
+        prompt,
+        plan,
       };
 
       const res = await (api.campaigns as any).create(payload);
@@ -276,8 +288,94 @@ function CreateCampaignForm() {
                           </span>
                           <span className="text-[10px] text-slate-400 font-semibold">AI Generated</span>
                         </div>
-                        <h4 className="text-[13px] font-bold text-slate-800 mb-1.5">{item.title}</h4>
-                        <p className="text-[12px] leading-6 text-slate-600 whitespace-pre-line">{item.content}</p>
+                        <div className="space-y-3">
+                          <div>
+                            <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Tiêu đề</label>
+                            <input
+                              value={item.title}
+                              onChange={(e) => setPlan((prev) => prev ? ({
+                                ...prev,
+                                contents: prev.contents.map((content, idx) => idx === index ? { ...content, title: e.target.value } : content),
+                              }) : prev)}
+                              className="w-full h-9 px-3 rounded-lg border border-slate-200 bg-white text-[12px] font-bold text-slate-800 outline-none focus:border-indigo-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Nội dung</label>
+                            <textarea
+                              value={item.content}
+                              onChange={(e) => setPlan((prev) => prev ? ({
+                                ...prev,
+                                contents: prev.contents.map((content, idx) => idx === index ? { ...content, content: e.target.value } : content),
+                              }) : prev)}
+                              className="w-full min-h-[110px] p-3 rounded-lg border border-slate-200 bg-white text-[12px] leading-6 text-slate-600 outline-none focus:border-indigo-500 resize-y"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Ảnh / Banner URL</label>
+                            <input
+                              value={item.image_url || ""}
+                              placeholder={item.content_type === "BANNER" ? "Bắt buộc với BANNER" : "Tùy chọn"}
+                              onChange={(e) => setPlan((prev) => prev ? ({
+                                ...prev,
+                                contents: prev.contents.map((content, idx) => idx === index ? { ...content, image_url: e.target.value } : content),
+                              }) : prev)}
+                              className="w-full h-9 px-3 rounded-lg border border-slate-200 bg-white text-[12px] outline-none focus:border-indigo-500"
+                            />
+                          </div>
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            <div>
+                              <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">CTA</label>
+                              <input
+                                value={item.cta_text || ""}
+                                placeholder="VD: Đặt lịch ngay"
+                                onChange={(e) => setPlan((prev) => prev ? ({
+                                  ...prev,
+                                  contents: prev.contents.map((content, idx) => idx === index ? { ...content, cta_text: e.target.value } : content),
+                                }) : prev)}
+                                className="w-full h-9 px-3 rounded-lg border border-slate-200 bg-white text-[12px] outline-none focus:border-indigo-500"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Đường dẫn CTA</label>
+                              <input
+                                value={item.cta_url || ""}
+                                placeholder="VD: /photographer"
+                                onChange={(e) => setPlan((prev) => prev ? ({
+                                  ...prev,
+                                  contents: prev.contents.map((content, idx) => idx === index ? { ...content, cta_url: e.target.value } : content),
+                                }) : prev)}
+                                className="w-full h-9 px-3 rounded-lg border border-slate-200 bg-white text-[12px] outline-none focus:border-indigo-500"
+                              />
+                            </div>
+                          </div>
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            <div>
+                              <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Giờ đăng</label>
+                              <input
+                                type="datetime-local"
+                                value={(item.publish_at || "").replace(" ", "T").slice(0, 16)}
+                                onChange={(e) => setPlan((prev) => prev ? ({
+                                  ...prev,
+                                  contents: prev.contents.map((content, idx) => idx === index ? { ...content, publish_at: e.target.value } : content),
+                                }) : prev)}
+                                className="w-full h-9 px-3 rounded-lg border border-slate-200 bg-white text-[12px] outline-none focus:border-indigo-500"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Giờ gỡ</label>
+                              <input
+                                type="datetime-local"
+                                value={(item.remove_at || "").replace(" ", "T").slice(0, 16)}
+                                onChange={(e) => setPlan((prev) => prev ? ({
+                                  ...prev,
+                                  contents: prev.contents.map((content, idx) => idx === index ? { ...content, remove_at: e.target.value } : content),
+                                }) : prev)}
+                                className="w-full h-9 px-3 rounded-lg border border-slate-200 bg-white text-[12px] outline-none focus:border-indigo-500"
+                              />
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     ))}
                   </div>
