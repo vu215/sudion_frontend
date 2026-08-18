@@ -161,9 +161,31 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     [API_URL]
   );
 
-  // Load notifications on mount
+  // Load immediately, then refresh in the background so campaign/system notifications
+  // appear while the user keeps the page open.
   useEffect(() => {
     void loadNotifications();
+
+    const intervalId = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        void loadNotifications();
+      }
+    }, 8000);
+
+    const refresh = () => {
+      if (document.visibilityState === "visible") {
+        void loadNotifications();
+      }
+    };
+
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
   }, [loadNotifications]);
 
   const unreadCount = notifications.filter((n) => !n.is_read).length;

@@ -56,6 +56,47 @@ function CreateCampaignForm() {
   const [discountValue, setDiscountValue] = useState(0);
   const [campaignType, setCampaignType] = useState("service");
   const [submitting, setSubmitting] = useState(false);
+  const [uploadingBannerIndex, setUploadingBannerIndex] = useState<number | null>(null);
+
+  const previewSchedules = useMemo(() => {
+    if (!plan) return [];
+
+    const jobs: Array<{ action_type: string; scheduled_at: string }> = [];
+    const startMs = new Date(startAt).getTime();
+    const endMs = new Date(endAt).getTime();
+
+    const clamp = (value: string | undefined, fallback: string) => {
+      const valueMs = new Date(value || "").getTime();
+      if (!Number.isFinite(valueMs) || !Number.isFinite(startMs) || !Number.isFinite(endMs)) {
+        return fallback;
+      }
+      return valueMs < startMs || valueMs > endMs ? fallback : String(value);
+    };
+
+    for (const content of plan.contents || []) {
+      const type = String(content.content_type || "IN_APP_POST").toUpperCase();
+      const publishAt = clamp(content.publish_at, startAt);
+      const removeAt = clamp(content.remove_at, endAt);
+
+      if (type === "BANNER") {
+        jobs.push({ action_type: "PUBLISH_BANNER", scheduled_at: publishAt });
+        jobs.push({ action_type: "REMOVE_BANNER", scheduled_at: removeAt });
+      } else if (type === "NOTIFICATION") {
+        jobs.push({ action_type: "SEND_NOTIFICATION", scheduled_at: publishAt });
+      } else if (type === "EMAIL") {
+        jobs.push({ action_type: "SEND_EMAIL", scheduled_at: publishAt });
+      } else {
+        jobs.push({ action_type: "PUBLISH_CONTENT", scheduled_at: publishAt });
+      }
+    }
+
+    if (discountValue > 0) {
+      jobs.push({ action_type: "ACTIVATE_DISCOUNT", scheduled_at: startAt });
+      jobs.push({ action_type: "DEACTIVATE_DISCOUNT", scheduled_at: endAt });
+    }
+
+    return jobs.filter((job) => job.scheduled_at);
+  }, [plan, startAt, endAt, discountValue]);
 
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,6 +122,28 @@ function CreateCampaignForm() {
       setError("Đã xảy ra lỗi khi gọi AI lập kế hoạch.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleBannerUpload = async (index: number, file?: File | null) => {
+    if (!file) return;
+    setUploadingBannerIndex(index);
+    setError("");
+    try {
+      const res = await (api.campaigns as any).uploadBanner(file);
+      const imageUrl = String(res?.data?.image_url || res?.data?.url || "");
+      if (!imageUrl) throw new Error("Backend không trả về URL ảnh.");
+      setPlan((prev) => prev ? ({
+        ...prev,
+        contents: prev.contents.map((content, idx) =>
+          idx === index ? { ...content, image_url: imageUrl } : content
+        ),
+      }) : prev);
+    } catch (err: any) {
+      console.error(err);
+      setError(err?.message || "Không thể upload ảnh banner.");
+    } finally {
+      setUploadingBannerIndex(null);
     }
   };
 
@@ -244,7 +307,19 @@ function CreateCampaignForm() {
                       <input
                         type="number"
                         value={discountValue}
-                        onChange={(e) => setDiscountValue(Number(e.target.value))}
+                        onChange={(e) => {
+                          const nextValue = Number(e.target.value);
+                          setDiscountValue(nextValue);
+                          setPlan((prev) => prev ? ({
+                            ...prev,
+                            discount_value: nextValue,
+                            contents: prev.contents.map((content) => ({
+                              ...content,
+                              title: String(content.title || "").replace(/\b\d{1,3}(?:[.,]\d+)?\s*%/g, `${nextValue}%`),
+                              content: String(content.content || "").replace(/\b\d{1,3}(?:[.,]\d+)?\s*%/g, `${nextValue}%`),
+                            })),
+                          }) : prev);
+                        }}
                         className="w-full h-10 pl-3.5 pr-8 rounded-xl border border-slate-200 text-[13px] font-semibold text-slate-800 focus:border-indigo-500 outline-none"
                       />
                       <span className="absolute right-3.5 top-2.5 text-[13px] font-bold text-slate-400">
@@ -312,16 +387,39 @@ function CreateCampaignForm() {
                             />
                           </div>
                           <div>
-                            <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Ảnh / Banner URL</label>
-                            <input
-                              value={item.image_url || ""}
-                              placeholder={item.content_type === "BANNER" ? "Bắt buộc với BANNER" : "Tùy chọn"}
-                              onChange={(e) => setPlan((prev) => prev ? ({
-                                ...prev,
-                                contents: prev.contents.map((content, idx) => idx === index ? { ...content, image_url: e.target.value } : content),
-                              }) : prev)}
-                              className="w-full h-9 px-3 rounded-lg border border-slate-200 bg-white text-[12px] outline-none focus:border-indigo-500"
-                            />
+                            <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Ảnh / Banner</label>
+                            <div className="flex flex-col gap-2 sm:flex-row">
+                              <input
+                                value={item.image_url || ""}
+                                placeholder={item.content_type === "BANNER" ? "URL ảnh hoặc upload từ máy" : "Tùy chọn"}
+                                onChange={(e) => setPlan((prev) => prev ? ({
+                                  ...prev,
+                                  contents: prev.contents.map((content, idx) => idx === index ? { ...content, image_url: e.target.value } : content),
+                                }) : prev)}
+                                className="min-w-0 flex-1 h-9 px-3 rounded-lg border border-slate-200 bg-white text-[12px] outline-none focus:border-indigo-500"
+                              />
+                              {item.content_type === "BANNER" && (
+                                <label className="inline-flex h-9 cursor-pointer items-center justify-center rounded-lg bg-slate-900 px-3 text-[11px] font-bold text-white hover:bg-indigo-600 transition">
+                                  {uploadingBannerIndex === index ? "Đang upload..." : "Chọn ảnh từ máy"}
+                                  <input
+                                    type="file"
+                                    accept="image/jpeg,image/png,image/webp"
+                                    className="hidden"
+                                    disabled={uploadingBannerIndex !== null}
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0] || null;
+                                      void handleBannerUpload(index, file);
+                                      e.currentTarget.value = "";
+                                    }}
+                                  />
+                                </label>
+                              )}
+                            </div>
+                            {item.image_url && item.content_type === "BANNER" && (
+                              <div className="mt-2 overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
+                                <img src={item.image_url} alt="Banner preview" className="h-32 w-full object-cover" />
+                              </div>
+                            )}
                           </div>
                           <div className="grid gap-3 sm:grid-cols-2">
                             <div>
@@ -389,7 +487,7 @@ function CreateCampaignForm() {
                     Lịch trình công việc tự động (Job Schedules)
                   </h3>
                   <div className="relative border-l border-slate-200 ml-3.5 pl-5 space-y-5 py-2">
-                    {plan.schedules.map((job, idx) => (
+                    {previewSchedules.map((job, idx) => (
                       <div key={idx} className="relative">
                         <span className="absolute -left-[27px] top-1.5 h-3.5 w-3.5 rounded-full border-2 border-white bg-indigo-600 shadow-sm" />
                         <div>

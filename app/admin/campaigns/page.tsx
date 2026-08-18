@@ -46,8 +46,8 @@ export default function CampaignsListPage() {
   const [filterStatus, setFilterStatus] = useState<string>("ALL");
   const [searchTerm, setSearchTerm] = useState("");
 
-  const loadCampaigns = async () => {
-    setLoading(true);
+  const loadCampaigns = async (showSpinner = true) => {
+    if (showSpinner) setLoading(true);
     try {
       const res = await (api.campaigns as any).getAll();
       if (res.success && res.data) {
@@ -56,12 +56,23 @@ export default function CampaignsListPage() {
     } catch (err) {
       console.error(err);
     } finally {
-      setLoading(false);
+      if (showSpinner) setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadCampaigns();
+    void loadCampaigns(true);
+    const refresh = () => {
+      if (document.visibilityState === "visible") void loadCampaigns(false);
+    };
+    const id = window.setInterval(refresh, 5000);
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      window.clearInterval(id);
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
   }, []);
 
   const handleDelete = async (id: string, e: React.MouseEvent) => {
@@ -71,7 +82,7 @@ export default function CampaignsListPage() {
     try {
       const res = await (api.campaigns as any).delete(id);
       if (res.success) {
-        loadCampaigns();
+        void loadCampaigns(false);
       }
     } catch (err) {
       console.error(err);
