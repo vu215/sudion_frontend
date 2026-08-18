@@ -56,7 +56,7 @@ function CreateCampaignForm() {
   const [discountValue, setDiscountValue] = useState(0);
   const [campaignType, setCampaignType] = useState("service");
   const [submitting, setSubmitting] = useState(false);
-  const [uploadingBannerIndex, setUploadingBannerIndex] = useState<number | null>(null);
+  const [uploadingImageIndex, setUploadingImageIndex] = useState<number | null>(null);
 
   const previewSchedules = useMemo(() => {
     if (!plan) return [];
@@ -125,25 +125,51 @@ function CreateCampaignForm() {
     }
   };
 
-  const handleBannerUpload = async (index: number, file?: File | null) => {
+  const setContentImage = (index: number, imageUrl: string) => {
+    setPlan((prev) => {
+      if (!prev) return prev;
+      const selectedType = String(prev.contents[index]?.content_type || "").toUpperCase();
+
+      return {
+        ...prev,
+        contents: prev.contents.map((content, idx) => {
+          if (idx === index) return { ...content, image_url: imageUrl };
+
+          // Một lần upload banner là đủ cho cả HERO + email. Nếu Email chưa có
+          // ảnh riêng thì tự kế thừa ảnh banner; ảnh email riêng đã chọn sẽ giữ nguyên.
+          if (
+            selectedType === "BANNER" &&
+            String(content.content_type || "").toUpperCase() === "EMAIL" &&
+            !String(content.image_url || "").trim()
+          ) {
+            return { ...content, image_url: imageUrl };
+          }
+
+          return content;
+        }),
+      };
+    });
+  };
+
+  const handleContentImageUpload = async (
+    index: number,
+    file?: File | null
+  ) => {
     if (!file) return;
-    setUploadingBannerIndex(index);
+    setUploadingImageIndex(index);
     setError("");
     try {
+      // Endpoint upload-banner thực chất lưu media vào media_assets và trả URL.
+      // URL này dùng được cho cả BANNER lẫn EMAIL content.
       const res = await (api.campaigns as any).uploadBanner(file);
       const imageUrl = String(res?.data?.image_url || res?.data?.url || "");
       if (!imageUrl) throw new Error("Backend không trả về URL ảnh.");
-      setPlan((prev) => prev ? ({
-        ...prev,
-        contents: prev.contents.map((content, idx) =>
-          idx === index ? { ...content, image_url: imageUrl } : content
-        ),
-      }) : prev);
+      setContentImage(index, imageUrl);
     } catch (err: any) {
       console.error(err);
-      setError(err?.message || "Không thể upload ảnh banner.");
+      setError(err?.message || "Không thể upload ảnh chiến dịch.");
     } finally {
-      setUploadingBannerIndex(null);
+      setUploadingImageIndex(null);
     }
   };
 
@@ -391,34 +417,44 @@ function CreateCampaignForm() {
                             <div className="flex flex-col gap-2 sm:flex-row">
                               <input
                                 value={item.image_url || ""}
-                                placeholder={item.content_type === "BANNER" ? "URL ảnh hoặc upload từ máy" : "Tùy chọn"}
-                                onChange={(e) => setPlan((prev) => prev ? ({
-                                  ...prev,
-                                  contents: prev.contents.map((content, idx) => idx === index ? { ...content, image_url: e.target.value } : content),
-                                }) : prev)}
+                                placeholder={["BANNER", "EMAIL"].includes(String(item.content_type).toUpperCase()) ? "URL ảnh hoặc upload từ máy" : "Tùy chọn"}
+                                onChange={(e) => setContentImage(index, e.target.value)}
                                 className="min-w-0 flex-1 h-9 px-3 rounded-lg border border-slate-200 bg-white text-[12px] outline-none focus:border-indigo-500"
                               />
-                              {item.content_type === "BANNER" && (
+                              {["BANNER", "EMAIL"].includes(String(item.content_type).toUpperCase()) && (
                                 <label className="inline-flex h-9 cursor-pointer items-center justify-center rounded-lg bg-slate-900 px-3 text-[11px] font-bold text-white hover:bg-indigo-600 transition">
-                                  {uploadingBannerIndex === index ? "Đang upload..." : "Chọn ảnh từ máy"}
+                                  {uploadingImageIndex === index
+                                    ? "Đang upload..."
+                                    : String(item.content_type).toUpperCase() === "EMAIL"
+                                      ? "Chọn ảnh email từ máy"
+                                      : "Chọn ảnh banner từ máy"}
                                   <input
                                     type="file"
                                     accept="image/jpeg,image/png,image/webp"
                                     className="hidden"
-                                    disabled={uploadingBannerIndex !== null}
+                                    disabled={uploadingImageIndex !== null}
                                     onChange={(e) => {
                                       const file = e.target.files?.[0] || null;
-                                      void handleBannerUpload(index, file);
+                                      void handleContentImageUpload(index, file);
                                       e.currentTarget.value = "";
                                     }}
                                   />
                                 </label>
                               )}
                             </div>
-                            {item.image_url && item.content_type === "BANNER" && (
+                            {item.image_url && ["BANNER", "EMAIL"].includes(String(item.content_type).toUpperCase()) && (
                               <div className="mt-2 overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
-                                <img src={item.image_url} alt="Banner preview" className="h-32 w-full object-cover" />
+                                <img
+                                  src={item.image_url}
+                                  alt={String(item.content_type).toUpperCase() === "EMAIL" ? "Email preview" : "Banner preview"}
+                                  className="h-32 w-full object-cover"
+                                />
                               </div>
+                            )}
+                            {String(item.content_type).toUpperCase() === "BANNER" && (
+                              <p className="mt-1.5 text-[10px] leading-4 text-slate-400">
+                                Ảnh banner sẽ tự dùng cho Email nếu Email chưa chọn ảnh riêng.
+                              </p>
                             )}
                           </div>
                           <div className="grid gap-3 sm:grid-cols-2">

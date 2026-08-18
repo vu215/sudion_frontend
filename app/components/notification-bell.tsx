@@ -31,6 +31,12 @@ export function NotificationBell() {
 
   const getNotificationIcon = (type: NotificationType) => {
     switch (type) {
+      case "campaign":
+        return (
+          <svg className="w-4 h-4 text-[#ff8d28]" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M13 2 4.5 13H11l-1 9L19.5 11H13l0-9Z" />
+          </svg>
+        );
       case "booking":
         return (
           <svg className="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 24 24">

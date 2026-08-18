@@ -1023,39 +1023,19 @@ function HeroFieldIcon({ type }: { type: "location" | "camera" | "calendar" }) {
 
 function PromoBanner() {
   const [activePromo, setActivePromo] = useState(0);
-  const [hasActiveCampaign, setHasActiveCampaign] = useState(false);
   const promo = promoSlides[activePromo] || promoSlides[0];
 
+  // Campaign chỉ thay thế HERO lớn phía trên. Promo section này là một khu vực
+  // độc lập nên vẫn phải hiển thị trong suốt thời gian campaign chạy.
   useEffect(() => {
-    let mounted = true;
-    const checkCampaign = async () => {
-      try {
-        const res = await fetch(`${API_URL}/campaigns/active-content?type=BANNER`, { cache: "no-store" });
-        const result = await res.json().catch(() => ({}));
-        if (mounted) setHasActiveCampaign(Boolean(res.ok && result?.success && Array.isArray(result.data) && result.data.length));
-      } catch {
-        if (mounted) setHasActiveCampaign(false);
-      }
-    };
-    void checkCampaign();
-    const id = window.setInterval(() => void checkCampaign(), 10000);
-    return () => {
-      mounted = false;
-      window.clearInterval(id);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (hasActiveCampaign || promoSlides.length <= 1) return;
+    if (promoSlides.length <= 1) return;
     const timer = window.setInterval(() => {
       setActivePromo((current) => (current + 1) % promoSlides.length);
     }, 3000);
     return () => window.clearInterval(timer);
-  }, [hasActiveCampaign]);
+  }, []);
 
-  // Campaign BANNER takes over the large Hero above. Hide this legacy promo carousel
-  // temporarily so the campaign is the single prominent homepage banner.
-  if (hasActiveCampaign || !promo) return null;
+  if (!promo) return null;
 
   const movePromo = (direction: number) => {
     setActivePromo((current) => (current + direction + promoSlides.length) % promoSlides.length);

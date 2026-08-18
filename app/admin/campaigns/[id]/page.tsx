@@ -362,12 +362,17 @@ export default function CampaignDetailsPage() {
                       {item.ai_generated ? " AI Generated" : "Chỉnh sửa thủ công"}
                     </span>
                   </div>
-                  {item.content_type === "BANNER" && item.image_url && (
-                    <img
-                      src={item.image_url}
-                      alt={item.title || "Campaign banner"}
-                      className="mb-3 h-40 w-full rounded-xl border border-slate-100 object-cover"
-                    />
+                  {["BANNER", "EMAIL"].includes(String(item.content_type).toUpperCase()) && item.image_url && (
+                    <div className="mb-3">
+                      <img
+                        src={item.image_url}
+                        alt={item.title || (String(item.content_type).toUpperCase() === "EMAIL" ? "Campaign email" : "Campaign banner")}
+                        className="h-40 w-full rounded-xl border border-slate-100 object-cover"
+                      />
+                      {String(item.content_type).toUpperCase() === "EMAIL" && (
+                        <p className="mt-1.5 text-[10px] text-slate-400">Ảnh được nhúng vào template Email Studion.</p>
+                      )}
+                    </div>
                   )}
                   <h4 className="text-[13px] font-bold text-slate-800 mb-1.5">{item.title}</h4>
                   <p className="text-[12px] leading-6 text-slate-600 whitespace-pre-line">{item.content}</p>
