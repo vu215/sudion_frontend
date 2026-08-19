@@ -289,12 +289,55 @@ export const api = {
   settings: {
     getAll: () => request('/admin/settings'),
     getByKey: (key: string) => request(`/admin/settings/${key}`),
+<<<<<<< Updated upstream
     getByCategory: (category: string) => request(`/admin/settings/category/${category}`),
     getPaymentSettings: () => request('/admin/settings/payment'),
     update: (key: string, value: any, description?: string, category?: string, value_type?: string) =>
       request(`/admin/settings/${key}`, {
         method: 'PUT',
         body: JSON.stringify({ value, description, category, value_type }),
+=======
+    update: (key: string, value: any) => request(`/admin/settings/${key}`, { method: 'PUT', body: JSON.stringify({ value }) }),
+    delete: (key: string) => request(`/admin/settings/${key}`, { method: 'DELETE' }),
+  },
+
+  // Banner APIs
+  banners: {
+    getActive: () => request('/banners/active'),
+    getAll: () => request('/admin/banners'),
+    create: (data: any) => request('/admin/banners', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: number, data: any) => request(`/admin/banners/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (id: number) => request(`/admin/banners/${id}`, { method: 'DELETE' }),
+  },
+
+  // News / Article APIs
+  news: {
+    getAll: (params?: Record<string, any>) => {
+      const query = params ? '?' + new URLSearchParams(params).toString() : '';
+      return request(`/admin/news${query}`);
+    },
+    getById: (id: string | number) => request(`/admin/news/${id}`),
+    create: (data: any) => request('/admin/news', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string | number, data: any) => request(`/admin/news/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (id: string | number) => request(`/admin/news/${id}`, { method: 'DELETE' }),
+    toggleFeatured: (id: string | number) => request(`/admin/news/${id}/featured`, { method: 'PATCH' }),
+  },
+
+  publicNews: {
+    getAll: (params?: Record<string, any>) => {
+      const query = params ? '?' + new URLSearchParams(params).toString() : '';
+      return request(`/news${query}`);
+    },
+    getById: (id: string | number) => request(`/news/${id}`),
+  },
+
+  // Promotion APIs
+  promotion: {
+    createPayment: (packageType: '7_days' | '30_days') =>
+      request('/payments/promote', {
+        method: 'POST',
+        body: JSON.stringify({ packageType }),
+>>>>>>> Stashed changes
       }),
     updatePaymentSettings: (data: any) =>
       request('/admin/settings/payment', {

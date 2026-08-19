@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
+<<<<<<< Updated upstream
 
 /* ─── types ──────────────────────────────────────────────────── */
 interface Article {
@@ -115,6 +116,11 @@ const articles: Article[] = [
 ];
 
 const categories = ["Tất cả", "Công nghệ", "Cưới hỏi", "Kinh nghiệm", "Thiết bị", "Hậu kỳ", "Thương mại"];
+=======
+import type { Article } from "@/app/news/data";
+import { articles, categories } from "@/app/news/data";
+import { api } from "@/lib/api";
+>>>>>>> Stashed changes
 
 const containerClass = "w-full max-w-[1280px] mx-auto px-6 md:px-12 lg:px-20";
 
@@ -329,6 +335,8 @@ export default function NewsPage() {
   const [searchOpen, setSearchOpen] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [liveArticles, setLiveArticles] = useState<Article[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -344,19 +352,90 @@ export default function NewsPage() {
     if (searchOpen) inputRef.current?.focus();
   }, [searchOpen]);
 
+<<<<<<< Updated upstream
   const featured = articles.find((a) => a.featured)!;
   const rest = articles.filter((a) => !a.featured);
 
   const filtered = rest.filter((a) => {
+=======
+  useEffect(() => {
+    async function loadNews() {
+      try {
+        const res = (await api.publicNews.getAll()) as any;
+        if (res.success && res.data && res.data.length > 0) {
+          const mapped = res.data.map((item: any) => ({
+            id: item.slug || String(item.id),
+            category: item.category,
+            categoryColor: item.category_color || "bg-slate-100 text-slate-700",
+            title: item.title,
+            excerpt: item.excerpt || "",
+            author: item.author,
+            authorAvatar: item.author_avatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=80&q=80",
+            date: new Date(item.created_at).toLocaleDateString("vi-VN", { day: 'numeric', month: 'long', year: 'numeric' }),
+            readTime: item.read_time || "5 phút đọc",
+            image: item.image || "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=900&q=80",
+            featured: !!item.featured
+          }));
+          setLiveArticles(mapped);
+        } else {
+          setLiveArticles(articles);
+        }
+      } catch (err) {
+        console.error("Failed to load news from API, using mock data", err);
+        setLiveArticles(articles);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadNews();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#f8f9fd] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#ff8d28] border-t-transparent" />
+          <p className="text-sm font-semibold text-slate-500">Đang tải tin tức...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const featured = liveArticles.find((a) => a.featured) || liveArticles[0];
+
+  const normalizeText = (value: string) =>
+    value
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/\p{Diacritic}/gu, "")
+      .replace(/[^\p{L}\p{N}\s]/gu, "")
+      .trim();
+
+  const normalizedSearch = normalizeText(search);
+
+  const filtered = liveArticles.filter((a) => {
+>>>>>>> Stashed changes
     const matchCat = activeCategory === "Tất cả" || a.category === activeCategory;
     const matchSearch =
+<<<<<<< Updated upstream
       !search.trim() ||
       a.title.toLowerCase().includes(search.toLowerCase()) ||
       a.excerpt.toLowerCase().includes(search.toLowerCase());
     return matchCat && matchSearch;
+=======
+      !normalizedSearch ||
+      normalizedTitle.includes(normalizedSearch) ||
+      normalizedExcerpt.includes(normalizedSearch) ||
+      normalizedAuthor.includes(normalizedSearch) ||
+      normalizedCategory.includes(normalizedSearch);
+
+    // Hide featured only if it exists and we're not searching
+    const hideFeatured = featured && a.id === featured.id && !search.trim() && activeCategory === "Tất cả";
+    return matchCat && matchSearch && !hideFeatured;
+>>>>>>> Stashed changes
   });
 
-  const latest = [...articles].slice(0, 4);
+  const latest = [...liveArticles].slice(0, 4);
 
   return (
     <div className="min-h-screen bg-[#f8f9fd] text-[#0e111d]">
@@ -374,7 +453,7 @@ export default function NewsPage() {
           <p className="mt-4 max-w-[540px] text-[15px] text-slate-500 leading-relaxed font-medium">
             Kiến thức, xu hướng và câu chuyện từ cộng đồng nhiếp ảnh gia Studion — cập nhật hàng tuần.
           </p>
-
+ 
           {/* search — icon only, expand on click */}
           <div ref={searchRef} className="mt-6 flex items-center">
             <div className={`flex items-center overflow-hidden rounded-xl border bg-white shadow-sm transition-all duration-300 ${searchOpen ? "w-[340px] border-[#ff8d28] ring-2 ring-[#ff8d28]/10" : "w-11 border-slate-200"}`}>
@@ -398,15 +477,15 @@ export default function NewsPage() {
           </div>
         </div>
       </section>
-
+ 
       <div className={`${containerClass} py-10`}>
         {/* ── featured ── */}
-        {!search && activeCategory === "Tất cả" && (
+        {!search && activeCategory === "Tất cả" && featured && (
           <div className="mb-10">
             <FeaturedCard article={featured} />
           </div>
         )}
-
+ 
         {/* ── category tabs ── */}
         <div className="flex items-center gap-2 flex-wrap mb-8">
           {categories.map((cat) => (
@@ -423,13 +502,13 @@ export default function NewsPage() {
               {cat}
               {cat !== "Tất cả" && (
                 <span className="ml-1.5 opacity-60">
-                  ({articles.filter((a) => a.category === cat).length})
+                  ({liveArticles.filter((a) => a.category === cat).length})
                 </span>
               )}
             </button>
           ))}
         </div>
-
+ 
         {/* ── main grid + sidebar ── */}
         <div className="grid gap-8 lg:grid-cols-[1fr_300px]">
           {/* articles */}
@@ -454,12 +533,12 @@ export default function NewsPage() {
               </div>
             )}
           </div>
-
+ 
           {/* sidebar */}
           <div className="space-y-6">
             <SidebarLatest items={latest} />
             <Newsletter />
-
+ 
             {/* topics cloud */}
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <h3 className="font-bold text-[#0e111d] mb-4">Chủ đề</h3>
@@ -483,7 +562,7 @@ export default function NewsPage() {
           </div>
         </div>
       </div>
-
+ 
       {/* ── CTA strip ── */}
       <section className="bg-[#0e111d] py-14 text-center mt-6">
         <div className={containerClass}>
