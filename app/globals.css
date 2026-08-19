@@ -948,6 +948,47 @@ textarea:focus {
   box-shadow: none;
 }
 
+.cart-select-checkbox {
+  width: 18px !important;
+  min-width: 18px;
+  height: 18px;
+  min-height: 18px !important;
+  margin: 0;
+  padding: 0 !important;
+  appearance: none;
+  border: 2px solid #cbd5e1;
+  border-radius: 5px;
+  background: #ffffff;
+  cursor: pointer;
+  transition: border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
+}
+
+.cart-select-checkbox:hover {
+  border-color: #ff8d28;
+}
+
+.cart-select-checkbox:checked {
+  border-color: #ff8d28;
+  background: #ff8d28;
+}
+
+.cart-select-checkbox:checked::before {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  color: #ffffff;
+  content: "✓";
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.cart-select-checkbox:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(255, 141, 40, 0.2);
+}
+
 input[type="search"] {
   border: none !important;
   box-shadow: none !important;

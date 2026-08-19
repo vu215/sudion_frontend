@@ -9,18 +9,15 @@ import { useToast } from "@/app/toast-context";
 import {
   readBookingCart,
   removeFromBookingCart,
-  clearBookingCart,
+  writeBookingCart,
   BookingCartItem,
-  getBookingCartTotalDeposit,
-  getBookingCartTotalEstimated,
 } from "@/app/booking-cart-store";
 import {
   readCart,
   removeFromCart,
   updateCartQuantity,
-  clearCart,
+  writeCart,
   CartItem as ProductCartItem,
-  getCartTotal,
 } from "@/app/cart-store";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
@@ -56,6 +53,8 @@ export default function CartPage() {
 
   const [bookingItems, setBookingItems] = useState<BookingCartItem[]>([]);
   const [productItems, setProductItems] = useState<ProductCartItem[]>([]);
+  const [selectedBookingIds, setSelectedBookingIds] = useState<Set<string>>(new Set());
+  const [selectedProductIds, setSelectedProductIds] = useState<Set<string>>(new Set());
   const [submitting, setSubmitting] = useState(false);
 
   // Address Manager State
@@ -77,7 +76,7 @@ export default function CartPage() {
   const [streetAddress, setStreetAddress] = useState("");
   const [isDefaultAddr, setIsDefaultAddr] = useState(false);
   const [orderNote, setOrderNote] = useState("");
-  const [checkoutMode, setCheckoutMode] = useState<"all" | "separate">("all");
+  const [checkoutMode, setCheckoutMode] = useState<"all" | "separate">("separate");
 
   // Vietnam Cascading Location Data
   const [provinces, setProvinces] = useState<VnLocation[]>([]);
@@ -126,12 +125,20 @@ export default function CartPage() {
 
   // Load items & saved address list on mount
   useEffect(() => {
-    setBookingItems(readBookingCart());
-    setProductItems(readCart());
+    const nextBookingItems = readBookingCart();
+    const nextProductItems = readCart();
+    setBookingItems(nextBookingItems);
+    setProductItems(nextProductItems);
+    setSelectedBookingIds(new Set(nextBookingItems.map((item) => item.cartItemId)));
+    setSelectedProductIds(new Set(nextProductItems.map((item) => item.id)));
 
     const handleCartUpdate = () => {
-      setBookingItems(readBookingCart());
-      setProductItems(readCart());
+      const nextBookingItems = readBookingCart();
+      const nextProductItems = readCart();
+      setBookingItems(nextBookingItems);
+      setProductItems(nextProductItems);
+      setSelectedBookingIds((current) => new Set(nextBookingItems.map((item) => item.cartItemId).filter((id) => current.has(id))));
+      setSelectedProductIds((current) => new Set(nextProductItems.map((item) => item.id).filter((id) => current.has(id))));
     };
 
     window.addEventListener("bookingCartUpdated", handleCartUpdate);
@@ -292,9 +299,16 @@ export default function CartPage() {
     updateCartQuantity(id, delta);
   };
 
-  const handleCheckoutGroupBookings = async () => {
-    if (bookingItems.length === 0) {
-      toast.error("Giỏ hàng trống", "Vui lòng thêm buổi chụp vào giỏ trước khi thanh toán.");
+  const handleCheckout = async (scope: "all" | "booking" | "product") => {
+    const selectedBookings = scope !== "product"
+      ? bookingItems.filter((item) => selectedBookingIds.has(item.cartItemId))
+      : [];
+    const selectedProducts = scope !== "booking"
+      ? productItems.filter((item) => selectedProductIds.has(item.id))
+      : [];
+
+    if (selectedBookings.length === 0 && selectedProducts.length === 0) {
+      toast.error("Chưa chọn sản phẩm", "Vui lòng tích chọn ít nhất một sản phẩm hoặc booking.");
       return;
     }
 
@@ -308,33 +322,66 @@ export default function CartPage() {
       setSubmitting(true);
 
       const token = typeof window !== "undefined" ? window.localStorage.getItem("sudion_token") : null;
-      const response = await fetch(`${API_URL}/bookings/batch`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({
-          items: bookingItems,
-          customer: {
-            fullName: selectedAddress.fullName,
-            phone: selectedAddress.phone,
-            email: selectedAddress.email || session?.email || "guest@sudion.vn",
-            address: selectedAddress.fullAddress,
-            note: orderNote,
-            contactChannel: "Zalo",
-          },
-        }),
-      });
+      let groupCode = "";
+      let firstOrderId = "";
 
-      const json = await response.json();
-      if (!response.ok || !json.success) {
-        throw new Error(json.message || "Tạo đơn gom thất bại.");
+      if (selectedBookings.length > 0) {
+        const response = await fetch(`${API_URL}/bookings/batch`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({
+            items: selectedBookings,
+            customer: {
+              fullName: selectedAddress.fullName,
+              phone: selectedAddress.phone,
+              email: selectedAddress.email || session?.email || "guest@sudion.vn",
+              address: selectedAddress.fullAddress,
+              note: orderNote,
+              contactChannel: "Zalo",
+            },
+          }),
+        });
+        const json = await response.json();
+        if (!response.ok || !json.success) throw new Error(json.message || "Tạo booking thất bại.");
+        groupCode = json.data.group_code;
+        writeBookingCart(bookingItems.filter((item) => !selectedBookingIds.has(item.cartItemId)));
       }
 
-      clearBookingCart();
-      toast.success("Tạo đơn thành công", `Đã tạo ${json.data.bookings.length} đơn. Đang chuyển tới trang thanh toán...`);
-      router.push(`/checkout-gateway?groupCode=${json.data.group_code}`);
+      for (const item of selectedProducts) {
+        const response = await fetch(`${API_URL}/orders/checkout`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({
+            items: [{ ...item, productId: item.productId }],
+            totalAmount: item.gia_ban * item.so_luong,
+            customerInfo: {
+              name: selectedAddress.fullName,
+              phone: selectedAddress.phone,
+              email: selectedAddress.email || session?.email || "guest@sudion.vn",
+              address: selectedAddress.fullAddress,
+              note: orderNote,
+              paymentMethod: "cod",
+              shippingMethod: "standard",
+            },
+          }),
+        });
+        const json = await response.json();
+        if (!response.ok || !json.success) throw new Error(json.message || `Đặt sản phẩm ${item.ten_san_pham} thất bại.`);
+        firstOrderId ||= String(json.order?.id || "");
+      }
+
+      if (selectedProducts.length > 0) {
+        writeCart(productItems.filter((item) => !selectedProductIds.has(item.id)));
+      }
+      toast.success("Tạo đơn thành công", "Các mục đã chọn được tạo thành hóa đơn riêng.");
+      if (groupCode) router.push(`/checkout-gateway?groupCode=${groupCode}`);
+      else router.push(`/checkout/success?orderId=${firstOrderId}`);
     } catch (err: any) {
       toast.error("Không thể tạo đơn", err.message || "Đã xảy ra lỗi hệ thống.");
     } finally {
@@ -342,22 +389,11 @@ export default function CartPage() {
     }
   };
 
-  const handleCheckoutProducts = () => {
-    if (productItems.length === 0) {
-      toast.error("Giỏ hàng trống", "Vui lòng thêm sản phẩm/thiết bị vào giỏ.");
-      return;
-    }
-    if (!selectedAddress) {
-      toast.error("Chưa có địa chỉ", "Vui lòng chọn hoặc thêm địa chỉ nhận hàng.");
-      setShowAddressModal(true);
-      return;
-    }
-    router.push("/checkout");
-  };
-
-  const bookingDepositTotal = getBookingCartTotalDeposit();
-  const bookingEstimatedTotal = getBookingCartTotalEstimated();
-  const productTotal = getCartTotal();
+  const selectedBookings = bookingItems.filter((item) => selectedBookingIds.has(item.cartItemId));
+  const selectedProducts = productItems.filter((item) => selectedProductIds.has(item.id));
+  const bookingDepositTotal = selectedBookings.reduce((sum, item) => sum + (item.depositAmount || 0), 0);
+  const bookingEstimatedTotal = selectedBookings.reduce((sum, item) => sum + (item.estimatedTotal || 0), 0);
+  const productTotal = selectedProducts.reduce((sum, item) => sum + item.gia_ban * item.so_luong, 0);
 
   const isCartEmpty = bookingItems.length === 0 && productItems.length === 0;
 
@@ -456,10 +492,22 @@ export default function CartPage() {
                     {bookingItems.map((item) => (
                       <div
                         key={item.cartItemId}
-                        className="rounded-xl border border-[#e2e8f0] bg-[#fafbfc] p-4 transition-all hover:border-[#ff8d28]/40"
+                        className={`rounded-xl border bg-[#fafbfc] p-4 transition-all hover:border-[#ff8d28]/40 ${selectedBookingIds.has(item.cartItemId) ? "border-[#ff8d28]/60" : "border-[#e2e8f0]"}`}
                       >
                         <div className="flex items-start justify-between border-b border-[#e2e8f0]/60 pb-3">
                           <div className="flex items-center gap-4">
+                            <input
+                              type="checkbox"
+                              checked={selectedBookingIds.has(item.cartItemId)}
+                              onChange={() => setSelectedBookingIds((current) => {
+                                const next = new Set(current);
+                                if (next.has(item.cartItemId)) next.delete(item.cartItemId);
+                                else next.add(item.cartItemId);
+                                return next;
+                              })}
+                              aria-label={`Chọn ${item.packageName}`}
+                              className="cart-select-checkbox"
+                            />
                             <div className="relative h-16 w-16 overflow-hidden rounded-xl border border-gray-200 bg-white shrink-0 shadow-sm">
                               {item.packageImage ? (
                                 <Image
@@ -539,9 +587,21 @@ export default function CartPage() {
                     {productItems.map((item) => (
                       <div
                         key={item.id}
-                        className="flex items-center justify-between rounded-xl border border-[#e2e8f0] bg-[#fafbfc] p-3.5 transition-all"
+                        className={`flex items-center justify-between rounded-xl border bg-[#fafbfc] p-3.5 transition-all ${selectedProductIds.has(item.id) ? "border-[#ff8d28]/60" : "border-[#e2e8f0]"}`}
                       >
                         <div className="flex items-center gap-3">
+                          <input
+                            type="checkbox"
+                            checked={selectedProductIds.has(item.id)}
+                            onChange={() => setSelectedProductIds((current) => {
+                              const next = new Set(current);
+                              if (next.has(item.id)) next.delete(item.id);
+                              else next.add(item.id);
+                              return next;
+                            })}
+                            aria-label={`Chọn ${item.ten_san_pham}`}
+                            className="cart-select-checkbox"
+                          />
                           <div className="relative h-14 w-14 overflow-hidden rounded-lg border border-gray-200 bg-white shrink-0">
                             <Image src={item.hinh_anh} alt={item.ten_san_pham} fill className="object-cover" sizes="56px" unoptimized />
                           </div>
@@ -655,52 +715,33 @@ export default function CartPage() {
                   </button>
                 )}
 
-                {/* Chế độ thanh toán - giao diện tĩnh */}
                 <div className="space-y-2 pt-1">
-                  <label className="text-[10px] font-black uppercase tracking-wider text-[#64748b]">Chế độ thanh toán</label>
+                  <label className="text-[10px] font-black uppercase tracking-wider text-[#64748b]">
+                    Chế độ thanh toán
+                  </label>
                   <div className="grid gap-2">
                     <button
                       type="button"
                       onClick={() => setCheckoutMode("all")}
-                      className={`flex items-center justify-between rounded-xl border px-3 py-2.5 text-left transition-all ${
-                        checkoutMode === "all"
-                          ? "border-[#ff8d28] bg-[#fff7ed] shadow-sm"
-                          : "border-[#e2e8f0] bg-white hover:border-[#ff8d28]/60"
-                      }`}
+                      className={`flex items-center justify-between rounded-xl border px-3 py-2.5 text-left transition-all ${checkoutMode === "all" ? "border-[#ff8d28] bg-[#fff7ed] shadow-sm" : "border-[#e2e8f0] bg-white hover:border-[#ff8d28]/60"}`}
                     >
                       <div>
                         <div className="text-xs font-bold text-[#0e111d]">Một đơn cho cả giỏ</div>
                         <div className="text-[10px] text-[#64748b]">Thanh toán chung trong một lần</div>
                       </div>
-                      <span
-                        className={`flex h-4 w-4 items-center justify-center rounded-full border ${
-                          checkoutMode === "all" ? "border-[#ff8d28] bg-[#ff8d28]" : "border-[#cbd5e1] bg-white"
-                        }`}
-                      >
-                        {checkoutMode === "all" && <span className="h-2 w-2 rounded-full bg-white" />}
-                      </span>
+                      <span className={`h-4 w-4 rounded-full border bg-white ${checkoutMode === "all" ? "border-[#ff8d28] border-[5px]" : "border-[#cbd5e1]"}`} />
                     </button>
 
                     <button
                       type="button"
                       onClick={() => setCheckoutMode("separate")}
-                      className={`flex items-center justify-between rounded-xl border px-3 py-2.5 text-left transition-all ${
-                        checkoutMode === "separate"
-                          ? "border-[#ff8d28] bg-[#fff7ed] shadow-sm"
-                          : "border-[#e2e8f0] bg-white hover:border-[#ff8d28]/60"
-                      }`}
+                      className={`flex items-center justify-between rounded-xl border px-3 py-2.5 text-left transition-all ${checkoutMode === "separate" ? "border-[#ff8d28] bg-[#fff7ed] shadow-sm" : "border-[#e2e8f0] bg-white hover:border-[#ff8d28]/60"}`}
                     >
                       <div>
                         <div className="text-xs font-bold text-[#0e111d]">Tách đơn riêng</div>
                         <div className="text-[10px] text-[#64748b]">Mỗi sản phẩm / dịch vụ là một đơn</div>
                       </div>
-                      <span
-                        className={`flex h-4 w-4 items-center justify-center rounded-full border ${
-                          checkoutMode === "separate" ? "border-[#ff8d28] bg-[#ff8d28]" : "border-[#cbd5e1] bg-white"
-                        }`}
-                      >
-                        {checkoutMode === "separate" && <span className="h-2 w-2 rounded-full bg-white" />}
-                      </span>
+                      <span className={`h-4 w-4 rounded-full border bg-white ${checkoutMode === "separate" ? "border-[#ff8d28] border-[5px]" : "border-[#cbd5e1]"}`} />
                     </button>
                   </div>
                 </div>
@@ -719,22 +760,21 @@ export default function CartPage() {
 
                 <hr className="my-4 border-[#f1f5f9]" />
 
-                {/* CHECKOUT BUTTONS */}
-                <div className="space-y-4">
-                  {bookingItems.length > 0 && (
+                {/* CHECKOUT SUMMARY */}
+                <div className="space-y-3">
+                  {selectedBookings.length > 0 && (
                     <div className="rounded-xl border border-orange-200 bg-orange-50/50 p-4">
                       <div className="flex justify-between text-xs text-[#64748b]">
-                        <span>Tổng dịch vụ chụp ảnh ({bookingItems.length} buổi):</span>
+                        <span>Tổng dịch vụ chụp ảnh ({selectedBookings.length} buổi):</span>
                         <span className="font-bold text-[#0e111d]">{formatCurrency(bookingEstimatedTotal)}</span>
                       </div>
                       <div className="mt-1 flex justify-between text-xs font-bold text-[#0e111d]">
                         <span>Tiền cọc cần thanh toán (30%):</span>
                         <span className="text-[#ff8d28]">{formatCurrency(bookingDepositTotal)}</span>
                       </div>
-
                       <button
                         type="button"
-                        onClick={handleCheckoutGroupBookings}
+                        onClick={() => handleCheckout("booking")}
                         disabled={submitting}
                         className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#ff8d28] py-3 text-xs font-bold text-white shadow transition-all hover:bg-[#e0751b] disabled:opacity-60"
                       >
@@ -746,17 +786,17 @@ export default function CartPage() {
                     </div>
                   )}
 
-                  {productItems.length > 0 && (
-                    <div className="rounded-xl border border-gray-200 bg-gray-50/50 p-4">
+                  {selectedProducts.length > 0 && (
+                    <div className="rounded-xl border border-[#e2e8f0] bg-gray-50/50 p-4">
                       <div className="flex justify-between text-xs font-bold text-[#0e111d]">
-                        <span>Tổng sản phẩm thiết bị ({productItems.length}):</span>
+                        <span>Tổng sản phẩm thiết bị ({selectedProducts.length}):</span>
                         <span className="text-[#ff8d28]">{formatCurrency(productTotal)}</span>
                       </div>
-
                       <button
                         type="button"
-                        onClick={handleCheckoutProducts}
-                        className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#ff8d28] bg-white py-3 text-xs font-bold text-[#ff8d28] shadow-sm transition-all hover:bg-orange-50"
+                        onClick={() => handleCheckout("product")}
+                        disabled={submitting}
+                        className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#ff8d28] bg-white py-3 text-xs font-bold text-[#ff8d28] shadow-sm transition-all hover:bg-orange-50 disabled:opacity-60"
                       >
                         <span>Đặt hàng thiết bị máy ảnh</span>
                         <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -764,6 +804,20 @@ export default function CartPage() {
                         </svg>
                       </button>
                     </div>
+                  )}
+
+                  {(selectedBookings.length > 0 || selectedProducts.length > 0) && (
+                    <button
+                      type="button"
+                      onClick={() => handleCheckout("all")}
+                      disabled={submitting}
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#ff8d28] py-3 text-xs font-bold text-white shadow transition-all hover:bg-[#e0751b] disabled:opacity-60"
+                    >
+                      <span>{submitting ? "Đang tạo hóa đơn..." : `Thanh toán ${selectedBookings.length + selectedProducts.length} mục đã chọn`}</span>
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                      </svg>
+                    </button>
                   )}
                 </div>
 

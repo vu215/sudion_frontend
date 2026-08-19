@@ -23,6 +23,18 @@ type PhotographerApplication = {
   documents?: string[];
 };
 
+type CustomerProfile = {
+  fullName?: string | null;
+  full_name?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  birthday?: string | null;
+  gender?: "male" | "female" | "other" | string | null;
+  city?: string | null;
+  bio?: string | null;
+  avatar_url?: string | null;
+};
+
 type ServicePackageForm = {
   id: string;
   categoryId: string;
@@ -36,7 +48,7 @@ type ServicePackageForm = {
   addOnDraft: string;
 };
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://sudion-backend-production-453b.up.railway.app/api";
 const ASSET_URL = API_URL.replace(/\/api\/?$/, "");
 
 function authHeaders() {
@@ -65,14 +77,15 @@ function ProfileContent() {
   const loadedPhotoProfileForRef = useRef("");
   const loadingPhotoProfileForRef = useRef("");
 
-  const [avatar, setAvatar]     = useState<string | null>(null);
+  const [avatar, setAvatar]     = useState<string | null>(session?.avatar_url ?? null);
   const [fullName, setFullName] = useState(session?.fullName ?? "Người dùng");
-  const [phone, setPhone]       = useState("0901 234 567");
-  const [birthday, setBirthday] = useState("1995-06-15");
-  const [gender, setGender]     = useState("Nữ");
-  const [address, setAddress]   = useState("TP. Hồ Chí Minh");
-  const [bio, setBio]           = useState("Mình yêu thích chụp ảnh cưới và lưu giữ những khoảnh khắc đáng nhớ ✨");
+  const [phone, setPhone]       = useState("");
+  const [birthday, setBirthday] = useState("");
+  const [gender, setGender]     = useState("");
+  const [address, setAddress]   = useState("");
+  const [bio, setBio]           = useState("");
   const [editMode, setEditMode] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
 
   const [oldPw, setOldPw] = useState("");
   const [newPw, setNewPw] = useState("");
@@ -125,7 +138,48 @@ function ProfileContent() {
     if (session?.fullName) {
       setFullName(session.fullName);
     }
-  }, [session?.fullName]);
+    if (session?.avatar_url) {
+      setAvatar(session.avatar_url);
+    }
+  }, [session?.fullName, session?.avatar_url]);
+
+  useEffect(() => {
+    if (!session?.userId || !window.localStorage.getItem("sudion_token")) return;
+
+    const controller = new AbortController();
+
+    async function loadCustomerProfile() {
+      try {
+        const response = await fetch(`${API_URL}/auth/me/profile`, {
+          headers: authHeaders(),
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        const json = await response.json();
+
+        if (!response.ok || !json.success) {
+          throw new Error(json.message || "Không thể tải thông tin hồ sơ.");
+        }
+
+        const profile = (json.data?.profile || json.data?.user || json.data) as CustomerProfile;
+        setFullName(profile.fullName ?? profile.full_name ?? session.fullName ?? "Người dùng");
+        setPhone(profile.phone ?? "");
+        setBirthday(profile.birthday ? String(profile.birthday).slice(0, 10) : "");
+        setGender(profile.gender ?? "");
+        setAddress(profile.city ?? "");
+        setBio(profile.bio ?? "");
+        if (profile.avatar_url) setAvatar(profile.avatar_url);
+      } catch (error) {
+        if (!(error instanceof DOMException && error.name === "AbortError")) {
+          notify(error instanceof Error ? error.message : "Không thể tải thông tin hồ sơ.");
+        }
+      }
+    }
+
+    void loadCustomerProfile();
+
+    return () => controller.abort();
+  }, [session?.userId]);
 
   useEffect(() => {
     if (!session?.userId) return;
@@ -312,6 +366,48 @@ function ProfileContent() {
     if (newPw !== cfPw) { notify("Mật khẩu xác nhận chưa khớp."); return; }
     setOldPw(""); setNewPw(""); setCfPw("");
     notify("Đã cập nhật mật khẩu thành công.");
+  }
+
+  async function handleSaveProfile() {
+    try {
+      setSavingProfile(true);
+      const response = await fetch(`${API_URL}/auth/me/profile`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...authHeaders(),
+        },
+        body: JSON.stringify({
+          fullName: fullName.trim(),
+          phone: phone.trim() || null,
+          birthday: birthday || null,
+          gender: gender || null,
+          city: address.trim() || null,
+          bio: bio.trim() || null,
+        }),
+      });
+      const json = await response.json();
+
+      if (!response.ok || !json.success) {
+        throw new Error(json.message || "Không thể cập nhật hồ sơ.");
+      }
+
+      const profile = (json.data?.profile || json.data?.user || json.data) as CustomerProfile | undefined;
+      if (profile) {
+        setFullName(profile.fullName ?? profile.full_name ?? fullName);
+        setPhone(profile.phone ?? "");
+        setBirthday(profile.birthday ? String(profile.birthday).slice(0, 10) : "");
+        setGender(profile.gender ?? "");
+        setAddress(profile.city ?? "");
+        setBio(profile.bio ?? "");
+      }
+      setEditMode(false);
+      notify("Đã cập nhật thông tin hồ sơ.");
+    } catch (error) {
+      notify(error instanceof Error ? error.message : "Không thể cập nhật hồ sơ.");
+    } finally {
+      setSavingProfile(false);
+    }
   }
 
   async function handleDocumentUpload(event: React.ChangeEvent<HTMLInputElement>) {
@@ -503,9 +599,9 @@ function ProfileContent() {
             <div className="shrink-0 pb-1">
               {editMode ? (
                 <div className="flex gap-2">
-                  <button onClick={() => { setEditMode(false); notify("Đã lưu thông tin hồ sơ."); }}
+                  <button onClick={handleSaveProfile} disabled={savingProfile}
                     className="rounded-xl bg-[#ff8d28] px-5 py-2.5 text-[13px] font-black text-white shadow-[0_8px_20px_rgba(255,141,40,0.25)] hover:bg-[#e0751b] transition-all">
-                    Lưu
+                    {savingProfile ? "Đang lưu..." : "Lưu"}
                   </button>
                   <button onClick={() => setEditMode(false)}
                     className="rounded-xl border border-[#e8eaf1] px-5 py-2.5 text-[13px] font-bold text-[#6b7280] hover:bg-[#f8fafc] transition-all">
@@ -571,12 +667,12 @@ function ProfileContent() {
                   {editMode ? (
                     <select value={gender} onChange={(e) => setGender(e.target.value)}
                       className="h-11 w-full rounded-xl border border-[#e0e3ec] bg-[#fafbfc] px-3.5 text-[13px] font-semibold text-[#0e111d] outline-none focus:border-[#ff8d28] focus:bg-white transition-all">
-                      <option>Nam</option><option>Nữ</option><option>Khác</option>
+                      <option value="">Chưa cập nhật</option><option value="male">Nam</option><option value="female">Nữ</option><option value="other">Khác</option>
                     </select>
                   ) : (
                     <div className="flex h-11 items-center gap-2.5 rounded-xl border border-[#eef0f5] bg-[#fafbfc] px-3.5">
                       <svg className="h-4 w-4 shrink-0 text-[#ff8d28]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" /><path strokeLinecap="round" d="M4 20c0-4 3.6-7 8-7s8 3 8 7" /></svg>
-                      <span className="text-[13px] font-semibold text-[#0e111d]">{gender}</span>
+                      <span className="text-[13px] font-semibold text-[#0e111d]">{gender ? ({ male: "Nam", female: "Nữ", other: "Khác" }[gender] || gender) : "Chưa cập nhật"}</span>
                     </div>
                   )}
                 </div>
