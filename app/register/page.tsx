@@ -19,6 +19,7 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [acceptedPolicy, setAcceptedPolicy] = useState(false);
 
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -34,6 +35,11 @@ export default function RegisterPage() {
 
     if (!fullName || !email || !phone || !password || !confirmPassword) {
       setError("Vui lòng nhập đầy đủ thông tin.");
+      return;
+    }
+
+    if (!acceptedPolicy) {
+      setError("Vui lòng đọc và đồng ý với Chính sách & Quy định hoạt động.");
       return;
     }
 
@@ -173,6 +179,18 @@ export default function RegisterPage() {
                     />
                   </div>
                 </div>
+
+                <label className="flex items-start gap-2 text-[12px] leading-5 text-[#5f6368]">
+                  <input
+                    type="checkbox"
+                    checked={acceptedPolicy}
+                    onChange={(event) => setAcceptedPolicy(event.target.checked)}
+                    className="mt-1 h-4 w-4 accent-[#ff8d28]"
+                  />
+                  <span>
+                    Tôi đồng ý với <Link href="/terms" target="_blank" className="font-bold text-[#ff8d28] hover:underline">Chính sách & Quy định hoạt động</Link> của Sudion.
+                  </span>
+                </label>
 
 
 

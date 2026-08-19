@@ -11,6 +11,7 @@ const navItems = [
   ["Người dùng", "/admin/users", "M16 19v-1.2a4.8 4.8 0 00-4.8-4.8H8.8A4.8 4.8 0 004 17.8V19M12 7.5a3.5 3.5 0 11-7 0 3.5 3.5 0 017 0zM20 19v-1a4 4 0 00-3-3.9M16.5 4.8a3 3 0 010 5.4"],
   ["Photographer", "/admin/photographer", "M4 8h3l1.5-2h7L17 8h3v10H4zM12 16a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM7 8V6"],
   ["Dịch vụ", "/admin/services", "M20 13.5V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2h7.5M8 8h8M8 12h5M17 17l2 2 3-4"],
+  ["Danh mục bán hàng", "/admin/product-categories", "M4 7h16M4 12h16M4 17h10"],
   ["Booking", "/admin/booking", "M7 3v3M17 3v3M4 8h16M6 5h12a2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V7a2 2 0 012-2z"],
   ["Bán Máy ảnh", "/admin/products", "M20 7h-4V4c0-1.1-.9-2-2-2h-4c-1.1 0-2 .9-2 2v3H4c-1.1 0-2 .9-2 2v11c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V9c0-1.1-.9-2-2-2zM10 4h4v3h-4V4z"],
   ["Đơn hàng Máy ảnh", "/admin/orders", "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2"],
@@ -25,6 +26,8 @@ const navItems = [
   ["Đánh giá", "/admin/reviews", "M12 3l2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.4 6.4 20.2l1.1-6.2L3 9.6l6.2-.9z"],
   ["Thông báo", "/admin/notifications", "M18 16H6l1.5-2V10a4.5 4.5 0 019 0v4zM10 19h4"],
   ["System Log", "/admin/logs", "M5 4h14v16H5zM8 8h8M8 12h8M8 16h5"],
+  ["Chính sách", "/admin/policies", "M6 3h12v18H6zM9 8h6M9 12h6M9 16h4"],
+  ["Bài viết", "/admin/articles", "M4 5h16v14H4zM8 9h8M8 13h8M8 17h5"],
   ["Cài đặt", "/admin/settings", "M12 15.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM19 12a7.4 7.4 0 00-.1-1l2-1.5-2-3.4-2.4 1a7.2 7.2 0 00-1.7-1L14.5 3h-5l-.4 3.1a7.2 7.2 0 00-1.7 1l-2.4-1-2 3.4 2 1.5a7.4 7.4 0 000 2l-2 1.5 2 3.4 2.4-1a7.2 7.2 0 001.7 1l.4 3.1h5l.4-3.1a7.2 7.2 0 001.7-1l2.4 1 2-3.4-2-1.5a7.4 7.4 0 00.1-1z"],
 ] as const;
 
