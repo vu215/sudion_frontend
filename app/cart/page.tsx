@@ -76,6 +76,7 @@ export default function CartPage() {
   const [streetAddress, setStreetAddress] = useState("");
   const [isDefaultAddr, setIsDefaultAddr] = useState(false);
   const [orderNote, setOrderNote] = useState("");
+  const [checkoutMode, setCheckoutMode] = useState<"all" | "separate">("separate");
 
   // Vietnam Cascading Location Data
   const [provinces, setProvinces] = useState<VnLocation[]>([]);
@@ -298,9 +299,13 @@ export default function CartPage() {
     updateCartQuantity(id, delta);
   };
 
-  const handleCheckoutAll = async () => {
-    const selectedBookings = bookingItems.filter((item) => selectedBookingIds.has(item.cartItemId));
-    const selectedProducts = productItems.filter((item) => selectedProductIds.has(item.id));
+  const handleCheckout = async (scope: "all" | "booking" | "product") => {
+    const selectedBookings = scope !== "product"
+      ? bookingItems.filter((item) => selectedBookingIds.has(item.cartItemId))
+      : [];
+    const selectedProducts = scope !== "booking"
+      ? productItems.filter((item) => selectedProductIds.has(item.id))
+      : [];
 
     if (selectedBookings.length === 0 && selectedProducts.length === 0) {
       toast.error("Chưa chọn sản phẩm", "Vui lòng tích chọn ít nhất một sản phẩm hoặc booking.");
@@ -371,8 +376,10 @@ export default function CartPage() {
         firstOrderId ||= String(json.order?.id || "");
       }
 
-      writeCart(productItems.filter((item) => !selectedProductIds.has(item.id)));
-      toast.success("Tạo đơn thành công", "Mỗi sản phẩm đã được tạo thành hóa đơn riêng.");
+      if (selectedProducts.length > 0) {
+        writeCart(productItems.filter((item) => !selectedProductIds.has(item.id)));
+      }
+      toast.success("Tạo đơn thành công", "Các mục đã chọn được tạo thành hóa đơn riêng.");
       if (groupCode) router.push(`/checkout-gateway?groupCode=${groupCode}`);
       else router.push(`/checkout/success?orderId=${firstOrderId}`);
     } catch (err: any) {
@@ -708,6 +715,37 @@ export default function CartPage() {
                   </button>
                 )}
 
+                <div className="space-y-2 pt-1">
+                  <label className="text-[10px] font-black uppercase tracking-wider text-[#64748b]">
+                    Chế độ thanh toán
+                  </label>
+                  <div className="grid gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setCheckoutMode("all")}
+                      className={`flex items-center justify-between rounded-xl border px-3 py-2.5 text-left transition-all ${checkoutMode === "all" ? "border-[#ff8d28] bg-[#fff7ed] shadow-sm" : "border-[#e2e8f0] bg-white hover:border-[#ff8d28]/60"}`}
+                    >
+                      <div>
+                        <div className="text-xs font-bold text-[#0e111d]">Một đơn cho cả giỏ</div>
+                        <div className="text-[10px] text-[#64748b]">Thanh toán chung trong một lần</div>
+                      </div>
+                      <span className={`h-4 w-4 rounded-full border bg-white ${checkoutMode === "all" ? "border-[#ff8d28] border-[5px]" : "border-[#cbd5e1]"}`} />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setCheckoutMode("separate")}
+                      className={`flex items-center justify-between rounded-xl border px-3 py-2.5 text-left transition-all ${checkoutMode === "separate" ? "border-[#ff8d28] bg-[#fff7ed] shadow-sm" : "border-[#e2e8f0] bg-white hover:border-[#ff8d28]/60"}`}
+                    >
+                      <div>
+                        <div className="text-xs font-bold text-[#0e111d]">Tách đơn riêng</div>
+                        <div className="text-[10px] text-[#64748b]">Mỗi sản phẩm / dịch vụ là một đơn</div>
+                      </div>
+                      <span className={`h-4 w-4 rounded-full border bg-white ${checkoutMode === "separate" ? "border-[#ff8d28] border-[5px]" : "border-[#cbd5e1]"}`} />
+                    </button>
+                  </div>
+                </div>
+
                 {/* Ghi chú đơn hàng */}
                 <div className="space-y-1 pt-1">
                   <label className="text-[10px] font-black uppercase tracking-wider text-[#64748b]">Ghi chú đơn hàng</label>
@@ -723,36 +761,64 @@ export default function CartPage() {
                 <hr className="my-4 border-[#f1f5f9]" />
 
                 {/* CHECKOUT SUMMARY */}
-                <div className="rounded-xl border border-orange-200 bg-orange-50/50 p-4">
+                <div className="space-y-3">
                   {selectedBookings.length > 0 && (
-                    <div className="flex justify-between text-xs text-[#64748b]">
-                      <span>Dịch vụ đã chọn ({selectedBookings.length}):</span>
-                      <span className="font-bold text-[#0e111d]">{formatCurrency(bookingEstimatedTotal)}</span>
+                    <div className="rounded-xl border border-orange-200 bg-orange-50/50 p-4">
+                      <div className="flex justify-between text-xs text-[#64748b]">
+                        <span>Tổng dịch vụ chụp ảnh ({selectedBookings.length} buổi):</span>
+                        <span className="font-bold text-[#0e111d]">{formatCurrency(bookingEstimatedTotal)}</span>
+                      </div>
+                      <div className="mt-1 flex justify-between text-xs font-bold text-[#0e111d]">
+                        <span>Tiền cọc cần thanh toán (30%):</span>
+                        <span className="text-[#ff8d28]">{formatCurrency(bookingDepositTotal)}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleCheckout("booking")}
+                        disabled={submitting}
+                        className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#ff8d28] py-3 text-xs font-bold text-white shadow transition-all hover:bg-[#e0751b] disabled:opacity-60"
+                      >
+                        <span>Gom đơn & Thanh toán cọc</span>
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                        </svg>
+                      </button>
                     </div>
                   )}
-                  {selectedBookings.length > 0 && (
-                    <div className="mt-1 flex justify-between text-xs font-bold text-[#0e111d]">
-                      <span>Tiền cọc booking:</span>
-                      <span className="text-[#ff8d28]">{formatCurrency(bookingDepositTotal)}</span>
-                    </div>
-                  )}
+
                   {selectedProducts.length > 0 && (
-                    <div className="mt-1 flex justify-between text-xs text-[#64748b]">
-                      <span>Sản phẩm đã chọn ({selectedProducts.length}):</span>
-                      <span className="font-bold text-[#ff8d28]">{formatCurrency(productTotal)}</span>
+                    <div className="rounded-xl border border-[#e2e8f0] bg-gray-50/50 p-4">
+                      <div className="flex justify-between text-xs font-bold text-[#0e111d]">
+                        <span>Tổng sản phẩm thiết bị ({selectedProducts.length}):</span>
+                        <span className="text-[#ff8d28]">{formatCurrency(productTotal)}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleCheckout("product")}
+                        disabled={submitting}
+                        className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#ff8d28] bg-white py-3 text-xs font-bold text-[#ff8d28] shadow-sm transition-all hover:bg-orange-50 disabled:opacity-60"
+                      >
+                        <span>Đặt hàng thiết bị máy ảnh</span>
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                        </svg>
+                      </button>
                     </div>
                   )}
-                  <button
-                    type="button"
-                    onClick={handleCheckoutAll}
-                    disabled={submitting || (selectedBookings.length === 0 && selectedProducts.length === 0)}
-                    className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#ff8d28] py-3 text-xs font-bold text-white shadow transition-all hover:bg-[#e0751b] disabled:opacity-60"
-                  >
-                    <span>{submitting ? "Đang tạo hóa đơn..." : `Thanh toán ${selectedBookings.length + selectedProducts.length} mục đã chọn`}</span>
-                    <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                    </svg>
-                  </button>
+
+                  {(selectedBookings.length > 0 || selectedProducts.length > 0) && (
+                    <button
+                      type="button"
+                      onClick={() => handleCheckout("all")}
+                      disabled={submitting}
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#ff8d28] py-3 text-xs font-bold text-white shadow transition-all hover:bg-[#e0751b] disabled:opacity-60"
+                    >
+                      <span>{submitting ? "Đang tạo hóa đơn..." : `Thanh toán ${selectedBookings.length + selectedProducts.length} mục đã chọn`}</span>
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                      </svg>
+                    </button>
+                  )}
                 </div>
 
               </div>
