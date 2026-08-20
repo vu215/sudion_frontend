@@ -915,37 +915,46 @@ summary:focus-visible {
   gap: 16px;
 }
 
-label {
-  display: grid;
-  gap: 8px;
-  color: var(--primary);
-  font-size: 14px;
-  font-weight: 800;
-  line-height: 20px;
-}
+@layer base {
+  label {
+    display: grid;
+    gap: 8px;
+    color: var(--primary);
+    font-size: 14px;
+    font-weight: 800;
+    line-height: 20px;
+  }
 
-input,
-select,
-textarea {
-  min-height: 48px;
-  width: 100%;
-  background: var(--surface);
-  color: var(--primary);
-  padding: 10px 12px;
-  font-size: 16px;
-  line-height: 24px;
-  outline: none;
-}
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    min-height: 48px;
+    width: 100%;
+    background: var(--surface);
+    color: var(--primary);
+    padding: 10px 12px;
+    font-size: 16px;
+    line-height: 24px;
+    outline: none;
+  }
 
-textarea {
-  min-height: 140px;
-  resize: vertical;
-}
+  input[type="checkbox"],
+  input[type="radio"] {
+    min-height: 0;
+    width: auto;
+    padding: 0;
+  }
 
-input:focus,
-select:focus,
-textarea:focus {
-  box-shadow: none;
+  textarea {
+    min-height: 140px;
+    resize: vertical;
+  }
+
+  input:not([type="checkbox"]):not([type="radio"]):focus,
+  select:focus,
+  textarea:focus {
+    box-shadow: none;
+  }
 }
 
 .cart-select-checkbox {
@@ -1171,7 +1180,7 @@ input[type="search"]:focus-visible {
 .notification-row,
 .tool-icon,
 .badge,
-input,
+input:not([type="checkbox"]):not([type="radio"]),
 select,
 textarea,
 .mobile-menu summary,
@@ -1233,7 +1242,7 @@ textarea,
   transform: translateY(-1px);
 }
 
-input:focus,
+input:not([type="checkbox"]):not([type="radio"]):focus,
 select:focus,
 textarea:focus {
   box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.18);
