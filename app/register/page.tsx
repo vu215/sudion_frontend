@@ -289,15 +289,15 @@ export default function RegisterPage() {
   }
 
   return (
-    <main className="min-h-[calc(100vh-280px)] bg-[#fbf8ff] text-[#1a1b24] py-10 flex items-center justify-center px-4 animate-fade-in">
-      <div className="w-full max-w-[800px] bg-white border border-[#e8eaf1]/80 rounded-[20px] shadow-[0_10px_40px_-10px_rgba(0,0,0,0.06)] overflow-hidden">
-        <div className="grid md:grid-cols-[1.1fr_1fr] items-stretch">
-          <div className="flex flex-col justify-center px-6 py-8 sm:px-10 order-2 md:order-1">
-            <div className="w-full max-w-[360px] mx-auto">
+    <main className="min-h-[calc(100vh-220px)] bg-[#fbf8ff] text-[#1a1b24] py-6 flex items-center justify-center px-4 animate-fade-in">
+      <div className="w-full max-w-[850px] bg-white border border-[#e8eaf1]/80 rounded-[20px] shadow-[0_10px_40px_-10px_rgba(0,0,0,0.06)] overflow-hidden">
+        <div className="grid md:grid-cols-[1.15fr_1fr] items-stretch">
+          <div className="flex flex-col justify-center px-6 py-7 sm:px-9 sm:py-8 order-2 md:order-1">
+            <div className="w-full max-w-[380px] mx-auto">
               {step === "form" ? (
                 <>
-                  <div className="mb-4">
-                    <h1 className="text-2xl sm:text-3xl font-extrabold leading-tight text-[#1a1b24] tracking-tight">
+                  <div className="mb-3.5">
+                    <h1 className="text-2xl sm:text-[26px] font-extrabold leading-tight text-[#1a1b24] tracking-tight">
                       Bắt đầu hành trình
                     </h1>
                     <p className="mt-1 text-xs font-medium text-[#5f6368]">
@@ -306,12 +306,12 @@ export default function RegisterPage() {
                   </div>
 
                   {error ? (
-                    <div className="mb-3.5 rounded-xl border border-red-100 bg-red-50 px-3.5 py-2 text-xs font-semibold text-red-600">
+                    <div className="mb-3 rounded-xl border border-red-100 bg-red-50 px-3.5 py-2 text-xs font-semibold text-red-600">
                       {error}
                     </div>
                   ) : null}
 
-                  <form onSubmit={handleSubmit} className="grid gap-3">
+                  <form onSubmit={handleSubmit} className="grid gap-2.5">
                     <div className="grid gap-1">
                       <span className="text-[13px] font-bold text-[#1a1b24]">
                         Họ và tên
@@ -322,7 +322,7 @@ export default function RegisterPage() {
                         onChange={(e) => setFullName(e.target.value)}
                         placeholder="Nhập họ và tên"
                         autoComplete="name"
-                        className="!h-11 !min-h-0 w-full rounded-xl !border !border-[#e2e8f0] bg-white px-4 !text-sm font-medium text-[#1a1b24] outline-none transition focus:border-[#ff8d28] focus:bg-white focus:ring-2 focus:ring-[#ff8d28]/10"
+                        className="!h-10 !min-h-0 w-full rounded-xl !border !border-[#e2e8f0] bg-white px-3.5 !text-sm font-medium text-[#1a1b24] outline-none transition focus:border-[#ff8d28] focus:bg-white focus:ring-2 focus:ring-[#ff8d28]/10"
                       />
                     </div>
 
@@ -336,7 +336,7 @@ export default function RegisterPage() {
                         onChange={(e) => setPhone(e.target.value)}
                         placeholder="Ví dụ: 0912345678"
                         autoComplete="tel"
-                        className="!h-11 !min-h-0 w-full rounded-xl !border !border-[#e2e8f0] bg-white px-4 !text-sm font-medium text-[#1a1b24] outline-none transition focus:border-[#ff8d28] focus:bg-white focus:ring-2 focus:ring-[#ff8d28]/10"
+                        className="!h-10 !min-h-0 w-full rounded-xl !border !border-[#e2e8f0] bg-white px-3.5 !text-sm font-medium text-[#1a1b24] outline-none transition focus:border-[#ff8d28] focus:bg-white focus:ring-2 focus:ring-[#ff8d28]/10"
                       />
                     </div>
 
@@ -350,7 +350,7 @@ export default function RegisterPage() {
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="example@gmail.com"
                         autoComplete="email"
-                        className="!h-11 !min-h-0 w-full rounded-xl !border !border-[#e2e8f0] bg-white px-4 !text-sm font-medium text-[#1a1b24] outline-none transition focus:border-[#ff8d28] focus:bg-white focus:ring-2 focus:ring-[#ff8d28]/10"
+                        className="!h-10 !min-h-0 w-full rounded-xl !border !border-[#e2e8f0] bg-white px-3.5 !text-sm font-medium text-[#1a1b24] outline-none transition focus:border-[#ff8d28] focus:bg-white focus:ring-2 focus:ring-[#ff8d28]/10"
                       />
                     </div>
 
@@ -365,7 +365,7 @@ export default function RegisterPage() {
                           onChange={(e) => setPassword(e.target.value)}
                           placeholder="Sudion@123"
                           autoComplete="new-password"
-                          className="!h-11 !min-h-0 w-full rounded-xl !border !border-[#e2e8f0] bg-white px-4 !text-sm font-medium text-[#1a1b24] outline-none focus:border-[#ff8d28] focus:bg-white focus:ring-2 focus:ring-[#ff8d28]/10"
+                          className="!h-10 !min-h-0 w-full rounded-xl !border !border-[#e2e8f0] bg-white px-3.5 !text-sm font-medium text-[#1a1b24] outline-none focus:border-[#ff8d28] focus:bg-white focus:ring-2 focus:ring-[#ff8d28]/10"
                         />
                       </div>
 
@@ -379,20 +379,28 @@ export default function RegisterPage() {
                           onChange={(e) => setConfirmPassword(e.target.value)}
                           placeholder="Sudion@123"
                           autoComplete="new-password"
-                          className="!h-11 !min-h-0 w-full rounded-xl !border !border-[#e2e8f0] bg-white px-4 !text-sm font-medium text-[#1a1b24] outline-none focus:border-[#ff8d28] focus:bg-white focus:ring-2 focus:ring-[#ff8d28]/10"
+                          className="!h-10 !min-h-0 w-full rounded-xl !border !border-[#e2e8f0] bg-white px-3.5 !text-sm font-medium text-[#1a1b24] outline-none focus:border-[#ff8d28] focus:bg-white focus:ring-2 focus:ring-[#ff8d28]/10"
                         />
                       </div>
                     </div>
 
-                    <label className="flex items-start gap-2 text-[12px] leading-5 text-[#5f6368]">
+                    <label className="!flex !flex-row !items-start !gap-2.5 my-1 text-xs leading-5 text-[#5f6368] cursor-pointer select-none">
                       <input
                         type="checkbox"
                         checked={acceptedPolicy}
                         onChange={(e) => setAcceptedPolicy(e.target.checked)}
-                        className="mt-1 h-4 w-4 shrink-0 accent-[#ff8d28]"
+                        className="mt-0.5 !h-4 !w-4 !min-h-0 !w-auto shrink-0 rounded border-[#cbd5e1] accent-[#ff8d28] cursor-pointer"
                       />
                       <span>
-                        Tôi đồng ý với Điều khoản sử dụng và Chính sách bảo mật của SudionStudio.
+                        Tôi đồng ý với{" "}
+                        <Link href="/terms" className="font-semibold text-[#1a1b24] underline hover:text-[#ff8d28]">
+                          Điều khoản sử dụng
+                        </Link>{" "}
+                        và{" "}
+                        <Link href="/support" className="font-semibold text-[#1a1b24] underline hover:text-[#ff8d28]">
+                          Chính sách bảo mật
+                        </Link>{" "}
+                        của SudionStudio.
                       </span>
                     </label>
 
@@ -405,7 +413,7 @@ export default function RegisterPage() {
                     </button>
                   </form>
 
-                  <div className="relative my-3.5">
+                  <div className="relative my-3">
                     <div className="absolute inset-0 flex items-center">
                       <div className="w-full border-t border-[#e2e8f0]" />
                     </div>
@@ -418,7 +426,7 @@ export default function RegisterPage() {
 
                   <GoogleAuthButton buttonText="Đăng ký bằng Google" onError={setError} />
 
-                  <p className="mt-4 text-center text-xs font-semibold text-[#444655]">
+                  <p className="mt-3.5 text-center text-xs font-semibold text-[#444655]">
                     Đã có tài khoản?{" "}
                     <Link
                       href="/login"
