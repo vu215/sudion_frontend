@@ -26,7 +26,18 @@ export type AuthSession = {
 type ApiResponse<T> = {
   success: boolean;
   message?: string;
+  code?: string;
+  retryAfter?: number;
+  attemptsRemaining?: number;
   data?: T;
+};
+
+export type RegisterOtpParams = {
+  fullName: string;
+  email: string;
+  password: string;
+  phone?: string;
+  role?: UserRole;
 };
 
 const API_URL =
@@ -118,6 +129,116 @@ export function clearSession() {
   window.localStorage.removeItem("sudion_auth_user");
   window.localStorage.removeItem("sudion_photographer_id");
   window.localStorage.removeItem("sudion_token");
+}
+
+export async function requestRegisterOtp(params: RegisterOtpParams) {
+  try {
+    const response = await fetch(`${API_URL}/auth/register/request-otp`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        fullName: params.fullName,
+        email: params.email,
+        password: params.password,
+        phone: params.phone,
+        role: params.role === "photographer" ? "photographer" : "customer",
+      }),
+    });
+
+    const result = (await response.json()) as ApiResponse<{
+      email?: string;
+      expiresIn?: number;
+      resendAfter?: number;
+      accepted?: boolean;
+      messageId?: string | null;
+      provider?: string;
+    }>;
+
+    if (!response.ok || !result.success) {
+      return {
+        ok: false as const,
+        error: result.message || "Không thể gửi mã OTP đăng ký.",
+        retryAfter: Number(result.retryAfter || 0),
+      };
+    }
+
+    return {
+      ok: true as const,
+      message: result.message || "Đã gửi mã OTP đến email của bạn.",
+      email: result.data?.email || params.email,
+      expiresIn: Number(result.data?.expiresIn || 300),
+      resendAfter: Number(result.data?.resendAfter || 60),
+    };
+  } catch (error: any) {
+    return {
+      ok: false as const,
+      error:
+        error?.message ||
+        "Không thể kết nối backend để gửi OTP. Vui lòng kiểm tra server.",
+      retryAfter: 0,
+    };
+  }
+}
+
+export async function verifyRegisterOtp(
+  params: RegisterOtpParams & { otp: string }
+) {
+  try {
+    const response = await fetch(`${API_URL}/auth/register/verify-otp`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        fullName: params.fullName,
+        email: params.email,
+        password: params.password,
+        phone: params.phone,
+        role: params.role === "photographer" ? "photographer" : "customer",
+        otp: params.otp,
+      }),
+    });
+
+    const result = (await response.json()) as ApiResponse<{
+      user: AuthUser;
+      token?: string;
+      emailVerified?: boolean;
+    }>;
+
+    if (!response.ok || !result.success) {
+      return {
+        ok: false as const,
+        error: result.message || "Mã OTP không hợp lệ.",
+        attemptsRemaining:
+          result.attemptsRemaining === undefined
+            ? undefined
+            : Number(result.attemptsRemaining),
+      };
+    }
+
+    const user = normalizeUser(result.data?.user);
+    const session = makeSession(user);
+    const token = result.data?.token;
+
+    writeCompatStorage(user, session, token);
+
+    return {
+      ok: true as const,
+      message: result.message || "Xác minh email và đăng ký thành công.",
+      user,
+      session,
+      emailVerified: Boolean(result.data?.emailVerified),
+    };
+  } catch (error: any) {
+    return {
+      ok: false as const,
+      error:
+        error?.message ||
+        "Không thể kết nối backend để xác minh OTP. Vui lòng kiểm tra server.",
+    };
+  }
 }
 
 export async function registerUser(params: {
