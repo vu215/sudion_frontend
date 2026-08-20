@@ -33,6 +33,10 @@ export default function UserPage() {
   const [showCancelForm, setShowCancelForm] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [cancelError, setCancelError] = useState("");
+  const [selectedRating, setSelectedRating] = useState(0);
+  const [selectedTip, setSelectedTip] = useState<number | null>(null);
+  const [reviewText, setReviewText] = useState("");
+  const [detailNotice, setDetailNotice] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -263,7 +267,7 @@ export default function UserPage() {
                           <div className="mt-2 flex items-center justify-between border-t border-slate-200/60 pt-2">
                             <button
                               type="button"
-                              onClick={() => { setSelectedOrder(order); setShowCancelForm(false); setCancelReason(""); setCancelNote(""); setCancelError(""); }}
+                              onClick={() => { setSelectedOrder(order); setShowCancelForm(false); setCancelReason(""); setCancelNote(""); setCancelError(""); setDetailNotice(""); }}
                               className="text-xs font-bold text-slate-600 transition hover:text-[#ff8d28]"
                             >
                               Xem chi tiết
@@ -334,50 +338,91 @@ export default function UserPage() {
       </div>
 
       {selectedOrder ? (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/45 p-4" onClick={() => { setSelectedOrder(null); setShowCancelForm(false); }}>
-          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl" onClick={(event) => event.stopPropagation()}>
-            <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
+        <div className="fixed inset-x-0 bottom-0 top-[76px] z-[100] overflow-y-auto bg-[#f8fafc] p-3 sm:top-[88px] sm:p-5" onClick={() => { setSelectedOrder(null); setShowCancelForm(false); }}>
+          <div className="mx-auto min-h-full w-full max-w-[1240px]" onClick={(event) => event.stopPropagation()}>
+            <div className="mb-2 flex items-center gap-2 px-1 text-[10px] text-slate-500">
+              <span>Trang chủ</span><span>›</span><span>Đơn hàng của tôi</span><span>›</span><span className="font-semibold text-slate-700">Chi tiết đơn hàng #{selectedOrder.id}</span>
+            </div>
+            <div className="rounded-[18px] border border-slate-200 bg-[#f8fafc] p-1 shadow-sm sm:p-1.5">
+            <div className="mb-2 flex items-start justify-between rounded-xl border border-slate-200 bg-white p-3">
               <div>
-                <p className="text-xs font-bold uppercase tracking-wide text-orange-500">Chi tiết đơn mua hàng</p>
-                <h2 className="mt-1 text-xl font-black text-slate-900">#DH{selectedOrder.id}</h2>
-                <p className="mt-1 text-xs text-slate-500">
-                  Đặt lúc {selectedOrder.created_at
-                    ? new Date(selectedOrder.created_at).toLocaleString("vi-VN", { hour: "2-digit", minute: "2-digit", second: "2-digit", day: "2-digit", month: "2-digit", year: "numeric" })
-                    : "chưa có thời gian đặt"}
-                </p>
+                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#ff8d28]">Đơn hàng #{selectedOrder.id}</p>
+                <h2 className="mt-0.5 text-lg font-black text-slate-900">{selectedOrder.items?.[0]?.ten_san_pham || "Chi tiết đơn hàng"}</h2>
+                <p className="mt-0.5 text-[11px] text-slate-500">Đặt lúc {selectedOrder.created_at ? new Date(selectedOrder.created_at).toLocaleString("vi-VN") : "chưa có thời gian"}</p>
               </div>
-              <button type="button" onClick={() => { setSelectedOrder(null); setShowCancelForm(false); }} className="grid h-9 w-9 place-items-center rounded-full bg-slate-100 text-xl text-slate-500 hover:bg-slate-200">×</button>
+              <button type="button" onClick={() => { setSelectedOrder(null); setShowCancelForm(false); }} className="grid h-9 w-9 place-items-center rounded-full bg-slate-100 text-xl text-slate-500 hover:bg-orange-50 hover:text-[#ff8d28]">×</button>
             </div>
 
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <Detail label="Người nhận" value={selectedOrder.customerInfo?.name || selectedOrder.customer_name} />
-              <Detail label="Số điện thoại" value={selectedOrder.customerInfo?.phone || selectedOrder.customer_phone} />
-              <div className="sm:col-span-2">
-                <Detail label="Địa chỉ giao hàng" value={selectedOrder.customerInfo?.address || selectedOrder.customer_address} />
-              </div>
-              <Detail label="Giao hàng" value={selectedOrder.shipping_method === "express" || selectedOrder.customerInfo?.shippingMethod === "express" ? "Giao nhanh" : "Giao tiêu chuẩn"} />
-              <Detail label="Thanh toán" value={selectedOrder.payment_method || selectedOrder.customerInfo?.paymentMethod || "COD"} />
-              {(selectedOrder.note || selectedOrder.customerInfo?.note) ? <div className="sm:col-span-2"><Detail label="Ghi chú" value={selectedOrder.note || selectedOrder.customerInfo?.note} /></div> : null}
-            </div>
-
-            <div className="mt-5 border-t border-slate-100 pt-4">
-              <h3 className="text-sm font-black text-slate-900">Sản phẩm</h3>
-              <div className="mt-3 space-y-3">
-                {selectedOrder.items?.map((item: any, index: number) => (
-                  <div key={`${item.productId}-${index}`} className="flex items-center gap-3 rounded-xl bg-slate-50 p-3">
-                    {item.hinh_anh ? <img src={resolveProductImageUrl(item.hinh_anh)} alt="" className="h-12 w-12 rounded-lg object-cover" /> : null}
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-bold text-slate-800">{item.ten_san_pham}</p>
-                      <p className="text-xs text-slate-500">{item.bien_the || "Phiên bản mặc định"} · Số lượng {item.so_luong}</p>
-                    </div>
-                    <p className="text-sm font-black text-slate-800">{formatCurrency(Number(item.gia_ban || 0) * Number(item.so_luong || 0))}</p>
+            {detailNotice ? <div className="mb-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[11px] font-bold text-emerald-700">{detailNotice}</div> : null}
+            <div className="grid items-start gap-2.5 lg:grid-cols-[minmax(0,1fr)_260px]">
+              <div className="grid content-start gap-2.5">
+                <section className="self-start rounded-xl border border-slate-200 bg-white p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <h3 className="text-base font-black text-slate-900">Trạng thái đơn hàng</h3>
+                    <span className="rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-bold text-emerald-600">{selectedOrder.status === "completed" ? "Đã hoàn thành" : selectedOrder.status === "shipping" ? "Đang giao" : "Đang xử lý"}</span>
                   </div>
-                ))}
+                  <div className="mt-3 grid grid-cols-5 gap-1">
+                    {["Đặt hàng", "Xác nhận", "Đang giao", "Đã giao", "Hoàn thành"].map((step, index) => {
+                      const done = selectedOrder.status === "completed" ? true : index === 0;
+                      return <div key={step} className="relative text-center"><div className={`mx-auto grid h-9 w-9 place-items-center rounded-full border-2 text-xs font-black ${done ? "border-[#ff8d28] bg-orange-50 text-[#ff8d28]" : "border-slate-200 bg-white text-slate-300"}`}>{done ? "✓" : index + 1}</div><p className={`mt-2 text-[10px] font-bold ${done ? "text-slate-700" : "text-slate-400"}`}>{step}</p>{index < 4 ? <span className={`absolute left-[60%] top-4 h-0.5 w-[80%] ${done ? "bg-orange-300" : "bg-slate-200"}`} /> : null}</div>;
+                    })}
+                  </div>
+                  <button type="button" onClick={() => setDetailNotice("Tính năng theo dõi đơn hàng đang được cập nhật.")} className="mt-3 flex w-full items-center justify-between rounded-lg border border-orange-200 bg-orange-50/40 px-3 py-2.5 text-xs font-black text-[#ff8d28]">Theo dõi đơn hàng <span className="text-base">›</span></button>
+                </section>
+
+                <section className="self-start rounded-xl border border-slate-200 bg-white p-3">
+                  <h3 className="text-base font-black text-slate-900">Sản phẩm</h3>
+                  <div className="mt-3 grid gap-2">
+                    {selectedOrder.items?.map((item: any, index: number) => <div key={`${item.productId}-${index}`} className="flex items-center gap-3 rounded-xl bg-slate-50 p-3">{item.hinh_anh ? <img src={resolveProductImageUrl(item.hinh_anh)} alt="" className="h-14 w-14 rounded-lg object-cover" /> : <div className="h-14 w-14 rounded-lg bg-slate-200" />}<div className="min-w-0 flex-1"><p className="truncate text-sm font-bold text-slate-800">{item.ten_san_pham}</p><p className="text-xs text-slate-500">{item.bien_the || "Phiên bản mặc định"} · x{item.so_luong}</p></div><p className="text-sm font-black text-slate-800">{formatCurrency(Number(item.gia_ban || 0) * Number(item.so_luong || 0))}</p></div>)}
+                  </div>
+                </section>
+
+                <div className="grid content-start gap-2.5 md:grid-cols-2">
+                  <section className="self-start rounded-xl border border-slate-200 bg-white p-3"><h3 className="text-sm font-black text-slate-900">Thông tin giao hàng</h3><div className="mt-2 grid gap-2 text-xs"><Detail label="Người nhận" value={selectedOrder.customerInfo?.name || selectedOrder.customer_name} /><Detail label="Số điện thoại" value={selectedOrder.customerInfo?.phone || selectedOrder.customer_phone} /><Detail label="Địa chỉ" value={selectedOrder.customerInfo?.address || selectedOrder.customer_address} /></div></section>
+                  <section className="self-start rounded-xl border border-slate-200 bg-white p-3"><div className="flex items-center justify-between"><h3 className="text-sm font-black text-slate-900">Đánh giá &amp; Tip</h3><span className="rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-bold text-[#ff8d28]">Tùy chọn</span></div><p className="mt-1 text-xs text-slate-500">Bạn có thể đánh giá, tip shipper hoặc bỏ qua cả hai.</p><div className="mt-1 flex gap-1">{[1,2,3,4,5].map((star) => <button key={star} type="button" onClick={() => setSelectedRating(star)} className={`text-2xl ${star <= selectedRating ? "text-[#ff8d28]" : "text-slate-200"}`}>☆</button>)}</div><textarea value={reviewText} onChange={(event) => setReviewText(event.target.value.slice(0, 200))} rows={2} placeholder="Chia sẻ trải nghiệm của bạn về shipper..." className="mt-1 w-full resize-none rounded-lg border border-slate-200 px-3 py-2 text-[11px] outline-none focus:border-[#ff8d28]" /><p className="text-right text-[10px] text-slate-400">{reviewText.length}/200</p><p className="mt-1 text-[11px] text-slate-400">Tip shipper (không bắt buộc)</p><div className="mt-1 grid grid-cols-3 gap-1.5">{[20000,50000,100000].map((amount) => <button key={amount} type="button" onClick={() => setSelectedTip(amount)} className={`rounded-lg border px-2 py-1.5 text-[10px] font-bold ${selectedTip === amount ? "border-[#ff8d28] bg-orange-50 text-[#ff8d28]" : "border-slate-200 text-slate-600"}`}>{formatCurrency(amount)}</button>)}</div><button type="button" onClick={() => setSelectedTip(null)} className={`mt-1 w-full rounded-lg border px-3 py-1.5 text-[10px] font-bold ${selectedTip === null ? "border-slate-400 bg-slate-100 text-slate-700" : "border-slate-200 text-slate-500"}`}>Không tip / Bỏ qua</button><button type="button" onClick={() => setDetailNotice(selectedRating || reviewText.trim() ? "Đánh giá của bạn đã được ghi nhận." : "Bạn có thể bỏ qua đánh giá.")} className="mt-2 w-full rounded-xl bg-[#ff8d28] px-3 py-2 text-xs font-black text-white">Gửi đánh giá{selectedTip ? " & tip" : ""}</button></section>
+                </div>
               </div>
-              <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-4">
-                <span className="text-sm font-bold text-slate-600">Tổng thanh toán</span>
-                <span className="text-lg font-black text-[#ff8d28]">{formatCurrency(selectedOrder.total_amount ?? selectedOrder.totalAmount)}</span>
-              </div>
+
+              <aside className="grid content-start gap-4">
+                <section className="rounded-2xl border border-slate-200 bg-white p-4">
+                  <h3 className="text-sm font-black uppercase text-slate-900">Luồng hiển thị</h3>
+                  <div className="mt-4 grid grid-cols-4 gap-1 text-center">
+                    {["Đặt hàng", "Giao hàng", "Đã nhận hàng", "Đánh giá & tip"].map((label, index) => (
+                      <div key={label} className="relative">
+                        <div className={`mx-auto grid h-10 w-10 place-items-center rounded-full border ${index < 3 ? "border-[#ff8d28] bg-orange-50 text-[#ff8d28]" : "border-slate-200 bg-white text-slate-300"}`}>
+                          <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" aria-hidden="true">
+                            {index === 0 ? <><path strokeLinecap="round" strokeLinejoin="round" d="M7 3h10v18H7z" /><path strokeLinecap="round" d="M9 7h6M9 11h6M9 15h4" /></> : null}
+                            {index === 1 ? <><path strokeLinecap="round" strokeLinejoin="round" d="M3 16V6h11v10M14 10h4l3 3v3h-7M6 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm12 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" /></> : null}
+                            {index === 2 ? <><path strokeLinecap="round" strokeLinejoin="round" d="M5 12a7 7 0 1 0 14 0 7 7 0 0 0-14 0Z" /><path strokeLinecap="round" strokeLinejoin="round" d="m9 12 2 2 4-4" /></> : null}
+                            {index === 3 ? <><path strokeLinecap="round" strokeLinejoin="round" d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9L12 3Z" /></> : null}
+                          </svg>
+                        </div>
+                        <p className="mt-2 text-[9px] font-bold leading-3 text-slate-500">{label}</p>
+                        {index < 3 ? <span className="absolute left-[65%] top-5 h-px w-[70%] bg-orange-200" /> : null}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3 text-[10px] leading-4 text-slate-600">
+                    Chỉ hiển thị phần đánh giá và tip shipper khi đơn hàng đã được giao thành công.
+                  </div>
+                </section>
+                <section className="rounded-xl border border-slate-200 bg-white p-3"><h3 className="text-sm font-black text-slate-900">Tóm tắt đơn hàng</h3><div className="mt-3 grid gap-2 text-sm"><div className="flex justify-between"><span className="text-slate-500">Tạm tính</span><b>{formatCurrency(selectedOrder.total_amount ?? selectedOrder.totalAmount)}</b></div><div className="flex justify-between"><span className="text-slate-500">Phí vận chuyển</span><b>Miễn phí</b></div><div className="border-t border-slate-100 pt-2 flex justify-between"><span className="font-bold">Tổng thanh toán</span><b className="text-lg text-[#ff8d28]">{formatCurrency(selectedOrder.total_amount ?? selectedOrder.totalAmount)}</b></div></div><button type="button" onClick={() => setDetailNotice("Tính năng mua lại đang được cập nhật.")} className="mt-3 w-full rounded-xl border border-orange-300 px-3 py-2 text-xs font-bold text-[#ff8d28]">Mua lại</button></section>
+                <section className="rounded-2xl border border-slate-200 bg-white p-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-black uppercase text-slate-900">Tip shipper</h3>
+                    <span className="text-slate-400">×</span>
+                  </div>
+                  <p className="mt-2 text-[10px] text-slate-500">Chọn số tiền bạn muốn gửi tặng shipper.</p>
+                  <div className="mt-3 grid grid-cols-3 gap-1.5">
+                    {[20000, 50000, 100000].map((amount) => <button key={amount} type="button" onClick={() => setSelectedTip(amount)} className={`rounded-lg border px-1 py-2 text-[10px] font-bold ${selectedTip === amount ? "border-[#ff8d28] bg-orange-50 text-[#ff8d28]" : "border-slate-200 text-slate-600"}`}>{formatCurrency(amount)}</button>)}
+                  </div>
+                  <div className="mt-2 flex items-center rounded-lg border border-slate-200 px-3 py-2 text-[10px] text-slate-400">Nhập số tiền khác <span className="ml-auto">đ</span></div>
+                  <p className="mt-3 text-[10px] text-slate-500">ⓘ 100% số tiền tip sẽ được chuyển đến shipper.</p>
+                  <button type="button" onClick={() => setSelectedTip(null)} className="mt-3 w-full rounded-xl bg-[#ff8d28] px-3 py-2.5 text-xs font-black text-white">{selectedTip ? `Xác nhận tip ${formatCurrency(selectedTip)}` : "Bỏ qua tip"}</button>
+                </section>
+                <section className="rounded-2xl border border-slate-200 bg-white p-4"><h3 className="text-sm font-black text-slate-900">Cần hỗ trợ?</h3><div className="mt-3 grid gap-3 text-xs"><p><b>ⓘ Gặp vấn đề với đơn hàng</b><br /><span className="text-[#ff8d28]">Liên hệ chúng tôi</span></p><p><b>◌ Chat với Studion</b><br /><span className="text-[#ff8d28]">Trò chuyện ngay</span></p><p><b>☎ Hotline</b><br /><span className="text-slate-500">1900 1234</span></p></div></section>
+                <section className="rounded-2xl border border-slate-200 bg-white p-4"><h3 className="text-sm font-black uppercase text-slate-900">Ghi chú</h3><ul className="mt-3 grid gap-2 text-[10px] leading-4 text-slate-600"><li>◉ Tip shipper là tùy chọn, không bắt buộc.</li><li>◉ Người dùng có thể chỉ đánh giá, chỉ tip hoặc cả hai.</li><li>◉ Lịch sử tip và đánh giá có thể xem lại trong đơn hàng.</li></ul></section>
+              </aside>
             </div>
 
             {(!selectedOrder.status || selectedOrder.status === "pending") ? (
@@ -412,6 +457,7 @@ export default function UserPage() {
             ) : selectedOrder.status === "cancelled" ? (
               <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm font-semibold text-slate-600">Đơn hàng này đã được hủy.</div>
             ) : null}
+            </div>
           </div>
         </div>
       ) : null}
