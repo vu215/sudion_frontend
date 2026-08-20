@@ -2,18 +2,90 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useToast } from "@/app/toast-context";
 import {
+  createPhotographerPackage,
+  deletePhotographerPackage,
   formatCurrency,
   getMyPhotographerProfile,
   getPhotographerPublicProfile,
+  updatePhotographerPackage,
   type PhotographerPackage,
 } from "../photographer-api";
+
+type PackageForm = {
+  name: string;
+  price: string;
+  duration: string;
+  description: string;
+};
+
+const emptyForm: PackageForm = { name: "", price: "", duration: "120", description: "" };
 
 export default function PhotographerServicesPage() {
   const [packages, setPackages] = useState<PhotographerPackage[]>([]);
   const [photographerId, setPhotographerId] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [form, setForm] = useState<PackageForm>(emptyForm);
+  const [editingId, setEditingId] = useState<number | string | null>(null);
+  const [formOpen, setFormOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const toast = useToast();
+
+  function openCreate() {
+    setEditingId(null);
+    setForm(emptyForm);
+    setFormOpen(true);
+  }
+
+  function openEdit(item: PhotographerPackage) {
+    setEditingId(item.id);
+    setForm({
+      name: item.name || "",
+      price: String(item.price || ""),
+      duration: String(item.duration || Number.parseInt(item.duration_text || "120", 10) || 120),
+      description: item.description || "",
+    });
+    setFormOpen(true);
+  }
+
+  async function savePackage() {
+    const price = Number(form.price);
+    const duration = Number(form.duration);
+    if (!form.name.trim() || !Number.isFinite(price) || price <= 0 || !Number.isFinite(duration) || duration <= 0) {
+      toast.warning("Thiếu thông tin", "Vui lòng nhập tên, giá và thời lượng hợp lệ.");
+      return;
+    }
+
+    try {
+      setSaving(true);
+      const payload = { name: form.name.trim(), price, duration, description: form.description.trim() };
+      const saved = editingId
+        ? await updatePhotographerPackage(editingId, payload)
+        : await createPhotographerPackage(payload);
+      setPackages((current) => editingId
+        ? current.map((item) => item.id === editingId ? { ...item, ...saved } : item)
+        : [...current, saved]);
+      setFormOpen(false);
+      toast.success("Đã lưu", editingId ? "Gói dịch vụ đã được cập nhật." : "Gói dịch vụ đã được thêm.");
+    } catch (err) {
+      toast.error("Lỗi", err instanceof Error ? err.message : "Không thể lưu gói dịch vụ.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function removePackage(item: PhotographerPackage) {
+    if (!window.confirm(`Xóa gói “${item.name}”?`)) return;
+    try {
+      await deletePhotographerPackage(item.id);
+      setPackages((current) => current.filter((entry) => entry.id !== item.id));
+      toast.success("Đã xóa", "Gói dịch vụ đã được xóa.");
+    } catch (err) {
+      toast.error("Lỗi", err instanceof Error ? err.message : "Không thể xóa gói dịch vụ.");
+    }
+  }
 
   useEffect(() => {
     let alive = true;
@@ -53,11 +125,28 @@ export default function PhotographerServicesPage() {
           </div>
           <Link
             href="/profile"
+            onClick={(event) => { event.preventDefault(); openCreate(); }}
             className="rounded-xl bg-[#ff8d28] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#e07820]"
           >
-            Cập nhật hồ sơ
+            + Thêm dịch vụ
           </Link>
         </div>
+
+        {formOpen ? (
+          <section className="rounded-3xl border border-orange-200 bg-orange-50/50 p-5 shadow-sm">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-slate-900">{editingId ? "Sửa gói dịch vụ" : "Thêm gói dịch vụ"}</h2>
+              <button type="button" onClick={() => setFormOpen(false)} className="text-sm font-semibold text-slate-500">Hủy</button>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <input value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} placeholder="Tên gói dịch vụ" className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-orange-400" />
+              <input type="number" min="1" value={form.price} onChange={(event) => setForm((current) => ({ ...current, price: event.target.value }))} placeholder="Giá (VNĐ)" className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-orange-400" />
+              <input type="number" min="1" value={form.duration} onChange={(event) => setForm((current) => ({ ...current, duration: event.target.value }))} placeholder="Thời lượng (phút)" className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-orange-400" />
+              <textarea value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} placeholder="Mô tả gói dịch vụ" className="min-h-12 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-orange-400 sm:col-span-2" />
+            </div>
+            <button type="button" disabled={saving} onClick={() => void savePackage()} className="mt-4 rounded-xl bg-[#ff8d28] px-5 py-2.5 text-sm font-bold text-white disabled:opacity-60">{saving ? "Đang lưu..." : "Lưu dịch vụ"}</button>
+          </section>
+        ) : null}
 
         {error ? (
           <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-600">
@@ -90,6 +179,10 @@ export default function PhotographerServicesPage() {
                   </div>
                   <div className="sm:text-right">
                     <p className="text-lg font-black text-[#ff8d28]">{formatCurrency(item.price)}</p>
+                    <div className="mt-3 flex justify-end gap-2">
+                      <button type="button" onClick={() => openEdit(item)} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-600 hover:border-orange-200 hover:text-[#ff8d28]">Sửa</button>
+                      <button type="button" onClick={() => void removePackage(item)} className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-600">Xóa</button>
+                    </div>
                     {photographerId ? (
                       <Link
                         href={`/photographer/${photographerId}`}

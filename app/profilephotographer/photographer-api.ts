@@ -45,6 +45,8 @@ export type PhotographerPackage = {
   price: number;
   description?: string;
   duration_text?: string;
+  duration?: number;
+  category_id?: number;
   portfolio_images?: string[];
   category?: {
     name?: string;
@@ -136,6 +138,43 @@ export async function getPhotographerPublicProfile(photographerId: string) {
   }>(response);
 }
 
+export async function createPhotographerPackage(payload: Record<string, unknown>) {
+  const response = await fetch(`${API_URL}/photographers/me/packages`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify(payload),
+  });
+  const json = await response.json().catch(() => ({}));
+  if (!response.ok || !json.success) {
+    throw new Error(json.message || "Không thể thêm gói dịch vụ.");
+  }
+  return json.data as PhotographerPackage;
+}
+
+export async function updatePhotographerPackage(id: number | string, payload: Record<string, unknown>) {
+  const response = await fetch(`${API_URL}/photographers/me/packages/${encodeURIComponent(String(id))}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify(payload),
+  });
+  const json = await response.json().catch(() => ({}));
+  if (!response.ok || !json.success) {
+    throw new Error(json.message || "Không thể cập nhật gói dịch vụ.");
+  }
+  return json.data as PhotographerPackage;
+}
+
+export async function deletePhotographerPackage(id: number | string) {
+  const response = await fetch(`${API_URL}/photographers/me/packages/${encodeURIComponent(String(id))}`, {
+    method: "DELETE",
+    headers: authHeaders(),
+  });
+  const json = await response.json().catch(() => ({}));
+  if (!response.ok || (json.success === false && response.status !== 204)) {
+    throw new Error(json.message || "Không thể xóa gói dịch vụ.");
+  }
+}
+
 export function resolveAssetUrl(url?: string | null) {
   if (!url) return "";
 
@@ -161,6 +200,16 @@ export function normalizePortfolioItems(raw: unknown): PhotographerPortfolioItem
       if (!entry || typeof entry !== "object") return null;
 
       const item = entry as Record<string, unknown>;
+      const categoryObject =
+        typeof item.category === "object" && item.category
+          ? (item.category as Record<string, unknown>)
+          : null;
+      const categoryName =
+        (typeof item.category_name === "string" && item.category_name) ||
+        (typeof item.categoryName === "string" && item.categoryName) ||
+        (typeof item.category === "string" && item.category) ||
+        (typeof categoryObject?.name === "string" && categoryObject.name) ||
+        "";
       const imageUrl =
         (typeof item.image_url === "string" && item.image_url) ||
         (typeof item.image === "string" && item.image) ||
@@ -174,20 +223,8 @@ export function normalizePortfolioItems(raw: unknown): PhotographerPortfolioItem
         url: imageUrl,
         caption: typeof item.caption === "string" ? item.caption : (typeof item.description === "string" ? item.description : ""),
         description: typeof item.description === "string" ? item.description : (typeof item.caption === "string" ? item.caption : ""),
-        category_name:
-          typeof item.category_name === "string"
-            ? item.category_name
-            : typeof item.category === "string"
-              ? item.category
-              : typeof item.category === "object" && item.category && "name" in (item.category as Record<string, unknown>)
-                ? String((item.category as Record<string, unknown>).name || "")
-                : "",
-        category:
-          typeof item.category === "string"
-            ? item.category
-            : typeof item.category_name === "string"
-              ? item.category_name
-              : "",
+        category_name: categoryName,
+        category: categoryName,
         is_featured:
           Boolean(item.is_featured ?? item.featured ?? false) ||
           (typeof item.featured === "string" ? item.featured === "true" : false),

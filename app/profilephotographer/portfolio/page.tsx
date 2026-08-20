@@ -14,6 +14,15 @@ import {
 } from "../photographer-api";
 
 const DEFAULT_CATEGORY = "Portrait";
+const PORTFOLIO_CATEGORIES = [
+  "Cưới hỏi",
+  "Cặp đôi",
+  "Portrait",
+  "Sự kiện",
+  "Kỷ yếu",
+  "Travel",
+  "Food & Product",
+] as const;
 
 export default function PhotographerPortfolioPage() {
   const toast = useToast();
@@ -108,14 +117,18 @@ export default function PhotographerPortfolioPage() {
         imageUrl = uploadJson.data?.url || uploadJson.data?.image_url || imageUrl;
       }
 
+      const selectedCategory = addForm.category_name.trim() || DEFAULT_CATEGORY;
       const created = await createPortfolioItem({
         image_url: imageUrl,
         caption: addForm.caption.trim(),
-        category_name: addForm.category_name.trim() || DEFAULT_CATEGORY,
+        category_name: selectedCategory,
         is_featured: addForm.is_featured,
       });
 
-      setItems((prev) => [...prev, created]);
+      setItems((prev) => [
+        ...prev,
+        { ...created, category_name: created.category_name || selectedCategory, category: created.category || selectedCategory },
+      ]);
       setAddForm({
         file: null,
         imageUrl: "",
@@ -328,12 +341,17 @@ export default function PhotographerPortfolioPage() {
 
                 <div>
                   <label className="mb-1.5 block text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Phân loại</label>
-                  <input
+                  <select
                     value={addForm.category_name}
                     onChange={(event) => setAddForm((prev) => ({ ...prev, category_name: event.target.value }))}
-                    placeholder="Ví dụ: Portrait, Cưới, Sự kiện, Sản phẩm..."
                     className="w-full rounded-2xl border border-[#e5e7eb] bg-white px-4 py-3 text-sm outline-none transition focus:border-[#ff8d28]"
-                  />
+                  >
+                    {PORTFOLIO_CATEGORIES.map((category) => (
+                      <option key={category} value={category}>
+                        {category}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-700">

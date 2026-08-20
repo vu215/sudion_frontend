@@ -605,11 +605,25 @@ function PhotographerProfileContent({ id }: { id: string }) {
 
       try {
         const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
-        const res = await fetch(`${API_URL}/photographers/${id}/booking-options`);
+        const [res, profileRes] = await Promise.all([
+          fetch(`${API_URL}/photographers/${id}/booking-options`),
+          fetch(`${API_URL}/photographers/${id}/profile`, { cache: "no-store" }).catch(() => null),
+        ]);
         if (res.ok) {
           const json = await res.json();
+          const profileJson = profileRes?.ok ? await profileRes.json() : null;
           if (json.success && json.data) {
             const data = json.data;
+            const profilePortfolio = Array.isArray(profileJson?.data?.portfolio)
+              ? profileJson.data.portfolio
+                  .map((item: unknown) => {
+                    if (typeof item === "string") return item;
+                    if (!item || typeof item !== "object") return "";
+                    const entry = item as Record<string, unknown>;
+                    return String(entry.image_url || entry.image || entry.url || "");
+                  })
+                  .filter(Boolean)
+              : [];
             const avatarUrl = resolveAssetUrl(
               data.photographer.avatar_url ||
               data.photographer.profile_image ||
@@ -635,7 +649,10 @@ function PhotographerProfileContent({ id }: { id: string }) {
               avatar: avatarUrl || FALLBACK_PROFILE_AVATAR,
               cover: coverUrl || FALLBACK_PROFILE_COVER,
               bio: data.photographer.bio || "Chưa có giới thiệu tiểu sử.",
-              portfolio: data.packages?.map((p: any) => resolveAssetUrl(p.image_url)).filter(Boolean).slice(0, 5) || [],
+              portfolio: (profilePortfolio.length > 0
+                ? profilePortfolio
+                : data.packages?.map((p: any) => p.image_url).filter(Boolean) || []
+              ).map((url: string) => resolveAssetUrl(url)),
               equipment: ["Máy ảnh chuyên nghiệp"],
               services: data.packages?.map((p: any) => ({
                 name: p.name,
@@ -872,26 +889,28 @@ function PhotographerProfileContent({ id }: { id: string }) {
 
               {/* Gói dịch vụ tab */}
               {activeTab === "Gói dịch vụ" && (
-                <div className="space-y-3">
-                  {person.services.map((svc) => (
-                    <div key={svc.name} className={`border rounded-xl p-4 flex items-start justify-between gap-4 transition ${selectedService.name === svc.name ? "border-[#ff8d28] bg-[#fff4eb]" : "border-[#e0e7ff] bg-white"}`}>
-                      <div className="flex-1">
-                        <h3 className="font-bold text-gray-900 text-sm">{svc.name}</h3>
-                        <p className="text-gray-500 text-xs mt-1 leading-relaxed">{svc.desc}</p>
+                <div className="space-y-4">
+                  <h2 className="text-lg font-bold text-gray-900">Dịch vụ &amp; Bảng giá</h2>
+                  {person.services.length ? person.services.map((svc) => (
+                    <div key={svc.name} className={`flex items-start justify-between gap-4 rounded-2xl border p-4 transition ${selectedService.name === svc.name ? "border-[#ff8d28] bg-[#fffaf5]" : "border-gray-200 bg-white"}`}>
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-base font-bold text-gray-900">{svc.name}</h3>
+                        <p className="mt-1 text-sm leading-relaxed text-gray-400">{svc.desc}</p>
                       </div>
-                      <div className="text-right shrink-0">
-                        <p className="text-xs text-gray-400">Từ</p>
-                        <p className="font-black text-gray-900 text-sm whitespace-nowrap">{svc.price}</p>
+                      <div className="shrink-0 text-right">
+                        <p className="text-sm font-black whitespace-nowrap text-[#ff6b00]">{svc.price.startsWith("Từ") ? svc.price : `Từ ${svc.price}`}</p>
                         <button
                           type="button"
                           onClick={() => setSelectedService(svc)}
-                          className={`mt-2 text-xs font-bold px-4 py-1.5 rounded-full transition-colors ${selectedService.name === svc.name ? "bg-[#ff8d28] text-white border border-[#ff8d28]" : "border border-[#ff8d28] text-[#ff8d28] hover:bg-[#fff4eb]"}`}
+                          className={`mt-2 rounded-full border px-4 py-1.5 text-sm font-semibold transition-colors ${selectedService.name === svc.name ? "border-[#ff8d28] bg-[#ff8d28] text-white" : "border-[#ff8d28] text-[#ff8d28] hover:bg-[#fff4eb]"}`}
                         >
                           {selectedService.name === svc.name ? "Đã chọn" : "Chọn"}
                         </button>
                       </div>
                     </div>
-                  ))}
+                  )) : (
+                    <p className="rounded-2xl border border-dashed border-gray-200 p-5 text-sm text-gray-500">Photographer chưa cập nhật dịch vụ.</p>
+                  )}
                 </div>
               )}
 

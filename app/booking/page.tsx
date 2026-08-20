@@ -1440,7 +1440,7 @@ function BookingContent() {
             </section>
 
             {otherServiceOptions.length > 0 && (
-              <section className="rounded-2xl border border-[#e8eaf1] bg-white p-5 shadow-[0_12px_36px_rgba(20,21,31,0.03)] sm:p-6">
+              <section className="order-4 rounded-2xl border border-[#e8eaf1] bg-white p-5 shadow-[0_12px_36px_rgba(20,21,31,0.03)] sm:p-6">
                 <div className="flex items-center justify-between gap-3">
                   <h2 className="text-lg font-black text-[#0e111d]">Dịch vụ khác của photographer</h2>
                   <span className="rounded-full border border-[#e8eaf1] bg-[#fafbfc] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-[#6b7280]">
@@ -1480,7 +1480,7 @@ function BookingContent() {
             )}
 
             {/* ──── SECTION 3: Thông tin đặt lịch ──── */}
-            <section className="rounded-2xl border border-[#e8eaf1] bg-white p-5 shadow-[0_12px_36px_rgba(20,21,31,0.03)] sm:p-6">
+            <section className="order-3 rounded-2xl border border-[#e8eaf1] bg-white p-5 shadow-[0_12px_36px_rgba(20,21,31,0.03)] sm:p-6">
               <h2 className="text-lg font-black text-[#0e111d] flex items-center gap-3">
                 <span className="grid h-7 w-7 place-items-center rounded-full bg-[#ff8d28] text-xs font-black text-white">3</span>
                 Thông tin đặt lịch

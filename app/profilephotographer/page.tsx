@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useAuth } from "@/app/auth-context";
 import { useToast } from "@/app/toast-context";
+import { getMyPortfolio } from "./photographer-api";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
@@ -77,7 +78,10 @@ export default function ProfilePhotographerPage() {
         const meJson = await meRes.json();
         if (!meRes.ok || !meJson.success) throw new Error(meJson.message);
         const pid = meJson.data?.photographer_id || meJson.data?.photographer?.id;
-        const res  = await fetch(`${API_URL}/photographers/${pid}/profile`, { cache: "no-store" });
+        const [res, portfolioItems] = await Promise.all([
+          fetch(`${API_URL}/photographers/${pid}/profile`, { cache: "no-store" }),
+          getMyPortfolio().catch(() => []),
+        ]);
         const json = await res.json();
         if (json.success && json.data) {
           const { photographer: p, portfolio: imgs, packages: pkgs } = json.data;
@@ -89,7 +93,17 @@ export default function ProfilePhotographerPage() {
           setPhotographerType(p.photographer_type || "freelance");
           setAvatar(nextAvatar);
           setCover(nextCover);
-          setPortfolio(Array.isArray(imgs) ? imgs.map((item: string) => resolveImageUrl(item)) : []);
+          const latestImages = portfolioItems
+            .map((item) => item.image_url || item.image || item.url || "")
+            .filter(Boolean);
+          setPortfolio(
+            (latestImages.length > 0
+              ? latestImages
+              : Array.isArray(imgs)
+                ? imgs
+                : []
+            ).map((item: string) => resolveImageUrl(item)),
+          );
           setPackages(pkgs || []);
         }
       } catch { toast.error("Lỗi", "Không thể tải hồ sơ."); }
