@@ -35,6 +35,7 @@ export default function UserPage() {
   const [cancelError, setCancelError] = useState("");
   const [selectedRating, setSelectedRating] = useState(0);
   const [selectedTip, setSelectedTip] = useState<number | null>(null);
+  const [customTip, setCustomTip] = useState("");
   const [reviewText, setReviewText] = useState("");
   const [detailNotice, setDetailNotice] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -158,7 +159,7 @@ export default function UserPage() {
               {avatarText}
             </div>
             <div>
-              <h1 className="text-2xl font-semibold text-slate-900">
+              <h1 className="text-xl font-black text-slate-900">
                 {session?.fullName || "Tài khoản khách hàng"}
               </h1>
               <p className="mt-1 text-sm text-slate-500">
@@ -354,8 +355,8 @@ export default function UserPage() {
             </div>
 
             {detailNotice ? <div className="mb-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[11px] font-bold text-emerald-700">{detailNotice}</div> : null}
-            <div className="grid items-start gap-2.5 lg:grid-cols-[minmax(0,1fr)_260px]">
-              <div className="grid content-start gap-2.5">
+            <div className="grid items-start gap-3 lg:grid-cols-[minmax(0,1fr)_320px]">
+              <div className="grid content-start gap-2.5 md:grid-cols-2 md:[&>section:nth-child(1)]:col-span-2 md:[&>section:nth-child(2)]:col-span-2">
                 <section className="self-start rounded-xl border border-slate-200 bg-white p-3">
                   <div className="flex items-center justify-between gap-3">
                     <h3 className="text-base font-black text-slate-900">Trạng thái đơn hàng</h3>
@@ -377,14 +378,50 @@ export default function UserPage() {
                   </div>
                 </section>
 
-                <div className="grid content-start gap-2.5 md:grid-cols-2">
+                <div className="grid content-start justify-items-stretch gap-2.5 md:grid-cols-1 [&>section]:!w-full [&>section]:!self-stretch [&>section:nth-child(2)]:hidden">
                   <section className="self-start rounded-xl border border-slate-200 bg-white p-3"><h3 className="text-sm font-black text-slate-900">Thông tin giao hàng</h3><div className="mt-2 grid gap-2 text-xs"><Detail label="Người nhận" value={selectedOrder.customerInfo?.name || selectedOrder.customer_name} /><Detail label="Số điện thoại" value={selectedOrder.customerInfo?.phone || selectedOrder.customer_phone} /><Detail label="Địa chỉ" value={selectedOrder.customerInfo?.address || selectedOrder.customer_address} /></div></section>
                   <section className="self-start rounded-xl border border-slate-200 bg-white p-3"><div className="flex items-center justify-between"><h3 className="text-sm font-black text-slate-900">Đánh giá &amp; Tip</h3><span className="rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-bold text-[#ff8d28]">Tùy chọn</span></div><p className="mt-1 text-xs text-slate-500">Bạn có thể đánh giá, tip shipper hoặc bỏ qua cả hai.</p><div className="mt-1 flex gap-1">{[1,2,3,4,5].map((star) => <button key={star} type="button" onClick={() => setSelectedRating(star)} className={`text-2xl ${star <= selectedRating ? "text-[#ff8d28]" : "text-slate-200"}`}>☆</button>)}</div><textarea value={reviewText} onChange={(event) => setReviewText(event.target.value.slice(0, 200))} rows={2} placeholder="Chia sẻ trải nghiệm của bạn về shipper..." className="mt-1 w-full resize-none rounded-lg border border-slate-200 px-3 py-2 text-[11px] outline-none focus:border-[#ff8d28]" /><p className="text-right text-[10px] text-slate-400">{reviewText.length}/200</p><p className="mt-1 text-[11px] text-slate-400">Tip shipper (không bắt buộc)</p><div className="mt-1 grid grid-cols-3 gap-1.5">{[20000,50000,100000].map((amount) => <button key={amount} type="button" onClick={() => setSelectedTip(amount)} className={`rounded-lg border px-2 py-1.5 text-[10px] font-bold ${selectedTip === amount ? "border-[#ff8d28] bg-orange-50 text-[#ff8d28]" : "border-slate-200 text-slate-600"}`}>{formatCurrency(amount)}</button>)}</div><button type="button" onClick={() => setSelectedTip(null)} className={`mt-1 w-full rounded-lg border px-3 py-1.5 text-[10px] font-bold ${selectedTip === null ? "border-slate-400 bg-slate-100 text-slate-700" : "border-slate-200 text-slate-500"}`}>Không tip / Bỏ qua</button><button type="button" onClick={() => setDetailNotice(selectedRating || reviewText.trim() ? "Đánh giá của bạn đã được ghi nhận." : "Bạn có thể bỏ qua đánh giá.")} className="mt-2 w-full rounded-xl bg-[#ff8d28] px-3 py-2 text-xs font-black text-white">Gửi đánh giá{selectedTip ? " & tip" : ""}</button></section>
                 </div>
+                <section className="self-start rounded-xl border border-slate-200 bg-white p-3 md:col-span-1">
+                  <h3 className="text-sm font-black text-slate-900">Cần hỗ trợ?</h3>
+                  <div className="mt-2 grid gap-2 text-[10px] leading-4"><p><b>ⓘ Gặp vấn đề với đơn hàng</b><br /><span className="text-[#ff8d28]">Liên hệ chúng tôi</span></p><p><b>◌ Chat với Studion</b><br /><span className="text-[#ff8d28]">Trò chuyện ngay</span></p><p><b>☎ Hotline</b><br /><span className="text-slate-500">1900 1234</span></p></div>
+                </section>
+                <section className="rounded-xl border border-dashed border-orange-300 bg-orange-50/20 p-4 md:col-span-2">
+                  <div className="flex items-start justify-between gap-3 border-b border-orange-100 pb-3">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-sm font-black uppercase text-slate-900">Đánh giá &amp; Tip shipper</h3>
+                        <span className="rounded-full bg-orange-100 px-2 py-0.5 text-[9px] font-black text-[#ff8d28]">Mới</span>
+                      </div>
+                      <p className="mt-1 text-[10px] text-slate-500">Cảm ơn bạn đã mua hàng tại Studion!</p>
+                      <p className="text-[10px] text-slate-500">Bạn có hài lòng với trải nghiệm giao hàng?</p>
+                    </div>
+                    <span className="text-lg leading-none text-[#ff8d28]">♥</span>
+                  </div>
+                  <div className="mt-4 grid gap-4 md:grid-cols-[120px_minmax(0,1fr)_minmax(0,1fr)]">
+                    <div>
+                      <p className="text-[10px] font-bold text-slate-700">Đánh giá shipper <span className="font-normal text-slate-400">(tùy chọn)</span></p>
+                      <div className="mt-2 flex gap-0.5">{[1,2,3,4,5].map((star) => <button key={star} type="button" onClick={() => setSelectedRating(star)} aria-label={`Đánh giá ${star} sao`} className={`text-xl leading-none ${star <= selectedRating ? "text-[#ff8d28]" : "text-slate-300"}`}>☆</button>)}</div>
+                      <p className="mt-2 text-[9px] text-slate-400">Chọn sao để đánh giá</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold text-slate-700">Nhận xét <span className="font-normal text-slate-400">(tùy chọn)</span></p>
+                      <textarea value={reviewText} onChange={(event) => setReviewText(event.target.value.slice(0, 200))} rows={4} placeholder="Chia sẻ trải nghiệm của bạn về shipper..." className="mt-2 w-full resize-none rounded-lg border border-slate-200 px-3 py-2 text-[10px] outline-none focus:border-[#ff8d28]" />
+                      <p className="text-right text-[9px] text-slate-400">{reviewText.length}/200</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold text-slate-700">Tip shipper <span className="font-normal text-slate-400">(tùy chọn)</span></p>
+                      <div className="mt-2 grid grid-cols-3 gap-1">{[20000,50000,100000].map((amount) => <button key={amount} type="button" onClick={() => setSelectedTip(amount)} className={`rounded-lg border px-1 py-2 text-[10px] font-bold whitespace-nowrap ${selectedTip === amount ? "border-[#ff8d28] bg-orange-50 text-[#ff8d28]" : "border-slate-200 text-slate-700"}`}>{formatCurrency(amount)}</button>)}</div>
+                      <button type="button" onClick={() => setSelectedTip(null)} className="mt-2 w-full rounded-lg border border-orange-200 px-3 py-2 text-[10px] font-bold text-[#ff8d28]">Tùy chọn khác</button>
+                      <p className="mt-2 text-[9px] leading-4 text-slate-400">Tip là khoản tự nguyện dành cho shipper. 100% tiền tip sẽ được chuyển đến shipper.</p>
+                    </div>
+                  </div>
+                  <button type="button" onClick={() => setDetailNotice(selectedRating || reviewText.trim() || selectedTip ? "Đánh giá và tip của bạn đã được ghi nhận." : "Bạn có thể bỏ qua đánh giá.")} className="mt-4 w-full rounded-lg bg-[#ff8d28] px-4 py-2.5 text-xs font-black text-white md:mx-auto md:block md:max-w-[260px]">Gửi đánh giá &amp; tip</button>
+                </section>
               </div>
 
-              <aside className="grid content-start gap-4">
-                <section className="rounded-2xl border border-slate-200 bg-white p-4">
+              <aside className="grid content-start gap-2">
+                <section className="rounded-xl border border-slate-200 bg-white p-3">
                   <h3 className="text-sm font-black uppercase text-slate-900">Luồng hiển thị</h3>
                   <div className="mt-4 grid grid-cols-4 gap-1 text-center">
                     {["Đặt hàng", "Giao hàng", "Đã nhận hàng", "Đánh giá & tip"].map((label, index) => (
@@ -409,19 +446,29 @@ export default function UserPage() {
                 <section className="rounded-xl border border-slate-200 bg-white p-3"><h3 className="text-sm font-black text-slate-900">Tóm tắt đơn hàng</h3><div className="mt-3 grid gap-2 text-sm"><div className="flex justify-between"><span className="text-slate-500">Tạm tính</span><b>{formatCurrency(selectedOrder.total_amount ?? selectedOrder.totalAmount)}</b></div><div className="flex justify-between"><span className="text-slate-500">Phí vận chuyển</span><b>Miễn phí</b></div><div className="border-t border-slate-100 pt-2 flex justify-between"><span className="font-bold">Tổng thanh toán</span><b className="text-lg text-[#ff8d28]">{formatCurrency(selectedOrder.total_amount ?? selectedOrder.totalAmount)}</b></div></div><button type="button" onClick={() => setDetailNotice("Tính năng mua lại đang được cập nhật.")} className="mt-3 w-full rounded-xl border border-orange-300 px-3 py-2 text-xs font-bold text-[#ff8d28]">Mua lại</button></section>
                 <section className="rounded-2xl border border-slate-200 bg-white p-4">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-black uppercase text-slate-900">Tip shipper</h3>
+                    <h3 className="text-sm font-black text-slate-900">Tip shipper</h3>
                     <span className="text-slate-400">×</span>
                   </div>
-                  <p className="mt-2 text-[10px] text-slate-500">Chọn số tiền bạn muốn gửi tặng shipper.</p>
-                  <div className="mt-3 grid grid-cols-3 gap-1.5">
-                    {[20000, 50000, 100000].map((amount) => <button key={amount} type="button" onClick={() => setSelectedTip(amount)} className={`rounded-lg border px-1 py-2 text-[10px] font-bold ${selectedTip === amount ? "border-[#ff8d28] bg-orange-50 text-[#ff8d28]" : "border-slate-200 text-slate-600"}`}>{formatCurrency(amount)}</button>)}
+                  <p className="mt-2 text-[10px] text-slate-500">Chọn số tiền muốn gửi tặng shipper <span className="font-semibold text-[#ff8d28]">(không bắt buộc)</span>.</p>
+                  <div className="mt-2 grid min-w-0 grid-cols-3 gap-1">
+                    {[20000, 50000, 100000].map((amount) => <button key={amount} type="button" onClick={() => { setSelectedTip(amount); setCustomTip(""); }} className={`flex min-w-0 items-center justify-center rounded-lg border px-1 py-2 text-[11px] font-bold leading-none whitespace-nowrap ${selectedTip === amount ? "border-[#ff8d28] bg-orange-50 text-[#ff8d28]" : "border-slate-200 text-slate-700"}`}>{formatCurrency(amount)}</button>)}
                   </div>
-                  <div className="mt-2 flex items-center rounded-lg border border-slate-200 px-3 py-2 text-[10px] text-slate-400">Nhập số tiền khác <span className="ml-auto">đ</span></div>
-                  <p className="mt-3 text-[10px] text-slate-500">ⓘ 100% số tiền tip sẽ được chuyển đến shipper.</p>
-                  <button type="button" onClick={() => setSelectedTip(null)} className="mt-3 w-full rounded-xl bg-[#ff8d28] px-3 py-2.5 text-xs font-black text-white">{selectedTip ? `Xác nhận tip ${formatCurrency(selectedTip)}` : "Bỏ qua tip"}</button>
+                  <label className="mt-2 !flex h-12 min-w-0 flex-row items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-400 transition focus-within:border-[#ff8d28] focus-within:ring-2 focus-within:ring-orange-100"><input aria-label="Nhập số tiền tip khác" inputMode="numeric" value={customTip} onChange={(event) => { const digits = event.target.value.replace(/\D/g, ""); setCustomTip(digits); setSelectedTip(digits ? Number(digits) : null); }} placeholder="Nhập số tiền khác" className="!h-10 !min-h-0 !w-0 min-w-0 flex-1 border-0 bg-transparent px-0 py-0 font-semibold text-slate-700 outline-none ring-0 placeholder:font-semibold placeholder:text-slate-400 focus:border-0 focus:outline-none focus:ring-0 focus-visible:outline-none" /><span className="shrink-0 font-bold text-slate-700">đ</span></label>
+                  <p className="mt-2 text-[10px] leading-4 text-slate-500">ⓘ 100% số tiền tip sẽ được chuyển đến shipper.</p>
+                  <button type="button" onClick={() => { setSelectedTip(null); setCustomTip(""); }} className="mt-2 w-full rounded-lg bg-[#ff8d28] px-3 py-2 text-xs font-black text-white">{selectedTip ? `Xác nhận tip ${formatCurrency(selectedTip)}` : "Bỏ qua tip"}</button>
                 </section>
-                <section className="rounded-2xl border border-slate-200 bg-white p-4"><h3 className="text-sm font-black text-slate-900">Cần hỗ trợ?</h3><div className="mt-3 grid gap-3 text-xs"><p><b>ⓘ Gặp vấn đề với đơn hàng</b><br /><span className="text-[#ff8d28]">Liên hệ chúng tôi</span></p><p><b>◌ Chat với Studion</b><br /><span className="text-[#ff8d28]">Trò chuyện ngay</span></p><p><b>☎ Hotline</b><br /><span className="text-slate-500">1900 1234</span></p></div></section>
-                <section className="rounded-2xl border border-slate-200 bg-white p-4"><h3 className="text-sm font-black uppercase text-slate-900">Ghi chú</h3><ul className="mt-3 grid gap-2 text-[10px] leading-4 text-slate-600"><li>◉ Tip shipper là tùy chọn, không bắt buộc.</li><li>◉ Người dùng có thể chỉ đánh giá, chỉ tip hoặc cả hai.</li><li>◉ Lịch sử tip và đánh giá có thể xem lại trong đơn hàng.</li></ul></section>
+                <section className="rounded-xl border border-slate-200 bg-white p-3">
+                  <div className="grid gap-4 sm:grid-cols-2 [&>div:first-child]:hidden">
+                    <div>
+                      <h3 className="text-sm font-black text-slate-900">Cần hỗ trợ?</h3>
+                      <div className="mt-2 grid gap-2 text-[10px] leading-4"><p><b>ⓘ Gặp vấn đề với đơn hàng</b><br /><span className="text-[#ff8d28]">Liên hệ chúng tôi</span></p><p><b>◌ Chat với Studion</b><br /><span className="text-[#ff8d28]">Trò chuyện ngay</span></p><p><b>☎ Hotline</b><br /><span className="text-slate-500">1900 1234</span></p></div>
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-black uppercase text-slate-900">Ghi chú</h3>
+                      <ul className="mt-2 grid gap-2 text-[10px] leading-4 text-slate-600"><li>◉ Tip shipper là tùy chọn.</li><li>◉ Có thể chỉ đánh giá, chỉ tip hoặc cả hai.</li><li>◉ Lịch sử tip và đánh giá được lưu trong đơn hàng.</li></ul>
+                    </div>
+                  </div>
+                </section>
               </aside>
             </div>
 
@@ -467,7 +514,7 @@ export default function UserPage() {
 
 function Detail({ label, value }: { label: string; value?: string | number | null }) {
   return (
-    <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+    <div className="border-b border-slate-100 py-2 last:border-b-0">
       <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{label}</p>
       <p className="mt-1 text-sm font-semibold text-slate-800">{value || "Chưa cập nhật"}</p>
     </div>
