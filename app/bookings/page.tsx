@@ -26,6 +26,17 @@ type BookingStatus =
   | "cancelled"
   | string;
 
+type ReviewData = {
+  id: number;
+  booking_code: string;
+  photographer_id: string;
+  customer_email: string;
+  customer_name: string;
+  rating: number;
+  comment: string;
+  created_at: string;
+};
+
 type BackendBooking = {
   id: number;
   booking_code: string;
@@ -178,6 +189,17 @@ function formatDateTime(value: string | null | undefined) {
   });
 }
 
+function extractPhotoDriveLink(location: string | null | undefined): string {
+  if (!location) return "";
+  const match = String(location).match(/\[Photos:\s*(https?:\/\/[^\]]+)\]/i);
+  if (match?.[1]) return match[1].trim();
+  if (String(location).includes("drive.google.com")) {
+    const urlMatch = String(location).match(/(https?:\/\/[^\s\]]+)/i);
+    if (urlMatch?.[1]) return urlMatch[1].trim();
+  }
+  return "";
+}
+
 function getRefundInfo(booking: BackendBooking) {
   if (!booking.shoot_date || !booking.shoot_time) {
     return {
@@ -270,6 +292,12 @@ export default function BookingsPage() {
   const [cancelReason, setCancelReason] = useState("");
   const [isCancelling, setIsCancelling] = useState(false);
 
+  const [reviewTarget, setReviewTarget] = useState<BackendBooking | null>(null);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState("");
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [bookingReviews, setBookingReviews] = useState<Record<string, ReviewData>>({});
+
   useEffect(() => {
     if (!isLoading && !isLoggedIn) {
       router.push("/login");
@@ -295,6 +323,30 @@ export default function BookingsPage() {
 
     return () => window.clearInterval(timer);
   }, [isLoading, isLoggedIn, session]);
+
+  useEffect(() => {
+    async function loadReviews() {
+      for (const booking of bookings) {
+        if (booking.status === "fully_paid" && !bookingReviews[booking.booking_code]) {
+          try {
+            const response = await fetch(`${API_URL}/reviews/booking/${booking.booking_code}`, {
+              headers: authHeaders(),
+            });
+            const json = await response.json();
+            if (json.success && json.data) {
+              setBookingReviews((prev) => ({
+                ...prev,
+                [booking.booking_code]: json.data,
+              }));
+            }
+          } catch (error) {
+            console.error("Failed to load review for", booking.booking_code, error);
+          }
+        }
+      }
+    }
+    void loadReviews();
+  }, [bookings]);
 
   const toggleSelectBooking = (code: string) => {
     setSelectedCodes((prev) =>
@@ -431,6 +483,50 @@ export default function BookingsPage() {
     }
   }
 
+  async function handleSubmitReview() {
+    if (!reviewTarget) return;
+
+    try {
+      setIsSubmittingReview(true);
+      setPageError("");
+
+      const response = await fetch(`${API_URL}/reviews`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...authHeaders(),
+        },
+        body: JSON.stringify({
+          bookingCode: reviewTarget.booking_code,
+          rating: reviewRating,
+          comment: reviewComment.trim(),
+        }),
+      });
+
+      const json = await response.json();
+
+      if (!response.ok || !json.success) {
+        throw new Error(json.message || "Không thể gửi đánh giá.");
+      }
+
+      setBookingReviews((prev) => ({
+        ...prev,
+        [reviewTarget.booking_code]: json.data,
+      }));
+
+      toast.success("Đánh giá thành công", "Cảm ơn bạn đã đánh giá photographer!");
+      setReviewTarget(null);
+      setReviewRating(5);
+      setReviewComment("");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Không thể gửi đánh giá.";
+      setPageError(message);
+      toast.error("Đánh giá thất bại", message);
+    } finally {
+      setIsSubmittingReview(false);
+    }
+  }
+
   const cancelRefundInfo = cancelTarget ? getRefundInfo(cancelTarget) : null;
 
   return (
@@ -542,6 +638,12 @@ export default function BookingsPage() {
                       setCancelTarget(booking);
                       setCancelReason("");
                     }}
+                    onReview={() => {
+                      setReviewTarget(booking);
+                      setReviewRating(5);
+                      setReviewComment("");
+                    }}
+                    existingReview={bookingReviews[booking.booking_code]}
                   />
                 ))}
                 {totalPages > 1 ? (
@@ -580,6 +682,79 @@ export default function BookingsPage() {
           >
             {isCreatingGroup ? "Đang xử lý..." : "Thanh toán gom 1 lần "}
           </button>
+        </div>
+      )}
+
+      {/* Review Modal */}
+      {reviewTarget && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/45 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-[520px] rounded-[24px] bg-white p-6 shadow-2xl">
+            <p className="text-[12px] font-black uppercase tracking-[0.16em] text-[#ff8d28]">Đánh giá</p>
+            <h3 className="mt-2 text-[24px] font-black text-[#0e111d]">Đánh giá Photographer</h3>
+            <p className="mt-2 text-[13px] font-semibold text-[#6b7280]">
+              Booking: <span className="font-black text-[#0e111d]">{reviewTarget.booking_code}</span>
+            </p>
+            <p className="text-[13px] font-semibold text-[#6b7280]">
+              Photographer: <span className="font-black text-[#0e111d]">{reviewTarget.photographer_name}</span>
+            </p>
+
+            <div className="mt-5 grid gap-2">
+              <label className="text-[13px] font-extrabold text-[#0e111d]">
+                Đánh giá (1-5 sao)
+              </label>
+              <div className="flex items-center gap-2">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    type="button"
+                    onClick={() => setReviewRating(star)}
+                    className={`text-3xl transition-all ${
+                      star <= reviewRating ? "text-[#ff8d28]" : "text-[#e8eaf1]"
+                    }`}
+                  >
+                    ★
+                  </button>
+                ))}
+                <span className="ml-2 text-[14px] font-bold text-[#6b7280]">
+                  {reviewRating} sao
+                </span>
+              </div>
+            </div>
+
+            <label className="mt-5 grid gap-2 text-[13px] font-extrabold text-[#0e111d]">
+              Nhận xét (tùy chọn)
+              <textarea
+                value={reviewComment}
+                onChange={(e) => setReviewComment(e.target.value)}
+                placeholder="Chia sẻ trải nghiệm của bạn với photographer..."
+                rows={4}
+                maxLength={2000}
+                className="rounded-[14px] border border-[#e8eaf1] bg-[#fafbfc] px-4 py-3 text-[14px] font-semibold text-[#111827] outline-none focus:border-[#ff8d28]"
+              />
+              <span className="text-xs text-[#94a3b8]">
+                {reviewComment.length}/2000 ký tự
+              </span>
+            </label>
+
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setReviewTarget(null)}
+                disabled={isSubmittingReview}
+                className="rounded-[12px] border border-[#e8eaf1] bg-white px-4 py-3 text-[13px] font-black text-[#4b5563] hover:bg-[#f8fafc]"
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                onClick={handleSubmitReview}
+                disabled={isSubmittingReview}
+                className="rounded-[12px] bg-[#ff8d28] px-4 py-3 text-[13px] font-black text-white hover:bg-[#e0751b] disabled:opacity-60"
+              >
+                {isSubmittingReview ? "Đang gửi..." : "Gửi đánh giá"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -647,49 +822,74 @@ function BookingCard({
   isSelected,
   onToggleSelect,
   onCancel,
+  onReview,
+  existingReview,
 }: {
   booking: BackendBooking;
   isSelected?: boolean;
   onToggleSelect?: () => void;
   onCancel: () => void;
+  onReview: () => void;
+  existingReview?: ReviewData;
 }) {
   const [showDetails, setShowDetails] = useState(false);
   const statusInfo = getStatusInfo(booking.status);
   const canCancel = ["awaiting_payment", "accepted", "confirmed"].includes(booking.status);
   const isEligibleForGroupPay = ["accepted", "completed"].includes(booking.status);
-  const rawLocation = booking.location || "";
-  const photoMatch = rawLocation.match(/\[Photos:\s*(https?:\/\/[^\]]+)\]/);
-  const photoLink = photoMatch?.[1] ?? null;
+
+  const driveUrl = extractPhotoDriveLink(booking.location);
 
   return (
     <article className={`overflow-hidden rounded-[22px] border transition-all ${isSelected ? "border-[#ff8d28] bg-orange-50/20 shadow-md" : "border-[#e8eaf1] bg-white shadow-sm"}`}>
       <div className="flex flex-col gap-4 border-b border-[#eef0f5] bg-[#fbfcff] px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-center gap-3">
           {isEligibleForGroupPay && onToggleSelect && (
-            <input
-              type="checkbox"
-              checked={Boolean(isSelected)}
-              onChange={onToggleSelect}
-              className="h-5 w-5 rounded border-gray-300 text-[#ff8d28] focus:ring-[#ff8d28] cursor-pointer"
-            />
+            <button
+              type="button"
+              onClick={onToggleSelect}
+              className={`grid h-5 w-5 shrink-0 place-items-center rounded-md border transition-all ${isSelected
+                ? "border-[#ff8d28] bg-[#ff8d28] text-white shadow-sm"
+                : "border-slate-300 bg-white hover:border-[#ff8d28]"
+                }`}
+              title="Chọn để thanh toán gom đơn"
+            >
+              {isSelected && (
+                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              )}
+            </button>
           )}
           <div>
             <p className="text-[12px] font-black uppercase tracking-[0.14em] text-[#ff8d28]">
               MÃ ĐƠN: {booking.booking_code}
             </p>
-            <h3 className="mt-1 text-[20px] font-black text-[#0e111d]">
+            <h3 className="mt-0.5 text-[19px] font-black text-[#0e111d]">
               {booking.service_name}
             </h3>
-            <p className="mt-1 text-[13px] font-semibold text-[#6b7280]">
+            <p className="mt-0.5 text-[13px] font-semibold text-[#6b7280]">
               Photographer: <span className="font-black text-[#111827]">{booking.photographer_name}</span>
             </p>
           </div>
         </div>
 
-        <span className={`inline-flex w-fit items-center gap-2 rounded-full border px-3.5 py-2 text-[12px] font-black ${statusInfo.className}`}>
-          <span className={`h-2 w-2 rounded-full ${statusInfo.dot}`} />
-          {statusInfo.label}
-        </span>
+        <div className="flex items-center gap-2.5 shrink-0">
+          <button
+            type="button"
+            onClick={() => setShowDetails(!showDetails)}
+            className="flex items-center gap-1.5 shrink-0 rounded-full border border-orange-200 bg-orange-50 px-3.5 py-1.5 text-xs font-black text-[#ff8d28] hover:bg-[#ff8d28] hover:text-white transition-all shadow-sm"
+          >
+            <span>{showDetails ? "Thu gọn" : "Xem chi tiết đơn"}</span>
+            <svg className={`h-3.5 w-3.5 transition-transform duration-200 ${showDetails ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+
+          <span className={`inline-flex w-fit items-center gap-2 rounded-full border px-3.5 py-2 text-[12px] font-black ${statusInfo.className}`}>
+            <span className={`h-2 w-2 rounded-full ${statusInfo.dot}`} />
+            {statusInfo.label}
+          </span>
+        </div>
       </div>
 
       <div className="grid gap-5 p-5 lg:grid-cols-[minmax(0,1fr)_280px]">
@@ -700,27 +900,9 @@ function BookingCard({
             <InfoItem label="Địa điểm" value={booking.location ? booking.location.split(" [Photos:")[0] : "Chưa chọn"} />
             <InfoItem label="Quy mô" value={booking.people_scale || "Chưa chọn"} />
           </div>
-
-          <div className="flex items-center justify-between rounded-[16px] border border-[#eef0f5] bg-[#fafbfc] px-4 py-3">
-            <div>
-              <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#94a3b8]">Trạng thái hiện tại</p>
-              <p className="mt-0.5 text-[13px] font-semibold text-[#475569]">{statusInfo.note}</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Link
-                href={`/booking-request-success/${encodeURIComponent(booking.booking_code)}`}
-                className="shrink-0 rounded-full border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-black text-slate-600 hover:bg-slate-50 transition-all shadow-sm"
-              >
-                Xem trang chi tiết ↗
-              </Link>
-              <button
-                type="button"
-                onClick={() => setShowDetails(!showDetails)}
-                className="shrink-0 rounded-full border border-orange-200 bg-orange-50 px-3.5 py-1.5 text-xs font-black text-[#ff8d28] hover:bg-[#ff8d28] hover:text-white transition-all shadow-sm"
-              >
-                {showDetails ? "Thu gọn ▲" : "Xem chi tiết đầy đủ ▼"}
-              </button>
-            </div>
+          <div className="rounded-[16px] border border-[#eef0f5] bg-[#fafbfc] px-4 py-3">
+            <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#94a3b8]">Trạng thái hiện tại</p>
+            <p className="mt-0.5 text-[13px] font-semibold text-[#475569]">{statusInfo.note}</p>
           </div>
         </div>
 
@@ -742,6 +924,46 @@ function BookingCard({
           <div className="my-1 h-px bg-[#e8eaf1]" />
 
           <div className="grid gap-2">
+            {["accepted", "confirmed", "completed", "fully_paid"].includes(booking.status) && (
+              <Link
+                href={`/messages?booking=${encodeURIComponent(booking.booking_code)}`}
+                className="rounded-[12px] border border-[#ff8d28] bg-orange-50/70 px-4 py-3 text-center text-[13px] font-black text-[#ff8d28] hover:bg-[#ff8d28] hover:text-white transition-all shadow-sm flex items-center justify-center gap-1.5"
+              >
+                Chat với Photographer
+              </Link>
+            )}
+
+            {booking.status === "fully_paid" && !existingReview && (
+              <button
+                type="button"
+                onClick={onReview}
+                className="rounded-[12px] bg-emerald-600 px-4 py-3 text-center text-[13px] font-black text-white shadow hover:bg-emerald-700 transition-all flex items-center justify-center gap-1.5"
+              >
+                ★ Đánh giá Photographer
+              </button>
+            )}
+
+            {booking.status === "fully_paid" && existingReview && (
+              <div className="rounded-[12px] border border-emerald-200 bg-emerald-50 px-4 py-3 text-center">
+                <p className="text-[11px] font-black uppercase tracking-wider text-emerald-800">
+                  Đã đánh giá
+                </p>
+                <div className="mt-1 flex items-center justify-center gap-1">
+                  <span className="text-lg text-[#ff8d28]">
+                    {"★".repeat(existingReview.rating)}{"☆".repeat(5 - existingReview.rating)}
+                  </span>
+                  <span className="text-[13px] font-bold text-emerald-700">
+                    {existingReview.rating}/5
+                  </span>
+                </div>
+                {existingReview.comment && (
+                  <p className="mt-1 text-[12px] font-semibold text-emerald-700 italic line-clamp-2">
+                    "{existingReview.comment}"
+                  </p>
+                )}
+              </div>
+            )}
+
             {booking.status === "accepted" && (
               <Link
                 href={`/deposit-payment/${encodeURIComponent(booking.booking_code)}`}
@@ -760,23 +982,6 @@ function BookingCard({
               </Link>
             )}
 
-            {booking.status === "fully_paid" && (
-              <>
-                <Link
-                  href={`/messages?booking=${encodeURIComponent(booking.booking_code)}`}
-                  className="rounded-[12px] bg-blue-600 px-4 py-3 text-center text-[13px] font-black text-white shadow hover:bg-blue-700"
-                >
-                  💬 Nhắn tin photographer
-                </Link>
-                <Link
-                  href={`/review?booking=${encodeURIComponent(booking.booking_code)}`}
-                  className="rounded-[12px] bg-[#ff8d28] px-4 py-3 text-center text-[13px] font-black text-white shadow hover:bg-[#e0751b]"
-                >
-                  Đánh giá photographer
-                </Link>
-              </>
-            )}
-
             {canCancel && (
               <button
                 type="button"
@@ -790,117 +995,202 @@ function BookingCard({
         </div>
       </div>
 
-      {/* Expandable Full Detailed Breakdown */}
+      {/* Google Drive Link Section (Locked vs Unlocked) */}
+      {driveUrl ? (
+        (booking.status === "fully_paid" || Number(booking.remaining_amount || 0) <= 0) ? (
+          <div className="mx-5 mb-5 rounded-[18px] border border-emerald-200 bg-emerald-50/90 p-4 space-y-3 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-[12px] font-black uppercase text-emerald-800 tracking-wider flex items-center gap-1.5">
+                Link Google Drive Sản Phẩm (Đã Mở Khóa)
+              </span>
+              <span className="rounded-full bg-emerald-600 px-2.5 py-0.5 text-[10px] font-bold text-white">
+                Đã thanh toán 100%
+              </span>
+            </div>
+            <p className="text-xs font-semibold text-emerald-900 leading-5">
+              Ảnh chụp HD của bạn đã được photographer hoàn tất và tải lên. Bấm nút dưới đây để truy cập thư mục Google Drive.
+            </p>
+            <a
+              href={driveUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-xs font-black text-white shadow hover:bg-emerald-700 transition-all"
+            >
+              Mở Thư Mục Google Drive Xem & Tải Ảnh ↗
+            </a>
+          </div>
+        ) : (
+          <div className="mx-5 mb-5 rounded-[18px] border border-amber-200 bg-amber-50/90 p-4 space-y-3 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-[12px] font-black uppercase text-amber-800 tracking-wider flex items-center gap-1.5">
+                Link Google Drive Ảnh (Chưa Mở Khóa)
+              </span>
+              <span className="rounded-full bg-amber-600 px-2.5 py-0.5 text-[10px] font-bold text-white">
+                Cần thanh toán nốt
+              </span>
+            </div>
+            <p className="text-xs font-semibold text-amber-900 leading-5">
+              Photographer đã hoàn thành buổi chụp và gửi Link Drive. Vui lòng thanh toán phần còn lại <strong>({formatCurrency(booking.remaining_amount)})</strong> để mở khóa quyền truy cập xem & tải ảnh.
+            </p>
+            <Link
+              href={`/final-payment/${encodeURIComponent(booking.booking_code)}`}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#ff8d28] px-5 py-2.5 text-xs font-black text-white shadow hover:bg-[#e0751b] transition-all"
+            >
+              Thanh toán nốt {formatCurrency(booking.remaining_amount)} để mở khóa ảnh ↗
+            </Link>
+          </div>
+        )
+      ) : null}
+
+      {/* Floating Popup Modal for Booking Details */}
       {showDetails && (
-        <div className="border-t border-[#e8eaf1] bg-[#f8fafc] p-5 text-xs text-[#334155] space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {/* Box 1: Chi tiết dịch vụ */}
-            <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-2 shadow-sm">
-              <h4 className="font-black text-slate-800 text-sm uppercase tracking-wider text-[#ff8d28] border-b pb-1.5">
-                Chi tiết dịch vụ
-              </h4>
-              <div className="flex justify-between">
-                <span className="text-slate-500 font-medium">Gói dịch vụ:</span>
-                <strong className="text-slate-900">{booking.service_name}</strong>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-[880px] max-h-[90vh] flex flex-col overflow-hidden rounded-[26px] border border-white/20 bg-white shadow-[0_32px_80px_rgba(15,23,42,0.3)] animate-in zoom-in-95 duration-200">
+
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-[#eef2f7] bg-white px-6 py-4 shrink-0">
+              <div className="flex items-center gap-3">
+
+                <div>
+                  <h3 className="text-[17px] font-black text-[#0f172a] tracking-tight">
+                    Chi tiết đơn booking: <span className="text-[#ff8d28]">{booking.booking_code}</span>
+                  </h3>
+                  <p className="text-[11.5px] font-semibold text-[#64748b]">
+                    {booking.service_name}
+                  </p>
+                </div>
               </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500 font-medium">Giá gốc gói:</span>
-                <strong className="text-slate-900">{formatCurrency(booking.base_price)}</strong>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500 font-medium">Quy mô nhóm:</span>
-                <strong className="text-slate-900">{booking.people_scale || "Tiêu chuẩn"} {booking.people_extra ? `(+${booking.people_extra} người phụ thu)` : ""}</strong>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500 font-medium">Khung cảnh/Concept:</span>
-                <strong className="text-slate-900">{booking.concept || booking.scene || "Theo trao đổi với nhiếp ảnh gia"}</strong>
+
+              <div className="flex items-center gap-3">
+                <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-black ${statusInfo.className}`}>
+                  <span className={`h-1.5 w-1.5 rounded-full ${statusInfo.dot}`} />
+                  {statusInfo.label}
+                </span>
+
+                <button
+                  type="button"
+                  onClick={() => setShowDetails(false)}
+                  className="grid h-9 w-9 place-items-center rounded-full border border-[#e2e8f0] bg-white text-[#64748b] hover:bg-slate-100 hover:text-[#0f172a] transition-all"
+                  title="Đóng cửa sổ"
+                >
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
               </div>
             </div>
 
-            {/* Box 2: Thông tin buổi chụp */}
-            <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-2 shadow-sm">
-              <h4 className="font-black text-slate-800 text-sm uppercase tracking-wider text-[#ff8d28] border-b pb-1.5">
-                Lịch trình & Địa điểm
-              </h4>
-              <div className="flex justify-between">
-                <span className="text-slate-500 font-medium">Ngày thực hiện:</span>
-                <strong className="text-slate-900">{formatDate(booking.shoot_date)}</strong>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500 font-medium">Giờ khởi hành:</span>
-                <strong className="text-slate-900">{formatTime(booking.shoot_time)}</strong>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500 font-medium">Địa điểm chụp:</span>
-                <strong className="text-slate-900 text-right max-w-[180px] truncate">{booking.location ? booking.location.split(" [Photos:")[0] : "Chưa chọn"}</strong>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500 font-medium">Hình thức cọc:</span>
-                <strong className="text-slate-900">{booking.payment_method === "bank" ? "Chuyển khoản VietQR" : "Thanh toán trực tuyến"}</strong>
-              </div>
-              {photoLink && booking.status === "fully_paid" && (
-                <div className="mt-3 pt-2.5 border-t border-dashed border-slate-200">
-                  <span className="text-slate-500 font-medium block mb-1">Ảnh từ Photographer:</span>
-                  <a
-                    href={photoLink}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-black text-white hover:bg-blue-700 transition shadow-sm"
-                  >
-                    📂 Truy cập Google Drive
-                  </a>
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-5 bg-[#f8fafc] text-xs text-[#334155]">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+
+                {/* Box 1: Chi tiết dịch vụ */}
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-2.5 shadow-sm">
+                  <h4 className="font-black text-[#ff8d28] text-xs uppercase tracking-wider border-b border-slate-100 pb-2">
+                    Chi tiết dịch vụ
+                  </h4>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500 font-medium">Gói dịch vụ:</span>
+                    <strong className="text-slate-900 text-right">{booking.service_name}</strong>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500 font-medium">Giá gốc gói:</span>
+                    <strong className="text-slate-900">{formatCurrency(booking.base_price)}</strong>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500 font-medium">Quy mô nhóm:</span>
+                    <strong className="text-slate-900">{booking.people_scale || "Tiêu chuẩn"} {booking.people_extra ? `(+${formatCurrency(booking.people_extra)})` : ""}</strong>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500 font-medium">Concept/Khung cảnh:</span>
+                    <strong className="text-slate-900 text-right max-w-[150px] truncate">{booking.concept || booking.scene || "Theo trao đổi với nhiếp ảnh gia"}</strong>
+                  </div>
                 </div>
-              )}
-              {photoLink && booking.status !== "fully_paid" && (
-                <div className="mt-3 pt-2.5 border-t border-dashed border-slate-200">
-                  <span className="text-slate-500 font-medium block mb-1">Ảnh từ Photographer:</span>
-                  <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-[11px] text-amber-700 font-medium">
-                    🔒 Ảnh đã được tải lên. Vui lòng thanh toán phần còn lại để mở khóa link Google Drive.
+
+                {/* Box 2: Lịch trình & Địa điểm */}
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-2.5 shadow-sm">
+                  <h4 className="font-black text-[#ff8d28] text-xs uppercase tracking-wider border-b border-slate-100 pb-2">
+                    Lịch trình & Địa điểm
+                  </h4>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500 font-medium">Ngày thực hiện:</span>
+                    <strong className="text-slate-900">{formatDate(booking.shoot_date)}</strong>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500 font-medium">Giờ khởi hành:</span>
+                    <strong className="text-slate-900">{formatTime(booking.shoot_time)}</strong>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500 font-medium">Địa điểm chụp:</span>
+                    <strong className="text-slate-900 text-right max-w-[160px] truncate">{booking.location ? booking.location.split(" [Photos:")[0] : "Chưa chọn"}</strong>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500 font-medium">Hình thức cọc:</span>
+                    <strong className="text-slate-900">{booking.payment_method === "bank" ? "Chuyển khoản VietQR" : "Thanh toán MoMo/VnPay"}</strong>
+                  </div>
+                </div>
+
+                {/* Box 3: Thông tin người đặt & Tài chính */}
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-2.5 shadow-sm">
+                  <h4 className="font-black text-[#ff8d28] text-xs uppercase tracking-wider border-b border-slate-100 pb-2">
+                    Thông tin đặt lịch
+                  </h4>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500 font-medium">Photographer:</span>
+                    <strong className="text-slate-900">{booking.photographer_name}</strong>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500 font-medium">Khách hàng:</span>
+                    <strong className="text-slate-900">{booking.customer_full_name}</strong>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500 font-medium">Số điện thoại:</span>
+                    <strong className="text-slate-900">{booking.customer_phone || "Đã đăng ký"}</strong>
+                  </div>
+                  <div className="flex justify-between border-t border-slate-100 pt-1.5">
+                    <span className="text-slate-500 font-medium">Tổng chi phí:</span>
+                    <strong className="text-[#0f172a] font-black">{formatCurrency(booking.estimated_total)}</strong>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500 font-medium">Đã cọc:</span>
+                    <strong className="text-emerald-600 font-black">{formatCurrency(booking.deposit_amount)}</strong>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500 font-medium">Còn lại:</span>
+                    <strong className="text-[#ff8d28] font-black">{formatCurrency(booking.remaining_amount)}</strong>
+                  </div>
+                </div>
+              </div>
+
+              {/* Dịch vụ bổ sung Add-ons nếu có */}
+              {Array.isArray(booking.add_ons) && booking.add_ons.length > 0 && (
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <h4 className="font-black text-[#ff8d28] text-xs uppercase tracking-wider border-b border-slate-100 pb-2 mb-2.5">
+                    Dịch vụ bổ sung đã chọn ({booking.add_ons.length})
+                  </h4>
+                  <div className="flex flex-wrap gap-2">
+                    {booking.add_ons.map((addon: any, idx: number) => (
+                      <span key={idx} className="inline-flex items-center gap-1.5 rounded-xl border border-orange-200 bg-orange-50/70 px-3 py-1.5 text-[11.5px] font-bold text-[#ff8d28]">
+                        <span>{addon.name || addon.title}</span>
+                        <span className="text-[#e0751b]">(+{formatCurrency(addon.price)})</span>
+                      </span>
+                    ))}
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Box 3: Thông tin người đặt */}
-            <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-2 shadow-sm">
-              <h4 className="font-black text-slate-800 text-sm uppercase tracking-wider text-[#ff8d28] border-b pb-1.5">
-                Thông tin khách hàng
-              </h4>
-              <div className="flex justify-between">
-                <span className="text-slate-500 font-medium">Họ tên khách:</span>
-                <strong className="text-slate-900">{booking.customer_full_name || "Khách hàng"}</strong>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500 font-medium">Số điện thoại:</span>
-                <strong className="text-slate-900">{booking.customer_phone || "Đã đăng ký"}</strong>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500 font-medium">Email liên hệ:</span>
-                <strong className="text-slate-900 truncate max-w-[170px]">{booking.customer_email}</strong>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500 font-medium">Thời gian đặt lịch:</span>
-                <strong className="text-slate-900">{formatDateTime(booking.created_at)}</strong>
-              </div>
+            {/* Modal Footer */}
+            <div className="flex items-center justify-end border-t border-[#eef2f7] bg-white px-6 py-3.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowDetails(false)}
+                className="rounded-xl border border-[#e2e8f0] bg-white px-5 py-2.5 text-xs font-black text-[#475569] shadow-sm hover:bg-slate-50 hover:border-[#ff8d28] hover:text-[#ff8d28] transition-all"
+              >
+                Đóng cửa sổ
+              </button>
             </div>
           </div>
-
-          {/* Dịch vụ phụ đi kèm (nếu có) */}
-          {booking.add_ons && booking.add_ons.length > 0 && (
-            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-              <h4 className="font-black text-slate-800 text-xs uppercase tracking-wider text-slate-600 mb-2">
-                Dịch vụ chọn thêm ({booking.add_ons.length})
-              </h4>
-              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                {booking.add_ons.map((addon, idx) => (
-                  <div key={idx} className="flex justify-between rounded-lg bg-slate-50 px-3 py-2 border border-slate-100">
-                    <span className="font-semibold text-slate-700">{addon.name}</span>
-                    <strong className="text-[#ff8d28]">{formatCurrency(addon.price)}</strong>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       )}
     </article>

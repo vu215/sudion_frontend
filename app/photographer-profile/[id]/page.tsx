@@ -12,6 +12,17 @@ function resolveAssetUrl(url: string) {
   return `${backendHost}${url.startsWith("/") ? url : `/${url}`}`;
 }
 
+type Review = {
+  id: number;
+  booking_code: string;
+  photographer_id: string;
+  customer_email: string;
+  customer_name: string;
+  rating: number;
+  comment: string;
+  created_at: string;
+};
+
 const photographers = [
   {
     id: "binh-nguyen",
@@ -588,6 +599,9 @@ const sideNavItems = [
 
 const tabs = ["Tổng quan", "Portfolio", "Gói dịch vụ", "Đánh giá"];
 
+const FALLBACK_PROFILE_AVATAR = "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=400&q=80";
+const FALLBACK_PROFILE_COVER = "https://images.unsplash.com/photo-1520854221256-17451cc331bf?auto=format&fit=crop&w=1400&q=80";
+
 export default function PhotographerProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const unwrappedParams = use(params);
   return <PhotographerProfileContent id={unwrappedParams.id} />;
@@ -607,6 +621,19 @@ function PhotographerProfileContent({ id }: { id: string }) {
           const json = await res.json();
           if (json.success && json.data) {
             const data = json.data;
+            const avatarUrl = resolveAssetUrl(
+              data.photographer.avatar_url ||
+              data.photographer.profile_image ||
+              data.photographer.cover_url ||
+              "",
+            );
+            const coverUrl = resolveAssetUrl(
+              data.photographer.cover_url ||
+              data.photographer.avatar_url ||
+              data.photographer.profile_image ||
+              "",
+            );
+
             const mappedPerson = {
               id: String(data.photographer.id),
               name: data.photographer.full_name,
@@ -615,9 +642,9 @@ function PhotographerProfileContent({ id }: { id: string }) {
               rating: String(data.photographer.avg_rating || "4.8"),
               reviewCount: data.packages?.reduce((acc: number, p: any) => acc + (p.review_count || 0), 0) || 45,
               badge: data.photographer.verification_status === "verified" ? "Top Rated Photographer" : "Professional Photographer",
-              image: resolveAssetUrl(data.photographer.avatar_url) || "https://i.pinimg.com/736x/a0/b0/00/a0b000947356b75df1e4ec794477fc49.jpg",
-              avatar: resolveAssetUrl(data.photographer.avatar_url) || "https://i.pinimg.com/736x/9c/44/0c/9c440c4652d4e4476a5c61d25efbef1e.jpg",
-              cover: resolveAssetUrl(data.photographer.avatar_url) || "https://i.pinimg.com/736x/bb/cc/37/bbcc37f0caa97bdff1f08ad8355ac9f4.jpg",
+              image: avatarUrl || FALLBACK_PROFILE_AVATAR,
+              avatar: avatarUrl || FALLBACK_PROFILE_AVATAR,
+              cover: coverUrl || FALLBACK_PROFILE_COVER,
               bio: data.photographer.bio || "Chưa có giới thiệu tiểu sử.",
               portfolio: data.packages?.map((p: any) => resolveAssetUrl(p.image_url)).filter(Boolean).slice(0, 5) || [],
               equipment: ["Máy ảnh chuyên nghiệp"],
@@ -643,16 +670,58 @@ function PhotographerProfileContent({ id }: { id: string }) {
     loadDbPerson();
   }, [id]);
 
-  const person = dbPerson || photographers.find((p) => p.id === id) || photographers[0];
+  const fallbackPerson = {
+    id: String(id),
+    name: "Photographer",
+    title: "Studio",
+    location: "Việt Nam",
+    rating: "4.8",
+    reviewCount: 0,
+    badge: "Professional Photographer",
+    image: FALLBACK_PROFILE_AVATAR,
+    avatar: FALLBACK_PROFILE_AVATAR,
+    cover: FALLBACK_PROFILE_COVER,
+    bio: "Chưa có thông tin giới thiệu.",
+    portfolio: [],
+    equipment: [],
+    services: [],
+    reviews: [],
+    ratingScore: 4.8,
+    totalReviews: 0,
+    startPrice: "Chưa cập nhật",
+  };
+
+  const person = dbPerson || photographers.find((p) => p.id === id) || fallbackPerson;
   const [activeTab, setActiveTab] = useState("Tổng quan");
   const today = new Date();
   const todayStr = today.toISOString().slice(0, 10);
   const [selectedDates, setSelectedDates] = useState<string[]>([todayStr]);
   const [selectedService, setSelectedService] = useState<any>(person.services[0] || { name: "Chọn dịch vụ", price: "0 VNĐ", desc: "" });
-  const [reviews, setReviews] = useState(person.reviews);
-  const [reviewerName, setReviewerName] = useState("");
-  const [reviewText, setReviewText] = useState("");
-  const [reviewRating, setReviewRating] = useState(5);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [loadingReviews, setLoadingReviews] = useState(true);
+
+  // Fetch reviews from API
+  useEffect(() => {
+    async function loadReviews() {
+      if (!id) return;
+      try {
+        setLoadingReviews(true);
+        const res = await fetch(`${API_URL}/reviews/photographer/${id}`);
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data)) {
+          setReviews(json.data);
+        } else {
+          setReviews([]);
+        }
+      } catch (err) {
+        console.error("Lỗi lấy reviews:", err);
+        setReviews([]);
+      } finally {
+        setLoadingReviews(false);
+      }
+    }
+    loadReviews();
+  }, [id]);
 
   useEffect(() => {
     if (person.services && person.services.length > 0) {
@@ -661,11 +730,8 @@ function PhotographerProfileContent({ id }: { id: string }) {
       setSelectedService({ name: "Chọn dịch vụ", price: "0 VNĐ", desc: "" });
     }
     setSelectedDates([todayStr]);
-    setReviews(person.reviews);
-    setReviewerName("");
-    setReviewText("");
-    setReviewRating(5);
-  }, [person.id, todayStr, person.services, person.reviews]);
+    // Xóa dòng setReviews(person.reviews) để không ghi đè reviews từ API
+  }, [person.id, todayStr]);
 
   const averageRating = reviews.length ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length : 0;
   const totalReviews = reviews.length;
@@ -876,86 +942,44 @@ function PhotographerProfileContent({ id }: { id: string }) {
                     </div>
                   </div>
 
-                  <div className="mb-6 rounded-3xl border border-gray-200 bg-white p-4 shadow-sm">
-                    <h3 className="text-sm font-bold text-gray-900 mb-3">Gửi đánh giá của bạn</h3>
-                    <div className="space-y-3">
-                      <div>
-                        <p className="text-[11px] text-gray-500 mb-2">Chọn số sao</p>
-                        <div className="flex gap-2">
-                          {[1,2,3,4,5].map((value) => (
-                            <button
-                              key={value}
-                              type="button"
-                              onClick={() => setReviewRating(value)}
-                              className={`w-9 h-9 rounded-full border text-sm font-bold transition ${value <= reviewRating ? "bg-[#ff8d28] text-white border-[#ff8d28]" : "border-gray-200 text-gray-500 hover:bg-gray-50"}`}
-                            >
-                              {value}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-semibold text-gray-500 mb-1">Tên của bạn</label>
-                        <input
-                          value={reviewerName}
-                          onChange={(event) => setReviewerName(event.target.value)}
-                          className="w-full rounded-2xl border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-[#ff8d28] outline-none"
-                          placeholder="Nhập tên"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-semibold text-gray-500 mb-1">Nhận xét</label>
-                        <textarea
-                          value={reviewText}
-                          onChange={(event) => setReviewText(event.target.value)}
-                          className="w-full min-h-[110px] rounded-2xl border border-gray-200 p-3 text-sm text-gray-900 focus:border-[#ff8d28] outline-none"
-                          placeholder="Viết cảm nghĩ của bạn về photographer"
-                        />
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (!reviewText.trim()) return;
-                          const newReview = {
-                            name: reviewerName.trim() || "Khách hàng",
-                            time: "Vừa xong",
-                            rating: reviewRating,
-                            text: reviewText.trim(),
-                          };
-                          setReviews([newReview, ...reviews]);
-                          setReviewerName("");
-                          setReviewText("");
-                          setReviewRating(5);
-                        }}
-                        className="w-full rounded-2xl bg-[#ff8d28] text-white text-sm font-bold py-3 hover:bg-[#e0751b] transition-colors"
-                      >
-                        Gửi đánh giá
-                      </button>
-                    </div>
-                  </div>
-
                   <div className="grid md:grid-cols-2 gap-4">
-                    {reviews.map((r, i) => (
-                      <div key={i} className="border border-gray-100 rounded-xl p-4">
-                        <div className="flex gap-0.5 mb-2">
-                          {[1,2,3,4,5].map((s) => (
-                            <svg key={s} className={`w-3.5 h-3.5 ${s <= r.rating ? "text-[#ff8d28]" : "text-gray-200"}`} viewBox="0 0 20 20" fill="currentColor">
-                              <path d="M10 2.8l1.9 4 4.4.6-3.2 3.1.8 4.4-3.9-2.1-3.9 2.1.8-4.4-3.2-3.1 4.4-.6 1.9-4z" />
-                            </svg>
-                          ))}
-                        </div>
-                        <p className="text-sm text-gray-700 leading-relaxed line-clamp-3">{r.text}</p>
-                        <div className="flex items-center gap-2 mt-3">
-                          <div className="w-7 h-7 rounded-full bg-[#ff8d28] flex items-center justify-center text-white text-[10px] font-black">
-                            {r.name.charAt(0)}
-                          </div>
-                          <div>
-                            <p className="text-xs font-semibold text-gray-800">{r.name}</p>
-                            <p className="text-[10px] text-gray-400">{r.time}</p>
-                          </div>
-                        </div>
+                    {loadingReviews ? (
+                      <div className="col-span-2 text-center py-8 text-gray-500">
+                        Đang tải đánh giá...
                       </div>
-                    ))}
+                    ) : reviews.length === 0 ? (
+                      <div className="col-span-2 text-center py-8 text-gray-500">
+                        Chưa có đánh giá nào
+                      </div>
+                    ) : (
+                      reviews.map((r, i) => {
+                        const customerName = r.customer_name || 'Khách hàng';
+                        const comment = r.comment || '';
+                        const createdAt = r.created_at ? new Date(r.created_at).toLocaleDateString('vi-VN') : 'Vừa xong';
+                        
+                        return (
+                          <div key={i} className="border border-gray-100 rounded-xl p-4">
+                            <div className="flex gap-0.5 mb-2">
+                              {[1,2,3,4,5].map((s) => (
+                                <svg key={s} className={`w-3.5 h-3.5 ${s <= r.rating ? "text-[#ff8d28]" : "text-gray-200"}`} viewBox="0 0 20 20" fill="currentColor">
+                                  <path d="M10 2.8l1.9 4 4.4.6-3.2 3.1.8 4.4-3.9-2.1-3.9 2.1.8-4.4-3.2-3.1 4.4-.6 1.9-4z" />
+                                </svg>
+                              ))}
+                            </div>
+                            <p className="text-sm text-gray-700 leading-relaxed line-clamp-3">{comment}</p>
+                            <div className="flex items-center gap-2 mt-3">
+                              <div className="w-7 h-7 rounded-full bg-[#ff8d28] flex items-center justify-center text-white text-[10px] font-black">
+                                {customerName.charAt(0).toUpperCase()}
+                              </div>
+                              <div>
+                                <p className="text-xs font-semibold text-gray-800">{customerName}</p>
+                                <p className="text-[10px] text-gray-400">{createdAt}</p>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
                   </div>
                 </div>
               )}
@@ -1085,29 +1109,51 @@ function PhotographerProfileContent({ id }: { id: string }) {
                   <span className="text-xs text-gray-400 ml-1">Dựa trên {totalReviews} đánh giá</span>
                 </div>
               </div>
-              <div className="grid md:grid-cols-2 gap-4">
-                {reviews.map((r, i) => (
-                  <div key={i} className="border border-gray-100 rounded-xl p-4">
-                    <div className="flex gap-0.5 mb-2">
-                      {[1,2,3,4,5].map((s) => (
-                        <svg key={s} className={`w-3.5 h-3.5 ${s <= r.rating ? "text-[#ff8d28]" : "text-gray-200"}`} viewBox="0 0 20 20" fill="currentColor">
-                          <path d="M10 2.8l1.9 4 4.4.6-3.2 3.1.8 4.4-3.9-2.1-3.9 2.1.8-4.4-3.2-3.1 4.4-.6 1.9-4z" />
-                        </svg>
-                      ))}
-                    </div>
-                    <p className="text-sm text-gray-700 leading-relaxed line-clamp-3">{r.text}</p>
-                    <div className="flex items-center gap-2 mt-3">
-                      <div className="w-7 h-7 rounded-full bg-[#ff8d28] flex items-center justify-center text-white text-[10px] font-black">
-                        {r.name.charAt(0)}
+
+              {loadingReviews ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#ff8d28] border-t-transparent" />
+                </div>
+              ) : reviews.length === 0 ? (
+                <div className="border border-gray-100 rounded-xl p-8 text-center">
+                  <p className="text-sm text-gray-500">Chưa có đánh giá nào. Hãy là người đầu tiên đánh giá!</p>
+                </div>
+              ) : (
+                <div className="grid md:grid-cols-2 gap-4">
+                  {reviews.slice(0, 4).map((r) => (
+                    <div key={r.id} className="border border-gray-100 rounded-xl p-4">
+                      <div className="flex gap-0.5 mb-2">
+                        {[1,2,3,4,5].map((s) => (
+                          <svg key={s} className={`w-3.5 h-3.5 ${s <= r.rating ? "text-[#ff8d28]" : "text-gray-200"}`} viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M10 2.8l1.9 4 4.4.6-3.2 3.1.8 4.4-3.9-2.1-3.9 2.1.8-4.4-3.2-3.1 4.4-.6 1.9-4z" />
+                          </svg>
+                        ))}
                       </div>
-                      <div>
-                        <p className="text-xs font-semibold text-gray-800">{r.name}</p>
-                        <p className="text-[10px] text-gray-400">{r.time}</p>
+                      <p className="text-sm text-gray-700 leading-relaxed line-clamp-3">{r.comment || "Rất hài lòng với dịch vụ!"}</p>
+                      <div className="flex items-center gap-2 mt-3">
+                        <div className="w-7 h-7 rounded-full bg-[#ff8d28] flex items-center justify-center text-white text-[10px] font-black">
+                          {r.customer_name.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold text-gray-800">{r.customer_name}</p>
+                          <p className="text-[10px] text-gray-400">
+                            {new Date(r.created_at).toLocaleDateString("vi-VN")}
+                          </p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
+
+              {reviews.length > 4 && (
+                <button
+                  onClick={() => setActiveTab("Đánh giá")}
+                  className="mt-4 text-[#ff8d28] text-sm font-semibold hover:underline"
+                >
+                  Xem tất cả {reviews.length} đánh giá →
+                </button>
+              )}
             </div>
           )}
         </div>
