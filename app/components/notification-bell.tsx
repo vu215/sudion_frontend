@@ -107,7 +107,7 @@ export function NotificationBell() {
             return next;
           });
         }}
-        className="relative inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#e8eaf1] text-[#4b5563] hover:border-[#ff8d28] hover:text-[#ff8d28] transition-colors"
+        className="relative inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#e8eaf1] text-[#4b5563] transition-colors hover:border-[#ff8d28] hover:text-[#ff8d28] sm:h-10 sm:w-10"
         aria-label="Thông báo"
       >
         <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
@@ -125,7 +125,7 @@ export function NotificationBell() {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 top-full mt-2 w-96 rounded-2xl border border-[#e8eaf1] bg-white shadow-xl z-50 overflow-hidden">
+        <div className="fixed right-2 top-[84px] z-[60] max-h-[calc(100vh-96px)] w-[calc(100vw-1rem)] max-w-96 overflow-hidden rounded-2xl border border-[#e8eaf1] bg-white shadow-xl sm:absolute sm:right-0 sm:top-full sm:z-50 sm:mt-2 sm:max-h-none sm:w-96">
           {/* Header */}
           <div className="border-b border-[#e8eaf1] p-4">
             <h3 className="text-sm font-bold text-[#0e111d]">Thông báo</h3>
@@ -156,7 +156,7 @@ export function NotificationBell() {
           </div>
 
           {/* Notifications List */}
-          <div className="max-h-96 overflow-y-auto">
+          <div className="max-h-[calc(100vh-220px)] overflow-y-auto sm:max-h-96">
             {displayNotifications.length > 0 ? (
               <ul className="divide-y divide-[#e8eaf1]">
                 {displayNotifications.map((notif) => (

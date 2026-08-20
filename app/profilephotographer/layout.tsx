@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/app/auth-context";
+import { useState } from "react";
 import type { ReactNode } from "react";
 
 const NAV = [
@@ -18,6 +19,7 @@ const NAV = [
 export default function ProfilePhotographerLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { session } = useAuth();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const initials = (session?.fullName || "P").split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
 
@@ -64,10 +66,26 @@ export default function ProfilePhotographerLayout({ children }: { children: Reac
       <div className="flex-1 lg:ml-[220px] flex flex-col min-h-screen">
 
         {/* Top header */}
-        <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-[#eaedf2] bg-white px-6 shadow-sm">
-          {/* Mobile menu placeholder */}
+        <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-[#eaedf2] bg-white px-4 shadow-sm sm:px-6">
           <div className="flex items-center gap-3">
             <div className="lg:hidden flex h-7 w-7 items-center justify-center rounded-lg bg-[#ff8d28] text-white text-xs font-black">S</div>
+            <button
+              type="button"
+              aria-label={mobileMenuOpen ? "Đóng menu" : "Mở menu"}
+              aria-expanded={mobileMenuOpen}
+              onClick={() => setMobileMenuOpen((open) => !open)}
+              className="grid h-9 w-9 place-items-center rounded-xl border border-slate-200 text-slate-600 transition hover:border-orange-200 hover:text-[#ff8d28] lg:hidden"
+            >
+              {mobileMenuOpen ? (
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" d="M6 6l12 12M18 6L6 18" />
+                </svg>
+              ) : (
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" d="M4 7h16M4 12h16M4 17h16" />
+                </svg>
+              )}
+            </button>
             {/* Breadcrumb */}
             <p className="hidden sm:block text-[13px] font-semibold text-[#6b7280]">
               {NAV.find(n => pathname === n.href || (n.href !== "/profilephotographer" && pathname.startsWith(n.href)))?.label || "Tổng quan"}
@@ -82,11 +100,52 @@ export default function ProfilePhotographerLayout({ children }: { children: Reac
             </button>
 
             {/* Avatar */}
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-[#ff8d28] to-[#f97316] text-white text-xs font-black cursor-pointer">
+            <Link
+              href="/"
+              aria-label="Về trang chủ"
+              className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-[#ff8d28] to-[#f97316] text-white text-xs font-black transition hover:scale-105"
+            >
               {initials}
-            </div>
+            </Link>
           </div>
         </header>
+
+        {mobileMenuOpen ? (
+          <>
+            <button
+              type="button"
+              aria-label="Đóng menu"
+              onClick={() => setMobileMenuOpen(false)}
+              className="fixed inset-0 top-14 z-30 bg-slate-950/30 lg:hidden"
+            />
+            <nav className="fixed inset-x-3 top-[4.5rem] z-40 rounded-2xl border border-slate-200 bg-white p-2 shadow-[0_18px_45px_rgba(15,23,42,0.18)] lg:hidden" aria-label="Điều hướng photographer">
+              {NAV.map((item) => {
+                const active = pathname === item.href || (item.href !== "/profilephotographer" && pathname.startsWith(item.href));
+
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    aria-current={active ? "page" : undefined}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-bold transition-colors ${
+                      active ? "bg-orange-50 text-[#ff8d28]" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                    }`}
+                  >
+                    <svg className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" d={item.icon} />
+                    </svg>
+                    {item.label}
+                  </Link>
+                );
+              })}
+              <Link href="/" onClick={() => setMobileMenuOpen(false)} className="mt-1 flex items-center gap-3 border-t border-slate-100 px-3 py-3 text-sm font-bold text-slate-500">
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+                Về trang chủ
+              </Link>
+            </nav>
+          </>
+        ) : null}
 
         {/* Page content */}
         <main className="flex-1">

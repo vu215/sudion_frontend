@@ -146,15 +146,15 @@ function Header({ pathname }: { pathname: string }) {
     <>
     <header className="fixed top-0 left-0 right-0 z-50 w-full border-b border-[#e8eaf1]/80 bg-white/95 backdrop-blur-md shadow-sm">
       <div
-        className={`${containerClass} flex min-h-[76px] items-center justify-between gap-4 lg:min-h-[88px]`}
+      className={`${containerClass} flex min-h-[64px] items-center justify-between gap-2 sm:min-h-[76px] sm:gap-4 lg:min-h-[88px]`}
       >
         <Link href="/" className="flex shrink-0 items-center gap-2.5">
           <img
             src="/logo_sudion_remove.png"
             alt="Studion logo"
-            className="h-[70px] w-[70px] rounded-full"
+            className="h-11 w-11 rounded-full sm:h-[70px] sm:w-[70px]"
           />
-          <span className="text-[20px] font-black uppercase tracking-[0.05em] text-[#0e111d]">
+          <span className="text-[14px] font-black uppercase tracking-[0.05em] text-[#0e111d] sm:text-[20px]">
             STUDION
           </span>
         </Link>
@@ -216,7 +216,7 @@ function Header({ pathname }: { pathname: string }) {
           })}
         </nav>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-1 sm:gap-4">
           <div ref={searchRef} className="hidden lg:flex items-center">
             <form
               onSubmit={(event) => {
@@ -286,7 +286,7 @@ function Header({ pathname }: { pathname: string }) {
           {mounted && (
             <Link
               href="/cart"
-              className="relative inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#e8eaf1] text-[#4b5563] hover:border-[#ff8d28] hover:text-[#ff8d28] transition-colors"
+              className="relative inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#e8eaf1] text-[#4b5563] transition-colors hover:border-[#ff8d28] hover:text-[#ff8d28] sm:h-10 sm:w-10"
               aria-label="Giỏ hàng"
             >
               <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
@@ -313,7 +313,7 @@ function Header({ pathname }: { pathname: string }) {
               <button
                 type="button"
                 onClick={() => setDropdownOpen((v) => !v)}
-                className="flex items-center gap-2.5 rounded-full border border-[#e8eaf1] px-3 py-1.5 hover:bg-[#f9f9fb] transition-colors"
+                className="flex items-center gap-1 rounded-full border border-[#e8eaf1] px-1 py-1 hover:bg-[#f9f9fb] transition-colors sm:gap-2.5 sm:px-3 sm:py-1.5"
               >
                 <div className="w-8 h-8 rounded-full bg-[#ff8d28] flex items-center justify-center text-white text-xs font-black">
                   {initials}
@@ -321,7 +321,7 @@ function Header({ pathname }: { pathname: string }) {
                 <span className="hidden text-sm font-bold text-[#0e111d] md:block max-w-[120px] truncate">
                   {session.fullName}
                 </span>
-                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="hidden h-4 w-4 text-gray-400 sm:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
@@ -383,7 +383,7 @@ function Header({ pathname }: { pathname: string }) {
             type="button"
             aria-label="Open menu"
             onClick={() => setMobileOpen((v) => !v)}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#e8eaf1] text-[#6a7082] md:hidden"
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#e8eaf1] text-[#6a7082] sm:h-10 sm:w-10 md:hidden"
           >
             {mobileOpen ? <CloseGlyph /> : <MenuGlyph />}
           </button>
@@ -394,19 +394,19 @@ function Header({ pathname }: { pathname: string }) {
       {/* Mobile Menu Overlay */}
       {mobileOpen && (
         <div
-          className="fixed inset-0 z-[9998] bg-black/40 backdrop-blur-sm md:hidden"
+          className="fixed inset-x-0 bottom-0 top-[76px] z-[9998] bg-black/40 backdrop-blur-sm md:hidden"
           onClick={() => setMobileOpen(false)}
         />
       )}
 
       {/* Mobile Menu Drawer */}
       <div
-        className={`fixed top-0 right-0 z-[9999] h-full w-[280px] overflow-y-auto bg-white shadow-2xl transition-transform duration-300 ease-in-out md:hidden ${
+        className={`fixed right-0 top-[76px] z-[9999] h-[calc(100%-76px)] w-[min(300px,88vw)] overflow-y-auto bg-white shadow-2xl transition-transform duration-300 ease-in-out md:hidden ${
           mobileOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
-        <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
-          <span className="text-[16px] font-black uppercase tracking-wider text-[#0e111d]">Menu</span>
+        <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
+          <span className="text-[15px] font-black uppercase tracking-wider text-[#0e111d]">Menu</span>
           <button
             type="button"
             aria-label="Đóng menu"
@@ -418,7 +418,7 @@ function Header({ pathname }: { pathname: string }) {
         </div>
 
         {/* Mobile Search */}
-        <div className="px-5 py-3 border-b border-gray-100">
+        <div className="border-b border-gray-100 px-4 py-2.5">
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -441,7 +441,7 @@ function Header({ pathname }: { pathname: string }) {
         </div>
 
         {/* Mobile Nav Links */}
-        <nav className="flex flex-col px-3 py-3 gap-1">
+        <nav className="flex flex-col gap-0.5 px-2 py-2">
           {headerLinks.map((link) => {
             const active =
               link.href === "/" ? pathname === "/" : !link.href.includes("#") && pathname.startsWith(link.href);
@@ -450,7 +450,7 @@ function Header({ pathname }: { pathname: string }) {
               return (
                 <div key={link.label} className="flex flex-col">
                   <div
-                    className={`flex items-center gap-3 rounded-xl px-4 py-3 text-[15px] font-bold transition-colors ${
+                    className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold transition-colors ${
                       pathname.startsWith("/services")
                         ? "text-[#ff8d28] bg-orange-50/30"
                         : "text-gray-700 hover:bg-gray-50"
@@ -458,7 +458,7 @@ function Header({ pathname }: { pathname: string }) {
                   >
                     <span>{link.label}</span>
                   </div>
-                  <div className="flex flex-col pl-6 border-l border-gray-100 ml-4 mt-1 space-y-1">
+                  <div className="ml-4 mt-0.5 flex flex-col space-y-0.5 border-l border-gray-100 pl-4">
                     {[
                       { href: "/services/wedding", label: "Cưới hỏi" },
                       { href: "/services/couple", label: "Cặp đôi" },
@@ -474,7 +474,7 @@ function Header({ pathname }: { pathname: string }) {
                           key={sub.label}
                           href={sub.href}
                           onClick={() => setMobileOpen(false)}
-                          className={`block px-4 py-2 text-sm font-semibold rounded-lg transition-colors ${
+                            className={`block rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
                             subActive
                               ? "text-[#ff8d28] bg-orange-50/50"
                               : "text-gray-600 hover:text-[#ff8d28] hover:bg-gray-50"
@@ -494,7 +494,7 @@ function Header({ pathname }: { pathname: string }) {
                 key={link.label}
                 href={link.href}
                 onClick={() => setMobileOpen(false)}
-                className={`flex items-center gap-3 rounded-xl px-4 py-3 text-[15px] font-bold transition-colors ${
+                className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold transition-colors ${
                   active
                     ? "bg-orange-50 text-[#ff8d28]"
                     : "text-gray-700 hover:bg-gray-50"
