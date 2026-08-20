@@ -12,6 +12,11 @@ type Review = {
   email: string;
   avatar: string;
   booking: string;
+  orderId?: number | string;
+  productId?: number | string | null;
+  productName?: string;
+  tipAmount?: number;
+  tipStatus?: string;
   photographer: string;
   photographerAvatar: string;
   service: string;
@@ -93,7 +98,7 @@ export default function ReviewsPage() {
     // If we fall back to seed data, client-side filter is useful
     if (items === seed) {
       return items.filter((item) => {
-        const text = [item.user, item.email, item.booking, item.photographer, item.service, item.content, item.status].join(" ").toLowerCase();
+        const text = [item.user, item.email, item.booking, item.orderId, item.productName, item.photographer, item.service, item.content, item.status].join(" ").toLowerCase();
         return text.includes(query.toLowerCase()) && (status === "Tất cả" || item.status === status || (status === "Bị report" && item.report > 0)) && (rating === "Tất cả" || item.rating === Number(rating));
       });
     }
@@ -211,7 +216,7 @@ export default function ReviewsPage() {
             <div className="overflow-x-auto rounded-b-xl border border-t-0 border-[#e6e9f1]">
               <table className="w-full min-w-[1040px] text-left text-[12px]">
                 <thead className="bg-[#fbfcfe] text-[#536078]">
-                  <tr>{["", "Đánh giá", "Booking", "Photographer", "Dịch vụ", "Rating", "Trạng thái", "Ngày", "Report", "Thao tác"].map((head) => <th key={head} className="px-3 py-3 font-semibold">{head}</th>)}</tr>
+                  <tr>{["", "Đánh giá", "Đơn / Sản phẩm", "Photographer", "Dịch vụ", "Rating", "Trạng thái", "Ngày", "Report", "Thao tác"].map((head) => <th key={head} className="px-3 py-3 font-semibold">{head}</th>)}</tr>
                 </thead>
                 <tbody className="divide-y divide-[#edf0f5]">
                   {filtered.length === 0 ? (
@@ -221,7 +226,7 @@ export default function ReviewsPage() {
                       <tr key={item.id} onClick={() => openDetail(item)} className={`cursor-pointer hover:bg-[#fff8f1] ${selectedId === item.id ? "bg-[#fff3e8]" : "bg-white"}`}>
                         <td className="px-3 py-3"><input type="checkbox" onClick={(event) => event.stopPropagation()} className="h-4 w-4 rounded border-[#d6dbe7] accent-[#ff8d28]" /></td>
                         <td className="px-3 py-3"><div className="flex items-center gap-3"><img src={item.avatar} alt="" className="h-9 w-9 rounded-full object-cover" /><div><b className="font-semibold">{item.user} <Stars rating={item.rating} /></b><p className="max-w-[240px] truncate text-[#697086]">{item.content}</p></div></div></td>
-                        <td className="px-3 py-3 font-medium text-[#ff8d28]">{item.booking}</td>
+                        <td className="px-3 py-3 font-medium text-[#ff8d28]"><p>{item.orderId ? `#DH${item.orderId}` : item.booking || "-"}</p>{item.productName ? <p className="mt-1 max-w-[180px] truncate text-[11px] font-normal text-[#697086]" title={item.productName}>{item.productName}</p> : null}{item.tipAmount ? <p className="mt-1 text-[11px] font-normal text-emerald-600">Tip: {item.tipAmount.toLocaleString("vi-VN")}đ</p> : null}</td>
                         <td className="px-3 py-3"><div className="flex items-center gap-2"><img src={item.photographerAvatar} alt="" className="h-7 w-7 rounded-full object-cover" />{item.photographer}</div></td>
                         <td className="px-3 py-3">{item.service}</td>
                         <td className="px-3 py-3 text-[#f59e0b]">★ {item.rating}.0</td>
@@ -258,7 +263,7 @@ export default function ReviewsPage() {
             <aside className={`absolute right-0 top-0 h-full w-full min-w-0 overflow-y-auto border-l border-[#e6e9f1] bg-white p-5 shadow-[-24px_0_48px_rgba(12,18,32,0.2)] transition-transform duration-300 ease-out sm:w-[430px] ${detailOpen ? "translate-x-0" : "translate-x-full"}`} onClick={(event) => event.stopPropagation()}>
               <div className="flex justify-between"><h2 className="text-[16px] font-semibold">Chi tiết đánh giá</h2><IconButton label="Đóng" icon="close" onClick={closeDetail} /></div>
               <div className="mt-5 flex items-center gap-3 border-b border-[#edf0f5] pb-5"><img src={selected.avatar} alt="" className="h-14 w-14 rounded-full object-cover" /><div><b>{selected.user}</b><p className="text-[#697086]">{selected.email}</p><p className="mt-2 text-[#697086]">Tổng đánh giá: 12 · Hữu ích: {selected.helpful}</p></div></div>
-              <InfoBlock title="Thông tin đánh giá" rows={[["Rating", "★".repeat(selected.rating) + ` ${selected.rating}.0`], ["Nội dung", selected.content], ["Booking", selected.booking], ["Dịch vụ", selected.service], ["Photographer", selected.photographer], ["Ngày đánh giá", selected.date]]} />
+              <InfoBlock title="Thông tin đánh giá" rows={[["Rating", "★".repeat(selected.rating) + ` ${selected.rating}.0`], ["Nội dung", selected.content], ["Mã đơn", selected.orderId ? `#DH${selected.orderId}` : selected.booking || "-"], ["Sản phẩm", selected.productName || "-"], ["Product ID", String(selected.productId || "-")], ["Tip", selected.tipAmount ? `${selected.tipAmount.toLocaleString("vi-VN")}đ (${selected.tipStatus || "chờ xử lý"})` : "Không tip"], ["Dịch vụ", selected.service], ["Photographer", selected.photographer], ["Ngày đánh giá", selected.date]]} />
               <div className="mt-5">{selected.images?.length > 0 && <><p className="mb-2 text-[12px] text-[#697086]">Hình ảnh đính kèm</p><div className="grid grid-cols-4 gap-2">{selected.images.map((img) => <img key={img} src={img} alt="" className="h-14 rounded-lg object-cover" />)}</div></>}</div>
               <div className="mt-5 grid gap-3 text-[12px]"><Select value={selected.status} options={["Hiển thị", "Đã ẩn"]} onChange={(value) => handleToggleHide(selected.id, value === "Hiển thị" ? "Đã ẩn" : "Hiển thị")} /><p>Số lượt report: <b>{selected.report} lượt</b></p><textarea value={note} onChange={(event) => setNote(event.target.value)} className="min-h-[72px] rounded-xl border border-[#dfe3ec] p-3 outline-none focus:border-[#ff8d28]" placeholder="Nhập ghi chú nếu có..." /></div>
               <div className="mt-6 flex justify-end gap-2"><IconButton label="Xóa" icon="delete" tone="danger" onClick={() => handleDeleteReview(selected.id)} /><IconButton label="Lưu" icon="check" onClick={() => handleSaveNote(selected.id)} /></div>

@@ -2,10 +2,14 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { getSession, getToken, type AuthSession } from "../auth-store";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 const ORDERS_PER_PAGE = 5;
+const TIP_BANK_BIN = process.env.NEXT_PUBLIC_TIP_BANK_BIN || "";
+const TIP_BANK_ACCOUNT = process.env.NEXT_PUBLIC_TIP_BANK_ACCOUNT || "";
+const TIP_BANK_NAME = process.env.NEXT_PUBLIC_TIP_BANK_NAME || "STUDION";
 
 function resolveProductImageUrl(path: string) {
   if (!path) return "/default-product.png";
@@ -25,6 +29,7 @@ function formatCurrency(value: number | string | null | undefined) {
 }
 
 export default function UserPage() {
+  const router = useRouter();
   const [session, setSession] = useState<AuthSession | null>(null);
   const [orders, setOrders] = useState<any[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
@@ -37,6 +42,8 @@ export default function UserPage() {
   const [selectedTip, setSelectedTip] = useState<number | null>(null);
   const [customTip, setCustomTip] = useState("");
   const [reviewText, setReviewText] = useState("");
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [reviewSubmitted, setReviewSubmitted] = useState(false);
   const [detailNotice, setDetailNotice] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -112,6 +119,9 @@ export default function UserPage() {
   const paginatedOrders = orders.slice((currentPage - 1) * ORDERS_PER_PAGE, currentPage * ORDERS_PER_PAGE);
   const paginationStart = Math.max(1, Math.min(currentPage - 2, totalPages - 4));
   const pageNumbers = Array.from({ length: Math.min(5, totalPages) }, (_, index) => paginationStart + index);
+  const tipQrUrl = selectedTip && TIP_BANK_BIN && TIP_BANK_ACCOUNT
+    ? `https://img.vietqr.io/image/${TIP_BANK_BIN}-${TIP_BANK_ACCOUNT}-compact2.png?amount=${selectedTip}&addInfo=${encodeURIComponent(`TIP DON ${selectedOrder?.id || ""}`)}&accountName=${encodeURIComponent(TIP_BANK_NAME)}`
+    : "";
 
   async function handleCancelOrder() {
     if (!selectedOrder || !cancelReason) {
@@ -147,6 +157,60 @@ export default function UserPage() {
       setCancelError(err instanceof Error ? err.message : "Không thể hủy đơn hàng.");
     } finally {
       setCancelling(false);
+    }
+  }
+
+  async function handleSubmitReview() {
+    if (!selectedOrder || reviewSubmitting || reviewSubmitted) return;
+
+    if (!selectedRating && !reviewText.trim() && !selectedTip) {
+      router.push(`/review-success?orderId=${encodeURIComponent(selectedOrder.id)}&skipped=1`);
+      return;
+    }
+
+    const products = Array.isArray(selectedOrder.items) ? selectedOrder.items : [];
+    try {
+      setReviewSubmitting(true);
+      setDetailNotice("");
+      const headers = { "Content-Type": "application/json", ...authHeaders() };
+      if (selectedRating || reviewText.trim()) {
+        for (const product of products) {
+          const productId = product.productId || product.id;
+          if (!productId) continue;
+
+          const reviewResponse = await fetch(`${API_URL}/orders/${selectedOrder.id}/review`, {
+            method: "POST",
+            headers,
+            body: JSON.stringify({
+              productId,
+              productName: product.ten_san_pham || "Sản phẩm trong đơn hàng",
+              rating: selectedRating || 0,
+              comment: reviewText.trim(),
+            }),
+          });
+          const reviewJson = await reviewResponse.json().catch(() => ({}));
+          if (!reviewResponse.ok || reviewJson.success === false) {
+            throw new Error(reviewJson.message || "Không thể gửi đánh giá sản phẩm.");
+          }
+        }
+      }
+      if (selectedTip) {
+        const tipResponse = await fetch(`${API_URL}/orders/${selectedOrder.id}/tip`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ amount: selectedTip }),
+        });
+        const tipJson = await tipResponse.json().catch(() => ({}));
+        if (!tipResponse.ok || tipJson.success === false) {
+          throw new Error(tipJson.message || "Không thể tạo yêu cầu tip.");
+        }
+      }
+      setReviewSubmitted(true);
+      router.push(`/review-success?orderId=${encodeURIComponent(selectedOrder.id)}&productName=${encodeURIComponent(products.map((product: any) => product.ten_san_pham).filter(Boolean).join(", ") || "Sản phẩm trong đơn hàng")}&tipAmount=${selectedTip || 0}`);
+    } catch (err) {
+      setDetailNotice(err instanceof Error ? err.message : "Không thể kết nối đến máy chủ.");
+    } finally {
+      setReviewSubmitting(false);
     }
   }
 
@@ -268,7 +332,7 @@ export default function UserPage() {
                           <div className="mt-2 flex items-center justify-between border-t border-slate-200/60 pt-2">
                             <button
                               type="button"
-                              onClick={() => { setSelectedOrder(order); setShowCancelForm(false); setCancelReason(""); setCancelNote(""); setCancelError(""); setDetailNotice(""); }}
+                              onClick={() => { setSelectedOrder(order); setShowCancelForm(false); setCancelReason(""); setCancelNote(""); setCancelError(""); setDetailNotice(""); setReviewSubmitted(false); setReviewSubmitting(false); }}
                               className="text-xs font-bold text-slate-600 transition hover:text-[#ff8d28]"
                             >
                               Xem chi tiết
@@ -416,7 +480,7 @@ export default function UserPage() {
                       <p className="mt-2 text-[9px] leading-4 text-slate-400">Tip là khoản tự nguyện dành cho shipper. 100% tiền tip sẽ được chuyển đến shipper.</p>
                     </div>
                   </div>
-                  <button type="button" onClick={() => setDetailNotice(selectedRating || reviewText.trim() || selectedTip ? "Đánh giá và tip của bạn đã được ghi nhận." : "Bạn có thể bỏ qua đánh giá.")} className="mt-4 w-full rounded-lg bg-[#ff8d28] px-4 py-2.5 text-xs font-black text-white md:mx-auto md:block md:max-w-[260px]">Gửi đánh giá &amp; tip</button>
+                  <button type="button" disabled={reviewSubmitting || reviewSubmitted} onClick={handleSubmitReview} className="mt-4 w-full rounded-lg bg-[#ff8d28] px-4 py-2.5 text-xs font-black text-white transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60 md:mx-auto md:block md:max-w-[260px]">{reviewSubmitting ? "Đang gửi..." : reviewSubmitted ? "Đã gửi đánh giá & tip" : "Gửi đánh giá & tip"}</button>
                 </section>
               </div>
 
@@ -454,6 +518,13 @@ export default function UserPage() {
                     {[20000, 50000, 100000].map((amount) => <button key={amount} type="button" onClick={() => { setSelectedTip(amount); setCustomTip(""); }} className={`flex min-w-0 items-center justify-center rounded-lg border px-1 py-2 text-[11px] font-bold leading-none whitespace-nowrap ${selectedTip === amount ? "border-[#ff8d28] bg-orange-50 text-[#ff8d28]" : "border-slate-200 text-slate-700"}`}>{formatCurrency(amount)}</button>)}
                   </div>
                   <label className="mt-2 !flex h-12 min-w-0 flex-row items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-400 transition focus-within:border-[#ff8d28] focus-within:ring-2 focus-within:ring-orange-100"><input aria-label="Nhập số tiền tip khác" inputMode="numeric" value={customTip} onChange={(event) => { const digits = event.target.value.replace(/\D/g, ""); setCustomTip(digits); setSelectedTip(digits ? Number(digits) : null); }} placeholder="Nhập số tiền khác" className="!h-10 !min-h-0 !w-0 min-w-0 flex-1 border-0 bg-transparent px-0 py-0 font-semibold text-slate-700 outline-none ring-0 placeholder:font-semibold placeholder:text-slate-400 focus:border-0 focus:outline-none focus:ring-0 focus-visible:outline-none" /><span className="shrink-0 font-bold text-slate-700">đ</span></label>
+                  {selectedTip ? (
+                    <div className="mt-3 rounded-xl border border-orange-100 bg-orange-50/60 p-3 text-center">
+                      <p className="text-[10px] font-bold text-slate-700">Quét QR để tip {formatCurrency(selectedTip)}</p>
+                      {tipQrUrl ? <img src={tipQrUrl} alt={`QR chuyển khoản tip ${formatCurrency(selectedTip)}`} className="mx-auto mt-2 h-36 w-36 rounded-lg bg-white object-contain p-1" /> : <p className="mt-2 text-[10px] text-rose-600">Chưa cấu hình tài khoản nhận tip.</p>}
+                      <p className="mt-2 text-[9px] leading-4 text-slate-500">Nội dung chuyển khoản: <b>TIP DON {selectedOrder.id}</b></p>
+                    </div>
+                  ) : null}
                   <p className="mt-2 text-[10px] leading-4 text-slate-500">ⓘ 100% số tiền tip sẽ được chuyển đến shipper.</p>
                   <button type="button" onClick={() => { setSelectedTip(null); setCustomTip(""); }} className="mt-2 w-full rounded-lg bg-[#ff8d28] px-3 py-2 text-xs font-black text-white">{selectedTip ? `Xác nhận tip ${formatCurrency(selectedTip)}` : "Bỏ qua tip"}</button>
                 </section>
