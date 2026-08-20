@@ -5,6 +5,15 @@
 import { Suspense, useEffect, useMemo, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { AiRecommendationPanel } from "./ai-recommendation-panel";
+import {
+  requestAiPhotographerRecommendations,
+  type AiPhotographerRecommendation,
+  type AiRecommendationRequest,
+  type AiRecommendationResponseData,
+  type AiScoreBreakdownItem,
+  type AiMatchedPackage,
+} from "./ai-recommendation-api";
 
 const styleOptions = [
   "Chân dung cá nhân",
@@ -124,6 +133,11 @@ type PhotographerCardData = {
   coordinates: Coordinates;
   rating: string;
   match: string;
+  aiMatchPercent?: number;
+  aiReason?: string;
+  aiReasons?: string[];
+  aiScoreBreakdown?: AiScoreBreakdownItem[];
+  aiMatchedPackage?: AiMatchedPackage | null;
   price: string;
   image: string;
   tags: string[];
@@ -343,9 +357,44 @@ function mapApiToCard(item: ApiPhotographer, index: number): PhotographerCardDat
     city: location,
     coordinates: getCoordinatesByArea(location),
     rating: Number(item.avg_rating || 0).toFixed(1),
-    match: index < 2 ? "98%" : "92%",
+    match: "",
     price: formatPrice(item.min_price),
     image: resolveAssetUrl(item.avatar_url) || fallbackImages[index % fallbackImages.length],
+    tags: getTagsFromCategories(categories),
+    thumbs: fallbackThumbs,
+    extra: `+${item.package_count || 1}`,
+    verified: item.verification_status === "verified",
+    addOns: ["makeup", "video", "album", "retouch"],
+    serviceLabels: getServiceLabelsFromCategories(categories),
+    bio: item.bio,
+  };
+}
+
+function mapAiRecommendationToCard(
+  item: AiPhotographerRecommendation,
+  index: number,
+): PhotographerCardData {
+  const location = item.active_area || "Ho Chi Minh City, VN";
+  const categories = Array.isArray(item.categories) ? item.categories.join(", ") : "";
+  const displayPrice = item.matchedPackage?.price || item.min_price || 0;
+
+  return {
+    id: String(item.id),
+    name: item.full_name,
+    location,
+    city: location,
+    coordinates: getCoordinatesByArea(location),
+    rating: Number(item.avg_rating || 0).toFixed(1),
+    match: `${Number(item.matchPercent || 0)}%`,
+    aiMatchPercent: Number(item.matchPercent || 0),
+    aiReason: item.reason,
+    aiReasons: item.reasons || [],
+    aiScoreBreakdown: item.scoreBreakdown || [],
+    aiMatchedPackage: item.matchedPackage || null,
+    price: formatPrice(displayPrice),
+    image:
+      resolveAssetUrl(item.avatar_url) ||
+      fallbackImages[index % fallbackImages.length],
     tags: getTagsFromCategories(categories),
     thumbs: fallbackThumbs,
     extra: `+${item.package_count || 1}`,
@@ -375,8 +424,12 @@ function PhotographerContent() {
   const searchQuery = searchParams.get("search")?.trim().toLowerCase() ?? "";
 
   const [isReady, setIsReady] = useState(false);
-  const [activeTab, setActiveTab] = useState("AI đề xuất");
-  const [aiSuggested, setAiSuggested] = useState(true);
+  const [activeTab, setActiveTab] = useState("Tất cả");
+  const [aiSuggested, setAiSuggested] = useState(false);
+  const [aiPanelOpen, setAiPanelOpen] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState("");
+  const [aiResult, setAiResult] = useState<AiRecommendationResponseData | null>(null);
 
   const [apiPhotographers, setApiPhotographers] = useState<ApiPhotographer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -441,8 +494,14 @@ function PhotographerContent() {
   }, [category]);
 
   const photographers = useMemo(() => {
+    if (aiSuggested && aiResult?.recommendations?.length) {
+      return aiResult.recommendations.map((item, index) =>
+        mapAiRecommendationToCard(item, index),
+      );
+    }
+
     return apiPhotographers.map((item, index) => mapApiToCard(item, index));
-  }, [apiPhotographers]);
+  }, [aiResult, aiSuggested, apiPhotographers]);
 
   const visiblePhotographers = useMemo(() => {
     const styleFiltered = photographers.filter((person) => {
@@ -466,7 +525,6 @@ function PhotographerContent() {
     });
 
     const tabFiltered = styleFiltered.filter((person) => {
-      const match = Number(person.match.replace("%", ""));
       const price = Number(person.price.replace(/\D/g, "")) / 1000000;
 
       if (price > maxPrice) {
@@ -477,8 +535,8 @@ function PhotographerContent() {
         return favorites.includes(person.name);
       }
 
-      if (aiSuggested || activeTab === "AI đề xuất") {
-        return match >= 88;
+      if (activeTab === "AI đề xuất" || aiSuggested) {
+        return typeof person.aiMatchPercent === "number";
       }
 
       return true;
@@ -486,6 +544,12 @@ function PhotographerContent() {
 
     if (activeTab === "Mới nhất") {
       return [...tabFiltered].reverse();
+    }
+
+    if (activeTab === "AI đề xuất" || aiSuggested) {
+      return [...tabFiltered].sort(
+        (a, b) => Number(b.aiMatchPercent || 0) - Number(a.aiMatchPercent || 0),
+      );
     }
 
     return tabFiltered;
@@ -647,6 +711,39 @@ function PhotographerContent() {
     );
   };
 
+  const openAiRecommendationPanel = () => {
+    setAiError("");
+    setAiPanelOpen(true);
+  };
+
+  const handleAiRecommendation = async (payload: AiRecommendationRequest) => {
+    try {
+      setAiLoading(true);
+      setAiError("");
+
+      const result = await requestAiPhotographerRecommendations(payload);
+
+      if (!result.recommendations.length) {
+        setAiError("AI chưa tìm thấy photographer phù hợp trong dữ liệu hiện tại.");
+        return;
+      }
+
+      setAiResult(result);
+      setAiSuggested(true);
+      setActiveTab("AI đề xuất");
+      setAiPanelOpen(false);
+      setPage(1);
+    } catch (error) {
+      setAiError(
+        error instanceof Error
+          ? error.message
+          : "Không thể lấy đề xuất từ AI. Vui lòng thử lại.",
+      );
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#faf7ff] text-[#171821]">
       <main className="mx-auto w-full max-w-[1296px] px-5 pb-24 pt-12 sm:px-6 lg:px-0">
@@ -685,7 +782,21 @@ function PhotographerContent() {
 
               <button
                 type="button"
-                onClick={() => setAiSuggested((value) => !value)}
+                onClick={() => {
+                  if (aiSuggested) {
+                    setAiSuggested(false);
+                    if (activeTab === "AI đề xuất") setActiveTab("Tất cả");
+                    return;
+                  }
+
+                  if (aiResult?.recommendations?.length) {
+                    setAiSuggested(true);
+                    setActiveTab("AI đề xuất");
+                    return;
+                  }
+
+                  openAiRecommendationPanel();
+                }}
                 data-reveal
                 data-reveal-delay="240"
                 className="inline-flex w-fit shrink-0 items-center gap-2 rounded-full border border-[#f0d9c9] bg-white px-3 py-2 text-[11px] font-bold text-[#4a4350] shadow-[0_8px_20px_rgba(31,24,43,0.06)] xl:mb-6 xl:mr-8"
@@ -712,7 +823,20 @@ function PhotographerContent() {
                   key={tab}
                   style={fadeUpStyle(isReady, 240 + index * 70)}
                   onClick={() => {
+                    if (tab === "AI đề xuất") {
+                      if (!aiResult?.recommendations?.length) {
+                        openAiRecommendationPanel();
+                        return;
+                      }
+
+                      setAiSuggested(true);
+                      setActiveTab(tab);
+                      setPage(1);
+                      return;
+                    }
+
                     setActiveTab(tab);
+                    if (tab !== "AI đề xuất") setAiSuggested(false);
 
                     if (tab === "Photo ở gần bạn" && !userLocation) {
                       requestNearbyPhotographers();
@@ -730,6 +854,37 @@ function PhotographerContent() {
               ))}
             </div>
 
+            {aiSuggested && aiResult ? (
+              <div className="mt-5 flex flex-col gap-3 rounded-2xl border border-[#f2d8c5] bg-[linear-gradient(135deg,#fffaf5_0%,#ffffff_72%)] px-4 py-4 shadow-[0_10px_24px_rgba(255,141,40,0.05)] sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-[#fff0e2] px-2.5 py-1 text-[10px] font-black text-[#e96f0f]">
+                      <SparkIcon className="h-3 w-3" />
+                      {aiResult.ai.used ? "Gemini đã hiểu nhu cầu" : "Hybrid scoring fallback"}
+                    </span>
+                    <span className="text-[10px] font-bold text-[#99909f]">
+                      {aiResult.ai.scoringModel}
+                    </span>
+                  </div>
+
+                  <p className="mt-2 text-[12px] font-bold leading-5 text-[#4e4854]">
+                    {aiResult.intentSummary}
+                  </p>
+                  <p className="mt-1 text-[10px] font-medium leading-4 text-[#8a8390]">
+                    % Match được tính từ dữ liệu MySQL thật, không phải Gemini tự bịa điểm.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={openAiRecommendationPanel}
+                  className="shrink-0 rounded-xl border border-[#ffd3af] bg-white px-3.5 py-2 text-[11px] font-black text-[#e96f0f] transition hover:bg-[#fff4e9]"
+                >
+                  Tinh chỉnh nhu cầu
+                </button>
+              </div>
+            ) : null}
+
             {activeTab === "Photo ở gần bạn" ? (
               <NearbyMapPanel
                 isReady={isReady}
@@ -745,11 +900,11 @@ function PhotographerContent() {
               />
             ) : null}
 
-            {loading ? (
+            {loading && !aiSuggested ? (
               <div className="mt-8 rounded-2xl border border-[#ebe6f1] bg-white px-6 py-10 text-center text-[13px] font-bold text-[#6b6878]">
                 Đang tải photographer từ backend...
               </div>
-            ) : apiError ? (
+            ) : apiError && !aiSuggested ? (
               <div className="mt-8 rounded-2xl border border-red-200 bg-white px-6 py-10 text-center text-[13px] font-bold text-red-500">
                 {apiError}
               </div>
@@ -780,7 +935,9 @@ function PhotographerContent() {
 
                 {displayedPhotographers.length === 0 ? (
                   <div className="mt-8 rounded-2xl border border-[#ebe6f1] bg-white px-6 py-10 text-center text-[12px] font-semibold text-[#6b6878]">
-                    Không có photographer phù hợp với bộ lọc hiện tại hoặc category này chưa có data.
+                    {aiSuggested
+                      ? "Không còn photographer AI phù hợp sau khi áp dụng bộ lọc hiện tại. Hãy tinh chỉnh nhu cầu hoặc xóa bớt bộ lọc."
+                      : "Không có photographer phù hợp với bộ lọc hiện tại hoặc category này chưa có data."}
                   </div>
                 ) : null}
 
@@ -796,6 +953,20 @@ function PhotographerContent() {
           </section>
         </div>
       </main>
+
+      <AiRecommendationPanel
+        open={aiPanelOpen}
+        loading={aiLoading}
+        error={aiError}
+        categoryOptions={styleOptions}
+        initialCategory={category}
+        initialLocation={location}
+        initialBudgetMillions={maxPrice}
+        onClose={() => {
+          if (!aiLoading) setAiPanelOpen(false);
+        }}
+        onSubmit={handleAiRecommendation}
+      />
     </div>
   );
 }
@@ -959,10 +1130,10 @@ function PhotographerCard({
           className="h-full w-full object-cover"
         />
 
-        {aiSuggested ? (
-          <span className="absolute left-4 top-4 inline-flex items-center gap-1.5 rounded-full bg-[#ffb06a] px-3 py-1.5 text-xs font-extrabold text-white">
+        {aiSuggested && typeof person.aiMatchPercent === "number" ? (
+          <span className="absolute left-4 top-4 inline-flex items-center gap-1.5 rounded-full bg-[#ff9a42] px-3 py-1.5 text-xs font-extrabold text-white shadow-[0_8px_18px_rgba(255,141,40,0.24)]">
             <SparkIcon className="h-3.5 w-3.5" />
-            AI Match {person.match}
+            AI Match {person.aiMatchPercent}%
           </span>
         ) : null}
 
@@ -1020,6 +1191,46 @@ function PhotographerCard({
             )}
           </div>
         </div>
+
+        {aiSuggested && person.aiReason ? (
+          <div className="mt-4 rounded-xl border border-[#f1e3d7] bg-[#fffaf6] px-3.5 py-3">
+            <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.12em] text-[#e96f0f]">
+              <SparkIcon className="h-3 w-3" />
+              Vì sao phù hợp?
+            </div>
+
+            <p className="mt-2 text-[11px] font-semibold leading-5 text-[#5a535d]">
+              {person.aiReason}
+            </p>
+
+            {person.aiMatchedPackage ? (
+              <p className="mt-2 text-[10px] font-bold leading-4 text-[#8a6a51]">
+                Gói khớp: {person.aiMatchedPackage.name} · {formatPrice(person.aiMatchedPackage.price)}
+              </p>
+            ) : null}
+
+            {person.aiScoreBreakdown?.length ? (
+              <details className="mt-2">
+                <summary className="cursor-pointer text-[10px] font-black text-[#ff7d1a]">
+                  Xem cách tính điểm
+                </summary>
+                <div className="mt-2 grid gap-1.5">
+                  {person.aiScoreBreakdown.map((item) => (
+                    <div
+                      key={`${person.id}-${item.key}`}
+                      className="flex items-center justify-between gap-3 text-[9px] font-semibold text-[#7d7581]"
+                    >
+                      <span>{item.label} · trọng số {item.weight}%</span>
+                      <span className="font-black text-[#4f4753]">
+                        +{Number(item.points || 0).toFixed(1)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </details>
+            ) : null}
+          </div>
+        ) : null}
 
         <div className="mt-4 flex items-end justify-between border-t border-[#eeeaf4] pt-4">
           <div>
