@@ -158,9 +158,21 @@ function formatDate(value: string | null) {
   return date.toLocaleDateString("vi-VN");
 }
 
-function formatTime(value: string | null) {
+function formatTime(value: string | null, endValue?: string | null) {
   if (!value) return "Chưa chọn";
-  return String(value).slice(0, 5);
+
+  const text = String(value).trim();
+  const endText = endValue ? String(endValue).trim() : "";
+  const rangeMatch = text.match(/(\d{1,2}:\d{2})\s*(?:-|–|—|đến|to)\s*(\d{1,2}:\d{2})/i);
+  if (rangeMatch) {
+    return `${rangeMatch[1]} - ${rangeMatch[2]}`;
+  }
+
+  if (endText && /\d{1,2}:\d{2}/.test(endText)) {
+    return `${text} - ${endText}`;
+  }
+
+  return text.slice(0, 5);
 }
 
 function formatDateTime(value: string | null | undefined) {
@@ -728,7 +740,7 @@ function BookingCard({
         <div className="grid gap-4">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <InfoItem label="Ngày chụp" value={formatDate(booking.shoot_date)} />
-            <InfoItem label="Giờ chụp" value={formatTime(booking.shoot_time)} />
+            <InfoItem label="Giờ chụp" value={formatTime(booking.shoot_time, booking.shoot_end_time)} />
             <InfoItem label="Địa điểm" value={booking.location ? booking.location.split(" [Photos:")[0] : "Chưa chọn"} />
             <InfoItem label="Quy mô" value={booking.people_scale || "Chưa chọn"} />
           </div>
