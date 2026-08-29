@@ -1439,46 +1439,6 @@ function BookingContent() {
               </div>
             </section>
 
-            {otherServiceOptions.length > 0 && (
-              <section className="rounded-2xl border border-[#e8eaf1] bg-white p-5 shadow-[0_12px_36px_rgba(20,21,31,0.03)] sm:p-6">
-                <div className="flex items-center justify-between gap-3">
-                  <h2 className="text-lg font-black text-[#0e111d]">Dịch vụ khác của photographer</h2>
-                  <span className="rounded-full border border-[#e8eaf1] bg-[#fafbfc] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-[#6b7280]">
-                    {otherServiceOptions.length}
-                  </span>
-                </div>
-
-                <div className="mt-4 grid gap-3">
-                  {otherServiceOptions.map((service) => (
-                    <button
-                      key={service.slug}
-                      type="button"
-                      onClick={() => handleSelectCategory(service.slug)}
-                      className="group flex items-center gap-3 rounded-xl border border-[#e8eaf1] bg-[#fafbfc] p-3 text-left transition hover:border-[#ff8d28] hover:bg-[#fff4eb]"
-                    >
-                      <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-[#f3f4f6]">
-                        {service.image ? (
-                          <Image src={service.image} alt={service.label} fill className="object-cover" sizes="56px" unoptimized />
-                        ) : null}
-                      </div>
-
-                      <div className="min-w-0 flex-1">
-                        <div className="text-[12px] font-black text-[#0e111d]">{service.label}</div>
-                        <div className="mt-0.5 truncate text-[11px] font-medium text-[#6b7280]">{service.name}</div>
-                      </div>
-
-                      <div className="text-right">
-                        <div className="text-[11px] font-black text-[#ff8d28]">
-                          {service.price ? formatCurrency(service.price) : "Liên hệ"}
-                        </div>
-                        <div className="mt-0.5 text-[10px] font-semibold text-[#9ca3af]">Chọn ngay</div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </section>
-            )}
-
             {/* ──── SECTION 3: Thông tin đặt lịch ──── */}
             <section className="rounded-2xl border border-[#e8eaf1] bg-white p-5 shadow-[0_12px_36px_rgba(20,21,31,0.03)] sm:p-6">
               <h2 className="text-lg font-black text-[#0e111d] flex items-center gap-3">
@@ -1523,6 +1483,46 @@ function BookingContent() {
                 </Field>
               </div>
             </section>
+
+            {otherServiceOptions.length > 0 && (
+              <section className="rounded-2xl border border-[#e8eaf1] bg-white p-5 shadow-[0_12px_36px_rgba(20,21,31,0.03)] sm:p-6">
+                <div className="flex items-center justify-between gap-3">
+                  <h2 className="text-lg font-black text-[#0e111d]">Dịch vụ khác của photographer</h2>
+                  <span className="rounded-full border border-[#e8eaf1] bg-[#fafbfc] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-[#6b7280]">
+                    {otherServiceOptions.length}
+                  </span>
+                </div>
+
+                <div className="mt-4 grid gap-3">
+                  {otherServiceOptions.map((service) => (
+                    <button
+                      key={service.slug}
+                      type="button"
+                      onClick={() => handleSelectCategory(service.slug)}
+                      className="group flex items-center gap-3 rounded-xl border border-[#e8eaf1] bg-[#fafbfc] p-3 text-left transition hover:border-[#ff8d28] hover:bg-[#fff4eb]"
+                    >
+                      <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-[#f3f4f6]">
+                        {service.image ? (
+                          <Image src={service.image} alt={service.label} fill className="object-cover" sizes="56px" unoptimized />
+                        ) : null}
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[12px] font-black text-[#0e111d]">{service.label}</div>
+                        <div className="mt-0.5 truncate text-[11px] font-medium text-[#6b7280]">{service.name}</div>
+                      </div>
+
+                      <div className="text-right">
+                        <div className="text-[11px] font-black text-[#ff8d28]">
+                          {service.price ? formatCurrency(service.price) : "Liên hệ"}
+                        </div>
+                        <div className="mt-0.5 text-[10px] font-semibold text-[#9ca3af]">Chọn ngay</div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </section>
+            )}
           </div>
 
           {/* ════════ COLUMN RIGHT: Sticky Sidebar ════════ */}

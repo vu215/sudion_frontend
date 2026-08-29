@@ -154,9 +154,21 @@ function formatDate(value: string | null) {
   return date.toLocaleDateString("vi-VN");
 }
 
-function formatTime(value: string | null) {
+function formatTime(value: string | null, endValue?: string | null) {
   if (!value) return "Chưa chọn";
-  return String(value).slice(0, 5);
+
+  const text = String(value).trim();
+  const endText = endValue ? String(endValue).trim() : "";
+  const rangeMatch = text.match(/(\d{1,2}:\d{2})\s*(?:-|–|—|đến|to)\s*(\d{1,2}:\d{2})/i);
+  if (rangeMatch) {
+    return `${rangeMatch[1]} - ${rangeMatch[2]}`;
+  }
+
+  if (endText && /\d{1,2}:\d{2}/.test(endText)) {
+    return `${text} - ${endText}`;
+  }
+
+  return text.slice(0, 5);
 }
 
 function formatDateTime(value: string) {
@@ -848,7 +860,7 @@ function BookingDetailsDrawer({
             <DrawerItem label="Mã booking" value={booking.booking_code} highlight />
             <DrawerItem label="Gói dịch vụ" value={booking.service_name} />
             <DrawerItem label="Ngày chụp" value={formatDate(booking.shoot_date)} />
-            <DrawerItem label="Giờ chụp" value={formatTime(booking.shoot_time)} />
+            <DrawerItem label="Giờ chụp" value={formatTime(booking.shoot_time, booking.shoot_end_time)} />
             <DrawerItem label="Địa điểm" value={cleanLoc} />
             <DrawerItem label="Quy mô" value={booking.people_scale || "Chưa chọn"} />
             <DrawerItem label="Khách hàng" value={booking.customer_full_name} />

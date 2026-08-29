@@ -161,12 +161,23 @@ function formatDate(value: string | null | undefined) {
   });
 }
 
-function formatTime(value: string | null | undefined) {
+function formatTime(value: string | null | undefined, endValue?: string | null | undefined) {
   if (!value) {
     return "Chưa chọn";
   }
 
-  return String(value).slice(0, 5);
+  const text = String(value).trim();
+  const endText = endValue ? String(endValue).trim() : "";
+  const rangeMatch = text.match(/(\d{1,2}:\d{2})\s*(?:-|–|—|đến|to)\s*(\d{1,2}:\d{2})/i);
+  if (rangeMatch) {
+    return `${rangeMatch[1]} - ${rangeMatch[2]}`;
+  }
+
+  if (endText && /\d{1,2}:\d{2}/.test(endText)) {
+    return `${text} - ${endText}`;
+  }
+
+  return text.slice(0, 5);
 }
 
 async function fetchPaymentInfo(code: string): Promise<PaymentInfo> {
@@ -359,7 +370,7 @@ export default function DepositPaymentPage({
 
               <div className="mt-3 grid gap-3 sm:grid-cols-3">
                 <Field title="Ngày chụp" value={formatDate(booking.shoot_date)} />
-                <Field title="Giờ chụp" value={formatTime(booking.shoot_time)} />
+                <Field title="Giờ chụp" value={formatTime(booking.shoot_time, booking.shoot_end_time)} />
                 <Field title="Địa điểm" value={booking.location || "Chưa chọn"} />
               </div>
             </Section>

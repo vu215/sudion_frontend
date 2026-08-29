@@ -16,6 +16,7 @@ type Booking = {
   service_name: string;
   shoot_date: string | null;
   shoot_time: string | null;
+  shoot_end_time?: string | null;
   estimated_total: number;
   deposit_amount: number;
   remaining_amount: number;
@@ -100,7 +101,21 @@ function fmtDate(v: string | null) {
   const d = new Date(v);
   return isNaN(d.getTime()) ? v : d.toLocaleDateString("vi-VN");
 }
-function fmtTime(v: string | null) { return v ? String(v).slice(0, 5) : "Chưa chọn"; }
+function fmtTimeRange(start: string | null, end?: string | null) {
+  if (!start) return "Chưa chọn";
+
+  const startText = String(start).trim();
+  const endText = end ? String(end).trim() : "";
+
+  const rangeMatch = startText.match(/(\d{1,2}:\d{2})\s*(?:-|–|—|đến|to)\s*(\d{1,2}:\d{2})/i);
+  if (rangeMatch) return `${rangeMatch[1]} - ${rangeMatch[2]}`;
+
+  if (endText && /\d{1,2}:\d{2}/.test(endText)) {
+    return `${startText} - ${endText}`;
+  }
+
+  return startText.slice(0, 5);
+}
 
 async function fetchBooking(code: string): Promise<Booking> {
   const isRental = code.startsWith("RENT-");
@@ -121,6 +136,7 @@ async function fetchBooking(code: string): Promise<Booking> {
       service_name: r.equipment_name,
       shoot_date: r.start_date,
       shoot_time: r.end_date,
+      shoot_end_time: r.end_date,
       estimated_total: Number(r.total_price),
       deposit_amount: Number(r.deposit_amount),
       remaining_amount: Number(r.total_price),
@@ -337,7 +353,7 @@ export default function BookingRequestSuccessPage({ params }: { params: Promise<
               />
               <Field
                 title={booking.booking_code.startsWith("RENT-") ? "Ngày trả máy" : "Giờ chụp"}
-                value={booking.booking_code.startsWith("RENT-") ? fmtDate(booking.shoot_time) : fmtTime(booking.shoot_time)}
+                value={booking.booking_code.startsWith("RENT-") ? fmtDate(booking.shoot_time) : fmtTimeRange(booking.shoot_time, booking.shoot_end_time)}
               />
               <Field
                 title={booking.booking_code.startsWith("RENT-") ? "Nơi nhận máy" : "Địa điểm"}
