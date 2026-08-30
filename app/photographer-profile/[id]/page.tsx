@@ -2,6 +2,7 @@
 
 import { useEffect, useState, use } from "react";
 import Link from "next/link";
+import { getBookingUrlWithDates } from "@/lib/routes";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
@@ -1097,7 +1098,7 @@ function PhotographerProfileContent({ id }: { id: string }) {
                 </div>
 
                 <Link
-                  href={`/booking?photographer=${person.id}&service=${encodeURIComponent(selectedServiceName)}&dates=${encodeURIComponent(selectedDates.join(","))}`}
+                  href={getBookingUrlWithDates(person.id, selectedServiceName, selectedDates)}
                   className="w-full bg-[#ff8d28] hover:bg-[#e0751b] text-white text-sm font-extrabold py-3 rounded-full flex items-center justify-center transition-all hover:-translate-y-0.5 shadow-[0_8px_18px_rgba(255,141,40,0.2)]"
                 >
                   Đặt lịch ngay

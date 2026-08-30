@@ -81,7 +81,7 @@ export default function PaymentsPage() {
         const result = (await api.payments.getAll({ page, pageSize: 20 })) as any;
 
         if (result.success && result.data) {
-          const transformedData = result.data.map((payment: any) => ({
+          const transformedData = (result.data as any).map((payment: any) => ({
             ...payment,
             status: mapStatus(payment.status),
           }));

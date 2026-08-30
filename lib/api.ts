@@ -882,6 +882,27 @@ export const api = {
       await new Promise(r => setTimeout(r, 600));
       return { success: true, message: `Đã gửi email thông báo thanh toán thành công cho Booking ${bookingId}!` };
     }
-  }
+  },
+
+  // News / Article APIs
+  news: {
+    getAll: (params?: Record<string, any>) => {
+      const query = params ? '?' + new URLSearchParams(params).toString() : '';
+      return request(`/admin/news${query}`);
+    },
+    getById: (id: string | number) => request(`/admin/news/${id}`),
+    create: (data: any) => request('/admin/news', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string | number, data: any) => request(`/admin/news/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (id: string | number) => request(`/admin/news/${id}`, { method: 'DELETE' }),
+    toggleFeatured: (id: string | number) => request(`/admin/news/${id}/featured`, { method: 'PATCH' }),
+  },
+
+  publicNews: {
+    getAll: (params?: Record<string, any>) => {
+      const query = params ? '?' + new URLSearchParams(params).toString() : '';
+      return request(`/news${query}`);
+    },
+    getById: (id: string | number) => request(`/news/${id}`),
+  },
 };
 

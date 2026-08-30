@@ -12,8 +12,43 @@ export function generateStaticParams() {
 
 export default async function NewsArticlePage({ params }: Params) {
   const { id } = await params;
-  const article = articles.find((item) => item.id === id);
-  if (!article) return notFound();
+
+  let article = null;
+  try {
+    const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://sudion-backend-production-453b.up.railway.app/api';
+    const response = await fetch(`${API_BASE_URL}/news/${id}`, { next: { revalidate: 60 } });
+    if (response.ok) {
+      const resJson = await response.json();
+      if (resJson.success && resJson.data) {
+        const item = resJson.data;
+        article = {
+          id: item.slug || String(item.id),
+          category: item.category,
+          categoryColor: item.category_color || "bg-slate-100 text-slate-700",
+          title: item.title,
+          excerpt: item.excerpt || "",
+          content: item.content,
+          author: item.author,
+          authorAvatar: item.author_avatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=80&q=80",
+          date: new Date(item.created_at).toLocaleDateString("vi-VN", { day: 'numeric', month: 'long', year: 'numeric' }),
+          readTime: item.read_time || "5 phút đọc",
+          image: item.image || "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=900&q=80",
+          featured: !!item.featured
+        };
+      }
+    }
+  } catch (error) {
+    console.error("Failed to fetch article from API, falling back to mock data:", error);
+  }
+
+  if (!article) {
+    const mock = articles.find((item) => item.id === id);
+    if (!mock) return notFound();
+    article = {
+      ...mock,
+      content: mock.excerpt + "\n\nTrong bài viết này, chúng tôi sẽ đi sâu vào những điểm chính giúp bạn hiểu rõ hơn về chủ đề. Những xu hướng và phương pháp được chia sẻ dựa trên kinh nghiệm thực tế từ cộng đồng nhiếp ảnh gia, cùng với các mẹo ứng dụng dễ thực hiện.\n\nMỗi người chụp ảnh đều cần biết cách kết hợp ánh sáng, bố cục và cảm xúc để tạo ra bộ ảnh ấn tượng. Việc xác định phong cách riêng và xây dựng câu chuyện cho từng bộ ảnh giúp bạn khác biệt trong mắt khách hàng.\n\nBên cạnh kỹ thuật, yếu tố hậu kỳ và storytelling cũng quyết định chất lượng cuối cùng. Hãy chú ý tạo điểm nhấn bằng chi tiết nhỏ, lựa chọn màu sắc hài hòa, và giữ nhịp cho câu chuyện hình ảnh qua từng khung hình.\n\nCuối cùng, đừng quên liên tục cập nhật xu hướng mới và thử nghiệm phong cách mới để giữ thương hiệu cá nhân luôn tươi mới. Khi bạn biết cách kể chuyện qua ảnh, khách hàng sẽ dễ dàng đồng cảm và tin tưởng hơn."
+    };
+  }
 
   return (
     <div className="min-h-screen bg-[#f8f9fd] text-[#0f172a] py-12">
@@ -53,20 +88,8 @@ export default async function NewsArticlePage({ params }: Params) {
               </div>
             </div>
 
-            <div className="space-y-6 text-[17px] leading-8 text-slate-700">
-              <p>{article.excerpt}</p>
-              <p>
-                Trong bài viết này, chúng tôi sẽ đi sâu vào những điểm chính giúp bạn hiểu rõ hơn về chủ đề. Những xu hướng và phương pháp được chia sẻ dựa trên kinh nghiệm thực tế từ cộng đồng nhiếp ảnh gia, cùng với các mẹo ứng dụng dễ thực hiện.
-              </p>
-              <p>
-                Mỗi người chụp ảnh đều cần biết cách kết hợp ánh sáng, bố cục và cảm xúc để tạo ra bộ ảnh ấn tượng. Việc xác định phong cách riêng và xây dựng câu chuyện cho từng bộ ảnh giúp bạn khác biệt trong mắt khách hàng.
-              </p>
-              <p>
-                Bên cạnh kỹ thuật, yếu tố hậu kỳ và storytelling cũng quyết định chất lượng cuối cùng. Hãy chú ý tạo điểm nhấn bằng chi tiết nhỏ, lựa chọn màu sắc hài hòa, và giữ nhịp cho câu chuyện hình ảnh qua từng khung hình.
-              </p>
-              <p>
-                Cuối cùng, đừng quên liên tục cập nhật xu hướng mới và thử nghiệm phong cách mới để giữ thương hiệu cá nhân luôn tươi mới. Khi bạn biết cách kể chuyện qua ảnh, khách hàng sẽ dễ dàng đồng cảm và tin tưởng hơn.
-              </p>
+            <div className="space-y-6 text-[17px] leading-8 text-slate-700 whitespace-pre-line font-medium">
+              {article.content}
             </div>
           </div>
         </div>
