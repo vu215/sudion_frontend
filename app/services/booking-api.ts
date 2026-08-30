@@ -57,6 +57,11 @@ type ApiResponse<T> = {
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
+function authHeaders() {
+  const token = typeof window !== "undefined" ? window.localStorage.getItem("sudion_token") : null;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 export async function getBookingFromBackend(bookingCode: string) {
   const response = await fetch(`${API_URL}/bookings/${bookingCode}`, {
     method: "GET",
@@ -82,6 +87,7 @@ export async function confirmBookingPayment(
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
+        ...authHeaders(),
       },
       body: JSON.stringify({ paymentMethod }),
     }

@@ -38,15 +38,78 @@ export function AiConsultantWidget() {
   }>({ step: "idle" });
 
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const chatBodyRef = useRef<HTMLDivElement | null>(null);
 
-  // Load configuration and photographers
+  const CHAT_PERSIST_KEY = "sudion_ai_chat_state";
+
   useEffect(() => {
-    // Hide tooltip after 6 seconds
+    if (typeof window === "undefined") return;
+    const saved = window.localStorage.getItem(CHAT_PERSIST_KEY);
+    if (!saved) return;
+
+    try {
+      const data = JSON.parse(saved) as {
+        isOpen?: boolean;
+        messages?: Message[];
+        inputVal?: string;
+        flowState?: typeof flowState;
+        showTooltip?: boolean;
+      };
+
+      if (data.messages && data.messages.length > 0) {
+        setMessages(data.messages);
+      }
+      if (typeof data.isOpen === "boolean") {
+        setIsOpen(data.isOpen);
+      }
+      if (typeof data.inputVal === "string") {
+        setInputVal(data.inputVal);
+      }
+      if (data.flowState) {
+        setFlowState(data.flowState);
+      }
+      if (typeof data.showTooltip === "boolean") {
+        setShowTooltip(data.showTooltip);
+      }
+    } catch (error) {
+      console.error("Lỗi đọc trạng thái chat AI từ localStorage:", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const payload = {
+      isOpen,
+      messages,
+      inputVal,
+      flowState,
+      showTooltip,
+    };
+
+    window.localStorage.setItem(CHAT_PERSIST_KEY, JSON.stringify(payload));
+  }, [isOpen, messages, inputVal, flowState, showTooltip]);
+
+  useEffect(() => {
+    const handleLinkClick = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (!target) return;
+      const anchor = target.closest("a") as HTMLAnchorElement | null;
+      if (anchor && chatBodyRef.current && chatBodyRef.current.contains(anchor)) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener("click", handleLinkClick);
+    return () => document.removeEventListener("click", handleLinkClick);
+  }, []);
+
+  // Load lightweight client-only configuration.
+  useEffect(() => {
     const timer = setTimeout(() => {
       setShowTooltip(false);
     }, 6000);
 
-    // Fetch config from localStorage
     const saved = localStorage.getItem("studion-ai-settings");
     if (saved) {
       try {
@@ -56,19 +119,34 @@ export function AiConsultantWidget() {
       }
     }
 
-    // Fetch photographers from backend API
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Fetch photographers only when the user opens chat.
+  useEffect(() => {
+    if (!isOpen || photographers.length > 0) {
+      return;
+    }
+
+    let cancelled = false;
+
     async function loadPhotographers() {
       try {
         const data = await getPhotographers();
-        setPhotographers(data);
+        if (!cancelled) {
+          setPhotographers(data);
+        }
       } catch (err) {
         console.error("Lỗi tải danh sách nhiếp ảnh gia cho chatbot:", err);
       }
     }
+
     loadPhotographers();
 
-    return () => clearTimeout(timer);
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, photographers.length]);
 
   // Initialize chat history on first open
   useEffect(() => {
@@ -137,30 +215,15 @@ export function AiConsultantWidget() {
   const processResponse = async (userInput: string) => {
     const trimmedInput = userInput.trim().toLowerCase();
 
-    // Dynamically check localStorage config on every message to capture changes without reloading
-    let currentSettings = aiSettings;
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("studion-ai-settings");
-      if (saved) {
-        try {
-          currentSettings = JSON.parse(saved);
-        } catch (e) {
-          console.error("Lỗi đọc cấu hình AI mới", e);
-        }
-      }
+    // Try calling the backend AI endpoint first
+    try {
+      const backendResponse = await callBackendAI(userInput);
+      if (backendResponse) return; // Successfully got AI response from backend
+    } catch (error) {
+      console.error("Backend AI call failed, falling back to local simulator:", error);
     }
 
-    // Check if real API connection is configured in Admin Settings
-    if (currentSettings && currentSettings.key && currentSettings.provider !== "Mock Simulator") {
-      try {
-        await callRealAI(userInput, currentSettings);
-        return;
-      } catch (error) {
-        console.error("Lỗi gọi AI thật, chuyển hướng về chế độ giả lập thông minh:", error);
-      }
-    }
-
-    // --- INTERACTIVE SMART SIMULATION FLOW ---
+    // --- INTERACTIVE SMART SIMULATION FLOW (Fallback) ---
 
     // Check if we are in a guided flow step
     if (flowState.step === "waiting_location") {
@@ -474,7 +537,7 @@ export function AiConsultantWidget() {
                   <span class="text-slate-600 font-medium text-xs">Giá từ: ${p.min_price ? p.min_price.toLocaleString('vi-VN') + 'đ' : 'Liên hệ'}</span>
                 </div>
               </div>
-              <a href="/photographer-profile?id=${p.id}" class="px-2.5 py-1.5 bg-orange-500 hover:bg-orange-600 text-white text-[11px] font-bold rounded-lg shrink-0 transition-colors">
+              <a href="/photographer-profile/${p.id}" class="px-2.5 py-1.5 bg-orange-500 hover:bg-orange-600 text-white text-[11px] font-bold rounded-lg shrink-0 transition-colors">
                 Xem
               </a>
             </div>
@@ -510,7 +573,7 @@ export function AiConsultantWidget() {
                   <span class="text-slate-600 font-medium text-xs">Giá từ: ${p.min_price ? p.min_price.toLocaleString('vi-VN') + 'đ' : 'Liên hệ'}</span>
                 </div>
               </div>
-              <a href="/photographer-profile?id=${p.id}" class="px-2.5 py-1.5 bg-orange-500 hover:bg-orange-600 text-white text-[11px] font-bold rounded-lg shrink-0 transition-colors">
+              <a href="/photographer-profile/${p.id}" class="px-2.5 py-1.5 bg-orange-500 hover:bg-orange-600 text-white text-[11px] font-bold rounded-lg shrink-0 transition-colors">
                 Xem
               </a>
             </div>
@@ -526,91 +589,40 @@ export function AiConsultantWidget() {
     }, 1200);
   };
 
-  // Call real AI (Gemini or OpenAI API directly from client)
-  const callRealAI = async (userInput: string, settings?: AiSettings | null) => {
-    const activeSettings = settings || aiSettings;
-    if (!activeSettings) return;
-
-    const { provider, model, key, endpoint, systemPrompt } = activeSettings;
-
-    // Create summary of photographers for the AI context
-    const summary = photographers
-      .slice(0, 15) // Limit context size
-      .map(
-        (p) =>
-          `- ID: ${p.id}, Họ tên: ${p.full_name}, Vùng hoạt động: ${p.active_area || "Chưa rõ"
-          }, Thể loại: ${p.categories || "Đa dạng"}, Giá tối thiểu: ${p.min_price ? p.min_price.toLocaleString("vi-VN") + " VND" : "Thỏa thuận"
-          }, Đánh giá: ${p.avg_rating} sao`
-      )
-      .join("\n");
-
-    const systemPromptContext = `${systemPrompt}\n\nDanh sách nhiếp ảnh gia thật trên nền tảng Sudion để tư vấn:\n${summary}\n\nChú ý: Khi gợi ý một photographer cụ thể, hãy hướng dẫn khách hàng bấm vào đường dẫn theo cấu trúc '/photographer-profile?id=ID_CỦA_HỌ' để xem chi tiết và đặt lịch.`;
+  // Call AI via secure backend endpoint (API key stored in database, not exposed to browser)
+  const callBackendAI = async (userInput: string): Promise<boolean> => {
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
     const chatHistory = messages
       .slice(-10) // Send last 10 messages for context
-      .map((m) => `${m.sender === "user" ? "Khách hàng" : "AI Trợ lý"}: ${m.text}`)
-      .join("\n");
+      .map((m) => ({ sender: m.sender === "user" ? "user" : "bot", text: m.text }));
 
-    if (provider === "Google Gemini") {
-      // Calling Gemini API
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [
-              {
-                parts: [
-                  {
-                    text: `${systemPromptContext}\n\nLịch sử hội thoại:\n${chatHistory}\n\nKhách hàng: ${userInput}\n\nAI Trợ lý phản hồi ngắn gọn bằng tiếng Việt:`,
-                  },
-                ],
-              },
-            ],
-          }),
-        }
-      );
+    const response = await fetch(`${API_URL}/ai/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: userInput,
+        history: chatHistory,
+      }),
+    });
 
-      if (!response.ok) {
-        throw new Error("Lỗi API Gemini");
-      }
-
-      const resJson = await response.json();
-      const aiResponseText =
-        resJson?.candidates?.[0]?.content?.parts?.[0]?.text ||
-        "Tôi chưa nhận được phản hồi từ AI. Hãy thử lại sau.";
-      addBotMessage(formatResponseHtml(aiResponseText), undefined, true);
-    } else if (provider === "OpenAI") {
-      // Calling OpenAI API
-      const response = await fetch(endpoint || "https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${key}`,
-        },
-        body: JSON.stringify({
-          model: model || "gpt-4o-mini",
-          messages: [
-            { role: "system", content: systemPromptContext },
-            {
-              role: "user",
-              content: `Lịch sử hội thoại:\n${chatHistory}\n\nKhách hàng: ${userInput}\n\nAI Trợ lý phản hồi:`,
-            },
-          ],
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Lỗi API OpenAI");
-      }
-
-      const resJson = await response.json();
-      const aiResponseText =
-        resJson?.choices?.[0]?.message?.content ||
-        "Tôi chưa nhận được phản hồi từ OpenAI. Hãy thử lại.";
-      addBotMessage(formatResponseHtml(aiResponseText), undefined, true);
+    if (!response.ok) {
+      throw new Error(`Backend AI error: ${response.status}`);
     }
+
+    const resJson = await response.json();
+
+    // If backend says to use simulator (no API key configured), return false to fall through
+    if (resJson.useSimulator) {
+      return false;
+    }
+
+    if (resJson.success && resJson.text) {
+      addBotMessage(formatResponseHtml(resJson.text), undefined, true);
+      return true;
+    }
+
+    return false;
   };
 
   // Format response formatting, transforming markdown list/links to HTML
@@ -625,6 +637,10 @@ export function AiConsultantWidget() {
       /\[(.*?)\]\(((?:\/|https?:\/\/)[^\s)]+)\)/g,
       '<a href="$2" class="text-orange-500 font-bold underline">$1</a>'
     );
+
+    // Rewrite any old photographer-profile query URLs to route-based dynamic profile pages.
+    formatted = formatted.replace(/photographer-profile\?id=([0-9a-zA-Z_-]+)/g, "/photographer-profile/$1");
+    formatted = formatted.replace(/photographer-profile%3Fid%3D([0-9a-zA-Z_-]+)/g, "/photographer-profile/$1");
 
     return formatted;
   };
@@ -697,7 +713,7 @@ export function AiConsultantWidget() {
           </div>
 
           {/* Messages Body */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/50">
+          <div ref={chatBodyRef} className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/50">
             {messages.map((m) => (
               <div key={m.id} className={`flex flex-col ${m.sender === "user" ? "items-end" : "items-start"}`}>
                 <div

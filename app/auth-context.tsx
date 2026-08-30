@@ -2,6 +2,7 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -12,12 +13,20 @@ import { useRouter } from "next/navigation";
 import {
   clearSession,
   getSession,
+  googleLoginFE,
+  loginWithGoogleCredential as loginWithGoogleCredentialStore,
   type AuthSession,
   type AuthUser,
   loginUser,
+  refreshSessionFromServer,
   registerUser,
+  requestRegisterOtp as requestRegisterOtpStore,
+  verifyRegisterOtp as verifyRegisterOtpStore,
   setSession,
 } from "./auth-store";
+
+import { clearCart, clearBuyNow } from "./cart-store";
+import { clearBookingCart } from "./booking-cart-store";
 
 type AuthResult = {
   ok: boolean;
@@ -26,12 +35,27 @@ type AuthResult = {
   session?: AuthSession;
 };
 
+type RegisterOtpRequestResult = AuthResult & {
+  message?: string;
+  email?: string;
+  expiresIn?: number;
+  resendAfter?: number;
+  retryAfter?: number;
+};
+
+type RegisterOtpVerifyResult = AuthResult & {
+  message?: string;
+  attemptsRemaining?: number;
+};
+
 type AuthContextValue = {
   session: AuthSession | null;
+  isLoading: boolean;
   isLoggedIn: boolean;
   isCustomer: boolean;
   isPhotographer: boolean;
-  refresh: () => void;
+  isAdmin: boolean;
+  refresh: () => Promise<void>;
   logout: () => void;
   login: (emailInput: string, passwordInput: string) => Promise<AuthResult>;
   register: (params: {
@@ -40,42 +64,78 @@ type AuthContextValue = {
     password: string;
     phone?: string;
   }) => Promise<AuthResult>;
+  requestRegisterOtp: (params: {
+    fullName: string;
+    email: string;
+    password: string;
+    phone?: string;
+  }) => Promise<RegisterOtpRequestResult>;
+  verifyRegisterOtp: (params: {
+    fullName: string;
+    email: string;
+    password: string;
+    phone?: string;
+    otp: string;
+  }) => Promise<RegisterOtpVerifyResult>;
+  loginWithGoogle: (email?: string, name?: string) => AuthResult;
+  loginWithGoogleCredential: (credentialToken: string) => Promise<AuthResult>;
   isTransitioning: boolean;
   transitionTo: (targetUrl: string) => void;
 };
+
+
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSessionState] = useState<AuthSession | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const router = useRouter();
 
-  function refresh() {
-    setSessionState(getSession());
-  }
+  const refresh = useCallback(async () => {
+    const localSession = getSession();
+    setSessionState(localSession);
+    setIsLoading(false);
 
-  function logout() {
+    const serverSession = await refreshSessionFromServer();
+    setSessionState(serverSession);
+  }, []);
+
+  const logout = useCallback(() => {
+    clearCart();
+    clearBuyNow();
+    clearBookingCart();
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem("sudion_booking_draft");
+      window.sessionStorage.removeItem("sudion-last-order");
+    }
     clearSession();
     setSessionState(null);
-  }
+  }, []);
 
-  async function login(emailInput: string, passwordInput: string) {
+  const login = useCallback(async (emailInput: string, passwordInput: string) => {
     const result = await loginUser(emailInput, passwordInput);
 
     if (result.ok && result.session) {
       setSessionState(result.session);
+      try {
+        router.push("/");
+      } catch (err) {
+        // ignore routing errors
+      }
     }
 
     return result;
-  }
+  }, []);
 
-  async function register(params: {
+
+  const register = useCallback(async (params: {
     fullName: string;
     email: string;
     password: string;
     phone?: string;
-  }) {
+  }) => {
     const result = await registerUser({
       ...params,
       role: "customer",
@@ -100,9 +160,56 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     return result;
-  }
+  }, []);
 
-  function transitionTo(targetUrl: string) {
+  const requestRegisterOtp = useCallback(async (params: {
+    fullName: string;
+    email: string;
+    password: string;
+    phone?: string;
+  }) => {
+    return requestRegisterOtpStore({
+      ...params,
+      role: "customer",
+    });
+  }, []);
+
+  const verifyRegisterOtp = useCallback(async (params: {
+    fullName: string;
+    email: string;
+    password: string;
+    phone?: string;
+    otp: string;
+  }) => {
+    const result = await verifyRegisterOtpStore({
+      ...params,
+      role: "customer",
+    });
+
+    if (result.ok && result.session) {
+      setSessionState(result.session);
+    }
+
+    return result;
+  }, []);
+
+  const loginWithGoogle = useCallback((customEmail?: string, customName?: string) => {
+    const result = googleLoginFE(customEmail, customName);
+    if (result.ok && result.session) {
+      setSessionState(result.session);
+    }
+    return result;
+  }, []);
+
+  const loginWithGoogleCredential = useCallback(async (credentialToken: string) => {
+    const result = await loginWithGoogleCredentialStore(credentialToken);
+    if (result.ok && result.session) {
+      setSessionState(result.session);
+    }
+    return result;
+  }, []);
+
+  const transitionTo = useCallback((targetUrl: string) => {
     setIsTransitioning(true);
 
     setTimeout(() => {
@@ -112,26 +219,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setTimeout(() => {
       setIsTransitioning(false);
     }, 1000);
-  }
+  }, [router]);
 
   useEffect(() => {
-    refresh();
-  }, []);
+    void refresh();
+  }, [refresh]);
 
   const value = useMemo<AuthContextValue>(() => {
     return {
       session,
+      isLoading,
       isLoggedIn: Boolean(session),
       isCustomer: session?.role === "customer",
       isPhotographer: session?.role === "photographer",
+      isAdmin: session?.role === "admin",
       refresh,
       logout,
       login,
       register,
+      requestRegisterOtp,
+      verifyRegisterOtp,
+      loginWithGoogle,
+      loginWithGoogleCredential,
       isTransitioning,
       transitionTo,
     };
-  }, [session, isTransitioning]);
+  }, [session, isLoading, isTransitioning, refresh, logout, login, register, requestRegisterOtp, verifyRegisterOtp, loginWithGoogle, loginWithGoogleCredential, transitionTo]);
+
+
 
   return (
     <AuthContext.Provider value={value}>

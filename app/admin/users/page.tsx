@@ -42,26 +42,33 @@ export default function AdminUsersPage() {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"Tất cả" | UserStatus>("Tất cả");
   const [roleFilter, setRoleFilter] = useState<"Tất cả" | UserRole>("Tất cả");
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState<any>(null);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [toast, setToast] = useState("");
 
   useEffect(() => {
+    setPage(1);
+  }, [statusFilter, roleFilter, query]);
+
+  useEffect(() => {
     loadUsers();
     loadStats();
-  }, [statusFilter, roleFilter]);
+  }, [statusFilter, roleFilter, page]);
 
   async function loadUsers() {
     setLoading(true);
     try {
-      const params: Record<string, any> = { page: 1, pageSize: 100 };
+      const params: Record<string, any> = { page, pageSize: 20 };
       if (statusFilter !== "Tất cả") params.status = statusFilter;
       if (roleFilter !== "Tất cả") params.role = roleFilter;
 
       const result = await api.users.getAll(params);
       if (result.success && result.data) {
-        setUsers(result.data as any);
+        setUsers(result.data as User[]);
+        setPagination(result.pagination);
       }
     } catch (error) {
       console.error("Error loading users:", error);
@@ -191,6 +198,7 @@ export default function AdminUsersPage() {
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Tìm theo tên, email hoặc mã người dùng"
                 className="h-12 w-full rounded-2xl border border-[#dfe3ec] bg-[#f9fafc] px-12 text-sm text-[#0f172a] outline-none transition focus:border-[#ff8d28] focus:ring-2 focus:ring-[#ff8d28]/10"
+                style={{ paddingLeft: '44px' }}
               />
             </div>
 
@@ -290,6 +298,36 @@ export default function AdminUsersPage() {
                   </tbody>
                 </table>
               </div>
+
+              {/* Pagination Controls */}
+              {pagination && pagination.totalPages > 1 && (
+                <div className="mt-4 flex items-center justify-between text-[12px] text-[#697086]">
+                  <span>
+                    Hiển thị {filteredUsers.length} tài khoản của trang {pagination.page} (Tổng số {pagination.total})
+                  </span>
+                  <div className="flex gap-2">
+                    {pagination.page > 1 && (
+                      <button
+                        onClick={() => setPage(pagination.page - 1)}
+                        className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-700 font-semibold hover:bg-slate-50 transition"
+                      >
+                        Trước
+                      </button>
+                    )}
+                    <span className="rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2 font-bold text-slate-700">
+                      Trang {pagination.page} / {pagination.totalPages}
+                    </span>
+                    {pagination.page < pagination.totalPages && (
+                      <button
+                        onClick={() => setPage(pagination.page + 1)}
+                        className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-700 font-semibold hover:bg-slate-50 transition"
+                      >
+                        Sau
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {filteredUsers.length === 0 && (
                 <div className="mt-8 rounded-[26px] border border-dashed border-[#d6dce5] bg-[#f8fafc] p-8 text-center text-sm text-[#596174]">

@@ -68,7 +68,7 @@ export default function BookingPage() {
   useEffect(() => {
     async function loadBookings() {
       setLoading(true);
-      const result = await api.bookings.getAll({ page, pageSize: 10 });
+      const result = await api.bookings.getAll({ page, pageSize: 20 });
       
       if (result.success && result.data) {
         // Transform backend data to frontend format
@@ -207,7 +207,7 @@ export default function BookingPage() {
             <div className="mb-3 grid gap-2 md:grid-cols-[minmax(0,1fr)_150px_150px_150px_40px]">
               <label className="relative !block">
                 <AdminIcon name="search" className="pointer-events-none absolute left-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#8a93a5]" />
-                <input value={query} onChange={(e) => setQuery(e.target.value)} className="!h-10 !min-h-0 w-full rounded-xl border border-[#dfe3ec] !py-0 !pl-10 !pr-3 !text-[12px] !font-normal outline-none focus:border-[#ff8d28]" placeholder="Tìm theo mã booking, tên, SĐT, email..." />
+                <input value={query} onChange={(e) => setQuery(e.target.value)} className="!h-10 !min-h-0 w-full rounded-xl border border-[#dfe3ec] !py-0 !pl-10 !pr-3 !text-[12px] !font-normal outline-none focus:border-[#ff8d28]" style={{ paddingLeft: '38px' }} placeholder="Tìm theo mã booking, tên, SĐT, email..." />
               </label>
               <Select value={status} options={tabs} onChange={(v) => setStatus(v as BookingStatus | "Tất cả")} />
               <Select value={service} options={services} onChange={setService} />
@@ -245,17 +245,47 @@ export default function BookingPage() {
             </div>
           </Panel>
         </div>
-        {selectedId !== null ? <div className="fixed inset-0 z-50 bg-[#0f172a]/35 backdrop-blur-[2px]" onClick={() => setSelectedId(null)}>
-        <aside className="absolute right-0 top-0 h-full w-full min-w-0 overflow-y-auto border-l border-[#e6e9f1] bg-white p-5 shadow-[-18px_0_38px_rgba(12,18,32,0.16)] sm:w-[430px]" onClick={(event) => event.stopPropagation()}>
-          <div className="flex items-center justify-between"><h2 className="text-[16px] font-semibold">Chi tiết booking</h2><IconButton label="Đóng" icon="close" onClick={() => setSelectedId(null)} /></div>
-          <div className="mt-5 border-b border-[#edf0f5] pb-5"><div className="flex items-center gap-2"><b className="text-[16px]">{selected.id}</b><Badge text={selected.status} /></div><p className="mt-2 text-[12px] text-[#697086]">Ngày tạo: {selected.createdAt}</p></div>
-          <SectionTitle>Thông tin khách hàng</SectionTitle><div className="mt-3 flex items-center gap-3"><img src={selected.customerAvatar} alt="" className="h-12 w-12 rounded-full object-cover" /><div><b>{selected.customer}</b><p className="text-[#697086]">{selected.phone}</p><p className="text-[#697086]">{selected.email}</p></div><div className="ml-auto"><IconButton label="Xem profile" icon="user" /></div></div>
-          <InfoBlock title="Thông tin booking" rows={[["Photographer", selected.photographer], ["Dịch vụ", selected.service], ["Ngày chụp", selected.shootDate], ["Địa điểm", selected.place], ["Thời gian", selected.time], ["Gói dịch vụ", selected.packageName], ["Ghi chú", selected.note]]} />
-          <InfoBlock title="Thanh toán" rows={[["Tổng tiền", money(selected.amount)], ["Đã thanh toán (cọc)", money(selected.amount * 0.3)], ["Còn lại", money(selected.amount * 0.7)], ["Phương thức", "MoMo"], ["Trạng thái thanh toán", selected.payment]]} />
-          <SectionTitle>Lịch sử trạng thái</SectionTitle><div className="mt-3 space-y-2 text-[12px] text-[#536078]">{selected.history.map((h) => <p key={h}>○ {h}</p>)}</div>
-          <div className="mt-6 flex justify-end gap-2"><IconButton label="Xác nhận" icon="check" onClick={() => { handleUpdateStatus(selected.id, "Đã xác nhận"); }} /><IconButton label="Từ chối" icon="close" tone="danger" onClick={() => { handleUpdateStatus(selected.id, "Đã hủy"); }} /><IconButton label="Liên hệ" icon="mail" onClick={() => notify("Đã mở liên hệ khách.")} /></div>
-        </aside>
-        </div> : null}
+        {selectedId !== null && selected ? (
+          <div className="fixed inset-0 z-50 bg-[#0f172a]/35 backdrop-blur-[2px]" onClick={() => setSelectedId(null)}>
+            <aside className="absolute right-0 top-0 h-full w-full min-w-0 overflow-y-auto border-l border-[#e6e9f1] bg-white p-5 shadow-[-18px_0_38px_rgba(12,18,32,0.16)] sm:w-[430px]" onClick={(event) => event.stopPropagation()}>
+              <div className="flex items-center justify-between"><h2 className="text-[16px] font-semibold">Chi tiết booking</h2><IconButton label="Đóng" icon="close" onClick={() => setSelectedId(null)} /></div>
+              <div className="mt-5 border-b border-[#edf0f5] pb-5"><div className="flex items-center gap-2"><b className="text-[16px]">{selected.id}</b><Badge text={selected.status} /></div><p className="mt-2 text-[12px] text-[#697086]">Ngày tạo: {selected.createdAt}</p></div>
+              <SectionTitle>Thông tin khách hàng</SectionTitle><div className="mt-3 flex items-center gap-3"><img src={selected.customerAvatar} alt="" className="h-12 w-12 rounded-full object-cover" /><div><b>{selected.customer}</b><p className="text-[#697086]">{selected.phone}</p><p className="text-[#697086]">{selected.email}</p></div><div className="ml-auto"><IconButton label="Xem profile" icon="user" /></div></div>
+              <InfoBlock title="Thông tin booking" rows={[["Photographer", selected.photographer], ["Dịch vụ", selected.service], ["Ngày chụp", selected.shootDate], ["Địa điểm", selected.place ? selected.place.split(" [Photos:")[0] : "N/A"], ["Thời gian", selected.time], ["Gói dịch vụ", selected.packageName], ["Ghi chú", selected.note]]} />
+              
+              {/* Google Drive Link section for Admin */}
+              {(() => {
+                const driveUrl = extractPhotoDriveLink(selected.place);
+                if (!driveUrl) return null;
+                return (
+                  <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50/80 p-4 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[12px] font-black uppercase text-emerald-800 flex items-center gap-1.5">
+                        📁 Link Google Drive Sản Phẩm
+                      </span>
+                      <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-bold text-white">
+                        Đã gửi
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-emerald-700 font-medium">Photographer đã tải lên link sản phẩm cho booking này:</p>
+                    <a
+                      href={driveUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-2 text-xs font-bold text-white hover:bg-emerald-700 transition"
+                    >
+                      🔗 Mở Thư Mục Google Drive ↗
+                    </a>
+                  </div>
+                );
+              })()}
+
+              <InfoBlock title="Thanh toán" rows={[["Tổng tiền", money(selected.amount)], ["Đã thanh toán (cọc)", money(selected.amount * 0.3)], ["Còn lại", money(selected.amount * 0.7)], ["Phương thức", "MoMo"], ["Trạng thái thanh toán", selected.payment]]} />
+              <SectionTitle>Lịch sử trạng thái</SectionTitle><div className="mt-3 space-y-2 text-[12px] text-[#536078]">{selected.history.map((h, i) => <p key={i}>○ {h}</p>)}</div>
+              <div className="mt-6 flex justify-end gap-2"><IconButton label="Xác nhận" icon="check" onClick={() => { handleUpdateStatus(selected.id, "Đã xác nhận"); }} /><IconButton label="Từ chối" icon="close" tone="danger" onClick={() => { handleUpdateStatus(selected.id, "Đã hủy"); }} /><IconButton label="Liên hệ" icon="mail" onClick={() => notify("Đã mở liên hệ khách.")} /></div>
+            </aside>
+          </div>
+        ) : null}
 
         {/* Add Booking Modal */}
         {addModalOpen && (
@@ -446,3 +476,14 @@ function InfoBlock({ title, rows }: { title: string; rows: string[][] }) { retur
 function SectionTitle({ children }: { children: React.ReactNode }) { return <h3 className="mt-5 text-[14px] font-semibold">{children}</h3>; }
 function Toast({ text }: { text: string }) { return <div className="fixed right-6 top-20 z-50 rounded-xl border bg-white px-4 py-3 font-medium text-emerald-700 shadow-xl">{text}</div>; }
 function money(value: number) { return new Intl.NumberFormat("vi-VN").format(value) + "đ"; }
+
+function extractPhotoDriveLink(location: string | null | undefined): string {
+  if (!location) return "";
+  const match = String(location).match(/\[Photos:\s*(https?:\/\/[^\]]+)\]/i);
+  if (match?.[1]) return match[1].trim();
+  if (String(location).includes("drive.google.com")) {
+    const urlMatch = String(location).match(/(https?:\/\/[^\s\]]+)/i);
+    if (urlMatch?.[1]) return urlMatch[1].trim();
+  }
+  return "";
+}

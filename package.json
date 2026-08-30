@@ -3,15 +3,19 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "predev": "node scripts/clean-next-dev-cache.mjs .next-dev",
     "dev": "next dev",
+    "prebuild": "node scripts/clean-next-dev-cache.mjs .next",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
   },
   "dependencies": {
-    "next": "15.3.3",
+    "canvas-confetti": "^1.9.4",
+    "next": "15.3.6",
     "react": "19.0.0",
-    "react-dom": "19.0.0"
+    "react-dom": "19.0.0",
+    "socket.io-client": "^4.8.3"
   },
   "devDependencies": {
     "@react-trace/core": "^0.0.6",
@@ -19,11 +23,12 @@
     "@react-trace/plugin-open-editor": "^0.0.7",
     "@react-trace/plugin-preview": "^0.0.6",
     "@tailwindcss/postcss": "^4",
+    "@types/canvas-confetti": "^1.9.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "15.3.3",
+    "eslint-config-next": "15.3.6",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

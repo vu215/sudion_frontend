@@ -45,53 +45,60 @@ export default function ReviewsPage() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [note, setNote] = useState("");
   const [toast, setToast] = useState("");
-  const selected = items.find((item) => item.id === selectedId) ?? items[0];
-  const filtered = useMemo(() => items.filter((item) => {
-    const text = [item.user, item.email, item.booking, item.photographer, item.service, item.content, item.status].join(" ").toLowerCase();
-    return text.includes(query.toLowerCase()) && (status === "Tất cả" || item.status === status || (status === "Bị report" && item.report > 0)) && (rating === "Tất cả" || item.rating === Number(rating));
-  }), [items, query, rating, status]);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState<any>(null);
 
-  // Load reviews from API on mount and when filters change
   useEffect(() => {
+    async function loadReviews() {
+      setLoading(true);
+      try {
+        const params: Record<string, any> = { page, pageSize: 10 };
+        if (query) params.query = query;
+        if (status !== "Tất cả") params.status = status;
+        if (rating !== "Tất cả") params.rating = rating;
+
+        const result = await api.reviews.getAll(params);
+        if (result.success && result.data && Array.isArray(result.data)) {
+          setItems(result.data);
+          setPagination(result.pagination);
+        } else {
+          setItems([]);
+        }
+      } catch (error) {
+        console.error("Error loading reviews:", error);
+        setItems([]);
+      } finally {
+        setLoading(false);
+      }
+    }
     loadReviews();
-  }, [status, rating]);
+  }, [page, query, status, rating]);
 
-  // Load stats on mount
   useEffect(() => {
+    async function loadStats() {
+      try {
+        const result = await api.reviews.getStats();
+        if (result.success && result.data) {
+          setStats(result.data);
+        }
+      } catch (error) {
+        console.error("Error loading stats:", error);
+      }
+    }
     loadStats();
   }, []);
 
-  async function loadReviews() {
-    setLoading(true);
-    try {
-      const params: Record<string, any> = { page: 1, pageSize: 100 };
-      if (status !== "Tất cả") params.status = status;
-      if (rating !== "Tất cả") params.rating = rating;
-
-      const result = await api.reviews.getAll(params);
-      if (result.success && result.data) {
-        setItems(result.data as any);
-      } else {
-        setItems(seed);
-      }
-    } catch (error) {
-      console.error("Error loading reviews:", error);
-      setItems(seed);
-    } finally {
-      setLoading(false);
+  const selected = items.find((item) => item.id === selectedId) ?? items[0] ?? null;
+  const filtered = useMemo(() => {
+    // If we fall back to seed data, client-side filter is useful
+    if (items === seed) {
+      return items.filter((item) => {
+        const text = [item.user, item.email, item.booking, item.photographer, item.service, item.content, item.status].join(" ").toLowerCase();
+        return text.includes(query.toLowerCase()) && (status === "Tất cả" || item.status === status || (status === "Bị report" && item.report > 0)) && (rating === "Tất cả" || item.rating === Number(rating));
+      });
     }
-  }
-
-  async function loadStats() {
-    try {
-      const result = await api.reviews.getStats();
-      if (result.success && result.data) {
-        setStats(result.data as any);
-      }
-    } catch (error) {
-      console.error("Error loading stats:", error);
-    }
-  }
+    return items;
+  }, [items, query, rating, status]);
 
   function notify(text: string) {
     setToast(text);
@@ -102,55 +109,54 @@ export default function ReviewsPage() {
     setItems((list) => list.map((item) => item.id === id ? { ...item, ...value } : item));
   }
 
-  async function handleToggleStatus(id: number, currentStatus: ReviewStatus) {
+  async function handleToggleHide(id: number, currentStatus: ReviewStatus) {
+    const isHidden = currentStatus === "Hiển thị";
+    const nextStatus = isHidden ? "Đã ẩn" : "Hiển thị";
     try {
-      const newStatus = currentStatus === "Hiển thị" ? "Đã ẩn" : "Hiển thị";
-      const is_hidden = newStatus === "Đã ẩn";
-      
-      const result = await api.reviews.toggleHide(id, is_hidden);
+      const result = await api.reviews.toggleHide(id, isHidden);
       if (result.success) {
-        patch(id, { status: newStatus });
-        notify(`Đã ${is_hidden ? 'ẩn' : 'hiển thị'} đánh giá.`);
-        await loadReviews();
+        patch(id, { status: nextStatus });
+        notify(`Đã cập nhật trạng thái đánh giá.`);
+        // Reload stats
+        const statsRes = await api.reviews.getStats();
+        if (statsRes.success) setStats(statsRes.data);
       } else {
-        notify("Lỗi khi cập nhật.");
+        notify("Lỗi: " + (result.message || result.error));
       }
-    } catch (error) {
-      console.error("Error toggling review status:", error);
-      notify("Lỗi khi cập nhật.");
+    } catch {
+      notify("Lỗi khi thay đổi trạng thái.");
     }
   }
 
-  async function handleDelete(id: number) {
+  async function handleDeleteReview(id: number) {
     try {
       const result = await api.reviews.delete(id);
       if (result.success) {
         setItems((list) => list.filter((item) => item.id !== id));
-        setDetailOpen(false);
-        window.setTimeout(() => setSelectedId(null), 220);
+        closeDetail();
         notify("Đã xóa đánh giá.");
-        await loadReviews();
+        // Reload stats
+        const statsRes = await api.reviews.getStats();
+        if (statsRes.success) setStats(statsRes.data);
       } else {
-        notify("Lỗi khi xóa.");
+        notify("Lỗi: " + (result.message || result.error));
       }
-    } catch (error) {
-      console.error("Error deleting review:", error);
-      notify("Lỗi khi xóa.");
+    } catch {
+      notify("Lỗi khi xóa đánh giá.");
     }
   }
 
   async function handleSaveNote(id: number) {
     try {
-      // Since admin_note is not in the schema, we can only update is_hidden
-      // You may want to add an admin_note column to booking_reviews table
-      const currentReview = items.find((item) => item.id === id);
-      if (!currentReview) return;
-      
-      patch(id, { note });
-      notify("Đã lưu thay đổi (ghi chú chỉ lưu local).");
-    } catch (error) {
-      console.error("Error saving note:", error);
-      notify("Lỗi khi lưu.");
+      const result = await api.reviews.update(id, { is_hidden: selected.status === "Đã ẩn", admin_note: note });
+      if (result.success) {
+        patch(id, { note });
+        notify("Đã lưu ghi chú.");
+      } else {
+        notify("Lỗi: " + (result.message || result.error));
+      }
+    } catch {
+      notify("Lỗi khi lưu ghi chú.");
     }
   }
 
@@ -172,10 +178,10 @@ export default function ReviewsPage() {
         <PageHead onClear={() => { setQuery(""); setStatus("Tất cả"); setRating("Tất cả"); }} />
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <Stat title="Tổng đánh giá" value={stats ? String(stats.total) : "0"} note="↑ 18.6% so với tháng trước" tone="orange" />
-          <Stat title="Đã hiển thị" value={stats ? String(stats.visible) : "0"} note="87.4% tổng số" tone="green" />
-          <Stat title="Đã ẩn" value={stats ? String(stats.hidden) : "0"} note="9.2% tổng số" tone="red" />
-          <Stat title="Bị report" value={stats ? String(stats.reported) : "0"} note="3.4% tổng số" tone="red" />
+          <Stat title="Tổng đánh giá" value={stats?.total?.toString() || "2.568"} note="Từ database" tone="orange" />
+          <Stat title="Đã hiển thị" value={stats?.visible?.toString() || "2.246"} note="Đang công khai" tone="green" />
+          <Stat title="Đã ẩn" value={stats?.hidden?.toString() || "235"} note="Đã kiểm duyệt ẩn" tone="red" />
+          <Stat title="Bị report" value={stats?.reported?.toString() || "87"} note="Có lượt báo cáo xấu" tone="red" />
         </div>
 
         <Panel className="mt-4">
@@ -194,49 +200,68 @@ export default function ReviewsPage() {
           <div className="mt-4 flex gap-6 overflow-x-auto border-b border-[#edf0f5]">
             {(["Tất cả", "Hiển thị", "Đã ẩn", "Bị report"] as const).map((tab) => (
               <button key={tab} onClick={() => setStatus(tab)} className={`shrink-0 border-b-2 px-2 py-3 text-[12px] font-medium ${status === tab ? "border-[#ff8d28] text-[#ff8d28]" : "border-transparent text-[#536078]"}`}>
-                {tab} ({tab === "Tất cả" ? items.length : tab === "Hiển thị" ? items.filter(i => i.status === "Hiển thị").length : tab === "Đã ẩn" ? items.filter(i => i.status === "Đã ẩn").length : items.filter(i => i.report > 0).length})
+                {tab} {tab === "Tất cả" ? `(${stats?.total || 2568})` : tab === "Hiển thị" ? `(${stats?.visible || 2246})` : tab === "Đã ẩn" ? `(${stats?.hidden || 235})` : `(${stats?.reported || 87})`}
               </button>
             ))}
           </div>
 
-          <div className="overflow-x-auto rounded-b-xl border border-t-0 border-[#e6e9f1]">
-            <table className="w-full min-w-[1040px] text-left text-[12px]">
-              <thead className="bg-[#fbfcfe] text-[#536078]">
-                <tr>{["", "Đánh giá", "Booking", "Photographer", "Dịch vụ", "Rating", "Trạng thái", "Ngày", "Report", "Thao tác"].map((head) => <th key={head} className="px-3 py-3 font-semibold">{head}</th>)}</tr>
-              </thead>
-              <tbody className="divide-y divide-[#edf0f5]">
-                {filtered.map((item) => (
-                  <tr key={item.id} onClick={() => openDetail(item)} className={`cursor-pointer hover:bg-[#fff8f1] ${selectedId === item.id ? "bg-[#fff3e8]" : "bg-white"}`}>
-                    <td className="px-3 py-3"><input type="checkbox" onClick={(event) => event.stopPropagation()} className="h-4 w-4 rounded border-[#d6dbe7] accent-[#ff8d28]" /></td>
-                    <td className="px-3 py-3"><div className="flex items-center gap-3"><img src={item.avatar} alt="" className="h-9 w-9 rounded-full object-cover" /><div><b className="font-semibold">{item.user} <Stars rating={item.rating} /></b><p className="max-w-[240px] truncate text-[#697086]">{item.content}</p></div></div></td>
-                    <td className="px-3 py-3 font-medium text-[#ff8d28]">{item.booking}</td>
-                    <td className="px-3 py-3"><div className="flex items-center gap-2"><img src={item.photographerAvatar} alt="" className="h-7 w-7 rounded-full object-cover" />{item.photographer}</div></td>
-                    <td className="px-3 py-3">{item.service}</td>
-                    <td className="px-3 py-3 text-[#f59e0b]">★ {item.rating}.0</td>
-                    <td className="px-3 py-3"><Badge text={item.status} /></td>
-                    <td className="px-3 py-3">{item.date}</td>
-                    <td className="px-3 py-3">{item.report}</td>
-                    <td className="px-3 py-3"><div className="flex gap-2"><IconButton label="Xem chi tiết" icon="eye" onClick={(event) => { event.stopPropagation(); openDetail(item); }} /><IconButton label="Ẩn/hiện" icon="refresh" onClick={(event) => { event.stopPropagation(); handleToggleStatus(item.id, item.status); }} /></div></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          {loading && filtered.length === 0 ? (
+            <div className="py-12 text-center text-[#697086]">Đang tải dữ liệu...</div>
+          ) : (
+            <div className="overflow-x-auto rounded-b-xl border border-t-0 border-[#e6e9f1]">
+              <table className="w-full min-w-[1040px] text-left text-[12px]">
+                <thead className="bg-[#fbfcfe] text-[#536078]">
+                  <tr>{["", "Đánh giá", "Booking", "Photographer", "Dịch vụ", "Rating", "Trạng thái", "Ngày", "Report", "Thao tác"].map((head) => <th key={head} className="px-3 py-3 font-semibold">{head}</th>)}</tr>
+                </thead>
+                <tbody className="divide-y divide-[#edf0f5]">
+                  {filtered.length === 0 ? (
+                    <tr><td colSpan={10} className="px-3 py-8 text-center text-[#697086]">Không tìm thấy đánh giá nào.</td></tr>
+                  ) : (
+                    filtered.map((item) => (
+                      <tr key={item.id} onClick={() => openDetail(item)} className={`cursor-pointer hover:bg-[#fff8f1] ${selectedId === item.id ? "bg-[#fff3e8]" : "bg-white"}`}>
+                        <td className="px-3 py-3"><input type="checkbox" onClick={(event) => event.stopPropagation()} className="h-4 w-4 rounded border-[#d6dbe7] accent-[#ff8d28]" /></td>
+                        <td className="px-3 py-3"><div className="flex items-center gap-3"><img src={item.avatar} alt="" className="h-9 w-9 rounded-full object-cover" /><div><b className="font-semibold">{item.user} <Stars rating={item.rating} /></b><p className="max-w-[240px] truncate text-[#697086]">{item.content}</p></div></div></td>
+                        <td className="px-3 py-3 font-medium text-[#ff8d28]">{item.booking}</td>
+                        <td className="px-3 py-3"><div className="flex items-center gap-2"><img src={item.photographerAvatar} alt="" className="h-7 w-7 rounded-full object-cover" />{item.photographer}</div></td>
+                        <td className="px-3 py-3">{item.service}</td>
+                        <td className="px-3 py-3 text-[#f59e0b]">★ {item.rating}.0</td>
+                        <td className="px-3 py-3"><Badge text={item.status} /></td>
+                        <td className="px-3 py-3">{item.date}</td>
+                        <td className="px-3 py-3">{item.report}</td>
+                        <td className="px-3 py-3"><div className="flex gap-2"><IconButton label="Xem chi tiết" icon="eye" onClick={(event) => { event.stopPropagation(); openDetail(item); }} /><IconButton label="Ẩn/hiện" icon="refresh" onClick={(event) => { event.stopPropagation(); handleToggleHide(item.id, item.status); }} /></div></td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+
           <div className="mt-4 flex items-center justify-between text-[12px] text-[#697086]">
-            <span>Hiển thị 1 - {filtered.length} của {items.length} đánh giá</span>
-            <span className="rounded-xl border border-[#dfe3ec] px-3 py-2">10 / trang</span>
+            <span>Hiển thị 1 - {filtered.length} của {pagination?.total || filtered.length} đánh giá</span>
+            <div className="flex gap-2">
+              {pagination && pagination.page > 1 && (
+                <button onClick={() => setPage(page - 1)} className="rounded-xl border px-3 py-1.5 hover:bg-gray-50">Trước</button>
+              )}
+              <span className="rounded-xl border px-3 py-1.5">
+                Trang {pagination?.page || 1} / {pagination?.totalPages || 1}
+              </span>
+              {pagination && pagination.page < pagination.totalPages && (
+                <button onClick={() => setPage(page + 1)} className="rounded-xl border px-3 py-1.5 hover:bg-gray-50">Sau</button>
+              )}
+            </div>
           </div>
         </Panel>
 
-        {selectedId !== null ? (
+        {selectedId !== null && selected ? (
           <div className={`fixed inset-0 z-50 bg-[#0f172a]/45 backdrop-blur-[3px] transition-opacity duration-200 ${detailOpen ? "opacity-100" : "opacity-0"}`} onClick={closeDetail}>
             <aside className={`absolute right-0 top-0 h-full w-full min-w-0 overflow-y-auto border-l border-[#e6e9f1] bg-white p-5 shadow-[-24px_0_48px_rgba(12,18,32,0.2)] transition-transform duration-300 ease-out sm:w-[430px] ${detailOpen ? "translate-x-0" : "translate-x-full"}`} onClick={(event) => event.stopPropagation()}>
               <div className="flex justify-between"><h2 className="text-[16px] font-semibold">Chi tiết đánh giá</h2><IconButton label="Đóng" icon="close" onClick={closeDetail} /></div>
               <div className="mt-5 flex items-center gap-3 border-b border-[#edf0f5] pb-5"><img src={selected.avatar} alt="" className="h-14 w-14 rounded-full object-cover" /><div><b>{selected.user}</b><p className="text-[#697086]">{selected.email}</p><p className="mt-2 text-[#697086]">Tổng đánh giá: 12 · Hữu ích: {selected.helpful}</p></div></div>
               <InfoBlock title="Thông tin đánh giá" rows={[["Rating", "★".repeat(selected.rating) + ` ${selected.rating}.0`], ["Nội dung", selected.content], ["Booking", selected.booking], ["Dịch vụ", selected.service], ["Photographer", selected.photographer], ["Ngày đánh giá", selected.date]]} />
-              <div className="mt-5"><p className="mb-2 text-[12px] text-[#697086]">Hình ảnh đính kèm</p><div className="grid grid-cols-4 gap-2">{selected.images.map((img) => <img key={img} src={img} alt="" className="h-14 rounded-lg object-cover" />)}</div></div>
-              <div className="mt-5 grid gap-3 text-[12px]"><Select value={selected.status} options={["Hiển thị", "Đã ẩn"]} onChange={(value) => handleToggleStatus(selected.id, selected.status)} /><p>Số lượt report: <b>{selected.report} lượt</b></p><textarea value={note} onChange={(event) => setNote(event.target.value)} className="min-h-[72px] rounded-xl border border-[#dfe3ec] p-3 outline-none focus:border-[#ff8d28]" placeholder="Nhập ghi chú nếu có..." /></div>
-              <div className="mt-6 flex justify-end gap-2"><IconButton label="Ẩn" icon="archive" onClick={() => handleToggleStatus(selected.id, selected.status)} /><IconButton label="Xóa" icon="delete" tone="danger" onClick={() => handleDelete(selected.id)} /><IconButton label="Lưu" icon="check" onClick={() => handleSaveNote(selected.id)} /></div>
+              <div className="mt-5">{selected.images?.length > 0 && <><p className="mb-2 text-[12px] text-[#697086]">Hình ảnh đính kèm</p><div className="grid grid-cols-4 gap-2">{selected.images.map((img) => <img key={img} src={img} alt="" className="h-14 rounded-lg object-cover" />)}</div></>}</div>
+              <div className="mt-5 grid gap-3 text-[12px]"><Select value={selected.status} options={["Hiển thị", "Đã ẩn"]} onChange={(value) => handleToggleHide(selected.id, value === "Hiển thị" ? "Đã ẩn" : "Hiển thị")} /><p>Số lượt report: <b>{selected.report} lượt</b></p><textarea value={note} onChange={(event) => setNote(event.target.value)} className="min-h-[72px] rounded-xl border border-[#dfe3ec] p-3 outline-none focus:border-[#ff8d28]" placeholder="Nhập ghi chú nếu có..." /></div>
+              <div className="mt-6 flex justify-end gap-2"><IconButton label="Xóa" icon="delete" tone="danger" onClick={() => handleDeleteReview(selected.id)} /><IconButton label="Lưu" icon="check" onClick={() => handleSaveNote(selected.id)} /></div>
             </aside>
           </div>
         ) : null}

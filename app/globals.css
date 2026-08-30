@@ -1,3 +1,6 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Dancing+Script:wght@400..700&display=swap');
+
+@import url('https://db.onlinewebfonts.com/c/1c612f34290f0bf286d14167343686b3?family=Neography+DEMO');
 @import "tailwindcss";
 
 :root {
@@ -16,9 +19,11 @@
   --edge: rgba(17, 17, 17, 0.2);
   --shadow-paper: 0 10px 28px rgba(17, 17, 17, 0.08);
   --shadow-small: 0 6px 16px rgba(17, 17, 17, 0.06);
-  --font-body: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --font-display: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --font-mono: "PT Mono", "Courier New", monospace;
+  --font-body: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-highlight: "Playfair Display", serif;
+  --font-script: "Dancing Script", cursive;
+  --font-mono: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
 }
 
 @theme inline {
@@ -26,6 +31,8 @@
   --color-foreground: var(--paper-ink);
   --font-sans: var(--font-body);
   --font-serif: var(--font-display);
+  --font-highlight: var(--font-highlight);
+  --font-script: var(--font-script);
   --font-mono: var(--font-mono);
 }
 
@@ -908,37 +915,87 @@ summary:focus-visible {
   gap: 16px;
 }
 
-label {
+@layer base {
+  label {
+    display: grid;
+    gap: 8px;
+    color: var(--primary);
+    font-size: 14px;
+    font-weight: 800;
+    line-height: 20px;
+  }
+
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    min-height: 48px;
+    width: 100%;
+    background: var(--surface);
+    color: var(--primary);
+    padding: 10px 12px;
+    font-size: 16px;
+    line-height: 24px;
+    outline: none;
+  }
+
+  input[type="checkbox"],
+  input[type="radio"] {
+    min-height: 0;
+    width: auto;
+    padding: 0;
+  }
+
+  textarea {
+    min-height: 140px;
+    resize: vertical;
+  }
+
+  input:not([type="checkbox"]):not([type="radio"]):focus,
+  select:focus,
+  textarea:focus {
+    box-shadow: none;
+  }
+}
+
+.cart-select-checkbox {
+  width: 18px !important;
+  min-width: 18px;
+  height: 18px;
+  min-height: 18px !important;
+  margin: 0;
+  padding: 0 !important;
+  appearance: none;
+  border: 2px solid #cbd5e1;
+  border-radius: 5px;
+  background: #ffffff;
+  cursor: pointer;
+  transition: border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
+}
+
+.cart-select-checkbox:hover {
+  border-color: #ff8d28;
+}
+
+.cart-select-checkbox:checked {
+  border-color: #ff8d28;
+  background: #ff8d28;
+}
+
+.cart-select-checkbox:checked::before {
   display: grid;
-  gap: 8px;
-  color: var(--primary);
-  font-size: 14px;
-  font-weight: 800;
-  line-height: 20px;
-}
-
-input,
-select,
-textarea {
-  min-height: 48px;
   width: 100%;
-  background: var(--surface);
-  color: var(--primary);
-  padding: 10px 12px;
-  font-size: 16px;
-  line-height: 24px;
+  height: 100%;
+  place-items: center;
+  color: #ffffff;
+  content: "✓";
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.cart-select-checkbox:focus-visible {
   outline: none;
-}
-
-textarea {
-  min-height: 140px;
-  resize: vertical;
-}
-
-input:focus,
-select:focus,
-textarea:focus {
-  box-shadow: none;
+  box-shadow: 0 0 0 3px rgba(255, 141, 40, 0.2);
 }
 
 input[type="search"] {
@@ -1123,7 +1180,7 @@ input[type="search"]:focus-visible {
 .notification-row,
 .tool-icon,
 .badge,
-input,
+input:not([type="checkbox"]):not([type="radio"]),
 select,
 textarea,
 .mobile-menu summary,
@@ -1185,7 +1242,7 @@ textarea,
   transform: translateY(-1px);
 }
 
-input:focus,
+input:not([type="checkbox"]):not([type="radio"]):focus,
 select:focus,
 textarea:focus {
   box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.18);
@@ -1465,4 +1522,93 @@ textarea:focus {
 
 .animate-fade-in {
   animation: fadeIn 600ms ease-out forwards;
+}
+
+/* ── Slide Up animation ── */
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-up {
+  animation: slideUp 500ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* ── Shake animation (form validation) ── */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }
+  20%, 40%, 60%, 80% { transform: translateX(4px); }
+}
+
+.animate-shake {
+  animation: shake 500ms ease-in-out;
+}
+
+/* ── Pulse dot (notification badge) ── */
+@keyframes pulseDot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.15); }
+}
+
+.animate-pulse-dot {
+  animation: pulseDot 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* ── Fade in up (staggerable) ── */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 16px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 600ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* ── Improved focus styles for accessibility ── */
+:focus-visible {
+  outline: 2px solid #ff8d28;
+  outline-offset: 2px;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid #ff8d28;
+  outline-offset: 2px;
+  border-radius: inherit;
+}
+
+/* ── Skip to content (accessibility) ── */
+.skip-to-content {
+  position: absolute;
+  top: -100%;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  background: #ff8d28;
+  color: white;
+  padding: 8px 16px;
+  border-radius: 0 0 8px 8px;
+  font-weight: 700;
+  font-size: 14px;
+  transition: top 200ms ease;
+}
+
+.skip-to-content:focus {
+  top: 0;
 }

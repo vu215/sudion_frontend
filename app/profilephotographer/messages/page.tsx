@@ -1,20 +1,44 @@
+"use client";
+
+import { useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+
+function PhotographerMessagesContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const bookingCode = searchParams.get("booking") || "";
+
+  useEffect(() => {
+    if (bookingCode) {
+      router.replace(`/messages?booking=${encodeURIComponent(bookingCode)}`);
+    } else {
+      router.replace("/messages");
+    }
+  }, [router, bookingCode]);
+
+  return (
+    <div className="grid h-[500px] place-items-center bg-[#f8fafc]">
+      <div className="flex flex-col items-center gap-3">
+        <div className="h-9 w-9 animate-spin rounded-full border-4 border-t-[#ff8d28] border-gray-200" />
+        <p className="text-xs font-bold text-[#64748b]">Đang mở phòng trò chuyện...</p>
+      </div>
+    </div>
+  );
+}
+
 export default function PhotographerMessagesPage() {
   return (
-    <main className="px-6 py-7 lg:px-8 xl:px-10">
-      <div className="mx-auto max-w-[1080px] space-y-6 pb-10">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-[#1a1a2e]">Tin nhắn</h1>
-            <p className="mt-1 text-sm text-slate-500">Danh sách liên hệ và tin nhắn từ khách hàng.</p>
+    <Suspense
+      fallback={
+        <div className="grid h-[500px] place-items-center bg-[#f8fafc]">
+          <div className="flex flex-col items-center gap-3">
+            <div className="h-9 w-9 animate-spin rounded-full border-4 border-t-[#ff8d28] border-gray-200" />
+            <p className="text-xs font-bold text-[#64748b]">Đang tải...</p>
           </div>
         </div>
-
-        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="rounded-3xl border border-slate-200 bg-slate-50 p-6 text-center text-sm text-slate-600">
-            Chưa có tin nhắn mới. Tất cả hội thoại sẽ hiển thị ở đây.
-          </div>
-        </section>
-      </div>
-    </main>
+      }
+    >
+      <PhotographerMessagesContent />
+    </Suspense>
   );
 }

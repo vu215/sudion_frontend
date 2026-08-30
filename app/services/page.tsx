@@ -145,7 +145,7 @@ export default function ServicesPage() {
               </div>
             </div>
 
-            <p
+            {/* <p
               className="mt-4 text-[13px] text-[#667085]"
               style={fadeUpStyle(isReady, 520)}
             >
@@ -153,7 +153,7 @@ export default function ServicesPage() {
               {isLoadingData
                 ? "đang tải..."
                 : serviceCategories.map((service) => service.slug).join(", ")}
-            </p>
+            </p> */}
           </div>
 
           <div

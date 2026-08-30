@@ -6,6 +6,7 @@ import type { ChangeEvent, DragEvent } from "react";
 import AdminLayout from "../../_components/admin-layout";
 import { AdminIcon, IconButton, type IconName } from "../../_components/admin-icons";
 import { settingsSections, type Section } from "../settings-sections";
+import { api } from "@/lib/api";
 
 type SystemSettingsState = { name: string; email: string; phone: string; address: string; description: string; timezone: string; language: string; currency: string; dateFormat: string; timeFormat: string; pageSize: string; logoUrl: string; faviconUrl: string };
 
@@ -13,7 +14,7 @@ export function SettingsAdminPageContent({ active }: { active: Section }) {
   const [settingsCollapsed, setSettingsCollapsed] = useState(false);
   const [toast, setToast] = useState("");
   const [system, setSystem] = useState({ name: "Studion", email: "support@studion.vn", phone: "1900 1234", address: "123 Nguyễn Huệ, Quận 1, TP. Hồ Chí Minh", description: "Nền tảng kết nối khách hàng với photographer chuyên nghiệp, hỗ trợ gợi ý và tối ưu trải nghiệm đặt lịch.", timezone: "(GMT+07:00) Asia/Ho Chi Minh", language: "Tiếng Việt", currency: "VND (đ)", dateFormat: "dd/mm/yyyy", timeFormat: "24 giờ (14:30)", pageSize: "10", logoUrl: "/logo_sudion.jpg", faviconUrl: "/logo_sudion_remove.png" });
-  const [api, setApi] = useState({
+  const [apiState, setApiState] = useState({
     provider: "Google Gemini",
     model: "gemini-1.5-flash",
     key: "",
@@ -22,13 +23,62 @@ export function SettingsAdminPageContent({ active }: { active: Section }) {
     systemPrompt: "Bạn là trợ lý tư vấn chụp ảnh thông minh của Sudion. Hãy tư vấn và gợi ý những nhiếp ảnh gia phù hợp nhất dựa trên thể loại chụp, khu vực hoạt động và ngân sách của khách hàng."
   });
 
+  // Load system settings from database on mount
+  useEffect(() => {
+    async function loadSettings() {
+      try {
+        const res = await api.settings.getAll();
+        if (res.success && res.data) {
+          const flatSettings: Record<string, any> = {};
+          Object.values(res.data).forEach((arr: any) => {
+            if (Array.isArray(arr)) {
+              arr.forEach((item: any) => {
+                flatSettings[item.key] = item.value;
+              });
+            }
+          });
+
+          setSystem((prev) => ({
+            ...prev,
+            name: flatSettings.site_name || prev.name,
+            email: flatSettings.email || prev.email,
+            phone: flatSettings.phone || prev.phone,
+            address: flatSettings.address || prev.address,
+            description: flatSettings.description || prev.description,
+            timezone: flatSettings.timezone || prev.timezone,
+            language: flatSettings.language || prev.language,
+            currency: flatSettings.currency || prev.currency,
+            dateFormat: flatSettings.dateFormat || prev.dateFormat,
+            timeFormat: flatSettings.timeFormat || prev.timeFormat,
+            pageSize: String(flatSettings.pageSize || prev.pageSize),
+            logoUrl: flatSettings.logoUrl || prev.logoUrl,
+            faviconUrl: flatSettings.faviconUrl || prev.faviconUrl,
+          }));
+
+          setApiState((prev) => ({
+            ...prev,
+            provider: flatSettings.ai_provider || prev.provider,
+            model: flatSettings.ai_model || prev.model,
+            key: flatSettings.ai_key || prev.key,
+            endpoint: flatSettings.ai_endpoint || prev.endpoint,
+            systemPrompt: flatSettings.ai_system_prompt || prev.systemPrompt,
+          }));
+        }
+      } catch (e) {
+        console.error("Failed to load settings from DB:", e);
+      }
+    }
+    loadSettings();
+  }, []);
+
+  // Load AI configuration from localStorage
   useEffect(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("studion-ai-settings");
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
-          setApi((prev) => ({ ...prev, ...parsed }));
+          setApiState((prev) => ({ ...prev, ...parsed }));
         } catch (e) {
           console.error("Failed to load AI settings from localStorage", e);
         }
@@ -37,6 +87,35 @@ export function SettingsAdminPageContent({ active }: { active: Section }) {
   }, []);
 
   function notify(message: string) { setToast(message); window.setTimeout(() => setToast(""), 1800); }
+
+  async function handleSaveSystemSettings(updatedSystem: typeof system) {
+    try {
+      const settingsArray = [
+        { key: "site_name", value: updatedSystem.name, category: "general" },
+        { key: "email", value: updatedSystem.email, category: "general" },
+        { key: "phone", value: updatedSystem.phone, category: "general" },
+        { key: "address", value: updatedSystem.address, category: "general" },
+        { key: "description", value: updatedSystem.description, category: "general" },
+        { key: "timezone", value: updatedSystem.timezone, category: "general" },
+        { key: "language", value: updatedSystem.language, category: "general" },
+        { key: "currency", value: updatedSystem.currency, category: "general" },
+        { key: "dateFormat", value: updatedSystem.dateFormat, category: "general" },
+        { key: "timeFormat", value: updatedSystem.timeFormat, category: "general" },
+        { key: "pageSize", value: updatedSystem.pageSize, category: "general" },
+        { key: "logoUrl", value: updatedSystem.logoUrl, category: "general" },
+        { key: "faviconUrl", value: updatedSystem.faviconUrl, category: "general" }
+      ];
+
+      const res = await api.settings.bulkUpdate({ settings: settingsArray });
+      if (res.success) {
+        notify("Đã lưu cài đặt vào cơ sở dữ liệu thành công.");
+      } else {
+        notify("Lỗi: " + (res.message || res.error));
+      }
+    } catch (e) {
+      notify("Lỗi kết nối khi lưu cấu hình.");
+    }
+  }
 
   return (
     <AdminLayout active="Cài đặt">
@@ -62,12 +141,12 @@ export function SettingsAdminPageContent({ active }: { active: Section }) {
           </Panel>
 
           <div className="grid min-w-0 self-start gap-4">
-            {active === "Cài đặt hệ thống" ? <SystemSettings system={system} setSystem={setSystem} notify={notify} /> : active === "AI & Moderation" ? <AiSettings api={api} setApi={setApi} notify={notify} /> : <GenericSettings section={active} notify={notify} />}
+            {active === "Cài đặt hệ thống" ? <SystemSettings system={system} setSystem={setSystem} notify={notify} onSave={() => handleSaveSystemSettings(system)} /> : active === "AI & Moderation" ? <AiSettings aiConfig={apiState} setAiConfig={setApiState} notify={notify} /> : <GenericSettings section={active} notify={notify} />}
           </div>
 
           <div className="grid gap-4 self-start">
             <QuotaPanel notify={notify} />
-            <DisplayPanel system={system} setSystem={setSystem} notify={notify} />
+            <DisplayPanel system={system} setSystem={setSystem} notify={notify} onSave={() => handleSaveSystemSettings(system)} />
             <ApiSummary notify={notify} />
           </div>
         </div>
@@ -76,11 +155,11 @@ export function SettingsAdminPageContent({ active }: { active: Section }) {
   );
 }
 
-function SystemSettings({ system, setSystem, notify }: { system: SystemSettingsState; setSystem: (value: SystemSettingsState) => void; notify: (message: string) => void }) {
+function SystemSettings({ system, setSystem, notify, onSave }: { system: SystemSettingsState; setSystem: (value: SystemSettingsState) => void; notify: (message: string) => void; onSave: () => void }) {
   return (
     <>
       <Panel>
-        <SectionHeader title="Thông tin hệ thống" onClick={() => notify("Đã lưu thay đổi cài đặt.")} />
+        <SectionHeader title="Thông tin hệ thống" onClick={onSave} />
         <div className="mt-5 grid gap-4 md:grid-cols-2">
           <Input label="Tên hệ thống" value={system.name} onChange={(value) => setSystem({ ...system, name: value })} />
           <Input label="Email liên hệ" value={system.email} onChange={(value) => setSystem({ ...system, email: value })} />
@@ -105,7 +184,7 @@ function SystemSettings({ system, setSystem, notify }: { system: SystemSettingsS
       </Panel>
 
       <Panel>
-        <SectionHeader title="Cấu hình hệ thống" onClick={() => notify("Đã lưu cấu hình hệ thống.")} />
+        <SectionHeader title="Cấu hình hệ thống" onClick={onSave} />
         <div className="mt-5 grid gap-4 md:grid-cols-2">
           <Toggle title="Cho phép đăng ký tài khoản" desc="Bật để cho phép người dùng đăng ký tài khoản mới" checked />
           <Toggle title="Bảo trì hệ thống" desc="Khi bật, hệ thống sẽ chuyển sang chế độ bảo trì" />
@@ -132,40 +211,85 @@ function QuotaPanel({ notify }: { notify: (message: string) => void }) {
   return <Panel><SectionHeader title="Giới hạn & Quota" onClick={() => notify("Đã lưu giới hạn quota.")} /><div className="mt-5 grid gap-4"><Input label="Giới hạn upload (MB)" value="20" onChange={() => undefined} /><Input label="Số ảnh tối đa mỗi album" value="200" onChange={() => undefined} /><Input label="Số booking mỗi user / tháng" value="50" onChange={() => undefined} /><Input label="Thời gian giữ dữ liệu (ngày)" value="365" onChange={() => undefined} /></div></Panel>;
 }
 
-function DisplayPanel({ system, setSystem, notify }: { system: SystemSettingsState; setSystem: (value: SystemSettingsState) => void; notify: (message: string) => void }) {
-  return <Panel><SectionHeader title="Định dạng & Hiển thị" onClick={() => notify("Đã lưu định dạng hiển thị.")} /><div className="mt-5 grid gap-4"><Input label="Đơn vị tiền tệ" value={system.currency} onChange={(value) => setSystem({ ...system, currency: value })} /><Input label="Định dạng ngày" value={system.dateFormat} onChange={(value) => setSystem({ ...system, dateFormat: value })} /><Input label="Định dạng giờ" value={system.timeFormat} onChange={(value) => setSystem({ ...system, timeFormat: value })} /><Input label="Số lượng hiển thị mỗi trang" value={system.pageSize} onChange={(value) => setSystem({ ...system, pageSize: value })} /></div></Panel>;
+function DisplayPanel({ system, setSystem, notify, onSave }: { system: SystemSettingsState; setSystem: (value: SystemSettingsState) => void; notify: (message: string) => void; onSave: () => void }) {
+  return <Panel><SectionHeader title="Định dạng & Hiển thị" onClick={onSave} /><div className="mt-5 grid gap-4"><Input label="Đơn vị tiền tệ" value={system.currency} onChange={(value) => setSystem({ ...system, currency: value })} /><Input label="Định dạng ngày" value={system.dateFormat} onChange={(value) => setSystem({ ...system, dateFormat: value })} /><Input label="Định dạng giờ" value={system.timeFormat} onChange={(value) => setSystem({ ...system, timeFormat: value })} /><Input label="Số lượng hiển thị mỗi trang" value={system.pageSize} onChange={(value) => setSystem({ ...system, pageSize: value })} /></div></Panel>;
 }
 
 function ApiSummary({ notify }: { notify: (message: string) => void }) {
   return <Panel><h2 className="!text-[15px] !font-medium">Tích hợp & API</h2><div className="mt-5 grid gap-3 !text-[13px]"><div className="flex items-center justify-between"><span className="!text-[13px] !font-normal text-[#536078]">Trạng thái API</span><span className="rounded-full bg-emerald-50 px-3 py-1 !text-[13px] !font-normal text-emerald-700">Hoạt động</span></div><CopyRow label="API Key" value="pk_live_************************" onCopy={() => notify("Đã copy API key.")} /><CopyRow label="Webhook Secret" value="whsec_************************" onCopy={() => notify("Đã copy webhook secret.")} /><div className="ml-auto"><IconButton label="Quản lý API" icon="settings" onClick={() => notify("Đã mở quản lý API.")} /></div></div></Panel>;
 }
 
-function AiSettings({ api, setApi, notify }: {
-  api: { provider: string; model: string; key: string; endpoint: string; show: boolean; systemPrompt: string };
-  setApi: (value: any) => void;
+function AiSettings({ aiConfig, setAiConfig, notify }: {
+  aiConfig: { provider: string; model: string; key: string; endpoint: string; show: boolean; systemPrompt: string };
+  setAiConfig: (value: any) => void;
   notify: (message: string) => void;
 }) {
-  const handleSave = () => {
-    localStorage.setItem("studion-ai-settings", JSON.stringify({
-      provider: api.provider,
-      model: api.model,
-      key: api.key,
-      endpoint: api.endpoint,
-      systemPrompt: api.systemPrompt
-    }));
-    notify("Đã lưu cấu hình AI thành công.");
+  const handleSave = async () => {
+    try {
+      const settingsArray = [
+        { key: "ai_provider", value: aiConfig.provider, category: "ai" },
+        { key: "ai_model", value: aiConfig.model, category: "ai" },
+        { key: "ai_key", value: aiConfig.key, category: "ai" },
+        { key: "ai_endpoint", value: aiConfig.endpoint, category: "ai" },
+        { key: "ai_system_prompt", value: aiConfig.systemPrompt, category: "ai" }
+      ];
+      const res = await api.settings.bulkUpdate({ settings: settingsArray });
+      if (res.success) {
+        localStorage.setItem("studion-ai-settings", JSON.stringify({
+          provider: aiConfig.provider,
+          model: aiConfig.model,
+          key: aiConfig.key,
+          endpoint: aiConfig.endpoint,
+          systemPrompt: aiConfig.systemPrompt
+        }));
+        notify("Đã lưu cấu hình AI vào database thành công.");
+      } else {
+        notify("Lỗi lưu cấu hình: " + (res.message || res.error));
+      }
+    } catch (e) {
+      console.error(e);
+      notify("Lỗi kết nối khi lưu cấu hình AI.");
+    }
   };
 
-  const handleTestConnect = () => {
-    if (api.provider === "Mock Simulator") {
+  const handleTestConnect = async () => {
+    if (aiConfig.provider === "Mock Simulator") {
       notify("Test kết nối: Giả lập hoạt động bình thường!");
       return;
     }
-    if (!api.key) {
+    if (!aiConfig.key) {
       notify("Lỗi kết nối: Vui lòng nhập API Key.");
       return;
     }
-    notify(`Kết nối ${api.provider} (${api.model}) thành công.`);
+    notify("Đang kiểm tra kết nối tới AI...");
+    try {
+      if (aiConfig.provider === "Google Gemini") {
+        const res = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models?key=${aiConfig.key}`
+        );
+        if (res.ok) {
+          notify(`Kết nối Google Gemini thành công! Key hoạt động tốt.`);
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          notify(`Lỗi: ${errData?.error?.message || "Lỗi xác thực API Key."}`);
+        }
+      } else if (aiConfig.provider === "OpenAI") {
+        const res = await fetch("https://api.openai.com/v1/models", {
+          headers: {
+            Authorization: `Bearer ${aiConfig.key}`,
+          },
+        });
+        if (res.ok) {
+          notify(`Kết nối OpenAI thành công! Key hoạt động tốt.`);
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          notify(`Lỗi: ${errData?.error?.message || "Lỗi xác thực API Key."}`);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      notify("Lỗi: Không thể kết nối đến máy chủ AI (kiểm tra internet).");
+    }
   };
 
   return (
@@ -181,7 +305,7 @@ function AiSettings({ api, setApi, notify }: {
           <label className="!block !text-[13px] !font-normal text-[#536078]">
             AI Provider
             <select
-              value={api.provider}
+              value={aiConfig.provider}
               onChange={(e) => {
                 const prov = e.target.value;
                 let defaultModel = "gemini-1.5-flash";
@@ -193,7 +317,7 @@ function AiSettings({ api, setApi, notify }: {
                   defaultModel = "local-sim-v1";
                   defaultEndpoint = "local";
                 }
-                setApi({ ...api, provider: prov, model: defaultModel, endpoint: defaultEndpoint });
+                setAiConfig({ ...aiConfig, provider: prov, model: defaultModel, endpoint: defaultEndpoint });
               }}
               className="mt-2 h-10 w-full rounded-xl !border !border-[#dfe3ec] bg-white px-3 !text-[13px] !font-normal text-[#111827] outline-none focus:!border-[#ff8d28] focus:ring-2 focus:ring-[#ff8d28]/10"
             >
@@ -207,34 +331,67 @@ function AiSettings({ api, setApi, notify }: {
           <label className="!block !text-[13px] !font-normal text-[#536078]">
             Model AI Tư vấn
             <select
-              value={api.model}
-              onChange={(e) => setApi({ ...api, model: e.target.value })}
+              value={
+                aiConfig.provider === "Google Gemini"
+                  ? ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash", "gemini-2.0-pro", "gemini-2.5-flash"].includes(aiConfig.model)
+                    ? aiConfig.model
+                    : "custom"
+                  : aiConfig.provider === "OpenAI"
+                  ? ["gpt-4o-mini", "gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo"].includes(aiConfig.model)
+                    ? aiConfig.model
+                    : "custom"
+                  : aiConfig.model
+              }
+              onChange={(e) => {
+                const val = e.target.value;
+                setAiConfig({ ...aiConfig, model: val === "custom" ? "" : val });
+              }}
               className="mt-2 h-10 w-full rounded-xl !border !border-[#dfe3ec] bg-white px-3 !text-[13px] !font-normal text-[#111827] outline-none focus:!border-[#ff8d28] focus:ring-2 focus:ring-[#ff8d28]/10"
             >
-              {api.provider === "Google Gemini" && (
+              {aiConfig.provider === "Google Gemini" && (
                 <>
                   <option value="gemini-1.5-flash">gemini-1.5-flash (Nhanh & Tối ưu)</option>
-                  <option value="gemini-1.5-pro">gemini-1.5-pro (Thông minh nhất)</option>
+                  <option value="gemini-1.5-pro">gemini-1.5-pro (Thông minh)</option>
+                  <option value="gemini-2.0-flash">gemini-2.0-flash (Thế hệ mới)</option>
+                  <option value="gemini-2.0-pro">gemini-2.0-pro (Hiệu năng cao)</option>
+                  <option value="gemini-2.5-flash">gemini-2.5-flash (Mới nhất)</option>
+                  <option value="custom">Model tự nhập...</option>
                 </>
               )}
-              {api.provider === "OpenAI" && (
+              {aiConfig.provider === "OpenAI" && (
                 <>
                   <option value="gpt-4o-mini">gpt-4o-mini (Khuyên dùng)</option>
                   <option value="gpt-4o">gpt-4o (Chất lượng cao)</option>
+                  <option value="gpt-4-turbo">gpt-4-turbo (Mạnh mẽ)</option>
+                  <option value="gpt-3.5-turbo">gpt-3.5-turbo (Tiêu chuẩn)</option>
+                  <option value="custom">Model tự nhập...</option>
                 </>
               )}
-              {api.provider === "Mock Simulator" && (
+              {aiConfig.provider === "Mock Simulator" && (
                 <option value="local-sim-v1">local-sim-v1 (Mô phỏng cục bộ)</option>
               )}
             </select>
           </label>
 
+          {/* Custom Model Text Input */}
+          {((aiConfig.provider === "Google Gemini" && !["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash", "gemini-2.0-pro", "gemini-2.5-flash"].includes(aiConfig.model)) ||
+            (aiConfig.provider === "OpenAI" && !["gpt-4o-mini", "gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo"].includes(aiConfig.model)) ||
+            aiConfig.model === "") && (
+            <div className="md:col-span-2">
+              <Input
+                label="Nhập tên Model AI tự chỉnh"
+                value={aiConfig.model}
+                onChange={(value) => setAiConfig({ ...aiConfig, model: value })}
+              />
+            </div>
+          )}
+
           {/* Endpoint API */}
           <div className="md:col-span-2">
             <Input
               label="Endpoint API"
-              value={api.endpoint}
-              onChange={(value) => setApi({ ...api, endpoint: value })}
+              value={aiConfig.endpoint}
+              onChange={(value) => setAiConfig({ ...aiConfig, endpoint: value })}
             />
           </div>
 
@@ -244,17 +401,17 @@ function AiSettings({ api, setApi, notify }: {
               API Key / Khóa kết nối
               <div className="mt-2 flex items-center gap-2">
                 <input
-                  type={api.show ? "text" : "password"}
-                  value={api.key}
-                  onChange={(event) => setApi({ ...api, key: event.target.value })}
-                  placeholder={api.provider === "Mock Simulator" ? "Không yêu cầu API Key" : "Nhập API Key..."}
-                  disabled={api.provider === "Mock Simulator"}
+                  type={aiConfig.show ? "text" : "password"}
+                  value={aiConfig.key}
+                  onChange={(event) => setAiConfig({ ...aiConfig, key: event.target.value })}
+                  placeholder={aiConfig.provider === "Mock Simulator" ? "Không yêu cầu API Key" : "Nhập API Key..."}
+                  disabled={aiConfig.provider === "Mock Simulator"}
                   className="h-10 min-w-0 flex-1 rounded-xl !border !border-[#dfe3ec] px-3 !text-[13px] !font-normal text-[#111827] !shadow-none outline-none focus:!border-[#ff8d28] focus:!shadow-none focus:ring-2 focus:ring-[#ff8d28]/10 disabled:bg-gray-50 disabled:text-gray-400"
                 />
                 <IconButton
-                  label={api.show ? "Ẩn key" : "Hiện key"}
+                  label={aiConfig.show ? "Ẩn key" : "Hiện key"}
                   icon="eye"
-                  onClick={() => setApi({ ...api, show: !api.show })}
+                  onClick={() => setAiConfig({ ...aiConfig, show: !aiConfig.show })}
                 />
               </div>
             </label>
@@ -265,8 +422,8 @@ function AiSettings({ api, setApi, notify }: {
             <label className="!block !text-[13px] !font-normal text-[#536078]">
               System Prompt (Vai trò Chatbot)
               <textarea
-                value={api.systemPrompt}
-                onChange={(event) => setApi({ ...api, systemPrompt: event.target.value })}
+                value={aiConfig.systemPrompt}
+                onChange={(event) => setAiConfig({ ...aiConfig, systemPrompt: event.target.value })}
                 className="mt-2 !min-h-[92px] w-full rounded-xl !border !border-[#dfe3ec] bg-white p-3 !text-[13px] !font-normal leading-5 text-[#111827] !shadow-none outline-none focus:!border-[#ff8d28] focus:!shadow-none focus:ring-2 focus:ring-[#ff8d28]/10"
                 placeholder="Định nghĩa vai trò, cá tính của trợ lý AI..."
               />
@@ -283,7 +440,7 @@ function AiSettings({ api, setApi, notify }: {
             <IconButton
               label="Reset key"
               icon="refresh"
-              onClick={() => setApi({ ...api, key: "" })}
+              onClick={() => setAiConfig({ ...aiConfig, key: "" })}
             />
           </div>
         </div>
@@ -401,7 +558,7 @@ function AssetPicker({ id, kind, value, onChange, notify }: { id: string; kind: 
   const [open, setOpen] = useState(false);
   const [url, setUrl] = useState(value);
 
-  function useFile(file?: File) {
+  function handleFile(file?: File) {
     if (!file) return;
     if (!file.type.startsWith("image/")) {
       notify("Vui lòng chọn file ảnh.");
@@ -421,7 +578,7 @@ function AssetPicker({ id, kind, value, onChange, notify }: { id: string; kind: 
     const file = event.dataTransfer.files[0];
     const url = event.dataTransfer.getData("text/uri-list") || event.dataTransfer.getData("text/plain");
     if (file) {
-      useFile(file);
+      handleFile(file);
       return;
     }
     if (url?.trim()) {
@@ -468,7 +625,7 @@ function AssetPicker({ id, kind, value, onChange, notify }: { id: string; kind: 
               </div>
               <p className="mt-3 !text-[12px] !font-normal text-[#697086]">Kéo thả file ảnh hoặc URL vào đây</p>
               <label htmlFor={id} className="mx-auto mt-3 !inline-flex !h-10 min-w-[126px] cursor-pointer flex-row items-center justify-center gap-2 rounded-xl bg-[#ff8d28] px-4 !py-0 !text-[12px] !font-normal leading-none text-white shadow-[0_10px_20px_rgba(255,141,40,0.18)]"><AdminIcon name="add" className="h-3.5 w-3.5 shrink-0" /><span className="whitespace-nowrap">Chọn file</span></label>
-              <input id={id} type="file" accept="image/*,.ico" className="hidden" onChange={(event: ChangeEvent<HTMLInputElement>) => useFile(event.target.files?.[0])} />
+              <input id={id} type="file" accept="image/*,.ico" className="hidden" onChange={(event: ChangeEvent<HTMLInputElement>) => handleFile(event.target.files?.[0])} />
             </div>
             <div className="mt-4">
               <label className="!block !text-[12px] !font-normal text-[#536078]">Hoặc nhập URL ảnh</label>

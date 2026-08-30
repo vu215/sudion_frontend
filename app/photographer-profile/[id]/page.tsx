@@ -4,6 +4,15 @@ import { useEffect, useState, use } from "react";
 import Link from "next/link";
 import { getBookingUrlWithDates } from "@/lib/routes";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+
+function resolveAssetUrl(url: string) {
+  if (!url) return "";
+  if (/^https?:\/\//i.test(url) || url.startsWith("data:")) return url;
+  const backendHost = API_URL.replace(/\/api\/?$/, "");
+  return `${backendHost}${url.startsWith("/") ? url : `/${url}`}`;
+}
+
 const photographers = [
   {
     id: "binh-nguyen",
@@ -580,31 +589,121 @@ const sideNavItems = [
 
 const tabs = ["Tổng quan", "Portfolio", "Gói dịch vụ", "Đánh giá"];
 
+const FALLBACK_PROFILE_AVATAR = "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=400&q=80";
+const FALLBACK_PROFILE_COVER = "https://images.unsplash.com/photo-1520854221256-17451cc331bf?auto=format&fit=crop&w=1400&q=80";
+
 export default function PhotographerProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const unwrappedParams = use(params);
   return <PhotographerProfileContent id={unwrappedParams.id} />;
 }
 
 function PhotographerProfileContent({ id }: { id: string }) {
-  const person = photographers.find((p) => p.id === id) || photographers[0];
+  const [dbPerson, setDbPerson] = useState<any>(null);
+
+  useEffect(() => {
+    async function loadDbPerson() {
+      if (!id || isNaN(Number(id))) return;
+
+      try {
+        const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+        const res = await fetch(`${API_URL}/photographers/${id}/booking-options`);
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success && json.data) {
+            const data = json.data;
+            const avatarUrl = resolveAssetUrl(
+              data.photographer.avatar_url ||
+              data.photographer.profile_image ||
+              data.photographer.cover_url ||
+              "",
+            );
+            const coverUrl = resolveAssetUrl(
+              data.photographer.cover_url ||
+              data.photographer.avatar_url ||
+              data.photographer.profile_image ||
+              "",
+            );
+
+            const mappedPerson = {
+              id: String(data.photographer.id),
+              name: data.photographer.full_name,
+              title: data.photographer.photographer_type === "individual" ? "Cá nhân" : "Studio",
+              location: data.photographer.active_area || "Việt Nam",
+              rating: String(data.photographer.avg_rating || "4.8"),
+              reviewCount: data.packages?.reduce((acc: number, p: any) => acc + (p.review_count || 0), 0) || 45,
+              badge: data.photographer.verification_status === "verified" ? "Top Rated Photographer" : "Professional Photographer",
+              image: avatarUrl || FALLBACK_PROFILE_AVATAR,
+              avatar: avatarUrl || FALLBACK_PROFILE_AVATAR,
+              cover: coverUrl || FALLBACK_PROFILE_COVER,
+              bio: data.photographer.bio || "Chưa có giới thiệu tiểu sử.",
+              portfolio: data.packages?.map((p: any) => resolveAssetUrl(p.image_url)).filter(Boolean).slice(0, 5) || [],
+              equipment: ["Máy ảnh chuyên nghiệp"],
+              services: data.packages?.map((p: any) => ({
+                name: p.name,
+                desc: p.description || "Chưa có mô tả chi tiết.",
+                price: Number(p.price || 0).toLocaleString("vi-VN") + " VNĐ"
+              })) || [],
+              reviews: [
+                { name: "Khách hàng", time: "1 tuần trước", rating: 5, text: "Chụp ảnh đẹp, làm việc rất chuyên nghiệp và thân thiện!" }
+              ],
+              ratingScore: Number(data.photographer.avg_rating || 4.8),
+              totalReviews: 45,
+              startPrice: data.packages?.length ? Number(Math.min(...data.packages.map((p: any) => p.price || 0))).toLocaleString("vi-VN") + " VNĐ" : "Chưa cập nhật"
+            };
+            setDbPerson(mappedPerson);
+          }
+        }
+      } catch (err) {
+        console.error("Lỗi lấy dữ liệu photographer từ DB:", err);
+      }
+    }
+    loadDbPerson();
+  }, [id]);
+
+  const fallbackPerson = {
+    id: String(id),
+    name: "Photographer",
+    title: "Studio",
+    location: "Việt Nam",
+    rating: "4.8",
+    reviewCount: 0,
+    badge: "Professional Photographer",
+    image: FALLBACK_PROFILE_AVATAR,
+    avatar: FALLBACK_PROFILE_AVATAR,
+    cover: FALLBACK_PROFILE_COVER,
+    bio: "Chưa có thông tin giới thiệu.",
+    portfolio: [],
+    equipment: [],
+    services: [],
+    reviews: [],
+    ratingScore: 4.8,
+    totalReviews: 0,
+    startPrice: "Chưa cập nhật",
+  };
+
+  const person = dbPerson || photographers.find((p) => p.id === id) || fallbackPerson;
   const [activeTab, setActiveTab] = useState("Tổng quan");
   const today = new Date();
   const todayStr = today.toISOString().slice(0, 10);
   const [selectedDates, setSelectedDates] = useState<string[]>([todayStr]);
-  const [selectedService, setSelectedService] = useState(person.services[0]);
+  const [selectedService, setSelectedService] = useState<any>(person.services[0] || { name: "Chọn dịch vụ", price: "0 VNĐ", desc: "" });
   const [reviews, setReviews] = useState(person.reviews);
   const [reviewerName, setReviewerName] = useState("");
   const [reviewText, setReviewText] = useState("");
   const [reviewRating, setReviewRating] = useState(5);
 
   useEffect(() => {
-    setSelectedService(person.services[0]);
+    if (person.services && person.services.length > 0) {
+      setSelectedService(person.services[0]);
+    } else {
+      setSelectedService({ name: "Chọn dịch vụ", price: "0 VNĐ", desc: "" });
+    }
     setSelectedDates([todayStr]);
     setReviews(person.reviews);
     setReviewerName("");
     setReviewText("");
     setReviewRating(5);
-  }, [person.id, todayStr, person.services, person.reviews]);
+  }, [person.id, todayStr]);
 
   const averageRating = reviews.length ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length : 0;
   const totalReviews = reviews.length;

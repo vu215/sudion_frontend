@@ -1,27 +1,33 @@
 "use client";
 
-import { useState } from "react";
-import { Inter } from "next/font/google";
-
-const inter = Inter({ subsets: ["latin", "vietnamese"], weight: ["400", "500", "600", "700"] });
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { api } from "@/lib/api";
+import { useAuth } from "@/app/auth-context";
+import { useRouter, usePathname } from "next/navigation";
 
 const navItems = [
   ["Dashboard", "/admin", "M3 10.5L12 3l9 7.5M5 10v9h5v-5h4v5h5v-9"],
   ["Người dùng", "/admin/users", "M16 19v-1.2a4.8 4.8 0 00-4.8-4.8H8.8A4.8 4.8 0 004 17.8V19M12 7.5a3.5 3.5 0 11-7 0 3.5 3.5 0 017 0zM20 19v-1a4 4 0 00-3-3.9M16.5 4.8a3 3 0 010 5.4"],
   ["Photographer", "/admin/photographer", "M4 8h3l1.5-2h7L17 8h3v10H4zM12 16a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM7 8V6"],
   ["Dịch vụ", "/admin/services", "M20 13.5V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2h7.5M8 8h8M8 12h5M17 17l2 2 3-4"],
+  ["Danh mục bán hàng", "/admin/product-categories", "M4 7h16M4 12h16M4 17h10"],
   ["Booking", "/admin/booking", "M7 3v3M17 3v3M4 8h16M6 5h12a2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V7a2 2 0 012-2z"],
+  ["Bán Máy ảnh", "/admin/products", "M20 7h-4V4c0-1.1-.9-2-2-2h-4c-1.1 0-2 .9-2 2v3H4c-1.1 0-2 .9-2 2v11c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V9c0-1.1-.9-2-2-2zM10 4h4v3h-4V4z"],
+  ["Đơn hàng Máy ảnh", "/admin/orders", "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2"],
   ["Thanh toán", "/admin/payments", "M3 7h18v10H3zM3 10h18M7 15h3"],
+  ["Quản lý Doanh thu", "/admin/revenue", "M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"],
   ["Hoàn tiền", "/admin/refunds", "M9 14l-4-4 4-4M5 10h10a4 4 0 010 8h-2M19 6v4h-4"],
   ["Voucher", "/admin/vouchers", "M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82zM7 7h.01"],
   ["Banner Quảng cáo", "/admin/banners", "M4 5h16a1 1 0 011 1v12a1 1 0 01-1 1H4a1 1 0 01-1-1V6a1 1 0 011-1z M4 9h16"],
   ["Chiến dịch AI", "/admin/campaigns", "M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"],
-  ["Quản lý Tin tức", "/admin/news", "M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10l4 4v10a2 2 0 01-2 2z M12 11h4 M12 15h4 M8 11h.01 M8 15h.01"],
   ["Report / Khiếu nại", "/admin/reports", "M6 3h9l3 3v15H6zM15 3v4h4M9 12h6"],
   ["AI Moderation", "/admin/ai-moderation", "M12 3l8 4v6c0 4-3.5 7-8 8s-8-4-8-8V7zM9 12l2 2 4-5"],
   ["Đánh giá", "/admin/reviews", "M12 3l2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.4 6.4 20.2l1.1-6.2L3 9.6l6.2-.9z"],
   ["Thông báo", "/admin/notifications", "M18 16H6l1.5-2V10a4.5 4.5 0 019 0v4zM10 19h4"],
   ["System Log", "/admin/logs", "M5 4h14v16H5zM8 8h8M8 12h8M8 16h5"],
+  ["Chính sách", "/admin/policies", "M6 3h12v18H6zM9 8h6M9 12h6M9 16h4"],
+  ["Bài viết", "/admin/articles", "M4 5h16v14H4zM8 9h8M8 13h8M8 17h5"],
   ["Cài đặt", "/admin/settings", "M12 15.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM19 12a7.4 7.4 0 00-.1-1l2-1.5-2-3.4-2.4 1a7.2 7.2 0 00-1.7-1L14.5 3h-5l-.4 3.1a7.2 7.2 0 00-1.7 1l-2.4-1-2 3.4 2 1.5a7.4 7.4 0 000 2l-2 1.5 2 3.4 2.4-1a7.2 7.2 0 001.7 1l.4 3.1h5l.4-3.1a7.2 7.2 0 001.7-1l2.4 1 2-3.4-2-1.5a7.4 7.4 0 00.1-1z"],
 ] as const;
 
@@ -36,23 +42,101 @@ export default function AdminLayout({
   search?: string;
   onSearch?: (value: string) => void;
 }) {
+  const { isLoggedIn, isAdmin, isLoading } = useAuth();
+  const router = useRouter();
+  const pathname = usePathname();
+  const isDevPreview = process.env.NODE_ENV === "development";
+
   const [collapsed, setCollapsed] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    if (!isLoading) {
+      if (!isLoggedIn) {
+        router.push(`/login?redirect=${encodeURIComponent(pathname)}`);
+      }
+    }
+  }, [isLoggedIn, isLoading, router, pathname]);
+
+  useEffect(() => {
+    if (!isLoggedIn || !isAdmin) return;
+
+    async function loadUnreadCount() {
+      try {
+        const result = await api.notifications.getStats();
+        if (result.success && result.data) {
+          setUnreadCount((result.data as any).unread || 0);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    loadUnreadCount();
+  }, [isLoggedIn, isAdmin]);
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-[#f7f7fb]">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#ff8d28] border-t-transparent" />
+        <p className="mt-4 text-xs font-semibold text-slate-500">Đang kiểm tra quyền truy cập Admin...</p>
+      </div>
+    );
+  }
+
+  if (!isLoggedIn) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-[#f7f7fb]">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#ff8d28] border-t-transparent" />
+        <p className="mt-4 text-xs font-semibold text-slate-500">Chuyển hướng đến đăng nhập...</p>
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-[#f7f7fb] p-6 text-center">
+        <div className="w-full max-w-[420px] rounded-2xl border border-red-200 bg-white p-8 shadow-sm">
+          <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-red-50 text-xl font-black text-red-600">
+            🚫
+          </div>
+          <h1 className="mt-4 text-xl font-black text-slate-900">Không có quyền truy cập</h1>
+          <p className="mt-2 text-xs font-medium leading-relaxed text-slate-500">
+            Tài khoản của bạn không phải là tài khoản Quản trị viên (Admin). Vui lòng đăng nhập tài khoản Admin để truy cập trang này.
+          </p>
+          <div className="mt-6 flex flex-col gap-2">
+            <Link
+              href={`/login?redirect=${encodeURIComponent(pathname)}`}
+              className="rounded-xl bg-[#ff8d28] px-5 py-2.5 text-xs font-bold text-white shadow hover:bg-orange-600 transition"
+            >
+              Đăng nhập tài khoản Admin
+            </Link>
+            <Link
+              href="/"
+              className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition"
+            >
+              Quay lại Trang chủ
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <main className={`${inter.className} min-h-screen overflow-x-hidden bg-[#f7f7fb] text-[13px] text-[#0f172a]`}>
-      <aside className={`fixed inset-y-0 left-0 z-30 hidden border-r border-[#e6e9f1] bg-white text-[#0f172a] shadow-[18px_0_45px_rgba(12,18,32,0.06)] transition-all lg:block ${collapsed ? "w-[80px]" : "w-[252px]"}`}>
-        <div className={`flex h-[72px] items-center ${collapsed ? "justify-center px-3" : "px-5"}`}>
+    <main className="min-h-screen overflow-x-hidden bg-[#f7f7fb] text-[13px] text-[#0f172a]">
+      <aside className={`fixed inset-y-0 left-0 z-40 hidden border-r border-[#e6e9f1] bg-white text-[#0f172a] shadow-[18px_0_45px_rgba(12,18,32,0.06)] transition-all lg:flex lg:flex-col ${collapsed ? "w-[80px]" : "w-[252px]"}`}>
+        <div className={`flex h-[72px] items-center shrink-0 ${collapsed ? "justify-center px-3" : "px-5"}`}>
           {!collapsed ? <b className="text-[23px] tracking-normal text-[#0f172a]">STUD<span className="text-[#ff8d28]">ION</span></b> : <img src="/logo_sudion_remove.png" alt="Studion" className="h-11 w-11 rounded-xl bg-[#fff3e8] p-1" />}
         </div>
-        <nav className="space-y-1 overflow-y-auto px-3 pb-24">
+        <nav className="flex-1 overflow-y-auto px-3 pb-4 space-y-1">
           {navItems.map(([label, href, path]) => (
-            <a key={label} href={href} title={collapsed ? label : undefined} className={`flex h-11 items-center rounded-xl text-[14px] font-medium transition ${active === label ? "bg-[#ff8d28] text-white shadow-[0_12px_24px_rgba(255,141,40,0.22)]" : "text-[#162033] hover:bg-[#fff3e8] hover:text-[#ff8d28]"} ${collapsed ? "justify-center px-0" : "gap-3 px-3"}`}>
+            <Link key={label} href={href} scroll={false} title={collapsed ? label : undefined} className={`flex h-11 items-center rounded-xl text-[14px] font-medium transition ${active === label ? "bg-[#ff8d28] text-white shadow-[0_12px_24px_rgba(255,141,40,0.22)]" : "text-[#162033] hover:bg-[#fff3e8] hover:text-[#ff8d28]"} ${collapsed ? "justify-center px-0" : "gap-3 px-3"}`}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" className="h-[18px] w-[18px] shrink-0"><path d={path} /></svg>
               {!collapsed ? <span className="truncate">{label}</span> : null}
-            </a>
+            </Link>
           ))}
         </nav>
-        <div className="absolute inset-x-0 bottom-0 border-t border-[#e6e9f1] bg-white p-3">
+        <div className="border-t border-[#e6e9f1] bg-white p-3 shrink-0">
           <div className={`flex items-center rounded-2xl bg-[#f7f8fb] p-3 ${collapsed ? "justify-center" : "gap-3"}`}>
             <img src="/Overlay+Shadow.png" alt="Admin" className="h-9 w-9 rounded-full object-cover" />
             {!collapsed ? <div><b className="text-[13px] text-[#0f172a]">Admin</b><p className="text-[11px] text-[#697086]">Super Admin</p><p className="text-[10px] text-emerald-500">● Online</p></div> : null}
@@ -60,21 +144,23 @@ export default function AdminLayout({
         </div>
       </aside>
 
-      <section className={`min-h-screen transition-all ${collapsed ? "lg:ml-[80px]" : "lg:ml-[252px]"}`}>
-        <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-[#e6e8f0] bg-white/90 px-4 backdrop-blur md:px-6">
+      <section className={`h-screen overflow-hidden flex flex-col transition-all ${collapsed ? "lg:ml-[80px]" : "lg:ml-[252px]"}`}>
+        <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-3 border-b border-[#e6e8f0] bg-white/90 px-4 backdrop-blur md:px-6">
           <button onClick={() => setCollapsed(!collapsed)} className="grid h-9 w-9 place-items-center rounded-xl text-[#536078] hover:bg-[#f4f5f8] hover:text-[#ff8d28]" aria-label="Thu gọn sidebar">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" className="h-5 w-5"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
           </button>
           <div className="ml-auto flex items-center gap-3">
-            <button type="button" aria-label="Thông báo" title="Thông báo" className="relative grid h-9 w-9 place-items-center rounded-xl text-[#536078] hover:bg-[#fff3e8] hover:text-[#ff8d28]">
+            <button type="button" aria-label="Thông báo" title="Thông báo" onClick={() => window.location.href = '/admin/notifications'} className="relative grid h-9 w-9 place-items-center rounded-xl text-[#536078] hover:bg-[#fff3e8] hover:text-[#ff8d28]">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><path d="M18 16H6l1.5-2V10a4.5 4.5 0 019 0v4L18 16zM10 19h4" /></svg>
-              <b className="absolute right-0 top-0 rounded-full bg-red-500 px-1 text-[10px] leading-4 text-white">12</b>
+              {unreadCount > 0 && (
+                <b className="absolute right-0 top-0 rounded-full bg-red-500 px-1.5 text-[9px] leading-4 text-white">{unreadCount}</b>
+              )}
             </button>
             <img src="/Overlay+Shadow.png" alt="Admin" className="h-9 w-9 rounded-full object-cover" />
             <div className="hidden sm:block"><b>Admin</b><p className="text-[11px] text-[#697086]">Super Admin</p></div>
           </div>
         </header>
-        <div className="min-w-0 px-4 py-5 md:px-6">{children}</div>
+        <div id="admin-content-scroll" className="flex-1 overflow-y-auto min-w-0 px-4 py-5 md:px-6">{children}</div>
       </section>
     </main>
   );

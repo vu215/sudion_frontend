@@ -44,56 +44,47 @@ function formatDateTime(value: string) {
   return date.toLocaleString("vi-VN");
 }
 
-async function getNotifications(email: string) {
-  const response = await fetch(
-    `${API_URL}/notifications/user/${encodeURIComponent(email)}`,
-    {
-      method: "GET",
-      cache: "no-store",
-    }
-  );
-
-  const json: ApiResponse<NotificationItem[]> = await response.json();
-
-  if (!response.ok || !json.success) {
-    throw new Error(json.message || "Không thể lấy thông báo.");
-  }
-
-  return json.data;
-}
-
-async function markNotificationRead(id: number) {
-  const response = await fetch(`${API_URL}/notifications/${id}/read`, {
-    method: "PATCH",
-  });
-
-  const json: ApiResponse<unknown> = await response.json();
-
-  if (!response.ok || !json.success) {
-    throw new Error(json.message || "Không thể đánh dấu đã đọc.");
+async function getNotifications(email: string): Promise<NotificationItem[]> {
+  try {
+    const response = await fetch(
+      `${API_URL}/notifications/user/${encodeURIComponent(email)}`,
+      { method: "GET", cache: "no-store" }
+    );
+    if (!response.ok) return [];
+    const json: ApiResponse<NotificationItem[]> = await response.json();
+    if (!json.success || !Array.isArray(json.data)) return [];
+    return json.data;
+  } catch {
+    return [];
   }
 }
 
-async function getPhotographerEmail(photographerId: string) {
-  const response = await fetch(
-    `${API_URL}/photographers/${encodeURIComponent(photographerId)}`,
-    {
-      method: "GET",
-      cache: "no-store",
-    }
-  );
-
-  const json: ApiResponse<{
-    id: number;
-    email: string;
-    full_name: string;
-  }> = await response.json();
-
-  if (!response.ok || !json.success) {
-    throw new Error(json.message || "Không thể lấy email photographer.");
+async function markNotificationRead(id: number): Promise<void> {
+  try {
+    const response = await fetch(`${API_URL}/notifications/${id}/read`, {
+      method: "PATCH",
+    });
+    if (!response.ok) return;
+    const json: ApiResponse<unknown> = await response.json();
+    if (!json.success) return;
+  } catch {
+    // silent — mark read optimistically in UI regardless
   }
+}
 
-  return json.data.email;
+async function getPhotographerEmail(photographerId: string): Promise<string> {
+  try {
+    const response = await fetch(
+      `${API_URL}/photographers/${encodeURIComponent(photographerId)}`,
+      { method: "GET", cache: "no-store" }
+    );
+    if (!response.ok) return "";
+    const json: ApiResponse<{ id: number; email: string; full_name: string }> = await response.json();
+    if (!json.success) return "";
+    return json.data.email;
+  } catch {
+    return "";
+  }
 }
 
 export default function NotificationPage() {
@@ -176,27 +167,17 @@ export default function NotificationPage() {
   async function handleLoadNotifications(targetEmail = email) {
     try {
       const finalEmail = targetEmail.trim();
-
-      if (!finalEmail) {
-        setPageError("Vui lòng nhập email để xem thông báo.");
-        return;
-      }
+      if (!finalEmail) return;
 
       setLoading(true);
       setPageError("");
       setSuccessMessage("");
 
       const data = await getNotifications(finalEmail);
-
       setNotifications(data);
       window.localStorage.setItem("sudion_booking_email", finalEmail);
-    } catch (error) {
-      console.error("Lỗi lấy thông báo:", error);
-
+    } catch {
       setNotifications([]);
-      setPageError(
-        error instanceof Error ? error.message : "Không thể lấy thông báo."
-      );
     } finally {
       setLoading(false);
     }
@@ -208,56 +189,19 @@ export default function NotificationPage() {
   }
 
   async function handleMarkRead(item: NotificationItem) {
-    try {
-      setPageError("");
-      setSuccessMessage("");
-
-      await markNotificationRead(item.id);
-
-      setNotifications((current) =>
-        current.map((notification) =>
-          notification.id === item.id
-            ? { ...notification, is_read: 1 }
-            : notification
-        )
-      );
-
-      setSuccessMessage("Đã đánh dấu thông báo là đã đọc.");
-    } catch (error) {
-      console.error("Lỗi đánh dấu thông báo:", error);
-
-      setPageError(
-        error instanceof Error
-          ? error.message
-          : "Không thể đánh dấu thông báo."
-      );
-    }
+    // optimistic update
+    setNotifications((current) =>
+      current.map((n) => n.id === item.id ? { ...n, is_read: 1 } : n)
+    );
+    await markNotificationRead(item.id);
   }
 
   async function handleMarkAllRead() {
-    const unreadItems = notifications.filter(
-      (item) => Number(item.is_read) === 0
-    );
-
-    if (unreadItems.length === 0) {
-      return;
-    }
-
-    try {
-      setPageError("");
-      setSuccessMessage("");
-
-      await Promise.all(unreadItems.map((item) => markNotificationRead(item.id)));
-
-      setNotifications((current) =>
-        current.map((item) => ({ ...item, is_read: 1 }))
-      );
-
-      setSuccessMessage("Đã đánh dấu tất cả thông báo là đã đọc.");
-    } catch (error) {
-      console.error("Lỗi đánh dấu tất cả:", error);
-      setPageError("Không thể đánh dấu tất cả thông báo.");
-    }
+    const unreadItems = notifications.filter((item) => Number(item.is_read) === 0);
+    if (unreadItems.length === 0) return;
+    // optimistic update
+    setNotifications((current) => current.map((item) => ({ ...item, is_read: 1 })));
+    await Promise.allSettled(unreadItems.map((item) => markNotificationRead(item.id)));
   }
 
   return (

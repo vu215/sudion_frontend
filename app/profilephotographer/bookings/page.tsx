@@ -4,9 +4,13 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/app/auth-context";
 import { useToast } from "@/app/toast-context";
-import { getMessagesUrl } from "@/lib/routes";
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+
+function authHeaders() {
+  const token = typeof window !== "undefined" ? window.localStorage.getItem("sudion_token") : null;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
 
 const AUTO_REFRESH_MS = 8000;
 
@@ -49,6 +53,9 @@ type BackendBooking = {
   estimated_total: number;
   deposit_amount: number;
   remaining_amount: number;
+  platform_fee_amount?: number;
+  photographer_payout_amount?: number;
+
 
   add_ons: {
     id: string;
@@ -167,9 +174,21 @@ function formatDate(value: string | null) {
   return date.toLocaleDateString("vi-VN");
 }
 
-function formatTime(value: string | null) {
+function formatTime(value: string | null, endValue?: string | null) {
   if (!value) return "Chưa chọn";
-  return String(value).slice(0, 5);
+
+  const text = String(value).trim();
+  const endText = endValue ? String(endValue).trim() : "";
+  const rangeMatch = text.match(/(\d{1,2}:\d{2})\s*(?:-|–|—|đến|to)\s*(\d{1,2}:\d{2})/i);
+  if (rangeMatch) {
+    return `${rangeMatch[1]} - ${rangeMatch[2]}`;
+  }
+
+  if (endText && /\d{1,2}:\d{2}/.test(endText)) {
+    return `${text} - ${endText}`;
+  }
+
+  return text.slice(0, 5);
 }
 
 async function getBookingsByPhotographer(photographerId: string) {
@@ -178,6 +197,7 @@ async function getBookingsByPhotographer(photographerId: string) {
     {
       method: "GET",
       cache: "no-store",
+      headers: authHeaders(),
     }
   );
 
@@ -190,13 +210,14 @@ async function getBookingsByPhotographer(photographerId: string) {
   return json.data;
 }
 
-async function updateBookingStatus(bookingCode: string, status: string) {
+async function updateBookingStatus(bookingCode: string, status: string, location?: string) {
   const response = await fetch(`${API_URL}/bookings/${bookingCode}/status`, {
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",
+      ...authHeaders(),
     },
-    body: JSON.stringify({ status }),
+    body: JSON.stringify({ status, location }),
   });
 
   const json: ApiResponse<BackendBooking> = await response.json();
@@ -301,13 +322,13 @@ export default function PhotographerDashboardPage() {
     await handleLoadBookings();
   }
 
- async function handleUpdateStatus(bookingCode: string, status: string) {
+ async function handleUpdateStatus(bookingCode: string, status: string, location?: string) {
   try {
     setUpdatingCode(bookingCode);
     setPageError("");
     setSuccessMessage("");
 
-    const updatedBooking = await updateBookingStatus(bookingCode, status);
+    const updatedBooking = await updateBookingStatus(bookingCode, status, location);
 
     setBookings((current) =>
       current.map((item) =>
@@ -503,14 +524,37 @@ function DashboardBookingCard({
 }: {
   booking: BackendBooking;
   updatingCode: string;
-  onUpdateStatus: (bookingCode: string, status: string) => Promise<void>;
+  onUpdateStatus: (bookingCode: string, status: string, location?: string) => Promise<void>;
 }) {
+  const [showDetails, setShowDetails] = useState(false);
+  const [driveLink, setDriveLink] = useState("");
   const statusInfo = getStatusInfo(booking.status);
   const isUpdating = updatingCode === booking.booking_code;
+
+  const totalAmt = Number(booking.estimated_total || 0);
+  const rawFee = Number(booking.platform_fee_amount || 0);
+  const rawPayout = Number(booking.photographer_payout_amount || 0);
+  const platformFeeCalc = rawFee > 0 ? rawFee : Math.round(totalAmt * 0.1);
+  const photographerPayoutCalc = rawPayout > 0 ? rawPayout : Math.round(totalAmt * 0.9);
+
 
   const canAccept = booking.status === "awaiting_payment";
   const canReject = booking.status === "awaiting_payment";
   const canComplete = booking.status === "confirmed";
+
+  const handleComplete = async () => {
+    if (!driveLink.trim().startsWith("http")) {
+      alert("Vui lòng nhập link Google Drive hợp lệ (bắt đầu bằng http hoặc https).");
+      return;
+    }
+    try {
+      const location = `${booking.location || "Chưa chọn"} [Photos: ${driveLink.trim()}]`;
+      await onUpdateStatus(booking.booking_code, "completed", location);
+    } catch (error: any) {
+      console.error("Lỗi hoàn thành buổi chụp:", error);
+      alert(error.message || "Lỗi khi hoàn thành buổi chụp.");
+    }
+  };
 
   return (
     <article className="overflow-hidden rounded-[22px] border border-[#e2e8f0] bg-white shadow-[0_16px_40px_rgba(15,23,42,0.045)]">
@@ -532,19 +576,32 @@ function DashboardBookingCard({
           </p>
         </div>
 
-        <span
-          className={`inline-flex w-fit items-center gap-2 rounded-full border px-3 py-2 text-[12px] font-black ${statusInfo.className}`}
-        >
-          <span className={`h-2 w-2 rounded-full ${statusInfo.dot}`} />
-          {statusInfo.label}
-        </span>
+        <div className="flex items-center gap-2.5">
+          <button
+            type="button"
+            onClick={() => setShowDetails(!showDetails)}
+            className="flex items-center gap-1.5 shrink-0 rounded-full border border-orange-200 bg-orange-50 px-3.5 py-1.5 text-xs font-black text-[#ff8d28] hover:bg-[#ff8d28] hover:text-white transition-all shadow-sm"
+          >
+            <span>{showDetails ? "Thu gọn" : "Xem chi tiết đơn"}</span>
+            <svg className={`h-3.5 w-3.5 transition-transform duration-200 ${showDetails ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+
+          <span
+            className={`inline-flex w-fit items-center gap-2 rounded-full border px-3 py-2 text-[12px] font-black ${statusInfo.className}`}
+          >
+            <span className={`h-2 w-2 rounded-full ${statusInfo.dot}`} />
+            {statusInfo.label}
+          </span>
+        </div>
       </div>
 
       <div className="grid gap-5 p-5 lg:grid-cols-[minmax(0,1fr)_300px]">
         <div className="grid gap-4">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <InfoItem label="Ngày chụp" value={formatDate(booking.shoot_date)} />
-            <InfoItem label="Giờ chụp" value={formatTime(booking.shoot_time)} />
+            <InfoItem label="Giờ chụp" value={formatTime(booking.shoot_time, booking.shoot_end_time)} />
             <InfoItem
               label="Địa điểm"
               value={booking.location || "Chưa chọn"}
@@ -589,8 +646,20 @@ function DashboardBookingCard({
           ) : null}
         </div>
 
-        <div className="grid gap-3 rounded-[18px] border border-[#eef2f7] bg-[#fbfcff] p-4">
-          <MoneyRow label="Tổng tiền" value={booking.estimated_total} />
+        <div className="grid gap-2.5 rounded-[18px] border border-[#eef2f7] bg-[#fbfcff] p-4">
+          <MoneyRow label="Tổng tiền đơn" value={booking.estimated_total} />
+          <MoneyRow
+            label="Phí sàn trích (10%)"
+            value={platformFeeCalc}
+            isDeduction
+          />
+          <MoneyRow
+            label="Thực nhận (90%)"
+            value={photographerPayoutCalc}
+            isPayout
+          />
+
+          <div className="my-1 h-px bg-[#e2e8f0]" />
           <MoneyRow
             label="Tiền cọc"
             value={booking.deposit_amount}
@@ -601,6 +670,7 @@ function DashboardBookingCard({
             value={booking.remaining_amount}
             highlight={booking.status === "completed"}
           />
+
 
           <div className="my-1 h-px bg-[#e2e8f0]" />
 
@@ -641,14 +711,27 @@ function DashboardBookingCard({
               </button>
             ) : null}
 
+             {canComplete ? (
+              <div className="flex flex-col gap-2 mb-2 text-[#0f172a] text-left">
+                <label className="block text-[11px] font-black uppercase tracking-[0.12em] text-[#94a3b8]">
+                  Link Google Drive ảnh buổi chụp (Bắt buộc)
+                </label>
+                <input
+                  type="url"
+                  value={driveLink}
+                  onChange={(e) => setDriveLink(e.target.value)}
+                  placeholder="https://drive.google.com/..."
+                  className="w-full rounded-[10px] border border-[#e2e8f0] px-3 py-2 text-[12px] font-bold outline-none focus:border-[#ff8d28] bg-white text-[#0f172a]"
+                />
+              </div>
+            ) : null}
+
             {canComplete ? (
               <button
                 type="button"
-                onClick={() =>
-                  onUpdateStatus(booking.booking_code, "completed")
-                }
-                disabled={isUpdating}
-                className="rounded-[12px] bg-[#16a34a] px-4 py-3 text-center text-[13px] font-black text-white shadow-[0_10px_24px_rgba(22,163,74,0.18)] transition-all hover:bg-[#15803d] disabled:cursor-not-allowed disabled:opacity-60"
+                onClick={handleComplete}
+                disabled={isUpdating || !driveLink.trim().startsWith("http")}
+                className="rounded-[12px] bg-[#16a34a] px-4 py-3 text-center text-[13px] font-black text-white shadow-[0_10px_24px_rgba(22,163,74,0.18)] transition-all hover:bg-[#15803d] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isUpdating ? "Đang xử lý..." : "Hoàn thành buổi chụp"}
               </button>
@@ -664,17 +747,181 @@ function DashboardBookingCard({
               </button>
             ) : null}
 
-            {booking.status === "fully_paid" ? (
+            {["accepted", "confirmed", "completed", "fully_paid"].includes(booking.status) ? (
               <Link
-                href={getMessagesUrl(booking.booking_code)}
-                className="rounded-[12px] bg-[#ff8d28] px-4 py-3 text-center text-[13px] font-black text-white shadow-[0_10px_24px_rgba(255,141,40,0.18)] transition-all hover:bg-[#e0751b]"
+                href={`/messages?booking=${encodeURIComponent(
+                  booking.booking_code
+                )}`}
+                className="rounded-[12px] bg-[#ff8d28] px-4 py-3 text-center text-[13px] font-black text-white shadow-[0_10px_24px_rgba(255,141,40,0.18)] transition-all hover:bg-[#e0751b] flex items-center justify-center gap-1.5"
               >
-                Chat với khách
+                💬 Chat với khách
               </Link>
             ) : null}
           </div>
         </div>
       </div>
+
+      {/* Floating Popup Modal for Booking Details */}
+      {showDetails && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-[880px] max-h-[90vh] flex flex-col overflow-hidden rounded-[26px] border border-white/20 bg-white shadow-[0_32px_80px_rgba(15,23,42,0.3)] animate-in zoom-in-95 duration-200">
+            
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-[#eef2f7] bg-white px-6 py-4 shrink-0">
+              <div className="flex items-center gap-3">
+
+                <div>
+                  <h3 className="text-[17px] font-black text-[#0f172a] tracking-tight">
+                    Chi tiết đơn booking: <span className="text-[#ff8d28]">{booking.booking_code}</span>
+                  </h3>
+                  <p className="text-[11.5px] font-semibold text-[#64748b]">
+                    {booking.service_name}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-black ${statusInfo.className}`}>
+                  <span className={`h-1.5 w-1.5 rounded-full ${statusInfo.dot}`} />
+                  {statusInfo.label}
+                </span>
+
+                <button
+                  type="button"
+                  onClick={() => setShowDetails(false)}
+                  className="grid h-9 w-9 place-items-center rounded-full border border-[#e2e8f0] bg-white text-[#64748b] hover:bg-slate-100 hover:text-[#0f172a] transition-all"
+                  title="Đóng cửa sổ"
+                >
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-5 bg-[#f8fafc] text-xs text-[#334155]">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                
+                {/* Box 1: Chi tiết dịch vụ */}
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-2.5 shadow-sm">
+                  <h4 className="font-black text-[#ff8d28] text-xs uppercase tracking-wider border-b border-slate-100 pb-2">
+                    Chi tiết dịch vụ
+                  </h4>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500 font-medium">Gói dịch vụ:</span>
+                    <strong className="text-slate-900 text-right">{booking.service_name}</strong>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500 font-medium">Giá gốc gói:</span>
+                    <strong className="text-slate-900">{formatCurrency(booking.base_price)}</strong>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500 font-medium">Quy mô nhóm:</span>
+                    <strong className="text-slate-900">{booking.people_scale || "Tiêu chuẩn"} {booking.people_extra ? `(+${formatCurrency(booking.people_extra)})` : ""}</strong>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500 font-medium">Concept/Khung cảnh:</span>
+                    <strong className="text-slate-900 text-right max-w-[150px] truncate">{booking.concept || booking.scene || "Theo trao đổi với nhiếp ảnh gia"}</strong>
+                  </div>
+                </div>
+
+                {/* Box 2: Lịch trình & Địa điểm */}
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-2.5 shadow-sm">
+                  <h4 className="font-black text-[#ff8d28] text-xs uppercase tracking-wider border-b border-slate-100 pb-2">
+                    Lịch trình & Địa điểm
+                  </h4>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500 font-medium">Ngày thực hiện:</span>
+                    <strong className="text-slate-900">{formatDate(booking.shoot_date)}</strong>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500 font-medium">Giờ khởi hành:</span>
+                    <strong className="text-slate-900">{formatTime(booking.shoot_time)}</strong>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500 font-medium">Địa điểm chụp:</span>
+                    <strong className="text-slate-900 text-right max-w-[160px] truncate">{booking.location ? booking.location.split(" [Photos:")[0] : "Chưa chọn"}</strong>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500 font-medium">Hình thức cọc:</span>
+                    <strong className="text-slate-900">{booking.payment_method === "bank" ? "Chuyển khoản VietQR" : "Thanh toán MoMo/VnPay"}</strong>
+                  </div>
+                </div>
+
+                {/* Box 3: Thông tin người đặt & Tài chính */}
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-2.5 shadow-sm">
+                  <h4 className="font-black text-[#ff8d28] text-xs uppercase tracking-wider border-b border-slate-100 pb-2">
+                    Khách hàng & Tài chính
+                  </h4>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500 font-medium">Khách hàng:</span>
+                    <strong className="text-slate-900">{booking.customer_full_name}</strong>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500 font-medium">Số điện thoại:</span>
+                    <strong className="text-slate-900">{booking.customer_phone || "Chưa có"}</strong>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500 font-medium">Email:</span>
+                    <strong className="text-slate-900 truncate max-w-[150px]">{booking.customer_email || "Chưa có"}</strong>
+                  </div>
+                  <div className="flex justify-between border-t border-slate-100 pt-1.5">
+                    <span className="text-slate-500 font-medium">Tổng chi phí:</span>
+                    <strong className="text-[#0f172a] font-black">{formatCurrency(booking.estimated_total)}</strong>
+                  </div>
+                  <div className="flex justify-between text-red-500 font-semibold">
+                    <span>Phí sàn (10%):</span>
+                    <strong>-{formatCurrency(platformFeeCalc)}</strong>
+                  </div>
+                  <div className="flex justify-between text-emerald-600 font-black border-t border-slate-100 pt-1">
+                    <span>Thực nhận (90%):</span>
+                    <strong>{formatCurrency(photographerPayoutCalc)}</strong>
+                  </div>
+
+                  <div className="flex justify-between pt-1">
+                    <span className="text-slate-500 font-medium">Đã cọc:</span>
+                    <strong className="text-emerald-600 font-black">{formatCurrency(booking.deposit_amount)}</strong>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500 font-medium">Còn lại:</span>
+                    <strong className="text-[#ff8d28] font-black">{formatCurrency(booking.remaining_amount)}</strong>
+                  </div>
+
+                </div>
+              </div>
+
+              {/* Dịch vụ bổ sung Add-ons nếu có */}
+              {Array.isArray(booking.add_ons) && booking.add_ons.length > 0 && (
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <h4 className="font-black text-[#ff8d28] text-xs uppercase tracking-wider border-b border-slate-100 pb-2 mb-2.5">
+                    Dịch vụ bổ sung đã chọn ({booking.add_ons.length})
+                  </h4>
+                  <div className="flex flex-wrap gap-2">
+                    {booking.add_ons.map((addon: any, idx: number) => (
+                      <span key={idx} className="inline-flex items-center gap-1.5 rounded-xl border border-orange-200 bg-orange-50/70 px-3 py-1.5 text-[11.5px] font-bold text-[#ff8d28]">
+                        <span>{addon.name || addon.title}</span>
+                        <span className="text-[#e0751b]">(+{formatCurrency(addon.price)})</span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex items-center justify-end border-t border-[#eef2f7] bg-white px-6 py-3.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowDetails(false)}
+                className="rounded-xl border border-[#e2e8f0] bg-white px-5 py-2.5 text-xs font-black text-[#475569] shadow-sm hover:bg-slate-50 hover:border-[#ff8d28] hover:text-[#ff8d28] transition-all"
+              >
+                Đóng cửa sổ
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </article>
   );
 }
@@ -697,24 +944,35 @@ function MoneyRow({
   label,
   value,
   highlight,
+  isDeduction,
+  isPayout,
 }: {
   label: string;
   value: number | string | null | undefined;
   highlight?: boolean;
+  isDeduction?: boolean;
+  isPayout?: boolean;
 }) {
   return (
     <div className="flex items-center justify-between gap-4">
       <span className="text-[13px] font-bold text-[#64748b]">{label}</span>
       <span
         className={`text-[14px] font-black ${
-          highlight ? "text-[#ff8d28]" : "text-[#0f172a]"
+          isDeduction
+            ? "text-red-500"
+            : isPayout
+              ? "text-emerald-600"
+              : highlight
+                ? "text-[#ff8d28]"
+                : "text-[#0f172a]"
         }`}
       >
-        {formatCurrency(value)}
+        {isDeduction ? `-${formatCurrency(value)}` : formatCurrency(value)}
       </span>
     </div>
   );
 }
+
 
 function EmptyState({ hasPhotographerId }: { hasPhotographerId: boolean }) {
   return (

@@ -7,7 +7,9 @@ export type AuthUser = {
   email: string;
   phone?: string;
   role: UserRole;
+  avatar_url?: string;
   photographerId?: string;
+  kyc_verified?: number | boolean;
 };
 
 export type AuthSession = {
@@ -15,13 +17,27 @@ export type AuthSession = {
   fullName: string;
   email: string;
   role: UserRole;
+  avatar_url?: string;
   photographerId?: string;
+  phone?: string;
+  kyc_verified?: number | boolean;
 };
 
 type ApiResponse<T> = {
   success: boolean;
   message?: string;
+  code?: string;
+  retryAfter?: number;
+  attemptsRemaining?: number;
   data?: T;
+};
+
+export type RegisterOtpParams = {
+  fullName: string;
+  email: string;
+  password: string;
+  phone?: string;
+  role?: UserRole;
 };
 
 const API_URL =
@@ -30,8 +46,9 @@ const API_URL =
 const SESSION_KEY = "sudion_session";
 
 function normalizeRole(role: unknown): UserRole {
-  if (role === "photographer") return "photographer";
-  if (role === "admin") return "admin";
+  const normalized = String(role || "").trim().toLowerCase();
+  if (normalized === "photographer") return "photographer";
+  if (normalized === "admin" || normalized === "administrator" || normalized === "superadmin") return "admin";
   return "customer";
 }
 
@@ -43,11 +60,13 @@ function normalizeUser(raw: any): AuthUser {
     email: String(raw?.email || ""),
     phone: raw?.phone ? String(raw.phone) : "",
     role: normalizeRole(raw?.role),
+    avatar_url: raw?.avatar_url || "",
     photographerId: raw?.photographerId
       ? String(raw.photographerId)
       : raw?.photographer_id
         ? String(raw.photographer_id)
         : undefined,
+    kyc_verified: raw?.kyc_verified ? Number(raw.kyc_verified) : 0,
   };
 }
 
@@ -57,17 +76,24 @@ function makeSession(user: AuthUser): AuthSession {
     fullName: user.fullName,
     email: user.email,
     role: user.role,
+    avatar_url: user.avatar_url,
     photographerId: user.photographerId,
+    phone: user.phone,
+    kyc_verified: user.kyc_verified,
   };
 }
 
-function writeCompatStorage(user: AuthUser, session: AuthSession) {
+function writeCompatStorage(user: AuthUser, session: AuthSession, token?: string) {
   if (typeof window === "undefined") return;
 
   window.localStorage.setItem(SESSION_KEY, JSON.stringify(session));
   window.localStorage.setItem("sudion_user", JSON.stringify(user));
   window.localStorage.setItem("sudion_auth_user", JSON.stringify(user));
   window.localStorage.setItem("sudion_booking_email", user.email);
+
+  if (token) {
+    window.localStorage.setItem("sudion_token", token);
+  }
 
   if (user.role === "photographer" && user.photographerId) {
     window.localStorage.setItem("sudion_photographer_id", user.photographerId);
@@ -85,6 +111,11 @@ export function getSession(): AuthSession | null {
   }
 }
 
+export function getToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return window.localStorage.getItem("sudion_token");
+}
+
 export function setSession(session: AuthSession) {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(SESSION_KEY, JSON.stringify(session));
@@ -97,6 +128,117 @@ export function clearSession() {
   window.localStorage.removeItem("sudion_user");
   window.localStorage.removeItem("sudion_auth_user");
   window.localStorage.removeItem("sudion_photographer_id");
+  window.localStorage.removeItem("sudion_token");
+}
+
+export async function requestRegisterOtp(params: RegisterOtpParams) {
+  try {
+    const response = await fetch(`${API_URL}/auth/register/request-otp`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        fullName: params.fullName,
+        email: params.email,
+        password: params.password,
+        phone: params.phone,
+        role: params.role === "photographer" ? "photographer" : "customer",
+      }),
+    });
+
+    const result = (await response.json()) as ApiResponse<{
+      email?: string;
+      expiresIn?: number;
+      resendAfter?: number;
+      accepted?: boolean;
+      messageId?: string | null;
+      provider?: string;
+    }>;
+
+    if (!response.ok || !result.success) {
+      return {
+        ok: false as const,
+        error: result.message || "Không thể gửi mã OTP đăng ký.",
+        retryAfter: Number(result.retryAfter || 0),
+      };
+    }
+
+    return {
+      ok: true as const,
+      message: result.message || "Đã gửi mã OTP đến email của bạn.",
+      email: result.data?.email || params.email,
+      expiresIn: Number(result.data?.expiresIn || 300),
+      resendAfter: Number(result.data?.resendAfter || 60),
+    };
+  } catch (error: any) {
+    return {
+      ok: false as const,
+      error:
+        error?.message ||
+        "Không thể kết nối backend để gửi OTP. Vui lòng kiểm tra server.",
+      retryAfter: 0,
+    };
+  }
+}
+
+export async function verifyRegisterOtp(
+  params: RegisterOtpParams & { otp: string }
+) {
+  try {
+    const response = await fetch(`${API_URL}/auth/register/verify-otp`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        fullName: params.fullName,
+        email: params.email,
+        password: params.password,
+        phone: params.phone,
+        role: params.role === "photographer" ? "photographer" : "customer",
+        otp: params.otp,
+      }),
+    });
+
+    const result = (await response.json()) as ApiResponse<{
+      user: AuthUser;
+      token?: string;
+      emailVerified?: boolean;
+    }>;
+
+    if (!response.ok || !result.success) {
+      return {
+        ok: false as const,
+        error: result.message || "Mã OTP không hợp lệ.",
+        attemptsRemaining:
+          result.attemptsRemaining === undefined
+            ? undefined
+            : Number(result.attemptsRemaining),
+      };
+    }
+
+    const user = normalizeUser(result.data?.user);
+    const session = makeSession(user);
+    const token = result.data?.token;
+
+    writeCompatStorage(user, session, token);
+
+    return {
+      ok: true as const,
+      message: result.message || "Xác minh email và đăng ký thành công.",
+      user,
+      session,
+      emailVerified: Boolean(result.data?.emailVerified),
+    };
+  } catch (error: any) {
+    return {
+      ok: false as const,
+      error:
+        error?.message ||
+        "Không thể kết nối backend để xác minh OTP. Vui lòng kiểm tra server.",
+    };
+  }
 }
 
 export async function registerUser(params: {
@@ -123,6 +265,7 @@ export async function registerUser(params: {
 
     const result = (await response.json()) as ApiResponse<{
       user: AuthUser;
+      token?: string;
     }>;
 
     if (!response.ok || !result.success) {
@@ -134,8 +277,9 @@ export async function registerUser(params: {
 
     const user = normalizeUser(result.data?.user);
     const session = makeSession(user);
+    const token = result.data?.token;
 
-    writeCompatStorage(user, session);
+    writeCompatStorage(user, session, token);
 
     return {
       ok: true as const,
@@ -167,6 +311,7 @@ export async function loginUser(emailInput: string, password: string) {
 
     const result = (await response.json()) as ApiResponse<{
       user: AuthUser;
+      token?: string;
     }>;
 
     if (!response.ok || !result.success) {
@@ -178,8 +323,9 @@ export async function loginUser(emailInput: string, password: string) {
 
     const user = normalizeUser(result.data?.user);
     const session = makeSession(user);
+    const token = result.data?.token;
 
-    writeCompatStorage(user, session);
+    writeCompatStorage(user, session, token);
 
     return {
       ok: true as const,
@@ -195,3 +341,103 @@ export async function loginUser(emailInput: string, password: string) {
     };
   }
 }
+
+export async function refreshSessionFromServer() {
+  try {
+    const token = getToken();
+
+    if (!token) {
+      return getSession();
+    }
+
+    const response = await fetch(`${API_URL}/auth/me`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      cache: "no-store",
+    });
+
+    const result = (await response.json()) as ApiResponse<{
+      user: AuthUser;
+    }>;
+
+    if (!response.ok || !result.success || !result.data?.user) {
+      if (response.status === 401) {
+        clearSession();
+        return null;
+      }
+      return getSession();
+    }
+
+    const user = normalizeUser(result.data.user);
+    const session = makeSession(user);
+    const refreshedToken = (result.data as any)?.token;
+    writeCompatStorage(user, session, refreshedToken);
+
+    return session;
+  } catch {
+    return getSession();
+  }
+}
+
+export async function loginWithGoogleCredential(credential: string) {
+  try {
+    const response = await fetch(`${API_URL}/auth/google`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ credential }),
+    });
+
+    const result = (await response.json()) as ApiResponse<{
+      user: AuthUser;
+      token?: string;
+    }>;
+
+    if (!response.ok || !result.success) {
+      return {
+        ok: false as const,
+        error: result.message || "Đăng nhập bằng Google thất bại.",
+      };
+    }
+
+    const user = normalizeUser(result.data?.user);
+    const session = makeSession(user);
+    const token = result.data?.token;
+
+    writeCompatStorage(user, session, token);
+
+    return {
+      ok: true as const,
+      user,
+      session,
+    };
+  } catch (error: any) {
+    return {
+      ok: false as const,
+      error:
+        error?.message ||
+        "Không thể kết nối máy chủ Google auth. Vui lòng thử lại.",
+    };
+  }
+}
+
+export function googleLoginFE(customEmail?: string, customName?: string) {
+  const email = customEmail || "user.google@gmail.com";
+  const fullName = customName || "Khách hàng Google";
+  const user: AuthUser = {
+    id: `google_${Date.now()}`,
+    userId: `google_${Date.now()}`,
+    fullName,
+    email,
+    role: "customer",
+    avatar_url: "https://lh3.googleusercontent.com/a/default-user=s96-c",
+    phone: "0900000000",
+  };
+  const session = makeSession(user);
+  writeCompatStorage(user, session, `google_fe_token_${Date.now()}`);
+  return { ok: true as const, user, session };
+}
+
+

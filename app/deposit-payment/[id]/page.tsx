@@ -1,21 +1,47 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState, use } from "react";
+import { useEffect, useMemo, useState, use, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/app/toast-context";
+import {
+  getBookingFromBackend,
+  type BackendBooking,
+} from "@/app/services/booking-api";
 
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
-type Booking = {
+type PaymentMethod = "momo" | "vnpay" | "bank";
+
+type PaymentInfo = {
   booking_code: string;
-  photographer_name: string;
-  service_name: string;
+  status: string;
+  payment_method: string | null;
+  total_amount: number;
   deposit_amount: number;
   remaining_amount: number;
-  estimated_total: number;
-  status: string;
+  deposit_status: string;
+  final_status: string;
+  secure_payloads?: {
+    deposit?: {
+      bookingCode: string;
+      paymentType: string;
+      amount: number;
+      signature: string;
+    };
+    final?: {
+      bookingCode: string;
+      paymentType: string;
+      amount: number;
+      signature: string;
+    };
+  };
+  bank_info?: {
+    bank_name: string;
+    account_number: string;
+    account_name: string;
+    transfer_content: string;
+  };
 };
 
 type ApiResponse<T> = {
@@ -24,124 +50,153 @@ type ApiResponse<T> = {
   data: T;
 };
 
-type PaymentMethod = "momo" | "vnpay" | "bank";
-
-const paymentMethods: {
+const PAYMENT_METHODS: {
   id: PaymentMethod;
   label: string;
-  description: string;
+  desc: string;
   mark: string;
 }[] = [
-  {
-    id: "momo",
-    label: "MoMo",
-    description: "Thanh toán ví điện tử",
-    mark: "M",
-  },
-  {
-    id: "vnpay",
-    label: "VNPay",
-    description: "Quét mã QR ngân hàng",
-    mark: "QR",
-  },
-  {
-    id: "bank",
-    label: "Chuyển khoản",
-    description: "Chuyển khoản thủ công",
-    mark: "B",
-  },
-];
+    {
+      id: "momo",
+      label: "MoMo",
+      desc: "Ví điện tử MoMo",
+      mark: "M",
+    },
+    {
+      id: "vnpay",
+      label: "VNPay",
+      desc: "Quét mã QR ngân hàng",
+      mark: "QR",
+    },
+    {
+      id: "bank",
+      label: "Chuyển khoản",
+      desc: "Chuyển khoản thủ công",
+      mark: "TK",
+    },
+  ];
 
-const statusMap: Record<
+const STATUS_MAP: Record<
   string,
   {
     label: string;
-    className: string;
+    color: string;
     dot: string;
   }
 > = {
   awaiting_payment: {
-    label: "Chờ photographer xác nhận",
-    className: "border-amber-200 bg-amber-50 text-amber-700",
-    dot: "bg-amber-500",
+    label: "Chờ xác nhận",
+    color: "border-amber-200 bg-amber-50 text-amber-700",
+    dot: "bg-amber-400",
   },
   accepted: {
     label: "Chờ thanh toán cọc",
-    className: "border-blue-200 bg-blue-50 text-blue-700",
+    color: "border-blue-200 bg-blue-50 text-blue-700",
     dot: "bg-blue-500",
   },
   confirmed: {
     label: "Đã thanh toán cọc",
-    className: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    color: "border-emerald-200 bg-emerald-50 text-emerald-700",
     dot: "bg-emerald-500",
   },
   completed: {
-    label: "Đã hoàn thành buổi chụp",
-    className: "border-purple-200 bg-purple-50 text-purple-700",
+    label: "Đã hoàn thành",
+    color: "border-purple-200 bg-purple-50 text-purple-700",
     dot: "bg-purple-500",
   },
   fully_paid: {
     label: "Đã thanh toán đủ",
-    className: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    color: "border-emerald-200 bg-emerald-50 text-emerald-700",
     dot: "bg-emerald-500",
   },
   rejected: {
     label: "Đã từ chối",
-    className: "border-red-200 bg-red-50 text-red-700",
-    dot: "bg-red-500",
+    color: "border-red-200 bg-red-50 text-red-700",
+    dot: "bg-red-400",
   },
   cancelled: {
     label: "Đã hủy",
-    className: "border-slate-200 bg-slate-50 text-slate-600",
+    color: "border-slate-200 bg-slate-50 text-slate-500",
     dot: "bg-slate-400",
   },
 };
 
-function formatCurrency(value: number | string | null | undefined) {
-  return `${Number(value || 0).toLocaleString("vi-VN")} VND`;
+const FALLBACK_BANK = {
+  id: "TCB",
+  account: "19075748293011",
+  name: "TRAN THIEN VU",
+  bankName: "Techcombank",
+};
+
+function fmt(value: number | string | null | undefined) {
+  return `${Number(value || 0).toLocaleString("vi-VN")} VNĐ`;
 }
 
-function getStatusInfo(status: string) {
+function statusInfo(status: string) {
   return (
-    statusMap[status] || {
+    STATUS_MAP[status] ?? {
       label: status,
-      className: "border-slate-200 bg-slate-50 text-slate-600",
+      color: "border-slate-200 bg-slate-50 text-slate-600",
       dot: "bg-slate-400",
     }
   );
 }
 
-async function getBooking(bookingCode: string) {
-  const response = await fetch(`${API_URL}/bookings/${bookingCode}`, {
-    method: "GET",
-    cache: "no-store",
-  });
-
-  const json: ApiResponse<Booking> = await response.json();
-
-  if (!response.ok || !json.success) {
-    throw new Error(json.message || "Không thể lấy booking.");
+function formatDate(value: string | null | undefined) {
+  if (!value) {
+    return "Chưa chọn";
   }
 
-  return json.data;
+  const cleanValue = String(value).split("T")[0];
+  const date = new Date(`${cleanValue}T00:00:00`);
+
+  if (Number.isNaN(date.getTime())) {
+    return cleanValue;
+  }
+
+  return date.toLocaleDateString("vi-VN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
 }
 
-async function payDeposit(bookingCode: string, paymentMethod: string) {
-  const response = await fetch(
-    `${API_URL}/bookings/${bookingCode}/confirm-payment`,
-    {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ paymentMethod }),
-    }
-  );
+function formatTime(value: string | null | undefined, endValue?: string | null | undefined) {
+  if (!value) {
+    return "Chưa chọn";
+  }
 
-  const json: ApiResponse<Booking> = await response.json();
+  const text = String(value).trim();
+  const endText = endValue ? String(endValue).trim() : "";
+  const rangeMatch = text.match(/(\d{1,2}:\d{2})\s*(?:-|–|—|đến|to)\s*(\d{1,2}:\d{2})/i);
+  if (rangeMatch) {
+    return `${rangeMatch[1]} - ${rangeMatch[2]}`;
+  }
 
-  if (!response.ok || !json.success) {
-    throw new Error(json.message || "Không thể thanh toán cọc.");
+  if (endText && /\d{1,2}:\d{2}/.test(endText)) {
+    return `${text} - ${endText}`;
+  }
+
+  return text.slice(0, 5);
+}
+
+async function fetchPaymentInfo(code: string): Promise<PaymentInfo> {
+  const token = typeof window !== 'undefined' ? window.localStorage.getItem('sudion_token') : null;
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const res = await fetch(`${API_URL}/payments/${code}`, {
+    method: "GET",
+    cache: "no-store",
+    headers,
+  });
+
+  const json: ApiResponse<PaymentInfo> = await res.json();
+
+  if (!res.ok || !json.success) {
+    throw new Error(json.message || "Không thể tải thông tin thanh toán.");
   }
 
   return json.data;
@@ -154,484 +209,498 @@ export default function DepositPaymentPage({
 }) {
   const router = useRouter();
   const toast = useToast();
+  const { id: bookingCode } = use(params);
 
-  const unwrappedParams = use(params);
-  const bookingCode = unwrappedParams.id;
-
-  const [booking, setBooking] = useState<Booking | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("momo");
+  const [booking, setBooking] = useState<BackendBooking | null>(null);
+  const [paymentInfo, setPaymentInfo] = useState<PaymentInfo | null>(null);
+  const [method, setMethod] = useState<PaymentMethod>("bank");
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
-  const [pageError, setPageError] = useState("");
+  const [error, setError] = useState("");
+
+  const selectedMethod =
+    PAYMENT_METHODS.find((item) => item.id === method) || PAYMENT_METHODS[0];
+
+  const totalAmount = Number(
+    paymentInfo?.total_amount || booking?.estimated_total || 0
+  );
+
+  const payAmount = Number(
+    paymentInfo?.deposit_amount || booking?.deposit_amount || 0
+  );
+
+  const remainingAmount = Number(
+    paymentInfo?.remaining_amount || booking?.remaining_amount || 0
+  );
+
+  const depositPercent =
+    totalAmount > 0 ? Math.round((payAmount / totalAmount) * 100) : 50;
+
+  const currentStatus = paymentInfo?.status || booking?.status || "";
+  const si = statusInfo(currentStatus);
+
+  const canPay =
+    paymentInfo?.deposit_status !== "paid" &&
+    ["awaiting_payment", "accepted"].includes(currentStatus);
+
+  const bankName = paymentInfo?.bank_info?.bank_name || FALLBACK_BANK.bankName;
+  const accountNumber =
+    paymentInfo?.bank_info?.account_number || FALLBACK_BANK.account;
+  const accountName =
+    paymentInfo?.bank_info?.account_name || FALLBACK_BANK.name;
+  const transferContent =
+    paymentInfo?.bank_info?.transfer_content || `STUDION ${bookingCode}`;
+
+  const qrUrl = `https://img.vietqr.io/image/${FALLBACK_BANK.id}-${accountNumber}-compact.png?amount=${payAmount}&addInfo=${encodeURIComponent(
+    transferContent
+  )}&accountName=${encodeURIComponent(accountName)}`;
+
+  async function loadPageData() {
+    try {
+      setLoading(true);
+      setError("");
+
+      if (!bookingCode) {
+        throw new Error("Thiếu mã booking.");
+      }
+
+      const [bookingData, paymentData] = await Promise.all([
+        getBookingFromBackend(bookingCode),
+        fetchPaymentInfo(bookingCode),
+      ]);
+
+      setBooking(bookingData);
+      setPaymentInfo(paymentData);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Không thể tải trang thanh toán.";
+
+      setError(message);
+      toast.error("Lỗi", message);
+      setBooking(null);
+      setPaymentInfo(null);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    async function loadBooking() {
-      try {
-        if (!bookingCode) {
-          throw new Error("Thiếu mã booking.");
-        }
-
-        setLoading(true);
-        setPageError("");
-
-        const data = await getBooking(bookingCode);
-        setBooking(data);
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Không thể lấy booking.";
-
-        setPageError(message);
-        toast.error("Không thể tải booking", message);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    void loadBooking();
-  }, [bookingCode, toast]);
-
-  const canPay = booking?.status === "accepted";
-
-  const selectedMethod = useMemo(() => {
-    return (
-      paymentMethods.find((item) => item.id === paymentMethod) ||
-      paymentMethods[0]
-    );
-  }, [paymentMethod]);
+    void loadPageData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bookingCode]);
 
   async function handlePay() {
-    if (!booking) return;
+    if (!paymentInfo) {
+      return;
+    }
 
     try {
       setPaying(true);
-      setPageError("");
+      setError("");
 
-      const updatedBooking = await payDeposit(
-        booking.booking_code,
-        paymentMethod
+      if (!canPay) {
+        throw new Error("Booking không ở trạng thái phù hợp để thanh toán cọc.");
+      }
+
+      const depositPayload = paymentInfo.secure_payloads?.deposit;
+      if (!depositPayload) {
+        throw new Error("Không tìm thấy chữ ký bảo mật từ hệ thống.");
+      }
+
+      router.push(
+        `/checkout-gateway?bookingCode=${paymentInfo.booking_code}&paymentType=deposit&amount=${paymentInfo.deposit_amount}&method=${method}&signature=${depositPayload.signature}`
       );
-
-      toast.success(
-        "Thanh toán cọc thành công",
-        `Booking ${updatedBooking.booking_code} đã được thanh toán cọc.`
-      );
-
-      router.push("/bookings");
-    } catch (error) {
+    } catch (err) {
       const message =
-        error instanceof Error ? error.message : "Không thể thanh toán cọc.";
+        err instanceof Error ? err.message : "Thanh toán cọc thất bại.";
 
-      setPageError(message);
-      toast.error("Thanh toán cọc thất bại", message);
-    } finally {
+      setError(message);
+      toast.error("Lỗi thanh toán", message);
       setPaying(false);
     }
   }
 
   if (loading) {
-    return <LoadingScreen />;
+    return <Skeleton />;
   }
 
-  if (pageError && !booking) {
-    return <ErrorState message={pageError} />;
+  if (error && !booking && !paymentInfo) {
+    return <ErrorScreen msg={error} />;
   }
 
-  if (!booking) return null;
-
-  const statusInfo = getStatusInfo(booking.status);
+  if (!booking || !paymentInfo) {
+    return null;
+  }
 
   return (
-    <main className="min-h-screen bg-[#f8fafc] px-5 py-10 text-[#0f172a] sm:py-14">
-      <section className="mx-auto grid w-full max-w-[1180px] gap-6 lg:grid-cols-[minmax(0,1fr)_390px] lg:items-start">
-        <div className="overflow-hidden rounded-[30px] border border-[#e2e8f0] bg-white shadow-[0_24px_80px_rgba(15,23,42,0.08)]">
-          <div className="relative overflow-hidden bg-[#111827] px-6 py-8 text-white sm:px-8">
-            <div className="absolute right-[-90px] top-[-90px] h-[260px] w-[260px] rounded-full bg-[#ff8d28]/25 blur-3xl" />
-            <div className="absolute bottom-[-120px] left-[20%] h-[260px] w-[260px] rounded-full bg-white/10 blur-3xl" />
+    <main className="min-h-screen bg-[#f4f6fa] px-4 py-10 text-[#0f172a] sm:py-14">
+      <div className="mx-auto grid max-w-[960px] gap-5 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start overflow-hidden">
+        <div className="overflow-hidden rounded-2xl border border-[#e2e8f0] bg-white shadow-sm">
+          <div className="relative overflow-hidden bg-[#111827] px-6 py-7 text-white">
+            <div className="absolute -right-16 -top-16 h-56 w-56 rounded-full bg-[#ff8d28]/20 blur-3xl" />
 
-            <div className="relative">
-              <div className="flex flex-wrap items-center gap-3">
-                <p className="text-[12px] font-black uppercase tracking-[0.18em] text-[#ffb267]">
-                  Deposit payment
-                </p>
+            <span className="relative text-[11px] font-black uppercase tracking-widest text-[#ffb267]">
+              Deposit Payment
+            </span>
 
-                <StatusBadge
-                  label={statusInfo.label}
-                  className={statusInfo.className}
-                  dot={statusInfo.dot}
-                />
-              </div>
+            <div className="relative mt-3 flex flex-wrap items-center gap-3">
+              <h1 className="text-2xl font-black">Thanh toán cọc</h1>
 
-              <h1 className="mt-4 max-w-[680px] text-[34px] font-black leading-[1.05] tracking-[-0.04em] sm:text-[46px]">
-                Thanh toán cọc 50%
-              </h1>
-
-              <p className="mt-4 max-w-[680px] text-[14px] font-semibold leading-7 text-white/70">
-                Chỉ thanh toán cọc sau khi photographer đã xác nhận lịch. Sau
-                khi thanh toán, booking sẽ được giữ lịch trong hệ thống.
-              </p>
+              <span
+                className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-bold ${si.color}`}
+              >
+                <span className={`h-1.5 w-1.5 rounded-full ${si.dot}`} />
+                {si.label}
+              </span>
             </div>
+
+            <p className="relative mt-2 text-[13px] font-medium leading-relaxed text-white/60">
+              Thanh toán cọc qua API bảo mật mới. Hệ thống sẽ ghi nhận payment,
+              cập nhật trạng thái booking và lưu lịch sử thanh toán.
+            </p>
           </div>
 
-          <div className="grid gap-5 p-6 sm:p-8">
-            <div className="grid gap-4 rounded-[24px] border border-[#eef2f7] bg-[#fbfcff] p-5">
-              <SectionTitle
-                eyebrow="Thông tin booking"
-                title="Chi tiết yêu cầu đặt lịch"
-              />
+          <div className="grid gap-4 p-5 sm:p-6">
+            <Section label="Thông tin đặt lịch">
+              <div className="grid gap-3 sm:grid-cols-3">
+                <Field title="Mã booking" value={booking.booking_code} />
+                <Field title="Photographer" value={booking.photographer_name} />
+                <Field title="Dịch vụ" value={booking.service_name} />
+              </div>
 
-              <div className="grid gap-3 sm:grid-cols-2">
-                <InfoCard label="Mã booking" value={booking.booking_code} />
-                <InfoCard
-                  label="Photographer"
-                  value={booking.photographer_name}
+              <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                <Field title="Ngày chụp" value={formatDate(booking.shoot_date)} />
+                <Field title="Giờ chụp" value={formatTime(booking.shoot_time, booking.shoot_end_time)} />
+                <Field title="Địa điểm" value={booking.location || "Chưa chọn"} />
+              </div>
+            </Section>
+
+            <Section label="Số tiền thanh toán">
+              <div className="grid gap-3">
+                <MoneyBox label="Tổng tiền" value={fmt(totalAmount)} />
+
+                <MoneyBox
+                  label={`Tiền cọc ${depositPercent}%`}
+                  value={fmt(payAmount)}
+                  highlight
                 />
-                <div className="sm:col-span-2">
-                  <InfoCard label="Dịch vụ" value={booking.service_name} />
+
+                <MoneyBox
+                  label="Còn lại sau buổi chụp"
+                  value={fmt(remainingAmount)}
+                />
+
+                <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] px-4 py-3">
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-[13px] font-semibold text-[#64748b]">
+                      Trạng thái cọc
+                    </span>
+
+                    <span
+                      className={`text-[13px] font-black ${paymentInfo.deposit_status === "paid"
+                          ? "text-emerald-600"
+                          : "text-amber-600"
+                        }`}
+                    >
+                      {paymentInfo.deposit_status}
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
+            </Section>
 
-            <div className="grid gap-4 rounded-[24px] border border-[#ffedd5] bg-[#fff7ed] p-5">
-              <SectionTitle
-                eyebrow="Số tiền thanh toán"
-                title="Cọc trước để giữ lịch"
-              />
-
-              <div className="grid gap-3">
-                <MoneyRow label="Tổng tiền" value={booking.estimated_total} />
-                <MoneyRow
-                  label="Thanh toán cọc 50%"
-                  value={booking.deposit_amount}
-                  strong
-                />
-                <MoneyRow
-                  label="Còn lại sau khi cọc"
-                  value={booking.remaining_amount}
-                />
-              </div>
-            </div>
-
-            <div className="grid gap-4 rounded-[24px] border border-[#eef2f7] bg-white p-5">
-              <SectionTitle
-                eyebrow="Phương thức"
-                title="Chọn cách thanh toán"
-              />
-
-              <div className="grid gap-3 sm:grid-cols-3">
-                {paymentMethods.map((item) => (
+            <Section label="Phương thức thanh toán">
+              <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                {PAYMENT_METHODS.map((item) => (
                   <button
                     key={item.id}
                     type="button"
-                    onClick={() => setPaymentMethod(item.id)}
-                    className={`rounded-[18px] border p-4 text-left transition-all ${
-                      paymentMethod === item.id
-                        ? "border-[#ff8d28] bg-[#fff7ed] shadow-[0_12px_28px_rgba(255,141,40,0.12)]"
+                    onClick={() => setMethod(item.id)}
+                    className={`rounded-xl border p-3 text-left transition-all ${method === item.id
+                        ? "border-[#ff8d28] bg-[#fff7ed]"
                         : "border-[#e2e8f0] bg-white hover:border-[#ffcfaa]"
-                    }`}
+                      }`}
                   >
                     <span
-                      className={`grid h-10 w-10 place-items-center rounded-full text-[13px] font-black ${
-                        paymentMethod === item.id
+                      className={`grid h-8 w-8 place-items-center rounded-full text-[11px] font-black ${method === item.id
                           ? "bg-[#ff8d28] text-white"
                           : "bg-[#f1f5f9] text-[#64748b]"
-                      }`}
+                        }`}
                     >
                       {item.mark}
                     </span>
 
-                    <span className="mt-3 block text-[14px] font-black text-[#0f172a]">
+                    <p className="mt-2 text-[13px] font-black text-[#0f172a]">
                       {item.label}
-                    </span>
+                    </p>
 
-                    <span className="mt-1 block text-[12px] font-semibold leading-5 text-[#64748b]">
-                      {item.description}
-                    </span>
+                    <p className="text-[11px] font-medium text-[#94a3b8]">
+                      {item.desc}
+                    </p>
                   </button>
                 ))}
               </div>
 
-              <PaymentPreview
-                method={selectedMethod.label}
-                bookingCode={booking.booking_code}
-                amount={booking.deposit_amount}
-              />
-            </div>
+              <div className="mt-3 rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-4">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                  <div className="flex shrink-0 flex-col items-center">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={qrUrl}
+                      alt="QR VietQR"
+                      className="h-[120px] w-[120px] rounded-lg border border-[#e2e8f0] bg-white object-contain"
+                    />
 
-            {pageError ? (
-              <div className="rounded-[18px] border border-red-200 bg-red-50 px-4 py-3 text-[13px] font-bold text-red-600">
-                {pageError}
+                    <span className="mt-1.5 text-[10px] font-bold uppercase tracking-wide text-[#94a3b8]">
+                      Quét VietQR
+                    </span>
+                  </div>
+
+                  <div className="grid min-w-0 gap-1.5 text-[12px] leading-5 text-[#64748b]">
+                    <p>
+                      Phương thức:{" "}
+                      <strong className="text-[#0f172a]">
+                        {selectedMethod.label}
+                      </strong>
+                    </p>
+
+                    <p>
+                      Ngân hàng:{" "}
+                      <strong className="text-[#0f172a]">{bankName}</strong>
+                    </p>
+
+                    <p>
+                      Số tài khoản:{" "}
+                      <strong className="select-all text-[#0f172a]">
+                        {accountNumber}
+                      </strong>
+                    </p>
+
+                    <p>
+                      Chủ tài khoản:{" "}
+                      <strong className="text-[#0f172a]">{accountName}</strong>
+                    </p>
+
+                    <p className="mt-1">Nội dung chuyển khoản:</p>
+
+                    <span className="inline-block w-fit select-all rounded-lg border border-orange-100 bg-[#fff7ed] px-3 py-1 text-[13px] font-black text-[#ff8d28]">
+                      {transferContent}
+                    </span>
+
+                    <p className="mt-1">
+                      Số tiền:{" "}
+                      <strong className="text-[#ff8d28]">
+                        {fmt(payAmount)}
+                      </strong>
+                    </p>
+                  </div>
+                </div>
               </div>
-            ) : null}
+            </Section>
 
-            {!canPay ? (
-              <div className="rounded-[18px] border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] font-bold leading-6 text-amber-700">
-                Booking này chưa ở trạng thái chờ thanh toán cọc. Photographer
-                cần xác nhận lịch trước, sau đó bạn mới có thể thanh toán cọc.
+            {error && (
+              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[13px] font-bold text-red-600">
+                {error}
               </div>
-            ) : null}
+            )}
 
-            <div className="grid gap-3 sm:grid-cols-2">
+            {!canPay && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] font-semibold leading-6 text-amber-700">
+                {paymentInfo.deposit_status === "paid"
+                  ? "Booking này đã thanh toán cọc rồi."
+                  : "Booking cần ở trạng thái awaiting_payment hoặc accepted để thanh toán cọc."}
+              </div>
+            )}
+
+            <div className="flex flex-wrap gap-3">
               <button
                 type="button"
                 onClick={handlePay}
                 disabled={!canPay || paying}
-                className="rounded-[16px] bg-[#ff8d28] px-5 py-4 text-[14px] font-black text-white shadow-[0_14px_30px_rgba(255,141,40,0.22)] transition-all hover:-translate-y-0.5 hover:bg-[#e0751b] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
+                className="min-w-[160px] flex-1 rounded-xl bg-[#ff8d28] px-5 py-3.5 text-[14px] font-black text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-[#e0751b] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
               >
-                {paying ? "Đang xử lý..." : "Xác nhận thanh toán cọc"}
+                {paying
+                  ? "Đang xử lý..."
+                  : paymentInfo.deposit_status === "paid"
+                    ? "Đã thanh toán cọc"
+                    : "Xác nhận thanh toán cọc"}
               </button>
 
               <Link
                 href="/bookings"
-                className="rounded-[16px] border border-[#e2e8f0] bg-white px-5 py-4 text-center text-[14px] font-black text-[#334155] transition-all hover:border-[#ffcfaa] hover:text-[#ff8d28]"
+                className="min-w-[120px] flex-1 rounded-xl border border-[#e2e8f0] bg-white px-5 py-3.5 text-center text-[14px] font-black text-[#334155] transition hover:border-[#ff8d28] hover:text-[#ff8d28]"
               >
-                Quay lại booking
+                Quay lại
               </Link>
             </div>
           </div>
         </div>
 
-        <aside className="rounded-[30px] border border-[#e2e8f0] bg-white p-6 shadow-[0_24px_80px_rgba(15,23,42,0.06)] lg:sticky lg:top-[100px]">
-          <p className="text-[12px] font-black uppercase tracking-[0.18em] text-[#ff8d28]">
-            Payment summary
+        <aside className="rounded-2xl border border-[#e2e8f0] bg-white p-5 shadow-sm lg:sticky lg:top-[88px]">
+          <p className="text-[11px] font-black uppercase tracking-widest text-[#ff8d28]">
+            Quy trình
           </p>
 
-          <h2 className="mt-3 text-[26px] font-black tracking-[-0.04em] text-[#0f172a]">
-            Tóm tắt thanh toán
-          </h2>
+          <div className="mt-3 grid gap-1.5">
+            {[
+              {
+                status: "awaiting_payment",
+                title: "Gửi yêu cầu",
+              },
+              {
+                status: "accepted",
+                title: "Xác nhận lịch",
+              },
+              {
+                status: "confirmed",
+                title: "Thanh toán cọc",
+              },
+              {
+                status: "completed",
+                title: "Thực hiện chụp",
+              },
+              {
+                status: "fully_paid",
+                title: "Hoàn tất",
+              },
+            ].map((step, index) => {
+              const order = [
+                "awaiting_payment",
+                "accepted",
+                "confirmed",
+                "completed",
+                "fully_paid",
+              ];
 
-          <div className="mt-5 grid gap-3 rounded-[22px] border border-[#eef2f7] bg-[#fbfcff] p-5">
-            <SummaryRow label="Mã booking" value={booking.booking_code} />
-            <SummaryRow label="Trạng thái" value={statusInfo.label} />
-            <SummaryRow label="Phương thức" value={selectedMethod.label} />
+              const currentIndex = order.indexOf(currentStatus);
+              const stepIndex = order.indexOf(step.status);
+              const done = currentIndex > stepIndex;
+              const active =
+                currentStatus === step.status ||
+                (currentStatus === "accepted" && step.status === "confirmed");
+
+              return (
+                <div
+                  key={step.status}
+                  className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 text-[12.5px] transition-all ${active
+                      ? "border-[#ffcfaa] bg-[#fff7ed] font-black text-[#0f172a]"
+                      : "border-[#eef2f7] font-semibold text-[#94a3b8]"
+                    }`}
+                >
+                  <span
+                    className={`grid h-5 w-5 shrink-0 place-items-center rounded-full text-[10px] font-black ${done
+                        ? "bg-[#ff8d28] text-white"
+                        : active
+                          ? "border border-[#ff8d28] text-[#ff8d28]"
+                          : "bg-[#e2e8f0] text-[#94a3b8]"
+                      }`}
+                  >
+                    {done ? "✓" : index + 1}
+                  </span>
+
+                  {step.title}
+                </div>
+              );
+            })}
           </div>
 
-          <div className="mt-5 grid gap-3 rounded-[22px] border border-[#ffedd5] bg-[#fff7ed] p-5">
-            <SummaryRow
-              label="Tổng tiền"
-              value={formatCurrency(booking.estimated_total)}
-            />
-            <SummaryRow
-              label="Cần thanh toán"
-              value={formatCurrency(booking.deposit_amount)}
-              strong
-            />
-            <SummaryRow
-              label="Còn lại"
-              value={formatCurrency(booking.remaining_amount)}
-            />
+          <p className="mt-5 text-[11px] font-black uppercase tracking-widest text-[#ff8d28]">
+            Tóm tắt
+          </p>
+
+          <div className="mt-3 grid gap-2 rounded-xl border border-[#eef2f7] bg-[#f8fafc] p-4 text-[12px]">
+            <SRow label="Mã booking" value={booking.booking_code} />
+            <SRow label="Trạng thái" value={si.label} />
+            <SRow label="Thanh toán" value={selectedMethod.label} />
+
+            <div className="mt-1 border-t border-[#e2e8f0] pt-2">
+              <SRow label="Tổng tiền" value={fmt(totalAmount)} />
+              <SRow label="Cần cọc" value={fmt(payAmount)} strong />
+              <SRow label="Còn lại" value={fmt(remainingAmount)} />
+            </div>
           </div>
 
-          <div className="mt-5 rounded-[22px] border border-[#dbeafe] bg-blue-50 p-5">
-            <p className="text-[13px] font-black text-blue-700">
+          <div className="mt-4 rounded-xl border border-blue-100 bg-blue-50 p-4">
+            <p className="text-[12px] font-black text-blue-700">
               Chính sách hoàn cọc
             </p>
 
-            <p className="mt-2 text-[13px] font-semibold leading-6 text-blue-700/80">
-              Bạn có thể hủy trước 48 giờ để được xét hoàn cọc theo chính sách
-              của hệ thống.
+            <p className="mt-1 text-[12px] font-medium leading-5 text-blue-600/80">
+              Hủy trước 48 giờ để được xét hoàn cọc theo chính sách hệ thống.
             </p>
           </div>
         </aside>
-      </section>
-    </main>
-  );
-}
-
-function LoadingScreen() {
-  return (
-    <main className="min-h-screen bg-[#f8fafc] px-5 py-12">
-      <section className="mx-auto grid max-w-[1180px] gap-6 lg:grid-cols-[minmax(0,1fr)_390px]">
-        <div className="overflow-hidden rounded-[30px] border border-[#e2e8f0] bg-white shadow-[0_24px_80px_rgba(15,23,42,0.08)]">
-          <div className="h-[220px] animate-pulse bg-[#111827]" />
-
-          <div className="grid gap-5 p-6 sm:p-8">
-            <div className="h-[150px] animate-pulse rounded-[24px] bg-[#eef2f7]" />
-            <div className="h-[180px] animate-pulse rounded-[24px] bg-[#eef2f7]" />
-            <div className="h-[220px] animate-pulse rounded-[24px] bg-[#eef2f7]" />
-          </div>
-        </div>
-
-        <div className="hidden h-[420px] animate-pulse rounded-[30px] bg-white lg:block" />
-      </section>
-    </main>
-  );
-}
-
-function ErrorState({ message }: { message: string }) {
-  return (
-    <main className="grid min-h-screen place-items-center bg-[#f8fafc] px-5">
-      <div className="w-full max-w-[460px] rounded-[28px] border border-[#e2e8f0] bg-white p-7 text-center shadow-[0_24px_80px_rgba(15,23,42,0.08)]">
-        <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-red-50 text-[24px] font-black text-red-600">
-          !
-        </div>
-
-        <h1 className="mt-5 text-[26px] font-black tracking-[-0.04em] text-[#0f172a]">
-          Không thể mở thanh toán
-        </h1>
-
-        <p className="mt-2 text-[14px] font-bold leading-6 text-red-600">
-          {message}
-        </p>
-
-        <Link
-          href="/bookings"
-          className="mt-6 inline-flex rounded-[14px] bg-[#ff8d28] px-5 py-3 text-[14px] font-black text-white shadow-[0_12px_28px_rgba(255,141,40,0.2)]"
-        >
-          Về booking
-        </Link>
       </div>
     </main>
   );
 }
 
-function SectionTitle({
-  eyebrow,
-  title,
-}: {
-  eyebrow: string;
-  title: string;
-}) {
+function Section({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div>
-      <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#ff8d28]">
-        {eyebrow}
-      </p>
-
-      <h2 className="mt-1 text-[20px] font-black tracking-[-0.03em] text-[#0f172a]">
-        {title}
-      </h2>
-    </div>
-  );
-}
-
-function StatusBadge({
-  label,
-  className,
-  dot,
-}: {
-  label: string;
-  className: string;
-  dot: string;
-}) {
-  return (
-    <span
-      className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-black ${className}`}
-    >
-      <span className={`h-2 w-2 rounded-full ${dot}`} />
-      {label}
-    </span>
-  );
-}
-
-function InfoCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-[18px] border border-[#eef2f7] bg-white px-4 py-3">
-      <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#94a3b8]">
+    <div className="grid gap-3 rounded-xl border border-[#eef2f7] bg-[#fbfcff] p-4">
+      <p className="text-[11px] font-black uppercase tracking-widest text-[#ff8d28]">
         {label}
       </p>
 
-      <p className="mt-1 break-words text-[15px] font-black text-[#0f172a]">
-        {value}
+      {children}
+    </div>
+  );
+}
+
+function Field({
+  title,
+  value,
+}: {
+  title: string;
+  value: string | number | null | undefined;
+}) {
+  return (
+    <div className="rounded-xl border border-[#eef2f7] bg-white px-3 py-2.5">
+      <p className="text-[10px] font-black uppercase tracking-wider text-[#94a3b8]">
+        {title}
+      </p>
+
+      <p className="mt-0.5 break-words text-[14px] font-black text-[#0f172a]">
+        {value || "Chưa có"}
       </p>
     </div>
   );
 }
 
-function MoneyRow({
+function MoneyBox({
   label,
   value,
-  strong,
+  highlight,
 }: {
   label: string;
-  value: number;
-  strong?: boolean;
+  value: string;
+  highlight?: boolean;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4 rounded-[16px] bg-white px-4 py-3">
-      <p className="text-[13px] font-bold text-[#64748b]">{label}</p>
-
-      <p
-        className={`text-right font-black ${
-          strong ? "text-[20px] text-[#ff8d28]" : "text-[16px] text-[#111827]"
+    <div
+      className={`flex items-center justify-between rounded-xl border px-4 py-3 ${highlight
+          ? "border-[#ffedd5] bg-[#fff7ed]"
+          : "border-[#e2e8f0] bg-[#f8fafc]"
         }`}
+    >
+      <span
+        className={`text-[13px] font-semibold ${highlight ? "text-[#92400e]" : "text-[#64748b]"
+          }`}
       >
-        {formatCurrency(value)}
-      </p>
+        {label}
+      </span>
+
+      <span
+        className={`font-black ${highlight ? "text-[18px] text-[#ff8d28]" : "text-[15px] text-[#0f172a]"
+          }`}
+      >
+        {value}
+      </span>
     </div>
   );
 }
 
-function PaymentPreview({
-  method,
-  bookingCode,
-  amount,
-}: {
-  method: string;
-  bookingCode: string;
-  amount: number;
-}) {
-  const bankId = "TCB"; // Techcombank
-  const accountNo = "0762682989";
-  const accountName = "TRAN THIEN VU";
-  
-  // URL to generate VietQR image dynamically
-  const qrUrl = `https://img.vietqr.io/image/${bankId}-${accountNo}-compact.png?amount=${amount}&addInfo=${encodeURIComponent(bookingCode)}&accountName=${encodeURIComponent(accountName)}`;
-
-  return (
-    <div className="rounded-[22px] border border-[#eef2f7] bg-[#fbfcff] p-5">
-      <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-        {/* QR Code Container */}
-        <div className="flex flex-col items-center justify-center shrink-0">
-          <div className="relative overflow-hidden rounded-[22px] border-2 border-[#ff8d28]/20 bg-white p-2 shadow-sm transition hover:border-[#ff8d28]/60">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={qrUrl}
-              alt="Mã QR Thanh Toán VietQR"
-              className="h-[140px] w-[140px] object-contain rounded-lg"
-              title="Quét mã QR để thanh toán"
-            />
-          </div>
-          <span className="mt-2 block text-[10px] font-black uppercase tracking-wider text-slate-400">
-            Quét mã VietQR
-          </span>
-        </div>
-
-        <div className="min-w-0 flex-1">
-          <p className="text-[14px] font-black text-[#0f172a] flex items-center gap-2">
-            <span className="inline-block h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            Thanh toán qua {method === "momo" ? "ví MoMo (QR Chuyển khoản)" : method === "vnpay" ? "cổng VNPay / Ngân hàng" : "Chuyển khoản Techcombank"}
-          </p>
-
-          <div className="mt-3 grid gap-2 text-[12px] leading-5 text-[#64748b]">
-            <p>
-              Tên ngân hàng: <strong className="text-[#0f172a]">Techcombank (Ngân hàng Kỹ thương)</strong>
-            </p>
-            <p>
-              Số tài khoản: <strong className="text-[#0f172a] select-all">0762682989</strong>
-            </p>
-            <p>
-              Chủ tài khoản: <strong className="text-[#0f172a]">TRAN THIEN VU</strong>
-            </p>
-            <div className="mt-1">
-              <span className="block text-[11px] font-semibold text-[#64748b]">Nội dung chuyển khoản (bắt buộc chính xác):</span>
-              <span className="mt-1 inline-block rounded-[8px] border border-orange-100 bg-[#fff7ed] px-3 py-1.5 text-[13px] font-black text-[#ff8d28] select-all">
-                {bookingCode}
-              </span>
-            </div>
-            <p className="mt-2 text-slate-900 font-semibold">
-              Số tiền:{" "}
-              <span className="font-black text-[#ff8d28] text-sm">
-                {formatCurrency(amount)}
-              </span>
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function SummaryRow({
+function SRow({
   label,
   value,
   strong,
@@ -641,16 +710,64 @@ function SummaryRow({
   strong?: boolean;
 }) {
   return (
-    <div className="flex items-start justify-between gap-4">
-      <span className="text-[12px] font-bold text-[#64748b]">{label}</span>
+    <div className="flex items-start justify-between gap-3">
+      <span className="font-semibold text-[#64748b]">{label}</span>
 
       <span
-        className={`max-w-[210px] text-right text-[13px] font-black leading-5 ${
-          strong ? "text-[#ff8d28]" : "text-[#0f172a]"
-        }`}
+        className={`text-right font-black ${strong ? "text-[#ff8d28]" : "text-[#0f172a]"
+          }`}
       >
         {value}
       </span>
     </div>
+  );
+}
+
+function Skeleton() {
+  return (
+    <main className="min-h-screen bg-[#f4f6fa] px-4 py-10">
+      <div className="mx-auto grid max-w-[960px] gap-5 lg:grid-cols-[1fr_320px]">
+        <div className="overflow-hidden rounded-2xl border border-[#e2e8f0] bg-white shadow-sm">
+          <div className="h-[160px] animate-pulse bg-[#111827]" />
+
+          <div className="grid gap-4 p-5">
+            {[150, 180, 200].map((height) => (
+              <div
+                key={height}
+                style={{ height }}
+                className="animate-pulse rounded-xl bg-[#eef2f7]"
+              />
+            ))}
+          </div>
+        </div>
+
+        <div className="hidden h-[400px] animate-pulse rounded-2xl bg-white lg:block" />
+      </div>
+    </main>
+  );
+}
+
+function ErrorScreen({ msg }: { msg: string }) {
+  return (
+    <main className="grid min-h-screen place-items-center bg-[#f4f6fa] px-4">
+      <div className="w-full max-w-[420px] rounded-2xl border border-[#e2e8f0] bg-white p-7 text-center shadow-sm">
+        <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-red-50 text-xl font-black text-red-600">
+          !
+        </div>
+
+        <h1 className="mt-4 text-xl font-black text-[#0f172a]">
+          Không thể tải trang
+        </h1>
+
+        <p className="mt-2 text-[13px] font-medium text-red-500">{msg}</p>
+
+        <Link
+          href="/bookings"
+          className="mt-5 inline-flex rounded-xl bg-[#ff8d28] px-5 py-2.5 text-[13px] font-black text-white"
+        >
+          Về booking
+        </Link>
+      </div>
+    </main>
   );
 }

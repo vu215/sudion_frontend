@@ -1,18 +1,26 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useRef, useEffect, type ReactNode } from "react";
 import { useAuth } from "@/app/auth-context";
-import { AiConsultantWidget } from "./ai-consultant-widget";
+import { ScrollToTop } from "./scroll-to-top";
+import { ErrorBoundary } from "./error-boundary";
+import { NotificationBell } from "./notification-bell";
 
 const containerClass = "w-full max-w-[1440px] mx-auto px-6 md:px-12 lg:px-20";
+const AiConsultantWidget = dynamic(
+  () => import("./ai-consultant-widget").then((module) => module.AiConsultantWidget),
+  { ssr: false, loading: () => null },
+);
 
 const headerLinks = [
   { href: "/", label: "Trang chủ" },
   { href: "/about", label: "Về chúng tôi" },
   { href: "/photographer", label: "Photographer" },
   { href: "/services", label: "Dịch vụ" },
+  { href: "/products", label: "Mua máy ảnh" },
   { href: "/news", label: "Tin tức" },
 ];
 
@@ -34,32 +42,60 @@ export function AppShell({ children }: { children: ReactNode }) {
     pathname.startsWith("/profilephotographer") ||
     pathname.startsWith("/admin");
 
+  const isNoFooterPage = pathname.startsWith("/messages");
+
   if (isStandalonePage) {
     return <>{children}</>;
   }
 
   return (
     <>
+      <a href="#main-content" className="skip-to-content">
+        Bỏ qua đến nội dung chính
+      </a>
       <Header pathname={pathname} />
-      <div className="pt-[76px] lg:pt-[88px]">{children}</div>
-      <Footer />
-      {mounted && <AiConsultantWidget />}
+      <div id="main-content" className="pt-[76px] lg:pt-[88px]">
+        <ErrorBoundary>{children}</ErrorBoundary>
+      </div>
+      {!isNoFooterPage && <Footer />}
+      {mounted && !isNoFooterPage && <AiConsultantWidget />}
+      {!isNoFooterPage && <ScrollToTop />}
     </>
   );
 }
+
+import { getCartCount } from "@/app/cart-store";
+import { serviceCategories } from "@/app/services/service-data";
+import { getBookingCartCount } from "@/app/booking-cart-store";
 
 function Header({ pathname }: { pathname: string }) {
   const router = useRouter();
   const { session, logout } = useAuth();
   const [mounted, setMounted] = useState(false);
+  const [cartCount, setCartCount] = useState(0);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    const updateTotalCount = () => {
+      setCartCount(getCartCount() + getBookingCartCount());
+    };
+    updateTotalCount();
+    window.addEventListener("cartUpdated", updateTotalCount);
+    window.addEventListener("bookingCartUpdated", updateTotalCount);
+    return () => {
+      window.removeEventListener("cartUpdated", updateTotalCount);
+      window.removeEventListener("bookingCartUpdated", updateTotalCount);
+    };
+  }, []);
+
   const [mobileOpen, setMobileOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -82,6 +118,26 @@ function Header({ pathname }: { pathname: string }) {
       inputRef.current?.focus();
     }
   }, [searchOpen]);
+
+  const normalize = (v: string) =>
+    v
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/\p{Diacritic}/gu, "")
+      .trim();
+
+  const filteredServices = searchOpen
+    ? searchQuery.trim()
+      ? serviceCategories.filter((s) => {
+          const q = normalize(searchQuery);
+          const inTitle = normalize(s.title).includes(q);
+          const inShort = normalize(s.shortTitle || "").includes(q);
+          const inEyebrow = normalize(s.eyebrow || "").includes(q);
+          const inTags = (s.tags || []).some((t) => normalize(t).includes(q));
+          return inTitle || inShort || inEyebrow || inTags;
+        })
+      : serviceCategories.slice(0, 6)
+    : [];
 
   const initials = session?.fullName
     ? session.fullName.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2)
@@ -108,6 +164,43 @@ function Header({ pathname }: { pathname: string }) {
             const active =
               link.href === "/" ? pathname === "/" : !link.href.includes("#") && pathname.startsWith(link.href);
 
+            if (link.href === "/services") {
+              return (
+                <div key={link.label} className="relative group flex items-center py-2 h-full">
+                  <span
+                    className={`border-b-2 pb-1 transition-all cursor-pointer ${
+                      pathname.startsWith("/services")
+                        ? "border-[#ff8d28] text-[#ff8d28]"
+                        : "border-transparent hover:text-[#0e111d]"
+                    }`}
+                  >
+                    {link.label}
+                  </span>
+                  <div className="absolute top-full left-1/2 -translate-x-1/2 pt-2 hidden group-hover:block w-48 z-50">
+                    <div className="rounded-xl border border-[#e8eaf1] bg-white shadow-lg py-2">
+                      {[
+                        { href: "/services/wedding", label: "Cưới hỏi" },
+                        { href: "/services/couple", label: "Cặp đôi" },
+                        { href: "/services/portrait", label: "Chân dung cá nhân" },
+                        { href: "/services/event", label: "Sự kiện" },
+                        { href: "/services/yearbook", label: "Kỷ yếu" },
+                        { href: "/services/travel", label: "Travel" },
+                        { href: "/services/food", label: "Food & Product" },
+                      ].map((sub) => (
+                        <Link
+                          key={sub.label}
+                          href={sub.href}
+                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-orange-50 hover:text-[#ff8d28] transition-colors"
+                        >
+                          {sub.label}
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+
             return (
               <Link
                 key={link.label}
@@ -133,7 +226,7 @@ function Header({ pathname }: { pathname: string }) {
                 setSearchOpen(false);
                 setSearchQuery("");
               }}
-              className={`flex items-center overflow-hidden rounded-xl border bg-white shadow-sm transition-all duration-300 ${searchOpen
+              className={`relative flex items-center overflow-visible rounded-xl border bg-white shadow-sm transition-all duration-300 ${searchOpen
                   ? "w-[280px] border-[#ff8d28] ring-2 ring-[#ff8d28]/10"
                   : "w-10 border-[#e8eaf1]"
                 }`}
@@ -156,8 +249,56 @@ function Header({ pathname }: { pathname: string }) {
                 className={`h-10 flex-1 bg-transparent pr-3 text-sm text-[#0e111d] outline-none placeholder:text-[#9ca3af] transition-all duration-300 ${searchOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none w-0"
                   }`}
               />
+              {/* Suggestions dropdown */}
+              {searchOpen && (filteredServices.length > 0 || searchQuery) && (
+                <div className="absolute left-0 top-full mt-1 w-full rounded-b-xl rounded-t-none border border-slate-200 bg-white shadow-lg z-50 max-h-56 overflow-auto">
+                  <ul className="py-1">
+                    {filteredServices.length > 0 ? (
+                      filteredServices.map((s) => (
+                        <li key={s.slug}>
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              router.push(`/services/${s.slug}`);
+                              setSearchOpen(false);
+                              setSearchQuery("");
+                            }}
+                            className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3"
+                          >
+                            <span className="min-w-0 flex-1 truncate">{s.title}</span>
+                            <span className="inline-block text-[11px] text-slate-400">{s.shortTitle}</span>
+                          </button>
+                        </li>
+                      ))
+                    ) : (
+                      <li className="px-4 py-2 text-sm text-gray-500">Không có gợi ý</li>
+                    )}
+                  </ul>
+                </div>
+              )}
             </form>
           </div>
+
+          {/* Notification Bell */}
+          {mounted && session && <NotificationBell />}
+
+          {/* Cart Icon */}
+          {mounted && (
+            <Link
+              href="/cart"
+              className="relative inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#e8eaf1] text-[#4b5563] hover:border-[#ff8d28] hover:text-[#ff8d28] transition-colors"
+              aria-label="Giỏ hàng"
+            >
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+              {cartCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-[#ff8d28] text-[10px] font-black text-white border-2 border-white animate-pulse">
+                  {cartCount}
+                </span>
+              )}
+            </Link>
+          )}
 
           {mounted && !session ? (
             <Link
@@ -203,6 +344,20 @@ function Header({ pathname }: { pathname: string }) {
                       Dashboard nhiếp ảnh gia
                     </Link>
                   )}
+                  <Link href="/profile" onClick={() => setDropdownOpen(false)}
+                    className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                    Hồ sơ của tôi
+                  </Link>
+                  <Link href="/user" onClick={() => setDropdownOpen(false)}
+                    className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                    </svg>
+                    Lịch sử đặt hàng
+                  </Link>
                   <Link href="/bookings" onClick={() => setDropdownOpen(false)}
                     className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
                     <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -286,10 +441,54 @@ function Header({ pathname }: { pathname: string }) {
         </div>
 
         {/* Mobile Nav Links */}
-        <nav className="flex flex-col px-3 py-3">
+        <nav className="flex flex-col px-3 py-3 gap-1">
           {headerLinks.map((link) => {
             const active =
               link.href === "/" ? pathname === "/" : !link.href.includes("#") && pathname.startsWith(link.href);
+
+            if (link.href === "/services") {
+              return (
+                <div key={link.label} className="flex flex-col">
+                  <div
+                    className={`flex items-center gap-3 rounded-xl px-4 py-3 text-[15px] font-bold transition-colors ${
+                      pathname.startsWith("/services")
+                        ? "text-[#ff8d28] bg-orange-50/30"
+                        : "text-gray-700 hover:bg-gray-50"
+                    }`}
+                  >
+                    <span>{link.label}</span>
+                  </div>
+                  <div className="flex flex-col pl-6 border-l border-gray-100 ml-4 mt-1 space-y-1">
+                    {[
+                      { href: "/services/wedding", label: "Cưới hỏi" },
+                      { href: "/services/couple", label: "Cặp đôi" },
+                      { href: "/services/portrait", label: "Chân dung cá nhân" },
+                      { href: "/services/event", label: "Sự kiện" },
+                      { href: "/services/yearbook", label: "Kỷ yếu" },
+                      { href: "/services/travel", label: "Travel" },
+                      { href: "/services/food", label: "Food & Product" },
+                    ].map((sub) => {
+                      const subActive = pathname === sub.href;
+                      return (
+                        <Link
+                          key={sub.label}
+                          href={sub.href}
+                          onClick={() => setMobileOpen(false)}
+                          className={`block px-4 py-2 text-sm font-semibold rounded-lg transition-colors ${
+                            subActive
+                              ? "text-[#ff8d28] bg-orange-50/50"
+                              : "text-gray-600 hover:text-[#ff8d28] hover:bg-gray-50"
+                          }`}
+                        >
+                          {sub.label}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            }
+
             return (
               <Link
                 key={link.label}
@@ -339,10 +538,33 @@ function Header({ pathname }: { pathname: string }) {
                 </Link>
               )}
               <Link
+                href="/profile"
+                onClick={() => setMobileOpen(false)}
+                className="flex items-center gap-2.5 rounded-xl px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                Hồ sơ của tôi
+              </Link>
+              <Link
+                href="/user"
+                onClick={() => setMobileOpen(false)}
+                className="flex items-center gap-2.5 rounded-xl px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                </svg>
+                Lịch sử đặt hàng
+              </Link>
+              <Link
                 href="/bookings"
                 onClick={() => setMobileOpen(false)}
                 className="flex items-center gap-2.5 rounded-xl px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
               >
+                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
                 Lịch đặt của tôi
               </Link>
               <button
@@ -391,15 +613,23 @@ function Footer() {
               {column.title}
             </p>
             <div className="mt-4 space-y-3.5">
-              {column.links.map((link) => (
-                <Link
-                  key={link}
-                  href={column.title === "Dịch vụ" ? "/services" : column.title === "Công ty" ? "/about" : "/support"}
-                  className="block text-[14px] font-semibold text-gray-400 transition-colors hover:text-white"
-                >
-                  {link}
-                </Link>
-              ))}
+              {column.links.map((link) => {
+                let href = "/";
+                if (column.title === "Dịch vụ") href = "/services";
+                else if (column.title === "Công ty") href = "/about";
+                else if (link === "Điều khoản dịch vụ" || link === "Chính sách bảo mật") href = "/terms";
+                else href = "/support";
+
+                return (
+                  <Link
+                    key={link}
+                    href={href}
+                    className="block text-[14px] font-semibold text-gray-400 transition-colors hover:text-white"
+                  >
+                    {link}
+                  </Link>
+                );
+              })}
             </div>
           </div>
         ))}

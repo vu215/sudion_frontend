@@ -303,7 +303,7 @@ function ServiceListingPage({
             </div>
 
             <h1
-              className="mt-5 max-w-[15ch] text-[40px] font-black leading-[1.18] text-[#0e111d] sm:text-[48px] lg:text-[56px]"
+              className="mt-5 max-w-[14ch] text-[38px] font-black leading-[1.12] text-[#0e111d] sm:max-w-[18ch] sm:text-[46px] lg:max-w-[720px] lg:text-[56px]"
               style={fadeUpStyle(isReady, 180)}
             >
               {serviceTitle}
@@ -320,13 +320,13 @@ function ServiceListingPage({
               className="mt-7 flex flex-wrap gap-3"
               style={fadeUpStyle(isReady, 380)}
             >
-              <span className="rounded-full bg-[#fff4eb] px-4 py-2 text-[13px] font-black text-[#ff8d28]">
+              {/* <span className="rounded-full bg-[#fff4eb] px-4 py-2 text-[13px] font-black text-[#ff8d28]">
                 {packages.length} gói từ database
               </span>
 
               <span className="rounded-full bg-[#eef1f7] px-4 py-2 text-[13px] font-black text-[#475467]">
                 Ảnh / tên lấy từ DB
-              </span>
+              </span> */}
             </div>
           </div>
 

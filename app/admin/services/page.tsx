@@ -50,7 +50,7 @@ export default function ServicesPage() {
         const result = await api.services.getAll(params);
 
         if (result.success && result.data) {
-          setItems(result.data as any);
+          setItems(result.data as Service[]);
           setPagination(result.pagination);
         }
       } catch (error) {
@@ -67,7 +67,7 @@ export default function ServicesPage() {
     async function loadStats() {
       const result = await api.services.getStats();
       if (result.success) {
-        setStats(result.data as any);
+        setStats(result.data);
       }
     }
     loadStats();
@@ -85,9 +85,19 @@ export default function ServicesPage() {
   }
 
   async function handleUpdateStatus(id: number, newStatus: Status) {
-    // Status toggle is disabled since database doesn't support it
-    notify("Tính năng này tạm thời không khả dụng");
-    return;
+    try {
+      const result = await api.services.updateStatus(id, newStatus);
+
+      if (result.success) {
+        patch(id, { status: newStatus });
+        notify(result.message || "Đã cập nhật trạng thái dịch vụ.");
+      } else {
+        notify(result.message || result.error || "Không thể cập nhật trạng thái.");
+      }
+    } catch (error) {
+      notify("Lỗi khi cập nhật trạng thái dịch vụ.");
+      console.error(error);
+    }
   }
 
   function openAddModal() {

@@ -69,9 +69,9 @@ export default function ForgotPasswordPage() {
                 <form onSubmit={handleSubmit} className="grid gap-4.5">
                   <div className="grid gap-1.5">
                     <span className="text-[13px] font-bold text-[#1a1b24]">Email</span>
-                    <span className="relative block">
-                      <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#9ca3af]">
-                        <EmailIcon />
+                    <div className="flex items-center gap-3 rounded-xl border border-[#e2e8f0] bg-white px-3 py-[0.25rem]">
+                      <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#f8fafc] text-[#9ca3af]">
+                        <EmailIcon className="h-5 w-5" />
                       </span>
                       <input
                         type="email"
@@ -79,9 +79,9 @@ export default function ForgotPasswordPage() {
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="name@example.com"
-                        className="!h-11 !min-h-0 w-full rounded-xl !border !border-[#e2e8f0] bg-white px-4 pl-11 !text-sm font-medium text-[#1a1b24] outline-none transition focus:border-[#ff8d28] focus:bg-white focus:ring-2 focus:ring-[#ff8d28]/10"
+                        className="flex-1 h-11 min-h-0 rounded-xl border-0 bg-transparent px-3 text-sm font-medium text-[#1a1b24] outline-none transition focus:outline-none"
                       />
-                    </span>
+                    </div>
                   </div>
 
                   <button
@@ -166,9 +166,9 @@ function ApertureIcon() {
   );
 }
 
-function EmailIcon() {
+function EmailIcon({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 20 20" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <svg viewBox="0 0 20 20" className={className || "h-4.5 w-4.5"} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <rect x="3" y="4" width="14" height="12" rx="2" />
       <path d="m4 6 6 4 6-4" />
     </svg>

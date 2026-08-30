@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useState, Suspense, type FormEvent } from "react";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/app/auth-context";
+import { GoogleAuthButton } from "@/app/components/google-auth-button";
+
 
 const assets = {
   coupleBot:
@@ -19,7 +21,7 @@ export default function LoginPage() {
 }
 
 function LoginContent() {
-  const { login, transitionTo } = useAuth();
+  const { login, loginWithGoogle, transitionTo } = useAuth();
   const searchParams = useSearchParams();
 
   const [email, setEmail] = useState("");
@@ -27,6 +29,11 @@ function LoginContent() {
 
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  function handleGoogleLogin() {
+    setError("Tính năng Đăng nhập bằng Google đang được nâng cấp và chờ kết nối từ Back-End. Vui lòng đăng nhập bằng Email bên dưới!");
+  }
+
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -48,17 +55,8 @@ function LoginContent() {
       return;
     }
 
-    if (result.user && result.user.role === "photographer") {
-      transitionTo("/photographer-dashboard");
-      return;
-    }
-
-    const redirect = searchParams.get("redirect") || "";
-    if (redirect) {
-      transitionTo(redirect);
-    } else {
-      transitionTo("/");
-    }
+    // Always navigate to homepage after successful login
+    transitionTo("/");
   }
 
   return (
@@ -81,7 +79,7 @@ function LoginContent() {
                 Nâng tầm câu chuyện hình ảnh của bạn.
               </h2>
               <p className="mt-1 text-[10px] font-medium leading-relaxed text-white/70">
-                Đăng nhập bằng tài khoản đã lưu trong database.
+                Đăng nhập bằng tài khoản của bạn tại Sudion.
               </p>
             </div>
           </div>
@@ -146,11 +144,23 @@ function LoginContent() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="flex items-center justify-center !h-11 w-full rounded-xl bg-[#ff8d28] hover:bg-[#e9791d] text-sm font-bold text-white shadow-sm transition duration-200 disabled:opacity-60"
+                  className="flex items-center justify-center !h-11 w-full rounded-xl bg-[#ff8d28] hover:bg-[#e9791d] text-sm font-bold text-white shadow-sm transition duration-200 disabled:opacity-60 cursor-pointer"
                 >
                   {loading ? "Đang đăng nhập..." : "Đăng nhập"}
                 </button>
               </form>
+
+              <div className="relative my-4">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-[#e2e8f0]" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-white px-2 text-[#64748b] font-medium">Hoặc đăng nhập bằng</span>
+                </div>
+              </div>
+
+              <GoogleAuthButton buttonText="Đăng nhập bằng Google" onError={setError} />
+
 
               <p className="mt-5 text-center text-xs font-semibold text-[#444655]">
                 Chưa có tài khoản?{" "}
@@ -171,4 +181,4 @@ function LoginContent() {
       </div>
     </main>
   );
-}
+}

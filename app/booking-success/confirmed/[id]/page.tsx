@@ -145,8 +145,8 @@ export default function BookingSuccessConfirmedPage({
                     booking.reference_file_name
                       ? `/uploads/${booking.reference_file_name}`
                       : `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                          booking.photographer_name
-                        )}&background=ffffff&color=333&size=128`
+                        booking.photographer_name
+                      )}&background=ffffff&color=333&size=128`
                   }
                   alt={booking.photographer_name}
                   className="h-20 w-20 rounded-lg object-cover"
@@ -165,9 +165,7 @@ export default function BookingSuccessConfirmedPage({
 
               <div className="mt-6 grid gap-3 rounded-[8px] bg-[#fffaf5] p-4">
                 <div className="flex items-center gap-3">
-                  <div className="rounded-full bg-[#fff3e6] p-2 text-[#ff8d28]">
-                    📅
-                  </div>
+
 
                   <div>
                     <div className="text-[13px] font-semibold">Ngày hẹn</div>
@@ -178,9 +176,7 @@ export default function BookingSuccessConfirmedPage({
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <div className="rounded-full bg-[#fff3e6] p-2 text-[#ff8d28]">
-                    ⏰
-                  </div>
+
 
                   <div>
                     <div className="text-[13px] font-semibold">Thời gian</div>
@@ -191,9 +187,6 @@ export default function BookingSuccessConfirmedPage({
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <div className="rounded-full bg-[#fff3e6] p-2 text-[#ff8d28]">
-                    🎞️
-                  </div>
 
                   <div>
                     <div className="text-[13px] font-semibold">
@@ -206,10 +199,6 @@ export default function BookingSuccessConfirmedPage({
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <div className="rounded-full bg-[#fff3e6] p-2 text-[#ff8d28]">
-                    📍
-                  </div>
-
                   <div>
                     <div className="text-[13px] font-semibold">Địa điểm</div>
                     <div className="text-[13px] text-[#475569]">
@@ -219,9 +208,7 @@ export default function BookingSuccessConfirmedPage({
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <div className="rounded-full bg-[#fff3e6] p-2 text-[#ff8d28]">
-                    ✅
-                  </div>
+
 
                   <div>
                     <div className="text-[13px] font-semibold">
@@ -243,7 +230,7 @@ export default function BookingSuccessConfirmedPage({
                   )}&bookingId=${encodeURIComponent(booking.booking_code)}`}
                   className="inline-flex items-center gap-2 rounded-[10px] bg-[#ff8d28] px-5 py-3 text-[14px] font-black text-white shadow-md"
                 >
-                  <span>💬</span>
+
                   <span>Nhắn tin ngay</span>
                 </Link>
 
