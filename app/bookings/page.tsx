@@ -39,6 +39,7 @@ type BackendBooking = {
   location: string | null;
   shoot_date: string | null;
   shoot_time: string | null;
+  shoot_end_time: string | null;
   people_scale: string | null;
   people_extra: number;
   scene: string | null;

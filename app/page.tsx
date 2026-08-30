@@ -894,7 +894,7 @@ function Hero() {
           {/* Thể loại (search + suggestions) */}
           <div className="flex-1 min-w-0 relative" ref={heroRef}>
             <div className="relative">
-              <div className="flex min-h-[46px] md:min-h-[40px] items-center gap-2.5 px-4 bg-white rounded-full border border-slate-100 w-full">
+              <div className="flex min-h-[46px] md:min-h-[40px] items-center gap-2.5 px-4 rounded-full w-full">
                 <span className="grid h-5 w-5 shrink-0 place-items-center text-slate-800">
                   <HeroFieldIcon type="camera" />
                 </span>
@@ -1006,7 +1006,7 @@ function Hero() {
 }
 function SearchField({ icon, labelText, onClick }: { icon: React.ReactNode; labelText: string; onClick?: () => void }) {
   return (
-    <div onClick={onClick} className="flex min-h-[46px] md:min-h-[40px] items-center gap-2.5 px-4 bg-white md:bg-transparent rounded-full md:rounded-none border border-slate-100 md:border-0 w-full cursor-pointer select-none">
+    <div onClick={onClick} className="flex min-h-[46px] md:min-h-[40px] items-center gap-2.5 px-4 rounded-full md:rounded-none w-full cursor-pointer select-none">
       <span className="grid h-5 w-5 shrink-0 place-items-center text-slate-800">{icon}</span>
       <span className="min-w-0 flex-1 text-sm font-bold text-slate-800 truncate">
         {labelText}
