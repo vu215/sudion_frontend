@@ -289,15 +289,28 @@ export const api = {
   settings: {
     getAll: () => request('/admin/settings'),
     getByKey: (key: string) => request(`/admin/settings/${key}`),
-<<<<<<< Updated upstream
     getByCategory: (category: string) => request(`/admin/settings/category/${category}`),
     getPaymentSettings: () => request('/admin/settings/payment'),
     update: (key: string, value: any, description?: string, category?: string, value_type?: string) =>
       request(`/admin/settings/${key}`, {
         method: 'PUT',
         body: JSON.stringify({ value, description, category, value_type }),
-=======
-    update: (key: string, value: any) => request(`/admin/settings/${key}`, { method: 'PUT', body: JSON.stringify({ value }) }),
+      }),
+    updatePaymentSettings: (data: any) =>
+      request('/admin/settings/payment', {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+    bulkUpdate: (settings: any[]) =>
+      request('/admin/settings/bulk-update', {
+        method: 'POST',
+        body: JSON.stringify({ settings }),
+      }),
+    resetToDefaults: (category?: string) =>
+      request('/admin/settings/reset', {
+        method: 'POST',
+        body: JSON.stringify({ category }),
+      }),
     delete: (key: string) => request(`/admin/settings/${key}`, { method: 'DELETE' }),
   },
 
@@ -337,23 +350,6 @@ export const api = {
       request('/payments/promote', {
         method: 'POST',
         body: JSON.stringify({ packageType }),
->>>>>>> Stashed changes
       }),
-    updatePaymentSettings: (data: any) =>
-      request('/admin/settings/payment', {
-        method: 'PUT',
-        body: JSON.stringify(data),
-      }),
-    bulkUpdate: (settings: any[]) =>
-      request('/admin/settings/bulk-update', {
-        method: 'POST',
-        body: JSON.stringify({ settings }),
-      }),
-    resetToDefaults: (category?: string) =>
-      request('/admin/settings/reset', {
-        method: 'POST',
-        body: JSON.stringify({ category }),
-      }),
-    delete: (key: string) => request(`/admin/settings/${key}`, { method: 'DELETE' }),
   },
 };

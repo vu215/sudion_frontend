@@ -13,13 +13,10 @@ const navItems = [
   ["Booking", "/admin/booking", "M7 3v3M17 3v3M4 8h16M6 5h12a2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V7a2 2 0 012-2z"],
   ["Thanh toán", "/admin/payments", "M3 7h18v10H3zM3 10h18M7 15h3"],
   ["Hoàn tiền", "/admin/refunds", "M9 14l-4-4 4-4M5 10h10a4 4 0 010 8h-2M19 6v4h-4"],
-<<<<<<< Updated upstream
-=======
   ["Voucher", "/admin/vouchers", "M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82zM7 7h.01"],
   ["Banner Quảng cáo", "/admin/banners", "M4 5h16a1 1 0 011 1v12a1 1 0 01-1 1H4a1 1 0 01-1-1V6a1 1 0 011-1z M4 9h16"],
   ["Chiến dịch AI", "/admin/campaigns", "M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"],
   ["Quản lý Tin tức", "/admin/news", "M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10l4 4v10a2 2 0 01-2 2z M12 11h4 M12 15h4 M8 11h.01 M8 15h.01"],
->>>>>>> Stashed changes
   ["Report / Khiếu nại", "/admin/reports", "M6 3h9l3 3v15H6zM15 3v4h4M9 12h6"],
   ["AI Moderation", "/admin/ai-moderation", "M12 3l8 4v6c0 4-3.5 7-8 8s-8-4-8-8V7zM9 12l2 2 4-5"],
   ["Đánh giá", "/admin/reviews", "M12 3l2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.4 6.4 20.2l1.1-6.2L3 9.6l6.2-.9z"],

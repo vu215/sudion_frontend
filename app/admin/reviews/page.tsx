@@ -70,7 +70,7 @@ export default function ReviewsPage() {
 
       const result = await api.reviews.getAll(params);
       if (result.success && result.data) {
-        setItems(result.data);
+        setItems(result.data as any);
       } else {
         setItems(seed);
       }
@@ -86,7 +86,7 @@ export default function ReviewsPage() {
     try {
       const result = await api.reviews.getStats();
       if (result.success && result.data) {
-        setStats(result.data);
+        setStats(result.data as any);
       }
     } catch (error) {
       console.error("Error loading stats:", error);

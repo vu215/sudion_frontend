@@ -65,7 +65,7 @@ export default function PhotographerPage() {
       const result = await api.photographers.getAll({ page, pageSize: 10 });
       
       if (result.success && result.data) {
-        const transformedData = result.data.map((p: any) => ({
+        const transformedData = (result.data as any).map((p: any) => ({
           id: p.id,
           studio: p.studio || p.studio_name || p.name,
           name: p.name,

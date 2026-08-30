@@ -76,7 +76,7 @@ export default function RefundsPage() {
 
       const result = await api.refunds.getAll(params);
       if (result.success && result.data) {
-        setItems(result.data);
+        setItems(result.data as any);
       }
     } catch (error) {
       console.error("Error loading refunds:", error);
@@ -89,7 +89,7 @@ export default function RefundsPage() {
     try {
       const result = await api.refunds.getStats();
       if (result.success && result.data) {
-        setStats(result.data);
+        setStats(result.data as any);
       }
     } catch (error) {
       console.error("Error loading stats:", error);

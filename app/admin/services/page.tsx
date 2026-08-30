@@ -50,7 +50,7 @@ export default function ServicesPage() {
         const result = await api.services.getAll(params);
 
         if (result.success && result.data) {
-          setItems(result.data);
+          setItems(result.data as any);
           setPagination(result.pagination);
         }
       } catch (error) {
@@ -67,7 +67,7 @@ export default function ServicesPage() {
     async function loadStats() {
       const result = await api.services.getStats();
       if (result.success) {
-        setStats(result.data);
+        setStats(result.data as any);
       }
     }
     loadStats();

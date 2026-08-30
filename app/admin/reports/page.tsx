@@ -94,7 +94,7 @@ export default function ReportsPage() {
       const result = await api.reports.getAll(params);
       if (result.success && result.data && Array.isArray(result.data)) {
         // Transform backend data to frontend format
-        const transformedData: Report[] = result.data.map((item: any) => ({
+        const transformedData: Report[] = (result.data as any).map((item: any) => ({
           id: item.report_id || item.id,
           reporter: item.reporter_name || "Unknown",
           reporterAvatar: avatars[Math.floor(Math.random() * avatars.length)],

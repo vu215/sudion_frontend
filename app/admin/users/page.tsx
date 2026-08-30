@@ -61,7 +61,7 @@ export default function AdminUsersPage() {
 
       const result = await api.users.getAll(params);
       if (result.success && result.data) {
-        setUsers(result.data);
+        setUsers(result.data as any);
       }
     } catch (error) {
       console.error("Error loading users:", error);
@@ -74,7 +74,7 @@ export default function AdminUsersPage() {
     try {
       const result = await api.users.getStats();
       if (result.success && result.data) {
-        setStats(result.data);
+        setStats(result.data as any);
       }
     } catch (error) {
       console.error("Error loading stats:", error);

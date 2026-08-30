@@ -72,7 +72,7 @@ export default function BookingPage() {
       
       if (result.success && result.data) {
         // Transform backend data to frontend format
-        const transformedData = result.data.map((booking: any) => ({
+        const transformedData = (result.data as any).map((booking: any) => ({
           id: booking.booking_code,
           customer: booking.customer_full_name,
           phone: booking.customer_phone,

@@ -62,7 +62,7 @@ export default function SystemLogPage() {
       
       const result = await api.logs.getAll(params);
       if (result.success && result.data) {
-        setItems(result.data);
+        setItems(result.data as any);
       }
     } catch (error) {
       console.error("Failed to load logs:", error);
@@ -75,7 +75,7 @@ export default function SystemLogPage() {
     try {
       const result = await api.logs.getStats();
       if (result.success && result.data) {
-        setStats(result.data);
+        setStats(result.data as any);
       }
     } catch (error) {
       console.error("Failed to load stats:", error);
