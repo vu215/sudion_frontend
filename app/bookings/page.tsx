@@ -226,7 +226,39 @@ function extractPhotoDriveLink(location: string | null | undefined): string {
   return "";
 }
 
+function getShootDateTime(booking: BackendBooking) {
+  if (!booking.shoot_date) return null;
+
+  const dateText = String(booking.shoot_date).slice(0, 10);
+  const timeText = String(booking.shoot_time || "23:59").slice(0, 5);
+  const value = new Date(`${dateText}T${timeText}:00`);
+  return Number.isNaN(value.getTime()) ? null : value;
+}
+
+function canCustomerCancelBooking(booking: BackendBooking) {
+  if (!["awaiting_payment", "accepted", "confirmed"].includes(String(booking.status || ""))) {
+    return false;
+  }
+
+  const shootDateTime = getShootDateTime(booking);
+  if (shootDateTime && shootDateTime.getTime() <= Date.now()) {
+    return false;
+  }
+
+  return true;
+}
+
 function getRefundInfo(booking: BackendBooking) {
+  const shootDateTimeForCancel = getShootDateTime(booking);
+  if (shootDateTimeForCancel && shootDateTimeForCancel.getTime() <= Date.now()) {
+    return {
+      canRefund: false,
+      refundPercent: 0,
+      refundAmount: 0,
+      message: "Buổi chụp đã đến hoặc đã qua giờ: booking không thể hủy bằng luồng hủy lịch.",
+    };
+  }
+
   if (!["confirmed", "completed", "fully_paid", "cancelled"].includes(String(booking.status || ""))) {
     return {
       canRefund: false,
@@ -245,11 +277,9 @@ function getRefundInfo(booking: BackendBooking) {
     };
   }
 
-  const dateText = String(booking.shoot_date).slice(0, 10);
-  const timeText = String(booking.shoot_time).slice(0, 5);
-  const shootDateTime = new Date(`${dateText}T${timeText}:00`);
+  const shootDateTime = getShootDateTime(booking);
 
-  if (Number.isNaN(shootDateTime.getTime())) {
+  if (!shootDateTime) {
     return {
       canRefund: Number(booking.deposit_amount || 0) > 0,
       refundPercent: 50,
@@ -491,6 +521,14 @@ export default function BookingsPage() {
 
   async function handleCancelBooking() {
     if (!cancelTarget) return;
+
+    if (!canCustomerCancelBooking(cancelTarget)) {
+      toast.error(
+        "Không thể hủy booking",
+        "Booking đã đến/qua giờ chụp hoặc đang ở trạng thái không cho phép hủy."
+      );
+      return;
+    }
 
     if (needsRefundDestination) {
       if (!refundBankName.trim()) {
@@ -847,7 +885,7 @@ function BookingCard({
 }) {
   const [showDetails, setShowDetails] = useState(false);
   const statusInfo = getStatusInfo(booking.status);
-  const canCancel = ["awaiting_payment", "accepted", "confirmed"].includes(booking.status);
+  const canCancel = canCustomerCancelBooking(booking);
   const isEligibleForGroupPay = ["accepted", "completed"].includes(booking.status);
 
   const driveUrl = extractPhotoDriveLink(booking.location);
