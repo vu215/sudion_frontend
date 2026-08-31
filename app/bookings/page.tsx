@@ -130,7 +130,7 @@ const statusMap: Record<
   },
   confirmed: {
     label: "Đã thanh toán cọc",
-    note: "Lịch đã được giữ. Hủy trước 48 giờ có thể được hoàn cọc.",
+    note: "Lịch đã được giữ. Mức hoàn cọc phụ thuộc thời điểm hủy trước buổi chụp.",
     className: "bg-[#ecfdf5] text-[#047857] border-[#bbf7d0]",
     dot: "bg-[#10b981]",
   },
@@ -347,10 +347,10 @@ function getRefundInfo(booking: BackendBooking) {
   }
 
   return {
-    canRefund: false,
-    refundPercent: 0,
-    refundAmount: 0,
-    message: "Hủy trong vòng 24 giờ trước buổi chụp: không được hoàn tiền cọc.",
+    canRefund: true,
+    refundPercent: 30,
+    refundAmount: Math.round(Number(booking.deposit_amount || 0) * 0.3),
+    message: "Hủy trong vòng 24 giờ trước buổi chụp: dự kiến hoàn 30% tiền cọc.",
   };
 }
 
