@@ -96,9 +96,12 @@ function CheckoutGatewayContent() {
     useState(false);
 
   const [selectedMethod, setSelectedMethod] =
-    useState<"bank" | "momo">(
-      paymentMethod.toLowerCase() === "momo" ? "momo" : "bank"
-    );
+    useState<"bank" | "momo" | "manual">(() => {
+      const method = paymentMethod.toLowerCase();
+      if (method === "momo") return "momo";
+      if (["manual", "manual_bank", "bank_manual"].includes(method)) return "manual";
+      return "bank";
+    });
 
   const [success, setSuccess] =
     useState(false);
@@ -113,19 +116,33 @@ function CheckoutGatewayContent() {
     ? Number(groupData.total_amount || 0)
     : queryAmount;
 
+  // Tài khoản chính: MB Bank, dùng cho webhook/đối soát tự động.
   const bankInfo = {
+    bankName: "MB Bank",
+    bankCode: "MB",
+    accountNumber: "0762682989",
+    accountName: "TRAN THIEN VU",
+  };
+
+  // Tài khoản dự phòng: giữ nguyên TCB cũ, admin xác nhận thủ công.
+  const manualBankInfo = {
     bankName: "Techcombank (TCB)",
+    bankCode: "TCB",
     accountNumber: "19075748293011",
     accountName: "TRAN THIEN VU",
   };
 
   const qrUrl =
-    `https://img.vietqr.io/image/TCB-${bankInfo.accountNumber}-compact.png` +
+    `https://img.vietqr.io/image/${bankInfo.bankCode}-${bankInfo.accountNumber}-compact2.png` +
     `?amount=${displayAmount}` +
     `&addInfo=${encodeURIComponent(displayCode)}` +
-    `&accountName=${encodeURIComponent(
-      bankInfo.accountName
-    )}`;
+    `&accountName=${encodeURIComponent(bankInfo.accountName)}`;
+
+  const manualQrUrl =
+    `https://img.vietqr.io/image/${manualBankInfo.bankCode}-${manualBankInfo.accountNumber}-compact2.png` +
+    `?amount=${displayAmount}` +
+    `&addInfo=${encodeURIComponent(displayCode)}` +
+    `&accountName=${encodeURIComponent(manualBankInfo.accountName)}`;
 
   // Kiểm tra trạng thái thanh toán mỗi 3 giây
   useEffect(() => {
@@ -504,6 +521,18 @@ function CheckoutGatewayContent() {
     }
   };
 
+  const handleManualFallbackNotice = () => {
+    if (!displayCode) {
+      toast.error("Thiếu mã booking", "Không thể tạo hướng dẫn chuyển khoản dự phòng.");
+      return;
+    }
+
+    toast.success(
+      "Đã chọn chuyển khoản dự phòng",
+      `Sau khi chuyển đúng ${displayAmount.toLocaleString("vi-VN")}đ, booking ${displayCode} vẫn ở trạng thái chờ. Admin sẽ nhập mã giao dịch ngân hàng để xác nhận và tiếp tục toàn bộ luồng booking.`
+    );
+  };
+
   if (loading) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-[#0e1217] text-white">
@@ -559,32 +588,45 @@ function CheckoutGatewayContent() {
       <div className="relative w-full max-w-[500px] overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03] p-7 shadow-2xl backdrop-blur-xl">
         <div className="absolute -right-24 -top-24 h-56 w-56 rounded-full bg-[#ff8d28]/10 blur-3xl" />
 
-        {/* Chọn phương thức - không thay đổi luồng bank cũ */}
-        <div className="relative mb-5 grid grid-cols-2 gap-2 rounded-2xl border border-white/10 bg-black/20 p-1.5">
+        {/* 3 đường thanh toán: webhook tự động, MoMo Sandbox và dự phòng thủ công */}
+        <div className="relative mb-5 grid grid-cols-3 gap-2 rounded-2xl border border-white/10 bg-black/20 p-1.5">
           <button
             type="button"
             onClick={() => setSelectedMethod("bank")}
             disabled={paying || momoLaunching}
-            className={`rounded-xl px-3 py-2.5 text-xs font-extrabold transition ${
+            className={`rounded-xl px-2 py-2.5 text-[11px] font-extrabold transition ${
               selectedMethod === "bank"
                 ? "bg-white text-[#111827] shadow"
                 : "text-slate-400 hover:text-white"
             }`}
           >
-            Chuyển khoản ngân hàng
+            MB tự động
           </button>
 
           <button
             type="button"
             onClick={() => setSelectedMethod("momo")}
             disabled={paying || momoLaunching}
-            className={`rounded-xl px-3 py-2.5 text-xs font-extrabold transition ${
+            className={`rounded-xl px-2 py-2.5 text-[11px] font-extrabold transition ${
               selectedMethod === "momo"
                 ? "bg-[#a50064] text-white shadow"
                 : "text-slate-400 hover:text-white"
             }`}
           >
             Ví MoMo
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setSelectedMethod("manual")}
+            disabled={paying || momoLaunching}
+            className={`rounded-xl px-2 py-2.5 text-[11px] font-extrabold transition ${
+              selectedMethod === "manual"
+                ? "bg-[#1f2937] text-white shadow"
+                : "text-slate-400 hover:text-white"
+            }`}
+          >
+            CK dự phòng
           </button>
         </div>
 
@@ -599,11 +641,11 @@ function CheckoutGatewayContent() {
 
                 <div>
                   <h1 className="text-base font-extrabold tracking-tight">
-                    Thanh Toán Chuyển Khoản Ngân Hàng
+                    Chuyển Khoản MB - Tự Động
                   </h1>
 
                   <p className="text-[11px] text-slate-400">
-                    Tự động xác nhận khi backend nhận webhook ngân hàng
+                    Webhook ngân hàng xác nhận tự động khi nhận đúng tiền + mã booking
                   </p>
                 </div>
               </div>
@@ -618,8 +660,14 @@ function CheckoutGatewayContent() {
               <div className="inline-block rounded-2xl bg-white p-3 shadow-xl">
                 <img
                   src={qrUrl}
-                  alt="Mã VietQR"
+                  alt="Mã VietQR MB Bank"
                   className="mx-auto h-[220px] w-[220px] object-contain"
+                  onError={(event) => {
+                    const image = event.currentTarget;
+                    if (!image.src.endsWith("/payment/mb-0762682989.png")) {
+                      image.src = "/payment/mb-0762682989.png";
+                    }
+                  }}
                 />
 
                 <span className="mt-2 block text-[10px] font-black uppercase tracking-wider text-slate-500">
@@ -697,7 +745,7 @@ function CheckoutGatewayContent() {
               </button>
             </div>
           </>
-        ) : (
+        ) : selectedMethod === "momo" ? (
           <>
             {/* MOMO: chỉ redirect sang cổng MoMo. Paid chỉ do IPN hợp lệ cập nhật. */}
             <div className="flex items-center justify-between border-b border-white/10 pb-5">
@@ -780,6 +828,98 @@ function CheckoutGatewayContent() {
                 disabled={momoLaunching}
                 onClick={() => router.back()}
                 className="w-full rounded-2xl border border-white/10 bg-transparent py-3 text-xs font-semibold text-slate-400 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Quay lại
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            {/* FALLBACK: không tự set paid. Admin xác nhận bằng mã giao dịch thật. */}
+            <div className="flex items-center justify-between border-b border-white/10 pb-5">
+              <div className="flex items-center gap-3">
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-[#1f2937] text-[10px] font-black text-white">
+                  ADMIN
+                </span>
+                <div>
+                  <h1 className="text-base font-extrabold tracking-tight">
+                    Chuyển Khoản Dự Phòng
+                  </h1>
+                  <p className="text-[11px] text-slate-400">
+                    Dùng khi MoMo hoặc webhook ngân hàng gặp sự cố trong lúc demo
+                  </p>
+                </div>
+              </div>
+              <div className="rounded-full border border-amber-400/20 bg-amber-400/10 px-2.5 py-1 text-[10px] font-bold text-amber-300">
+                Admin xác nhận
+              </div>
+            </div>
+
+            <div className="mt-6 space-y-4 text-center">
+              <div className="inline-block rounded-2xl bg-white p-3 shadow-xl">
+                <img
+                  src={manualQrUrl}
+                  alt="Mã VietQR chuyển khoản dự phòng"
+                  className="mx-auto h-[220px] w-[220px] object-contain"
+                />
+                <span className="mt-2 block text-[10px] font-black uppercase tracking-wider text-slate-500">
+                  Quét mã hoặc nhập STK thủ công
+                </span>
+              </div>
+
+              <div className="space-y-2 rounded-2xl border border-white/10 bg-white/[0.02] p-4 text-left text-xs">
+                <div className="flex justify-between border-b border-white/5 pb-2">
+                  <span className="text-slate-400">
+                    {isFinalPayment ? "Số tiền còn lại:" : "Số tiền cọc:"}
+                  </span>
+                  <strong className="text-base font-black text-[#ff8d28]">
+                    {displayAmount.toLocaleString("vi-VN")} VND
+                  </strong>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Ngân hàng:</span>
+                  <strong className="text-slate-200">{manualBankInfo.bankName}</strong>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Số tài khoản:</span>
+                  <strong className="select-all font-mono text-slate-200">
+                    {manualBankInfo.accountNumber}
+                  </strong>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Chủ tài khoản:</span>
+                  <strong className="uppercase text-slate-200">
+                    {manualBankInfo.accountName}
+                  </strong>
+                </div>
+                <div className="flex justify-between border-t border-white/5 pt-2">
+                  <span className="text-slate-400">Nội dung CK:</span>
+                  <span className="select-all rounded bg-orange-500/20 px-2 py-0.5 font-mono font-bold text-orange-400">
+                    {displayCode}
+                  </span>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-amber-400/15 bg-amber-400/[0.06] p-4 text-left text-[11px] leading-5 text-slate-300">
+                <strong className="text-amber-300">Luồng dự phòng an toàn:</strong>{" "}
+                Nút bên dưới không tự đánh dấu đã thanh toán. Booking vẫn pending cho tới khi Admin
+                nhập đúng Booking code, đúng số tiền và mã giao dịch ngân hàng chưa từng sử dụng.
+                Backend sau đó mới chạy payment → booking → email → settlement/refund như luồng chính.
+              </div>
+            </div>
+
+            <div className="mt-6 flex flex-col gap-2.5">
+              <button
+                type="button"
+                onClick={handleManualFallbackNotice}
+                className="w-full rounded-2xl bg-[#1f2937] py-3.5 text-xs font-extrabold text-white shadow-lg transition hover:bg-[#111827]"
+              >
+                Tôi đã chuyển khoản - Chờ Admin xác nhận
+              </button>
+              <button
+                type="button"
+                onClick={() => router.back()}
+                className="w-full rounded-2xl border border-white/10 bg-transparent py-3 text-xs font-semibold text-slate-400 hover:text-white"
               >
                 Quay lại
               </button>
