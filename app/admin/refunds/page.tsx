@@ -28,6 +28,10 @@ type Refund = {
   updatedAt: string;
   adminNote: string;
   bankInfo: string;
+  refundBankName?: string;
+  refundAccountNumber?: string;
+  refundAccountName?: string;
+  refundTransactionCode?: string;
   history: string[];
 };
 
@@ -115,6 +119,17 @@ export default function RefundsPage() {
     const item = items.find((i) => i.id === refundId);
     if (!item || refunding) return;
 
+    const hasRefundDestination = Boolean(
+      item.refundBankName?.trim() &&
+      item.refundAccountNumber?.trim() &&
+      item.refundAccountName?.trim()
+    );
+
+    if (!hasRefundDestination) {
+      notify("Khách chưa cung cấp đủ ngân hàng, số tài khoản và tên chủ tài khoản nhận tiền hoàn.");
+      return;
+    }
+
     if (action === "Hoàn tiền" && item.status !== "Đang xử lý") {
       notify("Hãy duyệt yêu cầu trước khi xác nhận đã hoàn tiền.");
       return;
@@ -190,6 +205,15 @@ export default function RefundsPage() {
       notify("Lỗi khi lưu ghi chú.");
     }
   };
+
+  async function copyText(value: string, label: string) {
+    try {
+      await navigator.clipboard.writeText(value);
+      notify(`Đã sao chép ${label}.`);
+    } catch {
+      notify(`Không thể sao chép ${label}.`);
+    }
+  }
 
   const selected = items.find((item) => item.id === selectedId) ?? items[0] ?? null;
 
@@ -354,9 +378,39 @@ export default function RefundsPage() {
               <InfoRow label="Booking" value={`#${selected.bookingId}`} />
               <InfoRow label="Photographer" value={selected.photographer} />
               <InfoRow label="Dịch vụ" value={selected.service} />
-              <InfoRow label="Phương thức" value={selected.method} />
-              <InfoRow label="Thông tin nhận" value={selected.bankInfo} />
+              <InfoRow label="Phương thức gốc" value={selected.method} />
             </div>
+
+            {selected.refundBankName && selected.refundAccountNumber && selected.refundAccountName ? (
+              <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 text-[12px]">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h3 className="text-[13px] font-semibold text-emerald-900">Tài khoản khách nhận tiền hoàn</h3>
+                    <p className="mt-1 leading-5 text-emerald-700">Admin chuyển khoản thủ công đúng số tiền hoàn tới tài khoản này.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => copyText(selected.refundAccountNumber || "", "số tài khoản")}
+                    className="shrink-0 rounded-lg border border-emerald-200 bg-white px-2.5 py-1.5 font-medium text-emerald-700 hover:bg-emerald-50"
+                  >
+                    Sao chép STK
+                  </button>
+                </div>
+                <div className="mt-3 space-y-2">
+                  <InfoRow label="Ngân hàng" value={selected.refundBankName} />
+                  <InfoRow label="Số tài khoản" value={selected.refundAccountNumber} />
+                  <InfoRow label="Chủ tài khoản" value={selected.refundAccountName} />
+                  {selected.refundTransactionCode ? (
+                    <InfoRow label="Mã GD hoàn" value={selected.refundTransactionCode} />
+                  ) : null}
+                </div>
+              </div>
+            ) : (
+              <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-[12px] text-red-700">
+                <b>Thiếu thông tin nhận tiền hoàn.</b>
+                <p className="mt-1 leading-5">Không duyệt/chuyển tiền cho tới khi có ngân hàng, số tài khoản và tên chủ tài khoản của khách.</p>
+              </div>
+            )}
             <div className="mt-5 rounded-2xl bg-[#fff8f1] p-4 text-[12px]">
               <div className="flex items-center justify-between"><span className="text-[#697086]">Tổng tiền booking</span><b>{money(selected.originalAmount)}</b></div>
               <div className="mt-2 flex items-center justify-between text-red-500"><span>Số tiền hoàn</span><b className="text-[16px]">- {money(selected.refundAmount)}</b></div>
@@ -378,11 +432,12 @@ export default function RefundsPage() {
               <div className="mt-4 rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
                 <h3 className="text-[13px] font-semibold text-emerald-800">Xác nhận chuyển khoản hoàn tiền</h3>
                 <p className="mt-1 text-[11px] leading-5 text-emerald-700">
-                  Chuyển tiền thật bằng ứng dụng ngân hàng trước, sau đó nhập mã giao dịch/chứng từ để hệ thống ghi nhận. Sudion không giả lập lệnh hoàn tiền tự động.
+                  Chuyển <b>{money(selected.refundAmount)}</b> tới <b>{selected.refundBankName || "ngân hàng khách"}</b> · STK <b>{selected.refundAccountNumber || "chưa có"}</b> · {selected.refundAccountName || "chưa có chủ tài khoản"}. Sau khi app ngân hàng báo thành công, nhập mã giao dịch bên dưới.
                 </p>
                 <input
                   value={refundTransactionCode}
-                  onChange={(e) => setRefundTransactionCode(e.target.value)}
+                  maxLength={100}
+                  onChange={(e) => setRefundTransactionCode(e.target.value.replace(/\s+/g, "").slice(0, 100))}
                   className="mt-3 !h-10 !min-h-0 w-full rounded-xl border border-emerald-200 bg-white px-3 text-[12px] outline-none focus:border-emerald-500"
                   placeholder="VD: FT260830123456 hoặc mã giao dịch ngân hàng"
                 />
@@ -391,7 +446,11 @@ export default function RefundsPage() {
 
             <div className="mt-5 grid grid-cols-2 gap-2">
               {selected.status === "Chờ duyệt" ? (
-                <button disabled={refunding} onClick={() => handleBankRefund(selected.id, "Duyệt")} className="h-10 rounded-xl border border-blue-200 bg-blue-50 text-[12px] font-medium text-blue-700 hover:bg-blue-100 disabled:opacity-50">
+                <button
+                  disabled={refunding || !selected.refundBankName || !selected.refundAccountNumber || !selected.refundAccountName}
+                  onClick={() => handleBankRefund(selected.id, "Duyệt")}
+                  className="h-10 rounded-xl border border-blue-200 bg-blue-50 text-[12px] font-medium text-blue-700 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
+                >
                   {refunding ? "Đang xử lý..." : "Duyệt"}
                 </button>
               ) : (

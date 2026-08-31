@@ -16,6 +16,21 @@ function authHeaders() {
 const AUTO_REFRESH_MS = 8000;
 const BOOKINGS_PER_PAGE = 5;
 
+const REFUND_BANKS = [
+  "MB Bank",
+  "Vietcombank",
+  "Techcombank",
+  "BIDV",
+  "VietinBank",
+  "ACB",
+  "VPBank",
+  "TPBank",
+  "Sacombank",
+  "OCB",
+  "MSB",
+  "Ngân hàng khác",
+];
+
 type BookingStatus =
   | "awaiting_payment"
   | "accepted"
@@ -63,6 +78,15 @@ type BackendBooking = {
   contact_channel: string | null;
   created_at: string;
   updated_at: string;
+  refund_request?: {
+    id?: number;
+    status?: string;
+    refund_amount?: number;
+    refund_percent?: number;
+    refund_bank_name?: string;
+    refund_account_number?: string;
+    refund_account_name?: string;
+  } | null;
 };
 
 type ApiResponse<T> = {
@@ -203,10 +227,21 @@ function extractPhotoDriveLink(location: string | null | undefined): string {
 }
 
 function getRefundInfo(booking: BackendBooking) {
-  if (!booking.shoot_date || !booking.shoot_time) {
+  if (!["confirmed", "completed", "fully_paid", "cancelled"].includes(String(booking.status || ""))) {
     return {
       canRefund: false,
-      message: "Chưa đủ ngày giờ để tính chính sách hoàn cọc.",
+      refundPercent: 0,
+      refundAmount: 0,
+      message: "Booking chưa thanh toán cọc nên không phát sinh hoàn tiền.",
+    };
+  }
+
+  if (!booking.shoot_date || !booking.shoot_time) {
+    return {
+      canRefund: Number(booking.deposit_amount || 0) > 0,
+      refundPercent: 50,
+      refundAmount: Math.round(Number(booking.deposit_amount || 0) * 0.5),
+      message: "Chưa đủ ngày giờ để xác định mốc hủy: dự kiến hoàn 50% tiền cọc.",
     };
   }
 
@@ -216,8 +251,10 @@ function getRefundInfo(booking: BackendBooking) {
 
   if (Number.isNaN(shootDateTime.getTime())) {
     return {
-      canRefund: false,
-      message: "Không thể tính chính sách hoàn cọc do ngày giờ không hợp lệ.",
+      canRefund: Number(booking.deposit_amount || 0) > 0,
+      refundPercent: 50,
+      refundAmount: Math.round(Number(booking.deposit_amount || 0) * 0.5),
+      message: "Ngày giờ chụp không hợp lệ để tính mốc hủy: dự kiến hoàn 50% tiền cọc.",
     };
   }
 
@@ -226,13 +263,26 @@ function getRefundInfo(booking: BackendBooking) {
   if (diffHours >= 48) {
     return {
       canRefund: true,
-      message: "Bạn đang hủy trước 48 giờ, có thể được hoàn cọc.",
+      refundPercent: 100,
+      refundAmount: Number(booking.deposit_amount || 0),
+      message: "Hủy trước 48 giờ: dự kiến hoàn 100% tiền cọc.",
+    };
+  }
+
+  if (diffHours >= 24) {
+    return {
+      canRefund: true,
+      refundPercent: 50,
+      refundAmount: Math.round(Number(booking.deposit_amount || 0) * 0.5),
+      message: "Hủy trước từ 24 đến dưới 48 giờ: dự kiến hoàn 50% tiền cọc.",
     };
   }
 
   return {
     canRefund: false,
-    message: "Bạn đang hủy trong vòng 48 giờ, có thể không được hoàn cọc.",
+    refundPercent: 0,
+    refundAmount: 0,
+    message: "Hủy trong vòng 24 giờ trước buổi chụp: không được hoàn tiền cọc.",
   };
 }
 
@@ -253,7 +303,15 @@ async function getBookingsByCustomer(email: string) {
   return json.data;
 }
 
-async function cancelBooking(bookingCode: string, cancelReason: string) {
+async function cancelBooking(
+  bookingCode: string,
+  cancelReason: string,
+  refundDestination?: {
+    bankName: string;
+    accountNumber: string;
+    accountName: string;
+  }
+) {
   const response = await fetch(`${API_URL}/bookings/${bookingCode}/cancel`, {
     method: "PATCH",
     headers: {
@@ -263,6 +321,9 @@ async function cancelBooking(bookingCode: string, cancelReason: string) {
     body: JSON.stringify({
       cancelledBy: "customer",
       cancelReason,
+      refundBankName: refundDestination?.bankName || "",
+      refundAccountNumber: refundDestination?.accountNumber || "",
+      refundAccountName: refundDestination?.accountName || "",
     }),
   });
 
@@ -292,6 +353,9 @@ export default function BookingsPage() {
 
   const [cancelTarget, setCancelTarget] = useState<BackendBooking | null>(null);
   const [cancelReason, setCancelReason] = useState("");
+  const [refundBankName, setRefundBankName] = useState("");
+  const [refundAccountNumber, setRefundAccountNumber] = useState("");
+  const [refundAccountName, setRefundAccountName] = useState("");
   const [isCancelling, setIsCancelling] = useState(false);
 
   useEffect(() => {
@@ -428,12 +492,34 @@ export default function BookingsPage() {
   async function handleCancelBooking() {
     if (!cancelTarget) return;
 
+    if (cancelRefundInfo?.canRefund) {
+      if (!refundBankName.trim()) {
+        toast.error("Thiếu ngân hàng", "Vui lòng chọn ngân hàng nhận tiền hoàn.");
+        return;
+      }
+      if (!/^\d{6,30}$/.test(refundAccountNumber.trim().replace(/\s+/g, ""))) {
+        toast.error("Sai số tài khoản", "Số tài khoản nhận hoàn tiền phải gồm 6-30 chữ số.");
+        return;
+      }
+      if (refundAccountName.trim().length < 2) {
+        toast.error("Thiếu chủ tài khoản", "Vui lòng nhập tên chủ tài khoản nhận hoàn tiền.");
+        return;
+      }
+    }
+
     try {
       setIsCancelling(true);
       setPageError("");
       const updatedBooking = await cancelBooking(
         cancelTarget.booking_code,
-        cancelReason.trim() || "Khách hủy lịch"
+        cancelReason.trim() || "Khách hủy lịch",
+        cancelRefundInfo?.canRefund
+          ? {
+              bankName: refundBankName.trim(),
+              accountNumber: refundAccountNumber.trim().replace(/\s+/g, ""),
+              accountName: refundAccountName.trim(),
+            }
+          : undefined
       );
 
       setBookings((current) =>
@@ -442,10 +528,25 @@ export default function BookingsPage() {
         )
       );
 
-      setSuccessMessage(`Đã hủy booking ${updatedBooking.booking_code}.`);
-      toast.success("Đã hủy booking", `Booking ${updatedBooking.booking_code} đã được hủy.`);
+      const refundRequest = updatedBooking.refund_request;
+      if (refundRequest?.status === "pending") {
+        const refundAmount = Number(refundRequest.refund_amount || 0);
+        setSuccessMessage(
+          `Đã hủy booking ${updatedBooking.booking_code}. Yêu cầu hoàn ${formatCurrency(refundAmount)} đang chờ Admin duyệt.`
+        );
+        toast.success(
+          "Đã gửi yêu cầu hoàn tiền",
+          `Admin sẽ duyệt và chuyển thủ công ${formatCurrency(refundAmount)} tới tài khoản bạn đã cung cấp.`
+        );
+      } else {
+        setSuccessMessage(`Đã hủy booking ${updatedBooking.booking_code}.`);
+        toast.success("Đã hủy booking", `Booking ${updatedBooking.booking_code} đã được hủy.`);
+      }
       setCancelTarget(null);
       setCancelReason("");
+      setRefundBankName("");
+      setRefundAccountNumber("");
+      setRefundAccountName("");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Không thể hủy booking.";
       setPageError(message);
@@ -565,6 +666,9 @@ export default function BookingsPage() {
                     onCancel={() => {
                       setCancelTarget(booking);
                       setCancelReason("");
+                      setRefundBankName("");
+                      setRefundAccountNumber("");
+                      setRefundAccountName("");
                     }}
                   />
                 ))}
@@ -610,7 +714,7 @@ export default function BookingsPage() {
       {/* Cancel Target Modal */}
       {cancelTarget && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/45 px-4 backdrop-blur-sm">
-          <div className="w-full max-w-[480px] rounded-[24px] bg-white p-6 shadow-2xl">
+          <div className="max-h-[90vh] w-full max-w-[520px] overflow-y-auto rounded-[24px] bg-white p-6 shadow-2xl">
             <p className="text-[12px] font-black uppercase tracking-[0.16em] text-[#ff8d28]">Hủy lịch</p>
             <h3 className="mt-2 text-[24px] font-black text-[#0e111d]">Bạn muốn hủy booking này?</h3>
             <p className="mt-2 text-[13px] font-semibold text-[#6b7280]">
@@ -632,10 +736,68 @@ export default function BookingsPage() {
               />
             </label>
 
+            {cancelRefundInfo?.canRefund ? (
+              <div className="mt-5 rounded-[18px] border border-emerald-200 bg-emerald-50/70 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[13px] font-black text-emerald-900">Tài khoản nhận tiền hoàn</p>
+                    <p className="mt-1 text-[12px] font-semibold leading-5 text-emerald-700">
+                      Admin sẽ chuyển khoản thủ công tới đúng tài khoản này sau khi duyệt yêu cầu.
+                    </p>
+                  </div>
+                  <span className="shrink-0 rounded-full bg-white px-2.5 py-1 text-[11px] font-black text-emerald-700">
+                    {formatCurrency(cancelRefundInfo.refundAmount || 0)}
+                  </span>
+                </div>
+
+                <div className="mt-4 grid gap-3">
+                  <label className="grid gap-1.5 text-[12px] font-extrabold text-[#0e111d]">
+                    Ngân hàng
+                    <select
+                      value={refundBankName}
+                      onChange={(e) => setRefundBankName(e.target.value)}
+                      className="h-11 rounded-[12px] border border-emerald-200 bg-white px-3 text-[13px] font-semibold outline-none focus:border-[#ff8d28]"
+                    >
+                      <option value="">Chọn ngân hàng nhận tiền</option>
+                      {REFUND_BANKS.map((bank) => (
+                        <option key={bank} value={bank}>{bank}</option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="grid gap-1.5 text-[12px] font-extrabold text-[#0e111d]">
+                    Số tài khoản
+                    <input
+                      inputMode="numeric"
+                      value={refundAccountNumber}
+                      onChange={(e) => setRefundAccountNumber(e.target.value.replace(/\D/g, "").slice(0, 30))}
+                      placeholder="VD: 0762682989"
+                      className="h-11 rounded-[12px] border border-emerald-200 bg-white px-3 text-[13px] font-semibold outline-none focus:border-[#ff8d28]"
+                    />
+                  </label>
+
+                  <label className="grid gap-1.5 text-[12px] font-extrabold text-[#0e111d]">
+                    Tên chủ tài khoản
+                    <input
+                      value={refundAccountName}
+                      onChange={(e) => setRefundAccountName(e.target.value.slice(0, 180))}
+                      placeholder="Nhập đúng tên hiển thị trên tài khoản ngân hàng"
+                      className="h-11 rounded-[12px] border border-emerald-200 bg-white px-3 text-[13px] font-semibold uppercase outline-none focus:border-[#ff8d28]"
+                    />
+                  </label>
+                </div>
+              </div>
+            ) : null}
+
             <div className="mt-5 grid grid-cols-2 gap-3">
               <button
                 type="button"
-                onClick={() => setCancelTarget(null)}
+                onClick={() => {
+                  setCancelTarget(null);
+                  setRefundBankName("");
+                  setRefundAccountNumber("");
+                  setRefundAccountName("");
+                }}
                 disabled={isCancelling}
                 className="rounded-[12px] border border-[#e8eaf1] bg-white px-4 py-3 text-[13px] font-black text-[#4b5563]"
               >
