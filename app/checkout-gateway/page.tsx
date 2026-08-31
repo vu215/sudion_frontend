@@ -25,17 +25,16 @@ type PaymentResponse = {
   };
 };
 
-type MomoCreateResponse = {
+type VnpayCreateResponse = {
   success?: boolean;
   message?: string;
   data?: {
-    order_id?: string;
-    request_id?: string;
+    txn_ref?: string;
     amount?: number;
-    pay_url?: string;
-    deeplink?: string | null;
-    qr_code_url?: string | null;
+    payment_url?: string;
     environment?: string;
+    expires_at?: string;
+    ipn_url?: string;
   };
 };
 
@@ -89,15 +88,15 @@ function CheckoutGatewayContent() {
   const [paying, setPaying] =
     useState(false);
 
-  const [momoLaunching, setMomoLaunching] =
+  const [vnpayLaunching, setVnpayLaunching] =
     useState(false);
 
-  const [momoReturnHandled, setMomoReturnHandled] =
+  const [vnpayReturnHandled, setVnpayReturnHandled] =
     useState(false);
 
   const [selectedMethod, setSelectedMethod] =
-    useState<"bank" | "momo">(
-      paymentMethod.toLowerCase() === "momo" ? "momo" : "bank"
+    useState<"bank" | "vnpay">(
+      paymentMethod.toLowerCase() === "vnpay" ? "vnpay" : "bank"
     );
 
   const [success, setSuccess] =
@@ -289,56 +288,62 @@ function CheckoutGatewayContent() {
     toast,
   ]);
 
-  // Redirect từ MoMo chỉ dùng để cập nhật UX.
-  // Tuyệt đối không set paid từ query string; trạng thái paid chỉ đến từ IPN đã verify chữ ký.
+  // VNPAY return đã được backend kiểm tra Secure Hash trước khi quay lại trang này.
+  // Frontend tuyệt đối không tự set paid từ query string; chỉ IPN đã verify mới cập nhật DB.
   useEffect(() => {
-    if (momoReturnHandled) {
+    if (vnpayReturnHandled) {
       return;
     }
 
-    const isMomoReturn =
-      searchParams.get("momoReturn") === "1";
-
-    if (!isMomoReturn) {
+    if (searchParams.get("vnpayReturn") !== "1") {
       return;
     }
 
-    setMomoReturnHandled(true);
-    setSelectedMethod("momo");
+    setVnpayReturnHandled(true);
+    setSelectedMethod("vnpay");
 
-    const resultCode = searchParams.get("resultCode");
-    const providerMessage = searchParams.get("message") || "";
+    const verified = searchParams.get("vnpVerified") === "1";
+    const responseCode = searchParams.get("vnpResponseCode") || "";
+    const transactionStatus = searchParams.get("vnpTransactionStatus") || "";
 
-    if (resultCode === "0") {
-      toast.success(
-        "MoMo đã tiếp nhận thanh toán",
-        "Đang chờ IPN MoMo xác nhận giao dịch. Trang sẽ tự cập nhật khi backend ghi nhận thành công."
-      );
-      return;
-    }
-
-    if (resultCode) {
+    if (!verified) {
       toast.error(
-        "Thanh toán MoMo chưa thành công",
-        providerMessage || `MoMo trả mã ${resultCode}.`
+        "Không xác minh được phản hồi VNPAY",
+        "Checksum phản hồi không hợp lệ hoặc thiếu dữ liệu. Booking vẫn được giữ nguyên và chưa bị đánh dấu đã thanh toán."
       );
+      return;
     }
-  }, [momoReturnHandled, searchParams, toast]);
 
-  const handleMomoPayment = async () => {
+    if (responseCode === "00" && (!transactionStatus || transactionStatus === "00")) {
+      toast.success(
+        "VNPAY đã tiếp nhận thanh toán",
+        "Đang chờ IPN VNPAY xác nhận giao dịch. Trang sẽ tự cập nhật khi backend ghi nhận thành công."
+      );
+      return;
+    }
+
+    toast.error(
+      "Thanh toán VNPAY chưa thành công",
+      responseCode
+        ? `VNPAY trả mã ${responseCode}. Booking vẫn được giữ để bạn thử lại hoặc chuyển khoản.`
+        : "Giao dịch chưa hoàn tất. Booking vẫn được giữ nguyên."
+    );
+  }, [vnpayReturnHandled, searchParams, toast]);
+
+  const handleVnpayPayment = async () => {
     if (!displayCode) {
       toast.error(
-        "Không thể tạo giao dịch MoMo",
+        "Không thể tạo giao dịch VNPAY",
         "Thiếu mã booking/giao dịch."
       );
       return;
     }
 
     try {
-      setMomoLaunching(true);
+      setVnpayLaunching(true);
 
       const response = await fetch(
-        `${API_URL}/payments/momo/create`,
+        `${API_URL}/payments/vnpay/create`,
         {
           method: "POST",
           headers: {
@@ -348,44 +353,38 @@ function CheckoutGatewayContent() {
           body: JSON.stringify(
             groupCode
               ? { groupCode }
-              : {
-                  bookingCode,
-                  paymentType,
-                }
+              : { bookingCode, paymentType }
           ),
         }
       );
 
       const json = (await response
         .json()
-        .catch(() => ({}))) as MomoCreateResponse;
+        .catch(() => ({}))) as VnpayCreateResponse;
 
       if (!response.ok || !json.success) {
         throw new Error(
-          json.message || "Không thể tạo giao dịch MoMo."
+          json.message || "Không thể tạo giao dịch VNPAY."
         );
       }
 
-      const payUrl = json.data?.pay_url;
-
-      if (!payUrl) {
+      const paymentUrl = json.data?.payment_url;
+      if (!paymentUrl) {
         throw new Error(
-          "MoMo không trả về payUrl. Hãy kiểm tra cấu hình merchant ở backend."
+          "VNPAY không trả về payment URL. Hãy kiểm tra TMN Code/Hash Secret ở backend."
         );
       }
 
-      // Dùng trang thanh toán chính thức của MoMo.
-      // Desktop sẽ có QR, mobile có thể mở app từ trang MoMo.
-      window.location.assign(payUrl);
+      window.location.assign(paymentUrl);
     } catch (error) {
-      console.error("MOMO_CREATE_ERROR:", error);
+      console.error("VNPAY_CREATE_ERROR:", error);
       toast.error(
-        "Không thể mở MoMo",
+        "Không thể mở VNPAY",
         error instanceof Error
           ? error.message
-          : "Có lỗi xảy ra khi tạo giao dịch MoMo."
+          : "Có lỗi xảy ra khi tạo giao dịch VNPAY."
       );
-      setMomoLaunching(false);
+      setVnpayLaunching(false);
     }
   };
 
@@ -492,7 +491,7 @@ function CheckoutGatewayContent() {
         <div className="h-12 w-12 animate-spin rounded-full border-4 border-[#ff8d28] border-t-transparent" />
 
         <p className="mt-5 text-[14px] font-semibold text-slate-400">
-          Đang tải thông tin thanh toán...
+          Đang khởi tạo kết nối ngân hàng...
         </p>
       </div>
     );
@@ -541,38 +540,36 @@ function CheckoutGatewayContent() {
       <div className="relative w-full max-w-[500px] overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03] p-7 shadow-2xl backdrop-blur-xl">
         <div className="absolute -right-24 -top-24 h-56 w-56 rounded-full bg-[#ff8d28]/10 blur-3xl" />
 
-        {/* Chọn phương thức - không thay đổi luồng bank cũ */}
         <div className="relative mb-5 grid grid-cols-2 gap-2 rounded-2xl border border-white/10 bg-black/20 p-1.5">
           <button
             type="button"
             onClick={() => setSelectedMethod("bank")}
-            disabled={paying || momoLaunching}
+            disabled={paying || vnpayLaunching}
             className={`rounded-xl px-3 py-2.5 text-xs font-extrabold transition ${
               selectedMethod === "bank"
                 ? "bg-white text-[#111827] shadow"
                 : "text-slate-400 hover:text-white"
             }`}
           >
-            Chuyển khoản ngân hàng
+            Chuyển khoản
           </button>
 
           <button
             type="button"
-            onClick={() => setSelectedMethod("momo")}
-            disabled={paying || momoLaunching}
+            onClick={() => setSelectedMethod("vnpay")}
+            disabled={paying || vnpayLaunching}
             className={`rounded-xl px-3 py-2.5 text-xs font-extrabold transition ${
-              selectedMethod === "momo"
-                ? "bg-[#a50064] text-white shadow"
+              selectedMethod === "vnpay"
+                ? "bg-[#0066b3] text-white shadow"
                 : "text-slate-400 hover:text-white"
             }`}
           >
-            Ví MoMo
+            VNPAY
           </button>
         </div>
 
         {selectedMethod === "bank" ? (
           <>
-            {/* BANK: giữ nguyên QR + polling + nút check, không tự set paid */}
             <div className="flex items-center justify-between border-b border-white/10 pb-5">
               <div className="flex items-center gap-3">
                 <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-[#ff8d28] text-xs font-black text-white">
@@ -642,9 +639,7 @@ function CheckoutGatewayContent() {
                 </div>
 
                 <div className="flex justify-between border-t border-white/5 pt-1">
-                  <span className="text-slate-400">
-                    Nội dung chuyển khoản (bắt buộc):
-                  </span>
+                  <span className="text-slate-400">Nội dung chuyển khoản:</span>
                   <span className="select-all rounded bg-orange-500/20 px-2 py-0.5 font-mono font-bold text-orange-400">
                     {displayCode}
                   </span>
@@ -681,32 +676,31 @@ function CheckoutGatewayContent() {
           </>
         ) : (
           <>
-            {/* MOMO: chỉ redirect sang cổng MoMo. Paid chỉ do IPN hợp lệ cập nhật. */}
             <div className="flex items-center justify-between border-b border-white/10 pb-5">
               <div className="flex items-center gap-3">
-                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-[#a50064] text-[10px] font-black text-white">
-                  MoMo
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-[#0066b3] text-[10px] font-black text-white">
+                  VN
                 </span>
 
                 <div>
                   <h1 className="text-base font-extrabold tracking-tight">
-                    Thanh Toán Qua Ví MoMo
+                    Thanh Toán Qua VNPAY
                   </h1>
                   <p className="text-[11px] text-slate-400">
-                    Thanh toán trên trang/app MoMo và xác nhận bằng IPN bảo mật
+                    Sandbox WebPay · xác nhận bằng Secure Hash + IPN
                   </p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-1.5 rounded-full border border-pink-400/20 bg-pink-400/10 px-2.5 py-1 text-[10px] font-bold text-pink-300">
-                <span className="h-1.5 w-1.5 rounded-full bg-pink-300" />
-                <span>MoMo Gateway</span>
+              <div className="flex items-center gap-1.5 rounded-full border border-sky-400/20 bg-sky-400/10 px-2.5 py-1 text-[10px] font-bold text-sky-300">
+                <span className="h-1.5 w-1.5 rounded-full bg-sky-300" />
+                <span>VNPAY Gateway</span>
               </div>
             </div>
 
             <div className="mt-6 space-y-4">
-              <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#a50064]/20 to-white/[0.02] p-5">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-pink-300">
+              <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#0066b3]/20 to-white/[0.02] p-5">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-sky-300">
                   {isFinalPayment
                     ? "Thanh toán phần còn lại"
                     : "Thanh toán tiền cọc"}
@@ -724,46 +718,49 @@ function CheckoutGatewayContent() {
                     </strong>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-400">Phương thức:</span>
-                    <strong className="text-slate-200">MoMo</strong>
+                    <span className="text-slate-400">Môi trường:</span>
+                    <strong className="text-slate-200">VNPAY Sandbox</strong>
                   </div>
                 </div>
               </div>
 
               <div className="rounded-2xl border border-emerald-500/15 bg-emerald-500/[0.06] p-4 text-[11px] leading-5 text-slate-300">
                 <strong className="text-emerald-300">Xác nhận an toàn:</strong>{" "}
-                Sudion không đánh dấu thanh toán thành công từ nút bấm hoặc URL quay về.
-                Backend chỉ cập nhật khi nhận IPN MoMo có chữ ký hợp lệ, đúng mã giao dịch
-                và đúng số tiền của booking.
+                URL thanh toán được backend ký HMAC-SHA512. Frontend không tự đánh dấu
+                thanh toán thành công. Backend chỉ cập nhật khi IPN VNPAY có checksum hợp lệ,
+                đúng booking và đúng số tiền.
+              </div>
+
+              <div className="rounded-2xl border border-amber-400/15 bg-amber-400/[0.06] p-4 text-[11px] leading-5 text-slate-300">
+                Nếu VNPAY Sandbox lỗi hoặc bạn hủy giao dịch, booking vẫn được giữ nguyên.
+                Bạn có thể thử lại hoặc chuyển sang chuyển khoản ngân hàng.
               </div>
 
               <div className="flex items-center justify-center gap-2 pt-1 text-xs text-slate-400">
-                <div className="h-2 w-2 animate-ping rounded-full bg-[#d82d8b]" />
-                <span>
-                  Sau khi thanh toán, trang sẽ tự kiểm tra trạng thái mỗi 3 giây.
-                </span>
+                <div className="h-2 w-2 animate-ping rounded-full bg-sky-400" />
+                <span>Sau thanh toán, trang tự kiểm tra trạng thái mỗi 3 giây.</span>
               </div>
             </div>
 
             <div className="mt-6 flex flex-col gap-2.5">
               <button
                 type="button"
-                disabled={momoLaunching || displayAmount <= 0}
-                onClick={handleMomoPayment}
-                className="w-full rounded-2xl bg-[#a50064] py-3.5 text-xs font-extrabold text-white shadow-lg transition-all hover:bg-[#8f0057] disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={vnpayLaunching || displayAmount <= 0}
+                onClick={handleVnpayPayment}
+                className="w-full rounded-2xl bg-[#0066b3] py-3.5 text-xs font-extrabold text-white shadow-lg transition-all hover:bg-[#005492] disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {momoLaunching
-                  ? "Đang kết nối MoMo..."
-                  : "Thanh toán bằng MoMo"}
+                {vnpayLaunching
+                  ? "Đang tạo giao dịch VNPAY..."
+                  : "Thanh toán bằng VNPAY"}
               </button>
 
               <button
                 type="button"
-                disabled={momoLaunching}
-                onClick={() => router.back()}
+                disabled={vnpayLaunching}
+                onClick={() => setSelectedMethod("bank")}
                 className="w-full rounded-2xl border border-white/10 bg-transparent py-3 text-xs font-semibold text-slate-400 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Quay lại
+                Chuyển sang chuyển khoản ngân hàng
               </button>
             </div>
           </>
