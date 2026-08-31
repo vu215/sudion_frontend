@@ -226,13 +226,51 @@ function extractPhotoDriveLink(location: string | null | undefined): string {
   return "";
 }
 
+function getShootDateTextInVietnam(value: string | null | undefined) {
+  if (!value) return null;
+
+  const raw = String(value).trim();
+
+  // MySQL DATE / DATETIME không có timezone: giữ nguyên phần YYYY-MM-DD.
+  const mysqlLocalMatch = raw.match(/^(\d{4})-(\d{2})-(\d{2})(?:$|\s)/);
+  if (mysqlLocalMatch) {
+    return `${mysqlLocalMatch[1]}-${mysqlLocalMatch[2]}-${mysqlLocalMatch[3]}`;
+  }
+
+  // Backend có thể trả DATE dưới dạng ISO UTC, ví dụ 2026-08-31T17:00:00.000Z.
+  // Phải đổi về ngày Việt Nam trước; .slice(0, 10) sẽ lấy nhầm 31/08 thay vì 01/09.
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) return null;
+
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(parsed);
+
+  const year = parts.find((part) => part.type === "year")?.value;
+  const month = parts.find((part) => part.type === "month")?.value;
+  const day = parts.find((part) => part.type === "day")?.value;
+
+  return year && month && day ? `${year}-${month}-${day}` : null;
+}
+
 function getShootDateTime(booking: BackendBooking) {
   if (!booking.shoot_date) return null;
 
-  const dateText = String(booking.shoot_date).slice(0, 10);
-  const timeText = String(booking.shoot_time || "23:59").slice(0, 5);
-  const value = new Date(`${dateText}T${timeText}:00`);
-  return Number.isNaN(value.getTime()) ? null : value;
+  const dateText = getShootDateTextInVietnam(booking.shoot_date);
+  if (!dateText) return null;
+
+  const timeMatch = String(booking.shoot_time || "23:59").match(/(\d{1,2}):(\d{2})/);
+  if (!timeMatch) return null;
+
+  const hour = String(timeMatch[1]).padStart(2, "0");
+  const minute = String(timeMatch[2]).padStart(2, "0");
+
+  // Giờ chụp của Sudion là giờ Việt Nam; gắn +07:00 để không phụ thuộc timezone trình duyệt.
+  const shootDateTime = new Date(`${dateText}T${hour}:${minute}:00+07:00`);
+  return Number.isNaN(shootDateTime.getTime()) ? null : shootDateTime;
 }
 
 function canCustomerCancelBooking(booking: BackendBooking) {
