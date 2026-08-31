@@ -44,9 +44,21 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://sudion-backend-produ
 
 function resolveAssetUrl(url: string | null) {
   if (!url) return "";
-  if (/^https?:\/\//i.test(url) || url.startsWith("data:")) return url;
+
+  const normalized = String(url).trim();
+  if (!normalized) return "";
+
+  // Dữ liệu seed cũ dùng picsum.photos. Nguồn này đôi lúc không trả ảnh
+  // hoặc bị chặn/hết thời gian trên production. Trả rỗng để card dùng
+  // ảnh fallback ổn định thay vì hiển thị biểu tượng ảnh lỗi.
+  if (/^https?:\/\/picsum\.photos\//i.test(normalized)) return "";
+
+  if (/^https?:\/\//i.test(normalized) || normalized.startsWith("data:")) {
+    return normalized;
+  }
+
   const backendHost = API_URL.replace(/\/api\/?$/, "");
-  return `${backendHost}${url.startsWith("/") ? url : `/${url}`}`;
+  return `${backendHost}${normalized.startsWith("/") ? normalized : `/${normalized}`}`;
 }
 
 const PHOTOGRAPHERS_PER_PAGE = 12;
@@ -1127,6 +1139,14 @@ function PhotographerCard({
           alt={person.name}
           loading={index < 4 ? "eager" : "lazy"}
           decoding="async"
+          referrerPolicy="no-referrer"
+          onError={(event) => {
+            const image = event.currentTarget;
+            if (image.dataset.fallbackApplied === "true") return;
+
+            image.dataset.fallbackApplied = "true";
+            image.src = fallbackImages[index % fallbackImages.length];
+          }}
           className="h-full w-full object-cover"
         />
 
@@ -1251,6 +1271,14 @@ function PhotographerCard({
                 alt=""
                 loading="lazy"
                 decoding="async"
+                referrerPolicy="no-referrer"
+                onError={(event) => {
+                  const image = event.currentTarget;
+                  if (image.dataset.fallbackApplied === "true") return;
+
+                  image.dataset.fallbackApplied = "true";
+                  image.src = fallbackThumbs[thumbIndex % fallbackThumbs.length];
+                }}
                 className="-ml-2 h-8 w-8 rounded-md border-2 border-white object-cover first:ml-0"
               />
             ))}
