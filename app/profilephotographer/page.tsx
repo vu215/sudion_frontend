@@ -24,8 +24,8 @@ function resolveImageUrl(url: string) {
 }
 function fmt(v: number) { return Number(v || 0).toLocaleString("vi-VN"); }
 
-const FALLBACK_AVATAR = "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=400&q=80";
-const FALLBACK_COVER  = "https://images.unsplash.com/photo-1520854221256-17451cc331bf?auto=format&fit=crop&w=1400&q=80";
+const FALLBACK_AVATAR = "https://images.pexels.com/photos/3807517/pexels-photo-3807517.jpeg?w=400&q=85";
+const FALLBACK_COVER  = "https://images.pexels.com/photos/3945683/pexels-photo-3945683.jpeg?w=1400&q=85";
 
 const SAMPLE_SERVICE_SUGGESTIONS = [
   { name: "Gói cưới Premium", category_name: "Cưới", price: 4500000, duration: 180 },
@@ -37,12 +37,14 @@ const SAMPLE_SERVICE_SUGGESTIONS = [
 ];
 
 const SAMPLE_PORTFOLIO_IMAGES = [
-  "https://images.pexels.com/photos/3775532/pexels-photo-3775532.jpeg?auto=compress&cs=tinysrgb&w=900",
-  "https://images.pexels.com/photos/248280/pexels-photo-248280.jpeg?auto=compress&cs=tinysrgb&w=900",
-  "https://images.pexels.com/photos/1681010/pexels-photo-1681010.jpeg?auto=compress&cs=tinysrgb&w=900",
-  "https://images.pexels.com/photos/212372/pexels-photo-212372.jpeg?auto=compress&cs=tinysrgb&w=900",
-  "https://images.pexels.com/photos/296055/pexels-photo-296055.jpeg?auto=compress&cs=tinysrgb&w=900",
-  "https://images.pexels.com/photos/1124466/pexels-photo-1124466.jpeg?auto=compress&cs=tinysrgb&w=900",
+  "https://images.pexels.com/photos/3771996/pexels-photo-3771996.jpeg?w=900&q=85",
+  "https://images.pexels.com/photos/3945683/pexels-photo-3945683.jpeg?w=900&q=85",
+  "https://images.pexels.com/photos/3944627/pexels-photo-3944627.jpeg?w=900&q=85",
+  "https://images.pexels.com/photos/3868523/pexels-photo-3868523.jpeg?w=900&q=85",
+  "https://images.pexels.com/photos/3945682/pexels-photo-3945682.jpeg?w=900&q=85",
+  "https://images.pexels.com/photos/3944628/pexels-photo-3944628.jpeg?w=900&q=85",
+  "https://images.pexels.com/photos/3807516/pexels-photo-3807516.jpeg?w=900&q=85",
+  "https://images.pexels.com/photos/3945684/pexels-photo-3945684.jpeg?w=900&q=85",
 ];
 
 export default function ProfilePhotographerPage() {

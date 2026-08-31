@@ -64,16 +64,69 @@ function resolveAssetUrl(url: string | null) {
 const PHOTOGRAPHERS_PER_PAGE = 12;
 
 const fallbackImages = [
-  "https://images.unsplash.com/photo-1496440737103-cd596325d314?auto=format&fit=crop&w=900&q=85",
-  "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=900&q=85",
-  "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=900&q=85",
-  "https://images.unsplash.com/photo-1595425964071-2c1ec7c88201?auto=format&fit=crop&w=900&q=85",
+  "https://images.pexels.com/photos/37184232/pexels-photo-37184232.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "https://images.pexels.com/photos/37349750/pexels-photo-37349750.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "https://images.pexels.com/photos/35529174/pexels-photo-35529174.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "https://images.pexels.com/photos/30123617/pexels-photo-30123617.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "https://images.pexels.com/photos/30191037/pexels-photo-30191037.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "https://images.pexels.com/photos/28972066/pexels-photo-28972066.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "https://images.pexels.com/photos/30245593/pexels-photo-30245593.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "https://images.pexels.com/photos/35341073/pexels-photo-35341073.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "https://images.pexels.com/photos/30030586/pexels-photo-30030586.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "https://images.pexels.com/photos/31844422/pexels-photo-31844422.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "https://images.pexels.com/photos/31683648/pexels-photo-31683648.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "https://images.pexels.com/photos/35988655/pexels-photo-35988655.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "https://images.pexels.com/photos/30629169/pexels-photo-30629169.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "https://images.pexels.com/photos/30692996/pexels-photo-30692996.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "https://images.pexels.com/photos/34250239/pexels-photo-34250239.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "https://images.pexels.com/photos/29211906/pexels-photo-29211906.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "https://images.pexels.com/photos/25863026/pexels-photo-25863026.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "https://images.pexels.com/photos/27921937/pexels-photo-27921937.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "https://images.pexels.com/photos/6285728/pexels-photo-6285728.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "https://images.pexels.com/photos/29585803/pexels-photo-29585803.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "https://images.pexels.com/photos/29521715/pexels-photo-29521715.jpeg?auto=compress&cs=tinysrgb&w=1200",
+];
+
+const maleFallbackImages = [
+  "https://images.pexels.com/photos/37184232/pexels-photo-37184232.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "https://images.pexels.com/photos/30191037/pexels-photo-30191037.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "https://images.pexels.com/photos/30030586/pexels-photo-30030586.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "https://images.pexels.com/photos/31683648/pexels-photo-31683648.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "https://images.pexels.com/photos/30629169/pexels-photo-30629169.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "https://images.pexels.com/photos/25863026/pexels-photo-25863026.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "https://images.pexels.com/photos/6285728/pexels-photo-6285728.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "https://images.pexels.com/photos/27921937/pexels-photo-27921937.jpeg?auto=compress&cs=tinysrgb&w=1200",
+];
+
+const femaleFallbackImages = [
+  "https://images.pexels.com/photos/37349750/pexels-photo-37349750.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "https://images.pexels.com/photos/35529174/pexels-photo-35529174.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "https://images.pexels.com/photos/28972066/pexels-photo-28972066.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "https://images.pexels.com/photos/35341073/pexels-photo-35341073.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "https://images.pexels.com/photos/35988655/pexels-photo-35988655.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "https://images.pexels.com/photos/30692996/pexels-photo-30692996.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "https://images.pexels.com/photos/34250239/pexels-photo-34250239.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "https://images.pexels.com/photos/29585803/pexels-photo-29585803.jpeg?auto=compress&cs=tinysrgb&w=1200",
 ];
 
 const fallbackThumbs = [
-  "https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&w=80&q=80",
-  "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=80&q=80",
+  "https://images.pexels.com/photos/37184232/pexels-photo-37184232.jpeg?auto=compress&cs=tinysrgb&w=200",
+  "https://images.pexels.com/photos/37349750/pexels-photo-37349750.jpeg?auto=compress&cs=tinysrgb&w=200",
+  "https://images.pexels.com/photos/35529174/pexels-photo-35529174.jpeg?auto=compress&cs=tinysrgb&w=200",
+  "https://images.pexels.com/photos/30123617/pexels-photo-30123617.jpeg?auto=compress&cs=tinysrgb&w=200",
+  "https://images.pexels.com/photos/30191037/pexels-photo-30191037.jpeg?auto=compress&cs=tinysrgb&w=200",
+  "https://images.pexels.com/photos/28972066/pexels-photo-28972066.jpeg?auto=compress&cs=tinysrgb&w=200",
 ];
+
+function getCuratedFallbackImage(index: number) {
+  const pool = index % 2 === 0 ? maleFallbackImages : femaleFallbackImages;
+  return pool[index % pool.length];
+}
+
+function getCuratedThumbImage(index: number, thumbIndex: number) {
+  const pool = thumbIndex % 2 === 0 ? maleFallbackImages : femaleFallbackImages;
+  return pool[(index + thumbIndex) % pool.length].replace("w=1200", "w=200");
+}
 
 const shootLocationOptions = [
   {
@@ -371,7 +424,7 @@ function mapApiToCard(item: ApiPhotographer, index: number): PhotographerCardDat
     rating: Number(item.avg_rating || 0).toFixed(1),
     match: "",
     price: formatPrice(item.min_price),
-    image: resolveAssetUrl(item.avatar_url) || fallbackImages[index % fallbackImages.length],
+    image: resolveAssetUrl(item.avatar_url) || getCuratedFallbackImage(index),
     tags: getTagsFromCategories(categories),
     thumbs: fallbackThumbs,
     extra: `+${item.package_count || 1}`,
@@ -406,7 +459,7 @@ function mapAiRecommendationToCard(
     price: formatPrice(displayPrice),
     image:
       resolveAssetUrl(item.avatar_url) ||
-      fallbackImages[index % fallbackImages.length],
+      getCuratedFallbackImage(index),
     tags: getTagsFromCategories(categories),
     thumbs: fallbackThumbs,
     extra: `+${item.package_count || 1}`,
@@ -1145,9 +1198,10 @@ function PhotographerCard({
             if (image.dataset.fallbackApplied === "true") return;
 
             image.dataset.fallbackApplied = "true";
-            image.src = fallbackImages[index % fallbackImages.length];
+            image.src = getCuratedFallbackImage(index);
           }}
-          className="h-full w-full object-cover"
+          className="h-full w-full bg-[#f2f0f7] object-cover"
+          style={{ objectPosition: "center 20%" }}
         />
 
         {aiSuggested && typeof person.aiMatchPercent === "number" ? (
@@ -1277,7 +1331,7 @@ function PhotographerCard({
                   if (image.dataset.fallbackApplied === "true") return;
 
                   image.dataset.fallbackApplied = "true";
-                  image.src = fallbackThumbs[thumbIndex % fallbackThumbs.length];
+                  image.src = getCuratedThumbImage(index, thumbIndex);
                 }}
                 className="-ml-2 h-8 w-8 rounded-md border-2 border-white object-cover first:ml-0"
               />
