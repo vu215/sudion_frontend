@@ -226,13 +226,45 @@ function extractPhotoDriveLink(location: string | null | undefined): string {
   return "";
 }
 
+function getShootDateTime(booking: BackendBooking) {
+  if (!booking.shoot_date) return null;
+
+  const dateText = String(booking.shoot_date).slice(0, 10);
+  const timeText = String(booking.shoot_time || "23:59").slice(0, 5);
+  const value = new Date(`${dateText}T${timeText}:00`);
+  return Number.isNaN(value.getTime()) ? null : value;
+}
+
+function canCustomerCancelBooking(booking: BackendBooking) {
+  if (!["awaiting_payment", "accepted", "confirmed"].includes(String(booking.status || ""))) {
+    return false;
+  }
+
+  const shootDateTime = getShootDateTime(booking);
+  if (shootDateTime && shootDateTime.getTime() <= Date.now()) {
+    return false;
+  }
+
+  return true;
+}
+
 function getRefundInfo(booking: BackendBooking) {
+  const shootDateTimeForCancel = getShootDateTime(booking);
+  if (shootDateTimeForCancel && shootDateTimeForCancel.getTime() <= Date.now()) {
+    return {
+      canRefund: false,
+      refundPercent: 0,
+      refundAmount: 0,
+      message: "Buổi chụp đã đến hoặc đã qua giờ: booking không thể hủy bằng luồng hủy lịch.",
+    };
+  }
+
   if (!["confirmed", "completed", "fully_paid", "cancelled"].includes(String(booking.status || ""))) {
     return {
       canRefund: false,
       refundPercent: 0,
       refundAmount: 0,
-      message: "Booking chưa thanh toán cọc nên không phát sinh hoàn tiền.",
+      message: "Booking chưa thanh toán cọc: vẫn có thể hủy, không phát sinh hoàn tiền.",
     };
   }
 
@@ -245,11 +277,9 @@ function getRefundInfo(booking: BackendBooking) {
     };
   }
 
-  const dateText = String(booking.shoot_date).slice(0, 10);
-  const timeText = String(booking.shoot_time).slice(0, 5);
-  const shootDateTime = new Date(`${dateText}T${timeText}:00`);
+  const shootDateTime = getShootDateTime(booking);
 
-  if (Number.isNaN(shootDateTime.getTime())) {
+  if (!shootDateTime) {
     return {
       canRefund: Number(booking.deposit_amount || 0) > 0,
       refundPercent: 50,
@@ -492,7 +522,15 @@ export default function BookingsPage() {
   async function handleCancelBooking() {
     if (!cancelTarget) return;
 
-    if (cancelRefundInfo?.canRefund) {
+    if (!canCustomerCancelBooking(cancelTarget)) {
+      toast.error(
+        "Không thể hủy booking",
+        "Booking đã đến/qua giờ chụp hoặc đang ở trạng thái không cho phép hủy."
+      );
+      return;
+    }
+
+    if (needsRefundDestination) {
       if (!refundBankName.trim()) {
         toast.error("Thiếu ngân hàng", "Vui lòng chọn ngân hàng nhận tiền hoàn.");
         return;
@@ -513,7 +551,7 @@ export default function BookingsPage() {
       const updatedBooking = await cancelBooking(
         cancelTarget.booking_code,
         cancelReason.trim() || "Khách hủy lịch",
-        cancelRefundInfo?.canRefund
+        needsRefundDestination
           ? {
               bankName: refundBankName.trim(),
               accountNumber: refundAccountNumber.trim().replace(/\s+/g, ""),
@@ -557,6 +595,8 @@ export default function BookingsPage() {
   }
 
   const cancelRefundInfo = cancelTarget ? getRefundInfo(cancelTarget) : null;
+  const cancelRefundAmount = Number(cancelRefundInfo?.refundAmount || 0);
+  const needsRefundDestination = cancelRefundAmount > 0;
 
   return (
     <main className="min-h-screen bg-[#fafbfc] text-[#0e111d]">
@@ -736,7 +776,7 @@ export default function BookingsPage() {
               />
             </label>
 
-            {cancelRefundInfo?.canRefund ? (
+            {needsRefundDestination ? (
               <div className="mt-5 rounded-[18px] border border-emerald-200 bg-emerald-50/70 p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div>
@@ -746,7 +786,7 @@ export default function BookingsPage() {
                     </p>
                   </div>
                   <span className="shrink-0 rounded-full bg-white px-2.5 py-1 text-[11px] font-black text-emerald-700">
-                    {formatCurrency(cancelRefundInfo.refundAmount || 0)}
+                    {formatCurrency(cancelRefundAmount)}
                   </span>
                 </div>
 
@@ -787,7 +827,11 @@ export default function BookingsPage() {
                   </label>
                 </div>
               </div>
-            ) : null}
+            ) : (
+              <div className="mt-5 rounded-[16px] border border-slate-200 bg-slate-50 px-4 py-3 text-[12px] font-semibold leading-5 text-slate-600">
+                Bạn vẫn có thể hủy booking này. Vì số tiền hoàn là 0đ nên không cần nhập tài khoản ngân hàng.
+              </div>
+            )}
 
             <div className="mt-5 grid grid-cols-2 gap-3">
               <button
@@ -841,7 +885,7 @@ function BookingCard({
 }) {
   const [showDetails, setShowDetails] = useState(false);
   const statusInfo = getStatusInfo(booking.status);
-  const canCancel = ["awaiting_payment", "accepted", "confirmed"].includes(booking.status);
+  const canCancel = canCustomerCancelBooking(booking);
   const isEligibleForGroupPay = ["accepted", "completed"].includes(booking.status);
 
   const driveUrl = extractPhotoDriveLink(booking.location);
