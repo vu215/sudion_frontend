@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, type FormEvent } from "react";
 import AdminLayout from "../_components/admin-layout";
 import { AdminIcon, IconButton } from "../_components/admin-icons";
 import { api } from "@/lib/api";
@@ -19,8 +19,23 @@ type Payment = {
   created_at: string;
 };
 
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL ||
+  "http://localhost:8080/api";
+
+function adminAuthHeaders(): Record<string, string> {
+  if (typeof window === "undefined") return {};
+
+  const token =
+    window.localStorage.getItem("sudion_token") ||
+    window.localStorage.getItem("token") ||
+    window.localStorage.getItem("accessToken");
+
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 export default function PaymentsPage() {
-  const [activeTab, setActiveTab] = useState<"payments" | "payouts">("payments");
+  const [activeTab, setActiveTab] = useState<"payments" | "payouts" | "manual">("payments");
   const [items, setItems] = useState<Payment[]>([]);
   const [payouts, setPayouts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,6 +49,14 @@ export default function PaymentsPage() {
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState<any>(null);
   const [payoutPagination, setPayoutPagination] = useState<any>(null);
+
+  const [manualBookingCode, setManualBookingCode] = useState("");
+  const [manualPaymentType, setManualPaymentType] = useState<"deposit" | "final">("deposit");
+  const [manualAmount, setManualAmount] = useState("");
+  const [manualTransactionCode, setManualTransactionCode] = useState("");
+  const [manualNote, setManualNote] = useState("");
+  const [manualSubmitting, setManualSubmitting] = useState(false);
+  const [manualResult, setManualResult] = useState<any>(null);
 
   const mapStatus = (backendStatus: string): PayStatus => {
     const statusMap: Record<string, PayStatus> = {
@@ -146,6 +169,68 @@ export default function PaymentsPage() {
     }
   }
 
+  async function handleManualBankConfirm(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const bookingCode = manualBookingCode.trim();
+    const transactionCode = manualTransactionCode.trim();
+    const amount = Math.round(Number(manualAmount.replace(/[^0-9]/g, "")));
+
+    if (!bookingCode || !transactionCode || !amount) {
+      alert("Nhập đủ Booking code, số tiền thực nhận và mã giao dịch ngân hàng.");
+      return;
+    }
+
+    if (!window.confirm(
+      `Xác nhận giao dịch ${transactionCode}\nBooking: ${bookingCode}\nSố tiền: ${money(amount)}\n\nSau bước này backend sẽ cập nhật payment/booking và gửi email.`
+    )) {
+      return;
+    }
+
+    try {
+      setManualSubmitting(true);
+      setManualResult(null);
+
+      const response = await fetch(`${API_URL}/admin/payments/manual-bank-confirm`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...adminAuthHeaders(),
+        },
+        body: JSON.stringify({
+          bookingCode,
+          paymentType: manualPaymentType,
+          amount,
+          transactionCode,
+          note: manualNote.trim(),
+        }),
+      });
+
+      const json = await response.json().catch(() => ({}));
+
+      if (!response.ok || json?.success === false) {
+        const expected = Number(json?.data?.expected_amount || 0);
+        const suffix = expected > 0 ? ` Số tiền hệ thống yêu cầu: ${money(expected)}.` : "";
+        throw new Error((json?.message || "Không thể xác nhận giao dịch.") + suffix);
+      }
+
+      setManualResult(json?.data || { success: true });
+      notify("Đã xác nhận chuyển khoản thủ công!");
+      setManualTransactionCode("");
+      setManualNote("");
+
+      // Refresh stats để tab lịch sử thấy giao dịch mới ngay khi quay lại.
+      try {
+        const statResult = (await api.payments.getStats()) as any;
+        if (statResult.success) setStats(statResult.data);
+      } catch (_) {}
+    } catch (error: any) {
+      alert(error?.message || "Lỗi khi xác nhận chuyển khoản thủ công.");
+    } finally {
+      setManualSubmitting(false);
+    }
+  }
+
   function notify(text: string) {
     setToast(text);
     setTimeout(() => setToast(""), 1800);
@@ -199,6 +284,20 @@ export default function PaymentsPage() {
             }`}
           >
             Đối soát & Hoa hồng Thợ ảnh
+          </button>
+          <button
+            onClick={() => {
+              setActiveTab("manual");
+              setQuery("");
+              setPage(1);
+            }}
+            className={`pb-3.5 px-4 text-[14px] font-extrabold transition-all border-b-2 ${
+              activeTab === "manual"
+                ? "border-[#ff8d28] text-[#ff8d28]"
+                : "border-transparent text-[#697086] hover:text-[#0e111d]"
+            }`}
+          >
+            Xác nhận CK thủ công
           </button>
         </div>
 
@@ -330,7 +429,7 @@ export default function PaymentsPage() {
               </div>
             </Panel>
           </>
-        ) : (
+        ) : activeTab === "payouts" ? (
           <Panel>
             <div className="mb-3 grid gap-2 md:grid-cols-[minmax(0,1fr)_160px_40px]">
               <label className="relative !block">
@@ -457,6 +556,118 @@ export default function PaymentsPage() {
                     Sau
                   </button>
                 )}
+              </div>
+            </div>
+          </Panel>
+        ) : (
+          <Panel>
+            <div className="grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(280px,0.8fr)]">
+              <form onSubmit={handleManualBankConfirm} className="space-y-4">
+                <div>
+                  <h2 className="text-[18px] font-semibold text-[#0e111d]">
+                    Xác nhận chuyển khoản dự phòng
+                  </h2>
+                  <p className="mt-1 text-[12px] leading-5 text-[#697086]">
+                    Chỉ Admin có quyền xác nhận. Backend kiểm tra booking, loại thanh toán,
+                    đúng số tiền và mã giao dịch chưa từng được sử dụng trước khi cập nhật paid.
+                  </p>
+                </div>
+
+                <div className="grid gap-3 md:grid-cols-2">
+                  <label className="block">
+                    <span className="mb-1.5 block text-[12px] font-semibold text-[#536078]">
+                      Booking code
+                    </span>
+                    <input
+                      value={manualBookingCode}
+                      onChange={(e) => setManualBookingCode(e.target.value)}
+                      placeholder="VD: BK17881557178631219"
+                      className="h-11 w-full rounded-xl border border-[#dfe3ec] px-3 text-[13px] outline-none focus:border-[#ff8d28]"
+                    />
+                  </label>
+
+                  <label className="block">
+                    <span className="mb-1.5 block text-[12px] font-semibold text-[#536078]">
+                      Loại thanh toán
+                    </span>
+                    <select
+                      value={manualPaymentType}
+                      onChange={(e) => setManualPaymentType(e.target.value as "deposit" | "final")}
+                      className="h-11 w-full rounded-xl border border-[#dfe3ec] bg-white px-3 text-[13px] outline-none focus:border-[#ff8d28]"
+                    >
+                      <option value="deposit">Tiền cọc</option>
+                      <option value="final">Phần còn lại</option>
+                    </select>
+                  </label>
+
+                  <label className="block">
+                    <span className="mb-1.5 block text-[12px] font-semibold text-[#536078]">
+                      Số tiền thực nhận
+                    </span>
+                    <input
+                      value={manualAmount}
+                      onChange={(e) => setManualAmount(e.target.value)}
+                      inputMode="numeric"
+                      placeholder="VD: 7500"
+                      className="h-11 w-full rounded-xl border border-[#dfe3ec] px-3 text-[13px] outline-none focus:border-[#ff8d28]"
+                    />
+                  </label>
+
+                  <label className="block">
+                    <span className="mb-1.5 block text-[12px] font-semibold text-[#536078]">
+                      Mã giao dịch ngân hàng
+                    </span>
+                    <input
+                      value={manualTransactionCode}
+                      onChange={(e) => setManualTransactionCode(e.target.value)}
+                      placeholder="Nhập từ biên lai/app ngân hàng"
+                      className="h-11 w-full rounded-xl border border-[#dfe3ec] px-3 text-[13px] outline-none focus:border-[#ff8d28]"
+                    />
+                  </label>
+                </div>
+
+                <label className="block">
+                  <span className="mb-1.5 block text-[12px] font-semibold text-[#536078]">
+                    Ghi chú kiểm tra (không bắt buộc)
+                  </span>
+                  <textarea
+                    value={manualNote}
+                    onChange={(e) => setManualNote(e.target.value)}
+                    rows={3}
+                    placeholder="VD: Đã đối chiếu biên lai trên app ngân hàng"
+                    className="w-full rounded-xl border border-[#dfe3ec] px-3 py-2.5 text-[13px] outline-none focus:border-[#ff8d28]"
+                  />
+                </label>
+
+                <button
+                  type="submit"
+                  disabled={manualSubmitting}
+                  className="inline-flex h-11 items-center justify-center rounded-xl bg-[#ff8d28] px-5 text-[13px] font-extrabold text-white transition hover:bg-[#e0751b] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {manualSubmitting ? "Đang kiểm tra & xác nhận..." : "Kiểm tra và xác nhận đã thanh toán"}
+                </button>
+              </form>
+
+              <div className="rounded-2xl border border-[#fde2c8] bg-[#fff9f3] p-5">
+                <h3 className="text-[14px] font-semibold text-[#0e111d]">Luồng sau khi Admin xác nhận</h3>
+                <div className="mt-3 space-y-2 text-[12px] leading-5 text-[#697086]">
+                  <p>1. Kiểm tra Booking code và số tiền từ DB.</p>
+                  <p>2. Chặn mã giao dịch đã được dùng trước đó.</p>
+                  <p>3. Ghi payment với provider <b>admin_manual_bank</b>.</p>
+                  <p>4. Cọc → booking <b>confirmed</b>.</p>
+                  <p>5. Thanh toán cuối → <b>fully_paid</b> + settlement.</p>
+                  <p>6. Gửi notification/email bằng flow payment hiện tại.</p>
+                </div>
+
+                {manualResult ? (
+                  <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-[12px] text-emerald-800">
+                    <b>Đã xử lý thành công.</b>
+                    <div className="mt-1">
+                      Payment: {manualResult?.payment_code || "đã tạo"} · Booking:{" "}
+                      {manualResult?.booking?.booking_code || manualBookingCode}
+                    </div>
+                  </div>
+                ) : null}
               </div>
             </div>
           </Panel>
