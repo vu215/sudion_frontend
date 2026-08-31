@@ -62,7 +62,7 @@ export default function RefundsPage() {
   const [toast, setToast] = useState("");
   
   const [refunding, setRefunding] = useState(false);
-  const [refundStep, setRefundStep] = useState("");
+  const [refundTransactionCode, setRefundTransactionCode] = useState("");
 
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState<any>(null);
@@ -113,60 +113,52 @@ export default function RefundsPage() {
 
   const handleBankRefund = async (refundId: string, action: "Duyệt" | "Hoàn tiền") => {
     const item = items.find((i) => i.id === refundId);
-    if (!item) return;
+    if (!item || refunding) return;
 
-    setRefunding(true);
-    setRefundStep("Khởi tạo kết nối API Refund Gateway...");
+    if (action === "Hoàn tiền" && item.status !== "Đang xử lý") {
+      notify("Hãy duyệt yêu cầu trước khi xác nhận đã hoàn tiền.");
+      return;
+    }
 
-    setTimeout(() => {
-      setRefundStep(`Đang xác thực thông tin giao dịch hoàn tiền cổng ${item.method}...`);
-      
-      setTimeout(async () => {
-        setRefundStep("Phản hồi ngân hàng: Đã chấp nhận lệnh hoàn tiền tự động. Mã GD: REFND-BANK-823901.");
-        
-        setTimeout(async () => {
-          const nextStatus = action === "Duyệt" ? "Đang xử lý" : "Đã hoàn tiền";
-          const transactionCode = `REFND-${item.method.toUpperCase()}-${Math.floor(10000000 + Math.random() * 90000000)}`;
-          
-          try {
-            let result;
-            if (action === "Duyệt") {
-              result = await api.refunds.approve(refundId, adminNote);
-            } else {
-              result = await api.refunds.process(refundId, adminNote, transactionCode);
-            }
+    if (action === "Hoàn tiền" && refundTransactionCode.trim().length < 4) {
+      notify("Nhập mã giao dịch/chứng từ chuyển khoản hoàn tiền trước.");
+      return;
+    }
 
-            if (result.success) {
-              setItems((list) => list.map((r) => r.id === refundId ? {
-                ...r,
-                status: nextStatus as RefundStatus,
-                adminNote: adminNote || r.adminNote,
-                history: [
-                  ...r.history,
-                  `${new Date().toLocaleString("vi-VN")} · Gọi Bank Refund API ${item.method} thành công. Mã GD hoàn: ${transactionCode}`,
-                  `${new Date().toLocaleString("vi-VN")} · Trạng thái cập nhật thành: ${nextStatus}`
-                ],
-                updatedAt: new Date().toLocaleString("vi-VN"),
-              } : r));
+    try {
+      setRefunding(true);
 
-              notify(`Hoàn tiền thành công! Mã GD: ${transactionCode}`);
-              loadStats();
-            } else {
-              notify("Lỗi kết nối API: " + (result.message || result.error));
-            }
-          } catch (err) {
-            console.error(err);
-            notify("Lỗi hệ thống khi cập nhật API hoàn tiền.");
-          } finally {
-            setRefunding(false);
-            if (selectedId === refundId) {
-              setAdminNote("");
-              closeDetail();
-            }
-          }
-        }, 1200);
-      }, 1200);
-    }, 1000);
+      const result =
+        action === "Duyệt"
+          ? await api.refunds.approve(refundId, adminNote)
+          : await api.refunds.process(
+              refundId,
+              adminNote,
+              refundTransactionCode.trim()
+            );
+
+      if (!result.success) {
+        notify("Lỗi: " + (result.message || result.error || "Không thể cập nhật hoàn tiền."));
+        return;
+      }
+
+      await Promise.all([loadRefunds(), loadStats()]);
+
+      if (action === "Duyệt") {
+        notify("Đã duyệt yêu cầu. Sau khi chuyển tiền thật, nhập mã giao dịch để xác nhận hoàn tiền.");
+      } else {
+        notify(`Đã ghi nhận hoàn tiền · Mã GD: ${refundTransactionCode.trim()}`);
+        setRefundTransactionCode("");
+      }
+
+      setAdminNote("");
+      closeDetail();
+    } catch (err) {
+      console.error(err);
+      notify("Lỗi hệ thống khi cập nhật yêu cầu hoàn tiền.");
+    } finally {
+      setRefunding(false);
+    }
   };
 
   const handleRejectRefund = async (refundId: string) => {
@@ -230,6 +222,7 @@ export default function RefundsPage() {
     const r = items.find((item) => item.id === id);
     setSelectedId(id);
     setAdminNote(r?.adminNote ?? "");
+    setRefundTransactionCode("");
     window.requestAnimationFrame(() => setDetailOpen(true));
   }
 
@@ -380,38 +373,46 @@ export default function RefundsPage() {
               <h3 className="text-[13px] font-semibold">Ghi chú Admin</h3>
               <textarea value={adminNote} onChange={(e) => setAdminNote(e.target.value)} className="mt-2 w-full min-h-[72px] rounded-xl border border-[#dfe3ec] p-3 text-[12px] outline-none focus:border-[#ff8d28]" placeholder="Nhập ghi chú xử lý..." />
             </div>
+
+            {selected.status === "Đang xử lý" ? (
+              <div className="mt-4 rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
+                <h3 className="text-[13px] font-semibold text-emerald-800">Xác nhận chuyển khoản hoàn tiền</h3>
+                <p className="mt-1 text-[11px] leading-5 text-emerald-700">
+                  Chuyển tiền thật bằng ứng dụng ngân hàng trước, sau đó nhập mã giao dịch/chứng từ để hệ thống ghi nhận. Sudion không giả lập lệnh hoàn tiền tự động.
+                </p>
+                <input
+                  value={refundTransactionCode}
+                  onChange={(e) => setRefundTransactionCode(e.target.value)}
+                  className="mt-3 !h-10 !min-h-0 w-full rounded-xl border border-emerald-200 bg-white px-3 text-[12px] outline-none focus:border-emerald-500"
+                  placeholder="VD: FT260830123456 hoặc mã giao dịch ngân hàng"
+                />
+              </div>
+            ) : null}
+
             <div className="mt-5 grid grid-cols-2 gap-2">
-              <button onClick={() => handleBankRefund(selected.id, "Duyệt")} className="h-10 rounded-xl border border-blue-200 bg-blue-50 text-[12px] font-medium text-blue-700 hover:bg-blue-100">Duyệt</button>
-              <button onClick={() => handleBankRefund(selected.id, "Hoàn tiền")} className="h-10 rounded-xl bg-[#ff8d28] text-[12px] font-medium text-white hover:bg-[#f47f16]">Hoàn tiền tự động</button>
-              <button onClick={() => handleRejectRefund(selected.id)} className="h-10 rounded-xl border border-red-200 bg-red-50 text-[12px] font-medium text-red-600 hover:bg-red-100">Từ chối</button>
-              <button onClick={() => handleSaveNote(selected.id)} className="h-10 rounded-xl border border-[#dfe3ec] bg-white text-[12px] font-medium text-[#536078] hover:bg-[#f7f8fb]">Lưu ghi chú</button>
+              {selected.status === "Chờ duyệt" ? (
+                <button disabled={refunding} onClick={() => handleBankRefund(selected.id, "Duyệt")} className="h-10 rounded-xl border border-blue-200 bg-blue-50 text-[12px] font-medium text-blue-700 hover:bg-blue-100 disabled:opacity-50">
+                  {refunding ? "Đang xử lý..." : "Duyệt"}
+                </button>
+              ) : (
+                <button disabled className="h-10 rounded-xl border border-[#e5e7eb] bg-[#f8fafc] text-[12px] font-medium text-[#94a3b8]">Đã duyệt</button>
+              )}
+
+              {selected.status === "Đang xử lý" ? (
+                <button disabled={refunding || refundTransactionCode.trim().length < 4} onClick={() => handleBankRefund(selected.id, "Hoàn tiền")} className="h-10 rounded-xl bg-[#ff8d28] text-[12px] font-medium text-white hover:bg-[#f47f16] disabled:cursor-not-allowed disabled:opacity-50">
+                  {refunding ? "Đang ghi nhận..." : "Xác nhận đã hoàn tiền"}
+                </button>
+              ) : (
+                <button disabled className="h-10 rounded-xl bg-[#f1f5f9] text-[12px] font-medium text-[#94a3b8]">Xác nhận đã hoàn tiền</button>
+              )}
+
+              <button disabled={refunding || selected.status === "Đã hoàn tiền" || selected.status === "Từ chối"} onClick={() => handleRejectRefund(selected.id)} className="h-10 rounded-xl border border-red-200 bg-red-50 text-[12px] font-medium text-red-600 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50">Từ chối</button>
+              <button disabled={refunding} onClick={() => handleSaveNote(selected.id)} className="h-10 rounded-xl border border-[#dfe3ec] bg-white text-[12px] font-medium text-[#536078] hover:bg-[#f7f8fb] disabled:opacity-50">Lưu ghi chú</button>
             </div>
           </aside>
         </div>
       ) : null}
 
-      {/* Overlay Mô phỏng gọi Bank Refund API */}
-      {refunding && (
-        <div className="fixed inset-0 z-[100] grid place-items-center bg-[#0f172a]/70 backdrop-blur-md">
-          <div className="w-full max-w-[420px] rounded-3xl bg-white p-6 shadow-2xl text-center text-[#0f172a] border border-[#ff8d28]/25">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-orange-50 text-[32px] animate-spin mb-4">
-              🌀
-            </div>
-            
-            <h3 className="text-[18px] font-black text-[#0f172a]">
-              Đang kết nối cổng Bank Refund API
-            </h3>
-            
-            <p className="mt-3 text-[13px] font-semibold text-gray-500 leading-6 min-h-[48px] flex items-center justify-center">
-              {refundStep}
-            </p>
-            
-            <div className="mt-4 h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
-              <div className="h-full bg-[#ff8d28] transition-all duration-500 rounded-full animate-pulse w-[75%]" />
-            </div>
-          </div>
-        </div>
-      )}
     </AdminLayout>
   );
 }

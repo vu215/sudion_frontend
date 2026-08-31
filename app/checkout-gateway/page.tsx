@@ -267,157 +267,94 @@ function CheckoutGatewayContent() {
   const handleManualConfirm = async () => {
     if (!displayCode) {
       toast.error(
-        "Giao dịch thất bại",
-        "Thiếu mã giao dịch."
+        "Không thể kiểm tra",
+        "Thiếu mã booking/giao dịch."
       );
-
-      return;
-    }
-
-    if (
-      !groupCode &&
-      (!bookingCode || queryAmount <= 0)
-    ) {
-      toast.error(
-        "Giao dịch thất bại",
-        "Thông tin booking hoặc số tiền không hợp lệ."
-      );
-
       return;
     }
 
     try {
       setPaying(true);
 
-      // ===============================
-      // THANH TOÁN ĐƠN GOM
-      // ===============================
+      // Nút này CHỈ kiểm tra trạng thái.
+      // Nó không tự đánh dấu paid và không tạo TXN_TEST nữa.
       if (groupCode) {
         const response = await fetch(
-          `${API_URL}/payments/group/${groupCode}/status`,
+          `${API_URL}/payments/group/${groupCode}/info`,
           {
-            method: "POST",
-
-            headers: {
-              "Content-Type":
-                "application/json",
-
-              ...authHeaders(),
-            },
-
-            body: JSON.stringify({
-              status: "paid",
-              paymentMethod,
-
-              transactionCode:
-                `TXN_TEST_${Date.now()}`,
-            }),
+            headers: authHeaders(),
+            cache: "no-store",
           }
         );
 
         const json = (await response
           .json()
-          .catch(() => ({}))) as PaymentResponse;
+          .catch(() => ({}))) as {
+          success?: boolean;
+          message?: string;
+          data?: GroupPaymentData;
+        };
 
-        if (
-          !response.ok ||
-          !json.success
-        ) {
-          throw new Error(
-            json.message ||
-            "Giao dịch đơn gom không được chấp nhận."
-          );
+        if (!response.ok || !json.success) {
+          throw new Error(json.message || "Không thể kiểm tra giao dịch đơn gom.");
         }
 
-        if (
-          json.data?.status !== "paid"
-        ) {
-          throw new Error(
-            "Backend chưa cập nhật trạng thái đơn gom thành paid."
-          );
+        if (json.data?.status === "paid") {
+          setGroupData(json.data);
+          setSuccess(true);
+          return;
         }
-      }
 
-      // ===============================
-      // THANH TOÁN MỘT BOOKING
-      // ===============================
-      else {
-        const response = await fetch(
-          `${API_URL}/payments/webhook`,
-          {
-            method: "POST",
-
-            headers: {
-              "Content-Type":
-                "application/json",
-
-              ...authHeaders(),
-            },
-
-            body: JSON.stringify({
-              bookingCode,
-              paymentType,
-              amount: queryAmount,
-              paymentMethod,
-
-              transactionCode:
-                `TXN_TEST_${Date.now()}`,
-
-              signature,
-            }),
-          }
+        toast.error(
+          "Chưa nhận được giao dịch",
+          "Ngân hàng chưa xác nhận đủ tiền cho đơn này. Hãy giữ đúng số tiền và nội dung chuyển khoản rồi thử lại sau vài giây."
         );
-
-        const json = (await response
-          .json()
-          .catch(() => ({}))) as PaymentResponse;
-
-        if (
-          !response.ok ||
-          !json.success
-        ) {
-          throw new Error(
-            json.message ||
-            "Giao dịch không được chấp nhận."
-          );
-        }
-
-        const returnedStatus =
-          json.data?.status;
-
-        const paymentCompleted =
-          isFinalPayment
-            ? returnedStatus ===
-            "fully_paid"
-            : returnedStatus ===
-            "confirmed" ||
-            returnedStatus ===
-            "fully_paid";
-
-        if (!paymentCompleted) {
-          throw new Error(
-            isFinalPayment
-              ? "Backend chưa chuyển booking sang fully_paid."
-              : "Backend chưa chuyển booking sang confirmed."
-          );
-        }
+        return;
       }
 
-      setSuccess(true);
-    } catch (error) {
-      console.error(
-        "PAYMENT_CONFIRM_ERROR:",
-        error
+      const response = await fetch(
+        `${API_URL}/payments/${bookingCode}/check-bank-transfer?paymentType=${encodeURIComponent(
+          paymentType
+        )}`,
+        {
+          headers: authHeaders(),
+          cache: "no-store",
+        }
       );
 
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Có lỗi xảy ra.";
+      const json = (await response
+        .json()
+        .catch(() => ({}))) as {
+        success?: boolean;
+        message?: string;
+        data?: {
+          paid?: boolean;
+          expected_amount?: number;
+          received_amount?: number;
+          transaction_code?: string | null;
+        };
+      };
+
+      if (!response.ok || !json.success) {
+        throw new Error(json.message || "Không thể kiểm tra giao dịch chuyển khoản.");
+      }
+
+      if (json.data?.paid) {
+        setSuccess(true);
+        return;
+      }
 
       toast.error(
-        "Giao dịch thất bại",
-        message
+        "Chưa tìm thấy giao dịch",
+        `Hệ thống vẫn đang chờ ngân hàng xác nhận ${Number(
+          json.data?.expected_amount || queryAmount || 0
+        ).toLocaleString("vi-VN")}đ. Không cần thanh toán lại nếu bạn vừa chuyển khoản.`
+      );
+    } catch (error) {
+      console.error("PAYMENT_CHECK_ERROR:", error);
+      toast.error(
+        "Kiểm tra thất bại",
+        error instanceof Error ? error.message : "Có lỗi xảy ra khi kiểm tra giao dịch."
       );
     } finally {
       setPaying(false);
@@ -493,8 +430,8 @@ function CheckoutGatewayContent() {
               </h1>
 
               <p className="text-[11px] text-slate-400">
-                Tự động nhận diện giao
-                dịch qua VietQR Webhook
+                Tự động xác nhận khi backend
+                nhận webhook ngân hàng
               </p>
             </div>
           </div>
@@ -502,7 +439,7 @@ function CheckoutGatewayContent() {
           <div className="flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-bold text-emerald-400">
             <span className="h-1.5 w-1.5 animate-ping rounded-full bg-emerald-400" />
 
-            <span>Tự động 24/7</span>
+            <span>Đang chờ xác nhận</span>
           </div>
         </div>
 
