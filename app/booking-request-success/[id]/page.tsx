@@ -389,10 +389,10 @@ export default function BookingRequestSuccessPage({ params }: { params: Promise<
         </div>
 
         {/* ── Right sidebar ── */}
-        <aside className="rounded-2xl border border-[#e2e8f0] bg-white p-4 shadow-sm lg:sticky lg:top-[88px] grid gap-3 min-w-0 overflow-hidden sm:p-5">
-          <div>
+        <aside className="grid w-full max-w-full gap-4 rounded-2xl border border-[#e2e8f0] bg-white p-4 shadow-sm sm:p-5 lg:sticky lg:top-[88px] lg:max-w-[300px] lg:overflow-x-hidden">
+          <div className="w-full min-w-0">
             <p className="text-[11px] font-black uppercase tracking-widest text-[#ff8d28]">Quy trình</p>
-            <div className="mt-3 mr-3 grid gap-2 pb-1">
+            <div className="mt-3 grid w-full min-w-0 gap-2 pb-1">
               {[
                 { keys: ["awaiting_payment", "accepted", "confirmed", "completed", "fully_paid"], doneKeys: ["accepted", "confirmed", "completed", "fully_paid"], title: "Gửi yêu cầu" },
                 { keys: ["accepted", "confirmed", "completed", "fully_paid"], doneKeys: ["confirmed", "completed", "fully_paid"], title: "Photographer xác nhận" },
@@ -403,11 +403,11 @@ export default function BookingRequestSuccessPage({ params }: { params: Promise<
                 const active = step.keys.includes(booking.status);
                 const done = step.doneKeys.includes(booking.status);
                 return (
-                  <div key={i} className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 text-[12.5px] ${active ? "border-[#ffcfaa] bg-[#fff7ed] font-black text-[#0f172a]" : "border-[#eef2f7] text-[#94a3b8] font-semibold"}`}>
+                  <div key={i} className={`flex w-full min-w-0 items-center gap-3 rounded-xl border px-3 py-2.5 text-[12.5px] ${active ? "border-[#ffcfaa] bg-[#fff7ed] font-black text-[#0f172a]" : "border-[#eef2f7] text-[#94a3b8] font-semibold"}`}>
                     <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-full text-[10px] font-black ${done ? "bg-[#ff8d28] text-white" : active ? "border border-[#ff8d28] text-[#ff8d28]" : "bg-[#e2e8f0] text-[#94a3b8]"}`}>
                       {done ? "✓" : i + 1}
                     </span>
-                    {step.title}
+                    <span className="truncate">{step.title}</span>
                   </div>
                 );
               })}
@@ -416,9 +416,9 @@ export default function BookingRequestSuccessPage({ params }: { params: Promise<
 
           {/* Dịch vụ cùng nhóm gợi ý */}
           {sameCategoryPkgs.length > 0 && (
-            <div>
+            <div className="w-full min-w-0">
               <p className="text-[11px] font-black uppercase tracking-widest text-[#ff8d28]">Loại hình chụp ảnh</p>
-              <div className="mt-2 mr-3 grid gap-2 pb-0.5">
+              <div className="mt-2 grid w-full min-w-0 gap-2 pb-0.5">
                 {(showSameCategory ? sameCategoryPkgs : sameCategoryPkgs.slice(0, 3)).map(pkg => {
                   const isSelected = pkg.isSubtype
                     ? pkg.name === booking?.people_scale
@@ -429,12 +429,12 @@ export default function BookingRequestSuccessPage({ params }: { params: Promise<
                       type="button"
                       disabled={isSelected || switching}
                       onClick={() => handleSelectService(pkg)}
-                      className={`flex h-[82px] items-center gap-2.5 rounded-xl border p-2.5 transition text-left w-full ${isSelected
+                      className={`flex h-[82px] w-full max-w-full items-center gap-2.5 rounded-xl border p-2.5 text-left transition ${isSelected
                           ? "border-[#ff8d28] bg-[#fff7ed] ring-2 ring-inset ring-[#ff8d28]/20 cursor-default"
                           : "border-[#eef2f7] bg-white hover:border-[#ffcfaa] hover:bg-[#fff7ed]"
                         }`}
                     >
-                      <div className="h-12 w-12 shrink-0 rounded-lg overflow-hidden bg-[#f1f5f9]">
+                      <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-[#f1f5f9]">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={pkg.image_url || getCatImage(pkg.category.slug, pkg.category.name, pkg.name)}
@@ -450,7 +450,7 @@ export default function BookingRequestSuccessPage({ params }: { params: Promise<
                             <span className="shrink-0 rounded-full bg-[#ff8d28] px-1.5 py-0.5 text-[9px] font-black text-white">Đang chọn</span>
                           )}
                         </div>
-                        <p className="text-[11px] font-semibold text-[#64748b]">{pkg.category.name}</p>
+                        <p className="truncate text-[11px] font-semibold text-[#64748b]">{pkg.category.name}</p>
                         <p className="text-[11px] font-black text-[#ff8d28]">{fmt(pkg.price)}</p>
                       </div>
                       {!isSelected && (
@@ -463,7 +463,7 @@ export default function BookingRequestSuccessPage({ params }: { params: Promise<
                   <button
                     type="button"
                     onClick={() => setShowSameCategory(v => !v)}
-                    className="flex items-center justify-center gap-1 rounded-xl border border-dashed border-[#ffcfaa] py-2 text-[11px] font-black text-[#ff8d28] transition hover:bg-[#fff7ed]"
+                    className="flex w-full items-center justify-center gap-1 rounded-xl border border-dashed border-[#ffcfaa] py-2 text-[11px] font-black text-[#ff8d28] transition hover:bg-[#fff7ed]"
                   >
                     {showSameCategory ? 'Thu gọn' : `Xem thêm ${sameCategoryPkgs.length - 3} loại`}
                     <svg className={`h-3.5 w-3.5 transition-transform ${showSameCategory ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
@@ -475,18 +475,18 @@ export default function BookingRequestSuccessPage({ params }: { params: Promise<
 
           {/* Dịch vụ khác gợi ý */}
           {otherCategoryPkgs.length > 0 && (
-            <div>
+            <div className="w-full min-w-0">
               <p className="text-[11px] font-black uppercase tracking-widest text-[#64748b]">Dịch vụ khác của photographer</p>
-              <div className="mt-2 mr-3 grid gap-2 pb-0.5">
+              <div className="mt-2 grid w-full min-w-0 gap-2 pb-0.5">
                 {(showOtherCategory ? otherCategoryPkgs : otherCategoryPkgs.slice(0, 3)).map(pkg => (
                   <button
                     key={pkg.id}
                     type="button"
                     disabled={switching}
                     onClick={() => handleSelectService(pkg)}
-                    className="flex h-[82px] items-center gap-2.5 rounded-xl border border-[#eef2f7] bg-white p-2.5 transition hover:border-[#ffcfaa] hover:bg-[#fff7ed] text-left w-full"
+                    className="flex h-[82px] w-full max-w-full items-center gap-2.5 rounded-xl border border-[#eef2f7] bg-white p-2.5 text-left transition hover:border-[#ffcfaa] hover:bg-[#fff7ed]"
                   >
-                    <div className="h-12 w-12 shrink-0 rounded-lg overflow-hidden bg-[#f1f5f9]">
+                    <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-[#f1f5f9]">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={pkg.image_url || getCatImage(pkg.category.slug, pkg.category.name, pkg.name)}
@@ -497,7 +497,7 @@ export default function BookingRequestSuccessPage({ params }: { params: Promise<
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-[12px] font-black text-[#0f172a]" title={pkg.name}>{pkg.name}</p>
-                      <p className="text-[11px] font-semibold text-[#64748b]">{pkg.category.name}</p>
+                      <p className="truncate text-[11px] font-semibold text-[#64748b]">{pkg.category.name}</p>
                       <p className="text-[11px] font-black text-[#ff8d28]">{fmt(pkg.price)}</p>
                     </div>
                     <svg className="h-4 w-4 shrink-0 text-[#cbd5e1]" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 18l6-6-6-6" /></svg>
@@ -507,7 +507,7 @@ export default function BookingRequestSuccessPage({ params }: { params: Promise<
                   <button
                     type="button"
                     onClick={() => setShowOtherCategory(v => !v)}
-                    className="flex items-center justify-center gap-1 rounded-xl border border-dashed border-[#cbd5e1] py-2 text-[11px] font-black text-[#64748b] transition hover:bg-[#f8fafc]"
+                    className="flex w-full items-center justify-center gap-1 rounded-xl border border-dashed border-[#cbd5e1] py-2 text-[11px] font-black text-[#64748b] transition hover:bg-[#f8fafc]"
                   >
                     {showOtherCategory ? 'Thu gọn' : `Xem thêm ${otherCategoryPkgs.length - 3} dịch vụ`}
                     <svg className={`h-3.5 w-3.5 transition-transform ${showOtherCategory ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
