@@ -17,13 +17,14 @@ function resolveAssetUrl(url: string | null) {
 const photos = {
   hero: "https://images.unsplash.com/photo-1502982720700-bfff97f2ecac?auto=format&fit=crop&w=2000&q=90",
   wedding: "https://i.pinimg.com/1200x/f2/a5/5a/f2a55a5b607de167875d9e3b85668f1a.jpg",
-  portrait: "https://i.pinimg.com/736x/c1/1e/62/c11e625dff2d6c16556d4bf313b15bbb.jpg",
+  portrait: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=900&q=80",
   event: "https://i.pinimg.com/1200x/7b/c0/52/7bc0529f686c1f7b26f364cf57c57be6.jpg",
   travel: "https://i.pinimg.com/1200x/c4/68/6d/c4686d3523a99172767d64f8177e62bd.jpg",
   product: "https://i.pinimg.com/1200x/3b/a2/c5/3ba2c5ae61f152bde93c84c22cabb7ea.jpg",
   family: "https://i.pinimg.com/736x/87/28/56/87285639f8ddd169b2e0914c2d09d131.jpg",
   food: "https://i.pinimg.com/736x/86/20/43/862043dfe5e28d68633eb4290a90d8e1.jpg",
-  couple: "https://i.pinimg.com/736x/a4/ff/df/a4ffdf7dce679f05f8b0636aef47d43c.jpg",
+  couple: "https://images.unsplash.com/photo-1520854221256-17451cc331bf?auto=format&fit=crop&w=900&q=80",
+  yearbook: "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=900&q=80",
 };
 
 const fallbackPhotographers = [
@@ -39,14 +40,12 @@ const services = [
   ["Chụp sự kiện", "Ghi lại mọi khoảnh khắc", photos.event, "event"],
   ["Chụp du lịch", "Khám phá thế giới", photos.travel, "travel"],
   ["Chụp sản phẩm", "Nâng tầm thương hiệu", photos.product, "product"],
-  ["Chụp gia đình", "Yêu thương trọn vẹn", photos.family, "family"],
 ];
 
 const deals = [
   ["-20%", "Gói chụp cưới ngoại cảnh", "Mai Wedding", "3.200.000đ", "4.000.000đ", photos.wedding],
   ["-15%", "Gói chụp kỷ yếu nhóm", "Lynh Photography", "1.700.000đ", "2.000.000đ", photos.event],
   ["-10%", "Gói chụp sản phẩm cơ bản", "Tony Media", "900.000đ", "1.000.000đ", photos.product],
-  ["-20%", "Gói chụp gia đình cuối tuần", "Nắng Studio", "1.600.000đ", "2.000.000đ", photos.family],
 ];
 
 const fallbackProducts = [
@@ -164,13 +163,6 @@ const fallbackProducts = [
 
 const promoSlides = [
   {
-    eyebrow: "KHOẢNH KHẮC GIA ĐÌNH",
-    title: "TẶNG THÊM 30 ẢNH",
-    description: "Khi đặt gói chụp gia đình cuối tuần",
-    image: photos.family,
-    href: "/services/family",
-  },
-  {
     eyebrow: "ƯU ĐÃI MÙA CƯỚI",
     title: "GIẢM ĐẾN 20%",
     description: "Cho các gói chụp cưới ngoại cảnh",
@@ -247,12 +239,14 @@ function getCategoryIcon(slug: string) {
 }
 
 const getCategoryPhoto = (slug: string) => {
-  if (slug === "wedding" || slug === "couple") return photos.wedding;
+  if (slug === "wedding") return photos.wedding;
+  if (slug === "couple") return photos.couple;
   if (slug === "portrait" || slug === "personal") return photos.portrait;
+  if (slug === "yearbook") return photos.yearbook;
   if (slug === "event") return photos.event;
   if (slug === "travel") return photos.travel;
   if (slug === "product" || slug === "food") return photos.product;
-  return photos.family;
+  return photos.portrait;
 };
 
 export default function Home() {
@@ -267,13 +261,19 @@ export default function Home() {
       .then((res) => res.json())
       .then((json) => {
         if (json.success && Array.isArray(json.data) && json.data.length > 0) {
-          const mapped = json.data.map((cat: any) => [
+          const filtered = json.data.filter((cat: any) => {
+            const slug = String(cat.slug || "").toLowerCase();
+            const name = String(cat.name || "").toLowerCase();
+            return !slug.includes("family") && !name.includes("gia đình") && !name.includes("gia dinh");
+          });
+
+          const mapped = filtered.map((cat: any) => [
             cat.name,
             cat.description || "Dịch vụ chụp ảnh chuyên nghiệp tại Sudion.",
             getCategoryPhoto(cat.slug),
             cat.slug
           ]);
-          setCategoriesList(mapped);
+          setCategoriesList(mapped.length > 0 ? mapped : services);
         }
       })
       .catch((err) => console.log("Failed to fetch services:", err));
