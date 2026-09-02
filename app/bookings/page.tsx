@@ -96,6 +96,50 @@ type ApiResponse<T> = {
   error?: unknown;
 };
 
+type BookingReview = {
+  id?: number;
+  booking_code: string;
+  photographer_id: string | number;
+  customer_email?: string;
+  customer_name?: string | null;
+  rating: number;
+  comment?: string | null;
+  created_at?: string | null;
+};
+
+async function getReviewByBooking(bookingCode: string) {
+  const response = await fetch(`${API_URL}/reviews/booking/${encodeURIComponent(bookingCode)}`, {
+    method: "GET",
+    cache: "no-store",
+    headers: authHeaders(),
+  });
+  const json: ApiResponse<BookingReview | null> = await response.json();
+  if (!response.ok || !json.success) {
+    throw new Error(json.message || "Không thể kiểm tra đánh giá của booking.");
+  }
+  return json.data || null;
+}
+
+async function createBookingReview(bookingCode: string, rating: number, comment: string) {
+  const response = await fetch(`${API_URL}/reviews`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders(),
+    },
+    body: JSON.stringify({
+      bookingCode,
+      rating,
+      comment: comment.trim(),
+    }),
+  });
+  const json: ApiResponse<BookingReview> = await response.json();
+  if (!response.ok || !json.success) {
+    throw new Error(json.message || "Không thể gửi đánh giá.");
+  }
+  return json.data;
+}
+
 const statusTabs = [
   { id: "all", label: "Tất cả" },
   { id: "awaiting_payment", label: "Chờ xác nhận" },
@@ -910,6 +954,139 @@ function StatCard({ label, value }: { label: string; value: number }) {
   );
 }
 
+function BookingReviewPanel({ booking }: { booking: BackendBooking }) {
+  const [review, setReview] = useState<BookingReview | null>(null);
+  const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadReview() {
+      try {
+        setLoading(true);
+        setError("");
+        const existing = await getReviewByBooking(booking.booking_code);
+        if (!cancelled) setReview(existing);
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Không thể tải đánh giá.");
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    void loadReview();
+    return () => {
+      cancelled = true;
+    };
+  }, [booking.booking_code]);
+
+  async function handleSubmit() {
+    if (!comment.trim()) {
+      setError("Vui lòng nhập nhận xét trước khi gửi đánh giá.");
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      setError("");
+      setSuccess("");
+      const created = await createBookingReview(booking.booking_code, rating, comment);
+      setReview(created);
+      setComment("");
+      setSuccess("Đánh giá đã được lưu và sẽ hiển thị trên hồ sơ photographer.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Không thể gửi đánh giá.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="mx-5 mb-5 rounded-[18px] border border-orange-200 bg-orange-50/60 p-4 shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <p className="text-[12px] font-black uppercase tracking-wider text-[#d9650d]">Đánh giá photographer</p>
+          <p className="mt-1 text-xs font-semibold text-slate-600">
+            Chỉ booking đã thanh toán đủ mới được đánh giá và mỗi booking chỉ gửi một lần.
+          </p>
+        </div>
+        <Link
+          href={`/photographer-profile/${encodeURIComponent(String(booking.photographer_id))}`}
+          className="rounded-full border border-orange-200 bg-white px-3 py-1.5 text-[11px] font-black text-[#ff8d28] hover:bg-orange-50"
+        >
+          Xem hồ sơ photographer
+        </Link>
+      </div>
+
+      {loading ? (
+        <p className="mt-4 text-xs font-semibold text-slate-500">Đang kiểm tra đánh giá...</p>
+      ) : review ? (
+        <div className="mt-4 rounded-2xl border border-emerald-200 bg-white p-4">
+          <div className="flex items-center gap-1">
+            {[1, 2, 3, 4, 5].map((star) => (
+              <span key={star} className={`text-xl ${star <= Number(review.rating || 0) ? "text-[#ff8d28]" : "text-slate-200"}`}>★</span>
+            ))}
+            <span className="ml-2 text-sm font-black text-slate-800">{Number(review.rating || 0).toFixed(1)}/5</span>
+          </div>
+          <p className="mt-2 text-sm font-semibold leading-6 text-slate-700">
+            {String(review.comment || "").trim() || "Bạn đã đánh giá booking này bằng số sao."}
+          </p>
+          <p className="mt-2 text-[11px] font-bold text-emerald-700">Đã đánh giá • Không thể gửi lần thứ hai</p>
+          {success ? <p className="mt-2 text-xs font-bold text-emerald-700">{success}</p> : null}
+        </div>
+      ) : (
+        <div className="mt-4 space-y-3">
+          <div>
+            <p className="mb-2 text-[11px] font-black uppercase tracking-wider text-slate-500">Chọn số sao</p>
+            <div className="flex gap-2">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <button
+                  key={star}
+                  type="button"
+                  onClick={() => setRating(star)}
+                  className={`grid h-10 w-10 place-items-center rounded-full border text-base font-black transition ${
+                    star <= rating
+                      ? "border-[#ff8d28] bg-[#ff8d28] text-white"
+                      : "border-slate-200 bg-white text-slate-400 hover:border-orange-300"
+                  }`}
+                  aria-label={`Đánh giá ${star} sao`}
+                >
+                  {star}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <textarea
+            value={comment}
+            onChange={(event) => setComment(event.target.value.slice(0, 2000))}
+            placeholder="Nhận xét về chất lượng ảnh, thái độ làm việc, đúng giờ..."
+            className="min-h-[110px] w-full rounded-2xl border border-orange-200 bg-white p-3 text-sm font-medium text-slate-800 outline-none focus:border-[#ff8d28]"
+          />
+
+          {error ? <p className="text-xs font-bold text-red-600">{error}</p> : null}
+
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={submitting}
+            className="w-full rounded-xl bg-[#ff8d28] px-4 py-3 text-sm font-black text-white shadow hover:bg-[#e0751b] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {submitting ? "Đang gửi đánh giá..." : "Gửi đánh giá"}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function BookingCard({
   booking,
   isSelected,
@@ -1100,6 +1277,8 @@ function BookingCard({
         )
       ) : null}
 
+      {booking.status === "fully_paid" ? <BookingReviewPanel booking={booking} /> : null}
+
       {/* Floating Popup Modal for Booking Details */}
       {showDetails && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in duration-200">
@@ -1152,10 +1331,6 @@ function BookingCard({
                     <strong className="text-slate-900 text-right">{booking.service_name}</strong>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-500 font-medium">Thời gian đặt lịch:</span>
-                    <strong className="text-[#ff8d28] font-bold text-right">{formatDateTime(booking.created_at)}</strong>
-                  </div>
-                  <div className="flex justify-between">
                     <span className="text-slate-500 font-medium">Giá gốc gói:</span>
                     <strong className="text-slate-900">{formatCurrency(booking.base_price)}</strong>
                   </div>
@@ -1179,8 +1354,8 @@ function BookingCard({
                     <strong className="text-slate-900">{formatDate(booking.shoot_date)}</strong>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-500 font-medium">Khung giờ khách đã chọn:</span>
-                    <strong className="text-slate-900">{formatTime(booking.shoot_time, booking.shoot_end_time)}</strong>
+                    <span className="text-slate-500 font-medium">Giờ khởi hành:</span>
+                    <strong className="text-slate-900">{formatTime(booking.shoot_time)}</strong>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-500 font-medium">Địa điểm chụp:</span>
