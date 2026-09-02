@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import Link from "next/link";
 import { getPhotographers, type Photographer } from "../services/photographer-api";
+import { useAuth } from "@/app/auth-context";
 
 type Message = {
   id: string;
@@ -39,45 +40,76 @@ export function AiConsultantWidget() {
 
   const chatEndRef = useRef<HTMLDivElement>(null);
   const chatBodyRef = useRef<HTMLDivElement | null>(null);
+  const loadedChatKeyRef = useRef<string | null>(null);
+  const [historyReady, setHistoryReady] = useState(false);
+  const { session, isLoading: authLoading } = useAuth();
 
-  const CHAT_PERSIST_KEY = "sudion_ai_chat_state";
+  // Bản cũ dùng một key chung nên lịch sử AI của tài khoản A có thể hiện khi
+  // đăng nhập tài khoản B trên cùng trình duyệt. Tách key theo account để cô lập.
+  const accountScope = useMemo(() => {
+    if (authLoading) return "loading";
+    if (!session) return "guest";
+    const stableId = String(session.userId || session.email || "unknown").trim().toLowerCase();
+    return `${session.role || "user"}:${stableId}`;
+  }, [authLoading, session]);
+
+  const CHAT_PERSIST_KEY = useMemo(
+    () => `sudion_ai_chat_state:${encodeURIComponent(accountScope)}`,
+    [accountScope]
+  );
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined" || authLoading) return;
+
+    setHistoryReady(false);
+    loadedChatKeyRef.current = null;
+
+    // Reset state trước khi đọc key của account mới để không ghi nhầm history cũ
+    // sang account vừa đăng nhập.
+    setMessages([]);
+    setInputVal("");
+    setFlowState({ step: "idle" });
+    setIsTyping(false);
+    setIsOpen(false);
+    setShowTooltip(true);
+
+    // Xóa key legacy dùng chung để chấm dứt tình trạng lộ history giữa account.
+    window.localStorage.removeItem("sudion_ai_chat_state");
+
     const saved = window.localStorage.getItem(CHAT_PERSIST_KEY);
-    if (!saved) return;
+    if (saved) {
+      try {
+        const data = JSON.parse(saved) as {
+          isOpen?: boolean;
+          messages?: Message[];
+          inputVal?: string;
+          flowState?: typeof flowState;
+          showTooltip?: boolean;
+        };
 
-    try {
-      const data = JSON.parse(saved) as {
-        isOpen?: boolean;
-        messages?: Message[];
-        inputVal?: string;
-        flowState?: typeof flowState;
-        showTooltip?: boolean;
-      };
-
-      if (data.messages && data.messages.length > 0) {
-        setMessages(data.messages);
+        if (Array.isArray(data.messages)) setMessages(data.messages);
+        if (typeof data.isOpen === "boolean") setIsOpen(data.isOpen);
+        if (typeof data.inputVal === "string") setInputVal(data.inputVal);
+        if (data.flowState) setFlowState(data.flowState);
+        if (typeof data.showTooltip === "boolean") setShowTooltip(data.showTooltip);
+      } catch (error) {
+        console.error("Lỗi đọc trạng thái chat AI theo tài khoản:", error);
+        window.localStorage.removeItem(CHAT_PERSIST_KEY);
       }
-      if (typeof data.isOpen === "boolean") {
-        setIsOpen(data.isOpen);
-      }
-      if (typeof data.inputVal === "string") {
-        setInputVal(data.inputVal);
-      }
-      if (data.flowState) {
-        setFlowState(data.flowState);
-      }
-      if (typeof data.showTooltip === "boolean") {
-        setShowTooltip(data.showTooltip);
-      }
-    } catch (error) {
-      console.error("Lỗi đọc trạng thái chat AI từ localStorage:", error);
     }
-  }, []);
+
+    loadedChatKeyRef.current = CHAT_PERSIST_KEY;
+    setHistoryReady(true);
+  }, [CHAT_PERSIST_KEY, authLoading]);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (
+      typeof window === "undefined" ||
+      !historyReady ||
+      loadedChatKeyRef.current !== CHAT_PERSIST_KEY
+    ) {
+      return;
+    }
 
     const payload = {
       isOpen,
@@ -88,7 +120,19 @@ export function AiConsultantWidget() {
     };
 
     window.localStorage.setItem(CHAT_PERSIST_KEY, JSON.stringify(payload));
-  }, [isOpen, messages, inputVal, flowState, showTooltip]);
+  }, [CHAT_PERSIST_KEY, historyReady, isOpen, messages, inputVal, flowState, showTooltip]);
+
+  const clearAiChatHistory = () => {
+    if (typeof window === "undefined") return;
+    const confirmed = window.confirm("Xóa toàn bộ lịch sử trò chuyện AI của tài khoản này?");
+    if (!confirmed) return;
+
+    window.localStorage.removeItem(CHAT_PERSIST_KEY);
+    setMessages([]);
+    setInputVal("");
+    setFlowState({ step: "idle" });
+    setIsTyping(false);
+  };
 
   useEffect(() => {
     const handleLinkClick = (event: MouseEvent) => {
@@ -344,16 +388,24 @@ export function AiConsultantWidget() {
     }
 
     if (trimmedInput.includes("bảng giá") || trimmedInput.includes("giá cả") || trimmedInput.includes("bao nhiêu tiền") || trimmedInput.includes("chi phí") || trimmedInput.includes("giá dịch vụ")) {
-      addBotMessage(
-        `**Mức giá tham khảo các dịch vụ trên Sudion:**\n\n` +
-        `• **Chụp cưới hỏi**: Từ 5.000.000đ - 18.000.000đ (trọn gói album/makeup)\n` +
-        `• **Chụp kỷ yếu**: Từ 2.000.000đ - 7.000.000đ (cho nhóm/lớp)\n` +
-        `• **Chụp couple**: Từ 1.500.000đ - 3.500.000đ / gói\n` +
-        `• **Chụp sự kiện**: Từ 1.000.000đ / giờ chụp\n` +
-        `• **Chụp sản phẩm/Food**: Từ 1.200.000đ / concept\n\n` +
-        `Để xem chi tiết đầy đủ hơn, vui lòng tham khảo trang dịch vụ của chúng tôi.`,
-        ["Xem trang dịch vụ", "Tìm photographer phù hợp"]
-      );
+      const livePrices = photographers
+        .map((p) => Number(p.min_price || 0))
+        .filter((price) => Number.isFinite(price) && price > 0)
+        .sort((a, b) => a - b);
+
+      if (livePrices.length > 0) {
+        const min = livePrices[0];
+        const max = livePrices[livePrices.length - 1];
+        addBotMessage(
+          `Theo dữ liệu photographer đang hiển thị trên Sudion, mức giá khởi điểm hiện khoảng **${min.toLocaleString("vi-VN")}đ - ${max.toLocaleString("vi-VN")}đ** tùy photographer và gói dịch vụ. Giá cụ thể phải lấy từ package hiện tại, mình không dùng bảng giá hard-code.`,
+          ["Xem trang dịch vụ", "Tìm photographer phù hợp"]
+        );
+      } else {
+        addBotMessage(
+          "Mình chưa tải được dữ liệu giá hiện tại. Bạn mở trang dịch vụ hoặc hồ sơ photographer để xem đúng giá package đang có trên Sudion.",
+          ["Xem trang dịch vụ", "Tìm photographer phù hợp"]
+        );
+      }
       return;
     }
 
@@ -378,7 +430,7 @@ export function AiConsultantWidget() {
         `Để đặt lịch chụp với nhiếp ảnh gia trên Sudion, bạn vui lòng làm theo hướng dẫn sau:\n\n` +
         `1. Chọn mục **Photographer** từ thanh menu để xem danh sách nhiếp ảnh gia.\n` +
         `2. Xem qua hồ sơ và chọn một **Gói dịch vụ (Package)** ưng ý, sau đó bấm nút **Đặt lịch**.\n` +
-        `3. Chọn Ngày & Khung giờ chụp, điền yêu cầu (concept, địa điểm cụ thể), sau đó tiến hành thanh toán tiền cọc 30% để xác nhận đặt lịch thành công!\n\n` +
+        `3. Chọn Ngày & Khung giờ chụp, điền yêu cầu và gửi booking. Sau khi photographer xác nhận, chat trong Sudion được mở; bạn thanh toán cọc 30% để giữ lịch.\n\n` +
         `Bạn có muốn tìm photographer ngay bây giờ không?`,
         [" Tìm photographer phù hợp", "Quay lại menu chính"]
       );
@@ -396,8 +448,8 @@ export function AiConsultantWidget() {
       addBotMessage(
         `**Chính sách thanh toán của Sudion:**\n\n` +
         `• Bạn cần thanh toán **đặt cọc trước 30%** ước tính giá trị gói chụp để xác nhận đặt lịch thành công.\n` +
-        `• Số tiền 70% còn lại bạn sẽ thanh toán trực tiếp cho Photographer bằng tiền mặt hoặc chuyển khoản sau khi buổi chụp hình hoàn thành và bạn nhận được ảnh.\n` +
-        `• Các cổng thanh toán hỗ trợ: Chuyển khoản ngân hàng, MoMo, VNPay.\n\n` +
+        `• Số tiền 70% còn lại được thanh toán qua Sudion sau khi buổi chụp hoàn thành theo trạng thái booking.\n` +
+        `• Luồng demo hiện có chuyển khoản ngân hàng đối soát qua SePay và MoMo Sandbox; backend xác minh giao dịch trước khi cập nhật booking.\n\n` +
         `Bạn có câu hỏi nào khác không?`,
         ["Quay lại menu chính"]
       );
@@ -414,10 +466,11 @@ export function AiConsultantWidget() {
     ) {
       addBotMessage(
         `**Chính sách đổi trả và hủy lịch:**\n\n` +
-        `• **Hủy lịch miễn phí trước 48 giờ**: Nếu bạn hủy lịch trước thời điểm chụp từ 48 tiếng trở lên, bạn sẽ được hoàn trả **100% tiền đặt cọc** tự động.\n` +
-        `• **Hủy lịch muộn (sau 48 giờ)**: Số tiền cọc sẽ được chuyển cho nhiếp ảnh gia như một khoản bồi thường chuẩn bị.\n` +
-        `• **Đổi lịch**: Bạn có thể thỏa thuận đổi lịch trực tiếp với photographer thông qua hộp chat tin nhắn riêng để không mất phí.\n\n` +
-        `Nếu bạn cần hỗ trợ hủy lịch cụ thể, hãy liên hệ CSKH nhé.`,
+        `• **Hủy trước ≥ 48 giờ**: hoàn **100% tiền cọc**.\n` +
+        `• **Hủy từ 24 đến < 48 giờ**: hoàn **50% tiền cọc**.\n` +
+        `• **Hủy dưới 24 giờ nhưng chưa tới giờ chụp**: hoàn **30% tiền cọc**.\n` +
+        `• **Đã tới/qua giờ chụp**: không đi qua luồng hủy thông thường.\n` +
+        `• Nếu có tiền hoàn, khách nhập ngân hàng/STK/tên chủ tài khoản; Admin duyệt và chuyển khoản hoàn thủ công rồi nhập mã giao dịch để xác nhận refunded.`,
         ["Quay lại menu chính"]
       );
       return;
@@ -452,11 +505,7 @@ export function AiConsultantWidget() {
       trimmedInput.includes("hỗ trợ")
     ) {
       addBotMessage(
-        `**Thông tin liên hệ hỗ trợ khách hàng của Sudion:**\n\n` +
-        `• **Hotline hỗ trợ 24/7**: 1900 1234\n` +
-        `• **Email CSKH**: support@studion.vn\n` +
-        `• **Địa chỉ văn phòng**: 123 Nguyễn Huệ, Quận 1, TP. Hồ Chí Minh\n\n` +
-        `Tôi có thể giúp bạn các vấn đề khác liên quan đến đặt lịch không?`,
+        `Để tránh cung cấp thông tin liên hệ không có trong dữ liệu hệ thống, mình không tự tạo hotline/email/địa chỉ. Bạn có thể tiếp tục hỏi trực tiếp trong Sudion về booking, thanh toán, hoàn tiền hoặc photographer.`,
         ["Quay lại menu chính"]
       );
       return;
@@ -476,7 +525,7 @@ export function AiConsultantWidget() {
 
     // Intelligent default response in simulation mode
     addBotMessage(
-      `Chào bạn! Dù ở chế độ giả lập, tôi vẫn có thể tư vấn tốt cho bạn. Có phải bạn đang quan tâm đến việc chọn photographer phù hợp, chọn concept chụp hình hay các chính sách thanh toán/hủy lịch trên Sudion không?\n\nHãy chọn một trong các tùy chọn nhanh dưới đây hoặc hỏi cụ thể hơn nhé:`,
+      `Mình chỉ hỗ trợ các nội dung trong Sudion Studio như tìm photographer, dịch vụ, booking, thanh toán, hủy/hoàn tiền, chat, tài khoản và đánh giá. Bạn muốn mình hỗ trợ phần nào trên Sudion?`,
       [
         " Tìm photographer phù hợp",
         " Gợi ý Concept / Style chụp",
@@ -702,14 +751,29 @@ export function AiConsultantWidget() {
                 <span className="text-[10px] text-orange-50/80 font-bold">Đang trực tuyến</span>
               </div>
             </div>
-            <button
-              onClick={() => setIsOpen(false)}
-              className="rounded-full p-1.5 hover:bg-white/10 text-white transition-colors"
-            >
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={clearAiChatHistory}
+                className="rounded-full p-1.5 hover:bg-white/10 text-white transition-colors"
+                title="Xóa lịch sử AI của tài khoản này"
+                aria-label="Xóa lịch sử AI"
+              >
+                <svg className="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 6h18M8 6V4h8v2m-9 0 1 14h8l1-14M10 10v6m4-6v6" />
+                </svg>
+              </button>
+              <button
+                onClick={() => setIsOpen(false)}
+                className="rounded-full p-1.5 hover:bg-white/10 text-white transition-colors"
+                title="Thu gọn"
+                aria-label="Thu gọn chatbot"
+              >
               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
               </svg>
-            </button>
+              </button>
+            </div>
           </div>
 
           {/* Messages Body */}
@@ -773,7 +837,7 @@ export function AiConsultantWidget() {
               type="text"
               value={inputVal}
               onChange={(e) => setInputVal(e.target.value)}
-              placeholder="Hỏi tôi bất kỳ điều gì..."
+              placeholder="Hỏi về Sudion, photographer, booking..."
               className="h-10 min-w-0 flex-1 rounded-full border border-slate-200 bg-slate-50/50 px-4 text-xs text-slate-800 outline-none focus:border-[#ff8d28] focus:bg-white transition-all"
             />
             <button
