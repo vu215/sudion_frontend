@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import AdminLayout from "../_components/admin-layout";
 import { useToast } from "@/app/toast-context";
 
-type OrderStatus = "completed" | "shipping" | "pending" | "cancelled";
+type OrderStatus = "completed" | "shipping" | "confirmed" | "pending" | "cancelled";
 
 interface OrderItem {
   productId: number;
@@ -54,6 +54,11 @@ function getStatusMeta(status: OrderStatus) {
       return {
         label: "Hoàn thành",
         className: "bg-emerald-50 text-emerald-700 border border-emerald-100",
+      };
+    case "confirmed":
+      return {
+        label: "Đã xác nhận",
+        className: "bg-blue-50 text-blue-700 border border-blue-100",
       };
     case "shipping":
       return {
@@ -128,11 +133,18 @@ export default function AdminOrdersPage() {
         body: JSON.stringify({ status: newStatus })
       });
 
-      if (res.ok) {
-        setOrders(orders.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
-        toast.success("Thành công", "Đã cập nhật trạng thái đơn hàng.");
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok && data?.success !== false) {
+        setOrders((current) =>
+          current.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o)),
+        );
+        setSelectedOrder((current) =>
+          current?.id === orderId ? { ...current, status: newStatus } : current,
+        );
+        toast.success("Thành công", data?.message || "Đã cập nhật trạng thái đơn hàng.");
       } else {
-        toast.error("Lỗi", "Không thể cập nhật trạng thái đơn hàng.");
+        toast.error("Lỗi", data?.message || "Không thể cập nhật trạng thái đơn hàng.");
       }
     } catch (err) {
       toast.error("Lỗi", "Lỗi kết nối đến máy chủ.");
@@ -162,6 +174,7 @@ export default function AdminOrdersPage() {
   }, [orders]);
 
   const completedCount = useMemo(() => orders.filter((order) => order.status === "completed").length, [orders]);
+  const confirmedCount = useMemo(() => orders.filter((order) => order.status === "confirmed").length, [orders]);
   const shippingCount = useMemo(() => orders.filter((order) => order.status === "shipping").length, [orders]);
   const pendingCount = useMemo(() => orders.filter((order) => order.status === "pending").length, [orders]);
 
@@ -174,7 +187,8 @@ export default function AdminOrdersPage() {
 
   const tabs = [
     { key: "all" as const, label: "Tất cả đơn hàng", count: orders.length },
-    { key: "pending" as const, label: "Chờ xử lý", count: pendingCount },
+    { key: "pending" as const, label: "Chờ xác nhận", count: pendingCount },
+    { key: "confirmed" as const, label: "Đã xác nhận", count: confirmedCount },
     { key: "shipping" as const, label: "Đang giao", count: shippingCount },
     { key: "completed" as const, label: "Đã hoàn thành", count: completedCount },
   ];
@@ -193,7 +207,7 @@ export default function AdminOrdersPage() {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_12px_24px_rgba(12,18,32,0.02)]">
             <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-500">Đơn hàng mới</p>
             <p className="mt-2 text-3xl font-black text-slate-900">{orders.length}</p>
@@ -201,6 +215,10 @@ export default function AdminOrdersPage() {
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_12px_24px_rgba(12,18,32,0.02)]">
             <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-500">Chờ xử lý</p>
             <p className="mt-2 text-3xl font-black text-[#ff8d28]">{pendingCount}</p>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_12px_24px_rgba(12,18,32,0.02)]">
+            <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-500">Đã xác nhận</p>
+            <p className="mt-2 text-3xl font-black text-blue-600">{confirmedCount}</p>
           </div>
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_12px_24px_rgba(12,18,32,0.02)]">
             <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-500">Đang giao hàng</p>
@@ -305,9 +323,14 @@ export default function AdminOrdersPage() {
                               disabled={order.status === 'completed' || order.status === 'cancelled'}
                             >
                               {order.status === 'pending' && <option value="pending">Chờ xác nhận</option>}
-                              {(order.status === 'pending' || order.status === 'shipping') && <option value="shipping">Đang giao</option>}
-                              <option value="completed">Hoàn thành</option>
-                              <option value="cancelled">Hủy đơn</option>
+                              {order.status === 'pending' && <option value="confirmed">Xác nhận đơn</option>}
+                              {order.status === 'confirmed' && <option value="confirmed">Đã xác nhận</option>}
+                              {order.status === 'confirmed' && <option value="shipping">Bắt đầu giao hàng</option>}
+                              {order.status === 'shipping' && <option value="shipping">Đang giao</option>}
+                              {order.status === 'shipping' && <option value="completed">Hoàn thành</option>}
+                              {order.status === 'completed' && <option value="completed">Hoàn thành</option>}
+                              {order.status === 'cancelled' && <option value="cancelled">Đã hủy</option>}
+                              {(order.status === 'pending' || order.status === 'confirmed') && <option value="cancelled">Hủy đơn</option>}
                             </select>
                           </div>
                         </td>
