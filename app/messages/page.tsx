@@ -285,6 +285,14 @@ function MessagesContent() {
       ? session?.photographerId || session?.userId || "photographer"
       : session?.email || session?.userId || "guest";
 
+  // Dùng identity ổn định để reset toàn bộ state chat khi đổi tài khoản.
+  // Bản cũ giữ userBookings/activeBookingCode trong React state nên lúc logout A
+  // rồi login B có thể còn thấy danh sách cuộc trò chuyện của A cho tới lần fetch sau.
+  const chatAccountScope = useMemo(() => {
+    if (!session) return "guest";
+    return `${session.role}:${String(session.userId || session.email || "unknown").toLowerCase()}`;
+  }, [session]);
+
   const canChat = ["accepted", "confirmed", "completed", "fully_paid"].includes(
     booking?.status || ""
   );
@@ -307,49 +315,77 @@ function MessagesContent() {
       : booking.photographer_id;
   }, [booking, currentRole]);
 
-  // Load user/photographer bookings for sidebar
+  // Load user/photographer bookings for sidebar.
+  // Reset NGAY khi account đổi để không hiển thị state của account trước.
   useEffect(() => {
-    if (!isLoggedIn) return;
+    let cancelled = false;
+
+    setUserBookings([]);
+    setBooking(null);
+    setMessages([]);
+    setBookingCode("");
+    setActiveBookingCode("");
+    setSearchFilter("");
+    setMessageText("");
+    setPageError("");
+
+    if (!isLoggedIn || !session) return () => {
+      cancelled = true;
+    };
 
     async function loadUserBookings() {
       try {
         let url = "";
         if (currentRole === "photographer") {
-          const pId = session?.photographerId || session?.userId || "79";
+          const pId = session.photographerId || session.userId;
+          if (!pId) return;
           url = `${API_URL}/bookings/photographer/${encodeURIComponent(pId)}`;
         } else {
-          if (!session?.email) return;
+          if (!session.email) return;
           url = `${API_URL}/bookings/customer/${encodeURIComponent(session.email)}`;
         }
 
         const res = await fetch(url, { headers: authHeaders(), cache: "no-store" });
         const json = await res.json();
+        if (cancelled) return;
+
         if (res.ok && json.success && Array.isArray(json.data)) {
-          // Filter ONLY chat-eligible bookings (accepted, confirmed, completed, fully_paid)
           const chatEligible = json.data.filter((b: BackendBooking) =>
             ["accepted", "confirmed", "completed", "fully_paid"].includes(b.status)
           );
+
           setUserBookings(chatEligible);
-          // If no active booking code selected yet, pick first booking
-          if (!queryBookingCode && chatEligible.length > 0) {
-            setActiveBookingCode(chatEligible[0].booking_code);
-            setBookingCode(chatEligible[0].booking_code);
+
+          // Chỉ mở booking từ query nếu booking đó thật sự thuộc account hiện tại.
+          const requestedBooking = queryBookingCode
+            ? chatEligible.find((b: BackendBooking) => b.booking_code === queryBookingCode)
+            : null;
+          const initialCode = requestedBooking?.booking_code || chatEligible[0]?.booking_code || "";
+
+          setActiveBookingCode(initialCode);
+          setBookingCode(initialCode);
+
+          // Nếu URL đang chứa booking của account khác/cũ, bỏ query đó đi.
+          if (queryBookingCode && !requestedBooking) {
+            router.replace(initialCode ? `/messages?booking=${encodeURIComponent(initialCode)}` : "/messages");
           }
         }
       } catch (err) {
-        console.error("Lỗi tải danh sách booking cuộc trò chuyện:", err);
+        if (!cancelled) {
+          console.error("Lỗi tải danh sách booking cuộc trò chuyện:", err);
+          setUserBookings([]);
+          setBooking(null);
+          setMessages([]);
+        }
       }
     }
 
     void loadUserBookings();
-  }, [isLoggedIn, currentRole, session, queryBookingCode]);
 
-  useEffect(() => {
-    if (queryBookingCode) {
-      setBookingCode(queryBookingCode);
-      setActiveBookingCode(queryBookingCode);
-    }
-  }, [queryBookingCode]);
+    return () => {
+      cancelled = true;
+    };
+  }, [isLoggedIn, currentRole, chatAccountScope, queryBookingCode, router, session]);
 
   // WebSocket Connection
   useEffect(() => {
