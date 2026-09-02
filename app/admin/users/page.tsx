@@ -245,7 +245,7 @@ export default function AdminUsersPage() {
                       <tr key={user.id} className="transition hover:bg-[#fff8ef]">
                         <td className="py-4 pr-4 pl-5">
                           <div className="flex items-center gap-3">
-                            <div className="h-11 w-11 rounded-2xl bg-gradient-to-br from-orange-400 to-pink-400" />
+                            <UserAvatar name={user.name} avatar={user.avatar} />
                             <div className="min-w-0">
                               <p className="truncate font-semibold text-[#0f172a]">
                                 {user.name}
@@ -373,6 +373,39 @@ export default function AdminUsersPage() {
   );
 }
 
+// User Avatar Component
+function UserAvatar({ name, avatar }: { name: string; avatar?: string }) {
+  const [imgError, setImgError] = useState(false);
+  const initial = (name || "U").trim().charAt(0).toUpperCase();
+
+  const getAvatarSrc = (src?: string) => {
+    if (!src) return null;
+    if (src.startsWith("http://") || src.startsWith("https://") || src.startsWith("data:")) return src;
+    const backendHost = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api").replace(/\/api\/?$/, "");
+    if (src.startsWith("/")) return `${backendHost}${src}`;
+    return `${backendHost}/uploads/${src}`;
+  };
+
+  const src = getAvatarSrc(avatar);
+
+  if (src && !imgError) {
+    return (
+      <img
+        src={src}
+        alt={name}
+        onError={() => setImgError(true)}
+        className="h-11 w-11 shrink-0 rounded-2xl border border-slate-200 shadow-sm object-cover"
+      />
+    );
+  }
+
+  return (
+    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#ff8d28] to-[#ea580c] font-black text-white text-base shadow-sm border border-orange-200 select-none">
+      {initial}
+    </div>
+  );
+}
+
 // Create User Modal
 function CreateUserModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
   const [formData, setFormData] = useState({
@@ -380,6 +413,7 @@ function CreateUserModal({ onClose, onSuccess }: { onClose: () => void; onSucces
     email: "",
     phone: "",
     password: "",
+    avatar: "",
     role: "customer",
     status: "active",
   });

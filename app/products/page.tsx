@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getCartCount } from "@/app/cart-store";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://sudion-backend-production-453b.up.railway.app/api";
@@ -19,12 +19,17 @@ interface Product {
   hot: number;
 }
 
-const typeLabels = {
-  all: "Tất cả danh mục",
-  1: "Máy ảnh (Mirrorless)",
-  2: "Ống kính (Lens)",
-  3: "Phụ kiện (Accessory)",
-};
+interface CategoryItem {
+  id: string;
+  name: string;
+  slug?: string;
+}
+
+const ADMIN_INITIAL_CATEGORIES: CategoryItem[] = [
+  { id: "camera", name: "Máy ảnh", slug: "may-anh" },
+  { id: "lens", name: "Ống kính", slug: "ong-kinh" },
+  { id: "accessories", name: "Phụ kiện", slug: "phu-kien" },
+];
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -33,10 +38,65 @@ export default function ProductsPage() {
   const [category, setCategory] = useState("all");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState(""); // "" | "asc" | "desc"
+  const [categoriesList, setCategoriesList] = useState<CategoryItem[]>([
+    { id: "all", name: "Tất cả danh mục" },
+    ...ADMIN_INITIAL_CATEGORIES,
+  ]);
 
   useEffect(() => {
     fetchProducts();
-  }, [category, sort, search]);
+  }, [sort, search]);
+
+  // Sync categories dynamically from Admin localStorage + Backend API
+  useEffect(() => {
+    function loadCategories() {
+      let adminItems: CategoryItem[] = [];
+
+      if (typeof window !== "undefined") {
+        try {
+          const raw = localStorage.getItem("sudion_admin_product_categories");
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              adminItems = parsed
+                .filter((item: any) => item.published !== false)
+                .map((item: any) => ({
+                  id: String(item.id),
+                  name: String(item.name || item.title || "Danh mục"),
+                  slug: String(item.slug || ""),
+                }));
+            }
+          } else {
+            // Seed initial admin categories if not stored yet
+            localStorage.setItem("sudion_admin_product_categories", JSON.stringify(ADMIN_INITIAL_CATEGORIES));
+            adminItems = ADMIN_INITIAL_CATEGORIES;
+          }
+        } catch (e) {
+          adminItems = ADMIN_INITIAL_CATEGORIES;
+        }
+      }
+
+      if (adminItems.length === 0) {
+        adminItems = ADMIN_INITIAL_CATEGORIES;
+      }
+
+      setCategoriesList([
+        { id: "all", name: "Tất cả danh mục" },
+        ...adminItems,
+      ]);
+    }
+
+    loadCategories();
+
+    // Listen for storage updates when Admin modifies categories
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === "sudion_admin_product_categories") {
+        loadCategories();
+      }
+    };
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, []);
 
   const fetchProducts = async () => {
     try {
@@ -44,7 +104,6 @@ export default function ProductsPage() {
       setError("");
 
       let url = `${API_URL}/products?`;
-      if (category !== "all") url += `idcate=${category}&`;
       if (sort) url += `sort=${sort}&`;
       if (search.trim()) url += `name=${encodeURIComponent(search.trim())}&`;
 
@@ -65,6 +124,44 @@ export default function ProductsPage() {
       setLoading(false);
     }
   };
+
+  const displayProducts = useMemo(() => {
+    return products.filter((item) => {
+      if (category === "all") return true;
+
+      const selCat = categoriesList.find((c) => c.id === category);
+      if (!selCat) return true;
+
+      const targetName = selCat.name.trim().toLowerCase();
+      const targetSlug = (selCat.slug || "").trim().toLowerCase();
+
+      const pCatName = (item.category_name || (item as any).danh_muc || "").trim().toLowerCase();
+      const pCatId = String(item.category_id || "");
+
+      // 1. Match by exact ID
+      if (pCatId === selCat.id || selCat.id === String(item.id)) return true;
+
+      // 2. Match standard categories (Máy ảnh / Ống kính / Phụ kiện)
+      if (selCat.id === "camera" || targetName.includes("máy ảnh") || targetSlug.includes("may-anh")) {
+        return pCatId === "1" || pCatName.includes("máy ảnh") || pCatName.includes("camera");
+      }
+      if (selCat.id === "lens" || targetName.includes("ống kính") || targetSlug.includes("ong-kinh")) {
+        return pCatId === "2" || pCatName.includes("ống kính") || pCatName.includes("lens");
+      }
+      if (selCat.id === "accessories" || targetName.includes("phụ kiện") || targetSlug.includes("phu-kien")) {
+        return pCatId === "3" || pCatName.includes("phụ kiện") || pCatName.includes("accessory");
+      }
+
+      // 3. Match custom categories added in Admin by name / slug
+      return (
+        pCatName.includes(targetName) ||
+        targetName.includes(pCatName) ||
+        (targetSlug && pCatName.includes(targetSlug)) ||
+        (item.name && item.name.toLowerCase().includes(targetName)) ||
+        (item.description && item.description.toLowerCase().includes(targetName))
+      );
+    });
+  }, [products, category, categoriesList]);
 
   const clearFilters = () => {
     setCategory("all");
@@ -136,13 +233,13 @@ export default function ProductsPage() {
                   DANH MỤC
                 </h3>
                 <div className="space-y-3.5">
-                  {Object.entries(typeLabels).map(([key, val]) => {
-                    const checked = category === key;
+                  {categoriesList.map((cat) => {
+                    const checked = category === cat.id;
                     return (
                       <button
-                        key={key}
+                        key={cat.id}
                         type="button"
-                        onClick={() => setCategory(key)}
+                        onClick={() => setCategory(cat.id)}
                         className="flex w-full items-center gap-3 text-left !text-[14px] !font-semibold text-slate-600 hover:text-[#ff8d28] transition-colors select-none cursor-pointer"
                       >
                         <span
@@ -155,7 +252,7 @@ export default function ProductsPage() {
                             <span className="h-1.5 w-1.5 rounded-full bg-white" />
                           )}
                         </span>
-                        <span>{val}</span>
+                        <span>{cat.name}</span>
                       </button>
                     );
                   })}
@@ -215,7 +312,7 @@ export default function ProductsPage() {
                   Thử lại
                 </button>
               </div>
-            ) : products.length === 0 ? (
+            ) : displayProducts.length === 0 ? (
               <div className="text-center py-24 bg-white rounded-3xl shadow-sm px-6">
                 <span className="material-symbols-outlined text-5xl text-slate-300 mb-3">camera_roll</span>
                 <p className="text-slate-500 font-bold text-sm">Không tìm thấy sản phẩm nào phù hợp.</p>
@@ -223,7 +320,7 @@ export default function ProductsPage() {
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {products.map((item) => (
+                {displayProducts.map((item) => (
                   <div
                     key={item.id}
                     className="group bg-white rounded-3xl shadow-[0_4px_20px_rgba(15,23,42,.1)] hover:shadow-[0_8px_30px_rgba(15,23,42,.16)] overflow-hidden flex flex-col transition-all duration-300"
