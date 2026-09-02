@@ -194,6 +194,20 @@ function formatTime(value: string | null, endValue?: string | null) {
   return text.slice(0, 5);
 }
 
+function formatDateTime(value: string | null | undefined) {
+  if (!value) return "Chưa có thời gian đặt";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString("vi-VN", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    hour: "2-digit",
+    minute: "2-digit",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+}
+
 async function getBookingsByPhotographer(photographerId: string) {
   const response = await fetch(
     `${API_URL}/bookings/photographer/${encodeURIComponent(photographerId)}`,
@@ -968,6 +982,10 @@ function DashboardBookingCard({
                     <strong className="text-slate-900 text-right">{booking.service_name}</strong>
                   </div>
                   <div className="flex justify-between">
+                    <span className="text-slate-500 font-medium">Thời gian đặt lịch:</span>
+                    <strong className="text-[#ff8d28] font-bold text-right">{formatDateTime(booking.created_at)}</strong>
+                  </div>
+                  <div className="flex justify-between">
                     <span className="text-slate-500 font-medium">Giá gốc gói:</span>
                     <strong className="text-slate-900">{formatCurrency(booking.base_price)}</strong>
                   </div>
@@ -991,8 +1009,8 @@ function DashboardBookingCard({
                     <strong className="text-slate-900">{formatDate(booking.shoot_date)}</strong>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-500 font-medium">Giờ khởi hành:</span>
-                    <strong className="text-slate-900">{formatTime(booking.shoot_time)}</strong>
+                    <span className="text-slate-500 font-medium">Khung giờ khách đã chọn:</span>
+                    <strong className="text-slate-900">{formatTime(booking.shoot_time, booking.shoot_end_time)}</strong>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-500 font-medium">Địa điểm chụp:</span>

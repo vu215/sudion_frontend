@@ -9,7 +9,7 @@ type Field = {
   placeholder?: string;
 };
 
-type Item = { id: string; published?: boolean; [key: string]: string | boolean | undefined };
+type Item = { id: string; published?: boolean;[key: string]: string | boolean | undefined };
 
 type Props = {
   title: string;
@@ -22,6 +22,7 @@ type Props = {
 
 export default function ContentManager({ title, description, storageKey, fields, initialItems, addLabel }: Props) {
   const [items, setItems] = useState<Item[]>(initialItems);
+  const [isLoaded, setIsLoaded] = useState(false);
   const [query, setQuery] = useState("");
   const [draft, setDraft] = useState<Record<string, string> | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -29,13 +30,25 @@ export default function ContentManager({ title, description, storageKey, fields,
   useEffect(() => {
     const saved = window.localStorage.getItem(storageKey);
     if (saved) {
-      try { setItems(JSON.parse(saved)); } catch { setItems(initialItems); }
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setItems(parsed);
+        }
+      } catch {
+        setItems(initialItems);
+      }
+    } else {
+      window.localStorage.setItem(storageKey, JSON.stringify(initialItems));
     }
+    setIsLoaded(true);
   }, [initialItems, storageKey]);
 
   useEffect(() => {
-    window.localStorage.setItem(storageKey, JSON.stringify(items));
-  }, [items, storageKey]);
+    if (isLoaded) {
+      window.localStorage.setItem(storageKey, JSON.stringify(items));
+    }
+  }, [items, storageKey, isLoaded]);
 
   const visibleItems = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -76,7 +89,6 @@ export default function ContentManager({ title, description, storageKey, fields,
     <div className="mx-auto flex max-w-[1200px] flex-col gap-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.25em] text-[#ff8d28]">Admin content</p>
           <h1 className="mt-2 text-[25px] font-black tracking-tight text-slate-900">{title}</h1>
           <p className="mt-1 text-sm text-slate-500">{description}</p>
         </div>
