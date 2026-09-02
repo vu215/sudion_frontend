@@ -64,10 +64,27 @@ function resolveAssetUrl(url: string | null) {
 const PHOTOGRAPHERS_PER_PAGE = 12;
 
 const fallbackImages = [
-  "https://images.unsplash.com/photo-1496440737103-cd596325d314?auto=format&fit=crop&w=900&q=85",
-  "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=900&q=85",
-  "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=900&q=85",
-  "https://images.unsplash.com/photo-1595425964071-2c1ec7c88201?auto=format&fit=crop&w=900&q=85",
+  "https://images.pexels.com/photos/37184232/pexels-photo-37184232.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "https://images.pexels.com/photos/37349750/pexels-photo-37349750.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "https://images.pexels.com/photos/35529174/pexels-photo-35529174.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "https://images.pexels.com/photos/30123617/pexels-photo-30123617.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "https://images.pexels.com/photos/30191037/pexels-photo-30191037.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "https://images.pexels.com/photos/28972066/pexels-photo-28972066.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "https://images.pexels.com/photos/30245593/pexels-photo-30245593.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "https://images.pexels.com/photos/35341073/pexels-photo-35341073.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "https://images.pexels.com/photos/30030586/pexels-photo-30030586.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "https://images.pexels.com/photos/31844422/pexels-photo-31844422.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "https://images.pexels.com/photos/31683648/pexels-photo-31683648.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "https://images.pexels.com/photos/35988655/pexels-photo-35988655.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "https://images.pexels.com/photos/30629169/pexels-photo-30629169.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "https://images.pexels.com/photos/30692996/pexels-photo-30692996.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "https://images.pexels.com/photos/34250239/pexels-photo-34250239.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "https://images.pexels.com/photos/29211906/pexels-photo-29211906.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "https://images.pexels.com/photos/25863026/pexels-photo-25863026.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "https://images.pexels.com/photos/27921937/pexels-photo-27921937.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "https://images.pexels.com/photos/6285728/pexels-photo-6285728.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "https://images.pexels.com/photos/29585803/pexels-photo-29585803.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "https://images.pexels.com/photos/29521715/pexels-photo-29521715.jpeg?auto=compress&cs=tinysrgb&w=1200",
 ];
 
 const fallbackThumbs = [
