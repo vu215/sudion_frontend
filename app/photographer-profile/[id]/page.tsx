@@ -6,6 +6,36 @@ import { getBookingUrlWithDates } from "@/lib/routes";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
+type ApiReview = {
+  id?: number;
+  booking_code?: string;
+  photographer_id?: string | number;
+  customer_name?: string | null;
+  rating: number;
+  comment?: string | null;
+  created_at?: string | null;
+};
+
+type ProfileReview = {
+  id?: number;
+  name: string;
+  time: string;
+  rating: number;
+  text: string;
+};
+
+function formatReviewTime(value?: string | null) {
+  if (!value) return "Gần đây";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Gần đây";
+  return date.toLocaleDateString("vi-VN", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+}
+
 function resolveAssetUrl(url: string) {
   if (!url) return "";
   if (/^https?:\/\//i.test(url) || url.startsWith("data:")) return url;
@@ -629,8 +659,8 @@ function PhotographerProfileContent({ id }: { id: string }) {
               name: data.photographer.full_name,
               title: data.photographer.photographer_type === "individual" ? "Cá nhân" : "Studio",
               location: data.photographer.active_area || "Việt Nam",
-              rating: String(data.photographer.avg_rating || "4.8"),
-              reviewCount: data.packages?.reduce((acc: number, p: any) => acc + (p.review_count || 0), 0) || 45,
+              rating: Number(data.photographer.avg_rating || 0).toFixed(1),
+              reviewCount: Number(data.photographer.review_count || 0),
               badge: data.photographer.verification_status === "verified" ? "Top Rated Photographer" : "Professional Photographer",
               image: avatarUrl || FALLBACK_PROFILE_AVATAR,
               avatar: avatarUrl || FALLBACK_PROFILE_AVATAR,
@@ -643,11 +673,9 @@ function PhotographerProfileContent({ id }: { id: string }) {
                 desc: p.description || "Chưa có mô tả chi tiết.",
                 price: Number(p.price || 0).toLocaleString("vi-VN") + " VNĐ"
               })) || [],
-              reviews: [
-                { name: "Khách hàng", time: "1 tuần trước", rating: 5, text: "Chụp ảnh đẹp, làm việc rất chuyên nghiệp và thân thiện!" }
-              ],
-              ratingScore: Number(data.photographer.avg_rating || 4.8),
-              totalReviews: 45,
+              reviews: [],
+              ratingScore: Number(data.photographer.avg_rating || 0),
+              totalReviews: Number(data.photographer.review_count || 0),
               startPrice: data.packages?.length ? Number(Math.min(...data.packages.map((p: any) => p.price || 0))).toLocaleString("vi-VN") + " VNĐ" : "Chưa cập nhật"
             };
             setDbPerson(mappedPerson);
@@ -665,7 +693,7 @@ function PhotographerProfileContent({ id }: { id: string }) {
     name: "Photographer",
     title: "Studio",
     location: "Việt Nam",
-    rating: "4.8",
+    rating: "0.0",
     reviewCount: 0,
     badge: "Professional Photographer",
     image: FALLBACK_PROFILE_AVATAR,
@@ -676,7 +704,7 @@ function PhotographerProfileContent({ id }: { id: string }) {
     equipment: [],
     services: [],
     reviews: [],
-    ratingScore: 4.8,
+    ratingScore: 0,
     totalReviews: 0,
     startPrice: "Chưa cập nhật",
   };
@@ -687,10 +715,8 @@ function PhotographerProfileContent({ id }: { id: string }) {
   const todayStr = today.toISOString().slice(0, 10);
   const [selectedDates, setSelectedDates] = useState<string[]>([todayStr]);
   const [selectedService, setSelectedService] = useState<any>(person.services[0] || { name: "Chọn dịch vụ", price: "0 VNĐ", desc: "" });
-  const [reviews, setReviews] = useState(person.reviews);
-  const [reviewerName, setReviewerName] = useState("");
-  const [reviewText, setReviewText] = useState("");
-  const [reviewRating, setReviewRating] = useState(5);
+  const [reviews, setReviews] = useState<ProfileReview[]>(person.reviews || []);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
 
   useEffect(() => {
     if (person.services && person.services.length > 0) {
@@ -699,11 +725,51 @@ function PhotographerProfileContent({ id }: { id: string }) {
       setSelectedService({ name: "Chọn dịch vụ", price: "0 VNĐ", desc: "" });
     }
     setSelectedDates([todayStr]);
-    setReviews(person.reviews);
-    setReviewerName("");
-    setReviewText("");
-    setReviewRating(5);
-  }, [person.id, todayStr]);
+    if (Number.isNaN(Number(id))) {
+      setReviews(person.reviews || []);
+    }
+  }, [person.id, todayStr, id]);
+
+  useEffect(() => {
+    if (!id || Number.isNaN(Number(id))) return;
+
+    let cancelled = false;
+
+    async function loadReviews() {
+      try {
+        setReviewsLoading(true);
+        const response = await fetch(`${API_URL}/reviews/photographer/${encodeURIComponent(id)}`, {
+          method: "GET",
+          cache: "no-store",
+        });
+        const json = await response.json();
+
+        if (!response.ok || !json?.success) {
+          throw new Error(json?.message || "Không thể tải đánh giá photographer.");
+        }
+
+        const mapped: ProfileReview[] = (Array.isArray(json.data) ? json.data : []).map((item: ApiReview) => ({
+          id: item.id,
+          name: String(item.customer_name || "Khách hàng"),
+          time: formatReviewTime(item.created_at),
+          rating: Number(item.rating || 0),
+          text: String(item.comment || "").trim() || "Khách hàng đã đánh giá bằng số sao.",
+        }));
+
+        if (!cancelled) setReviews(mapped);
+      } catch (error) {
+        console.error("Lỗi lấy review photographer:", error);
+        if (!cancelled) setReviews([]);
+      } finally {
+        if (!cancelled) setReviewsLoading(false);
+      }
+    }
+
+    void loadReviews();
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
 
   const averageRating = reviews.length ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length : 0;
   const totalReviews = reviews.length;
@@ -914,66 +980,29 @@ function PhotographerProfileContent({ id }: { id: string }) {
                     </div>
                   </div>
 
-                  <div className="mb-6 rounded-3xl border border-gray-200 bg-white p-4 shadow-sm">
-                    <h3 className="text-sm font-bold text-gray-900 mb-3">Gửi đánh giá của bạn</h3>
-                    <div className="space-y-3">
-                      <div>
-                        <p className="text-[11px] text-gray-500 mb-2">Chọn số sao</p>
-                        <div className="flex gap-2">
-                          {[1,2,3,4,5].map((value) => (
-                            <button
-                              key={value}
-                              type="button"
-                              onClick={() => setReviewRating(value)}
-                              className={`w-9 h-9 rounded-full border text-sm font-bold transition ${value <= reviewRating ? "bg-[#ff8d28] text-white border-[#ff8d28]" : "border-gray-200 text-gray-500 hover:bg-gray-50"}`}
-                            >
-                              {value}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-semibold text-gray-500 mb-1">Tên của bạn</label>
-                        <input
-                          value={reviewerName}
-                          onChange={(event) => setReviewerName(event.target.value)}
-                          className="w-full rounded-2xl border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-[#ff8d28] outline-none"
-                          placeholder="Nhập tên"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-semibold text-gray-500 mb-1">Nhận xét</label>
-                        <textarea
-                          value={reviewText}
-                          onChange={(event) => setReviewText(event.target.value)}
-                          className="w-full min-h-[110px] rounded-2xl border border-gray-200 p-3 text-sm text-gray-900 focus:border-[#ff8d28] outline-none"
-                          placeholder="Viết cảm nghĩ của bạn về photographer"
-                        />
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (!reviewText.trim()) return;
-                          const newReview = {
-                            name: reviewerName.trim() || "Khách hàng",
-                            time: "Vừa xong",
-                            rating: reviewRating,
-                            text: reviewText.trim(),
-                          };
-                          setReviews([newReview, ...reviews]);
-                          setReviewerName("");
-                          setReviewText("");
-                          setReviewRating(5);
-                        }}
-                        className="w-full rounded-2xl bg-[#ff8d28] text-white text-sm font-bold py-3 hover:bg-[#e0751b] transition-colors"
-                      >
-                        Gửi đánh giá
-                      </button>
-                    </div>
+                  <div className="mb-6 rounded-3xl border border-orange-100 bg-orange-50/60 p-4 shadow-sm">
+                    <h3 className="text-sm font-bold text-gray-900">Đánh giá từ booking đã hoàn tất</h3>
+                    <p className="mt-1 text-xs font-medium leading-5 text-gray-600">
+                      Để đảm bảo đánh giá là thật, khách hàng chỉ có thể gửi đánh giá từ trang Lịch sử booking sau khi booking đã thanh toán đủ. Mỗi booking chỉ được đánh giá một lần.
+                    </p>
+                    <Link
+                      href="/bookings?status=fully_paid"
+                      className="mt-3 inline-flex rounded-full bg-[#ff8d28] px-4 py-2 text-xs font-black text-white hover:bg-[#e0751b]"
+                    >
+                      Xem booking đã hoàn tất
+                    </Link>
                   </div>
 
                   <div className="grid md:grid-cols-2 gap-4">
-                    {reviews.map((r, i) => (
+                    {reviewsLoading ? (
+                      <div className="md:col-span-2 rounded-xl border border-gray-100 p-5 text-center text-sm font-semibold text-gray-400">
+                        Đang tải đánh giá...
+                      </div>
+                    ) : reviews.length === 0 ? (
+                      <div className="md:col-span-2 rounded-xl border border-dashed border-gray-200 p-6 text-center text-sm font-semibold text-gray-400">
+                        Photographer này chưa có đánh giá từ booking đã hoàn tất.
+                      </div>
+                    ) : reviews.map((r, i) => (
                       <div key={i} className="border border-gray-100 rounded-xl p-4">
                         <div className="flex gap-0.5 mb-2">
                           {[1,2,3,4,5].map((s) => (
@@ -1124,7 +1153,15 @@ function PhotographerProfileContent({ id }: { id: string }) {
                 </div>
               </div>
               <div className="grid md:grid-cols-2 gap-4">
-                {reviews.map((r, i) => (
+                {reviewsLoading ? (
+                  <div className="md:col-span-2 rounded-xl border border-gray-100 p-5 text-center text-sm font-semibold text-gray-400">
+                    Đang tải đánh giá...
+                  </div>
+                ) : reviews.length === 0 ? (
+                  <div className="md:col-span-2 rounded-xl border border-dashed border-gray-200 p-6 text-center text-sm font-semibold text-gray-400">
+                    Chưa có đánh giá từ khách hàng đã hoàn tất booking.
+                  </div>
+                ) : reviews.slice(0, 4).map((r, i) => (
                   <div key={i} className="border border-gray-100 rounded-xl p-4">
                     <div className="flex gap-0.5 mb-2">
                       {[1,2,3,4,5].map((s) => (
